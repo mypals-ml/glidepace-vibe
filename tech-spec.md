@@ -13,16 +13,21 @@ The application will follow a client-server architecture.
 
 ## 3. Data Model
 
-To support the Gantt chart features, the application will need to store additional information with the GitHub project items. This will be achieved by creating custom fields in the GitHub project.
+To support the Gantt chart features, the application will need to store additional information with the GitHub project items. This will be achieved by creating custom fields in the GitHub project. We will leverage the built-in date fields provided by GitHub Projects.
 
 ### Custom Project Fields
 
 The following custom fields will be created and associated with each project item (task):
 
 *   **Parent Task:** A text field to store the ID of the parent task. This will be used for task grouping.
-*   **Start Date:** A date field to store the start date of the task.
-*   **End Date:** A date field to store the end date of the task.
 *   **Successor Tasks:** A text field to store a comma-separated list of successor task IDs.
+
+### Built-in Project Fields
+
+We will utilize the following built-in GitHub Project fields:
+
+*   **Start date:** To store the start date of the task.
+*   **Target date:** To store the end date of the task.
 
 ## 4. API
 
