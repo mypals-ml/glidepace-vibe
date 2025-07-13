@@ -8,8 +8,8 @@ This document outlines the technical specifications for the Project Gantt Chart 
 
 The application will follow a client-server architecture.
 
-*   **Frontend:** A single-page application (SPA) built with a modern JavaScript framework (e.g., React, Vue, or Svelte). The frontend will be responsible for all user interface elements, including the Gantt chart visualization and task management components.
-*   **Backend:** A server-side application that will handle communication with the GitHub API, manage data persistence, and provide a RESTful API for the frontend. The backend could be built with a variety of technologies (e.g., Node.js with Express, Python with Flask/Django).
+*   **Frontend:** A single-page application (SPA) built with **Vue.js**. The frontend will be responsible for all user interface elements, including the Gantt chart visualization and task management components.
+*   **Backend:** A server-side application built with **Node.js and the Express.js framework**. The backend will handle communication with the GitHub API, manage data persistence, and provide a RESTful API for the frontend.
 
 ## 3. Data Model
 
@@ -67,3 +67,21 @@ The UI will be clean, intuitive, and focused on providing a clear Gantt chart vi
 *   **Task Editor:**
     *   A modal or side panel that allows users to edit task details.
     *   Fields for editing the task title, description, parent task, start date, end date, and successor tasks.
+
+## 6. Deployment
+
+The application will be deployed to a cloud platform like AWS or Azure.
+
+### Frontend (Vue.js)
+
+1.  **Build:** The Vue.js application will be built for production using the Vue CLI (`npm run build`).
+2.  **Hosting:** The resulting static files (in the `dist` directory) will be hosted on a static web hosting service:
+    *   **AWS:** Amazon S3 with Amazon CloudFront for content delivery network (CDN).
+    *   **Azure:** Azure Blob Storage with Azure CDN.
+
+### Backend (Node.js/Express)
+
+1.  **Containerization:** The Node.js application will be containerized using Docker.
+2.  **Deployment:** The Docker container will be deployed to a container orchestration service:
+    *   **AWS:** Amazon Elastic Container Service (ECS) or AWS Elastic Beanstalk.
+    *   **Azure:** Azure App Service or Azure Container Instances.
