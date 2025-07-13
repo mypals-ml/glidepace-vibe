@@ -75,18 +75,17 @@ The UI will be clean, intuitive, and focused on providing a clear Gantt chart vi
 
 ## 6. Deployment
 
-The application will be deployed to a cloud platform like AWS or Azure.
+The application will be deployed to a cloud platform like AWS or Azure using a single-container approach.
 
-### Frontend (Vue.js)
+### Single-Container Deployment
 
-1.  **Build:** The Vue.js application will be built for production using the Vue CLI (`npm run build`).
-2.  **Hosting:** The resulting static files (in the `dist` directory) will be hosted on a static web hosting service:
-    *   **AWS:** Amazon S3 with Amazon CloudFront for content delivery network (CDN).
-    *   **Azure:** Azure Blob Storage with Azure CDN.
-
-### Backend (Node.js/Express)
-
-1.  **Containerization:** The Node.js application will be containerized using Docker.
-2.  **Deployment:** The Docker container will be deployed to a container orchestration service:
+1.  **Build Frontend:** The Vue.js application will be built for production (`npm run build`).
+2.  **Serve Frontend from Backend:** The Node.js/Express backend will be configured to serve the static frontend files from the `dist` directory.
+3.  **Dockerfile:** A single Dockerfile will be created to:
+    *   Copy the backend code and the built frontend (`dist` directory).
+    *   Install backend dependencies (`npm install`).
+    *   Expose the application port.
+    *   Start the Node.js server.
+4.  **Deployment:** The unified Docker container will be deployed to a container orchestration service:
     *   **AWS:** Amazon Elastic Container Service (ECS) or AWS Elastic Beanstalk.
     *   **Azure:** Azure App Service or Azure Container Instances.
