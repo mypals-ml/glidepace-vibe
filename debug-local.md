@@ -4,14 +4,18 @@ This guide provides instructions on how to debug the application locally.
 
 ## Backend (Node.js)
 
-1.  **Start the backend server in debug mode:**
+1.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+2.  **Start the backend server in debug mode:**
     ```bash
     node --inspect src/index.js
     ```
-2.  **Open the Chrome DevTools:**
+3.  **Open the Chrome DevTools:**
     *   Open Chrome and navigate to `chrome://inspect`.
     *   Click on the "Open dedicated DevTools for Node" link.
-3.  **Set breakpoints:**
+4.  **Set breakpoints:**
     *   You can now set breakpoints in your backend code and inspect variables.
 
 ## Frontend (Vue.js)
