@@ -34,6 +34,10 @@ router.post('/connect', async (req, res) => {
     // The GitHub API for Projects (classic) requires project_id as an integer
     const project_id = parseInt(projectId, 10);
 
+    if (isNaN(project_id)) {
+      return res.status(400).json({ error: 'Project ID must be a number.' });
+    }
+
     // 1. Get project
     const { data: project } = await octokit.projects.get({
       project_id,
