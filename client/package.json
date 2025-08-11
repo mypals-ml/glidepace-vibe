@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@infectoone/vue-ganttastic": "^2.3.2",
-    "@octokit/rest": "^22.0.0",
     "axios": "^1.11.0",
     "core-js": "^3.6.5",
     "moment": "^2.30.1",
