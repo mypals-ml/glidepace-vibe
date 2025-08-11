@@ -6,7 +6,7 @@ This guide provides instructions on how to debug the application locally.
 
 1.  **Start the backend server in debug mode:**
     ```bash
-    node --inspect index.js
+    node --inspect src/index.js
     ```
 2.  **Open the Chrome DevTools:**
     *   Open Chrome and navigate to `chrome://inspect`.
