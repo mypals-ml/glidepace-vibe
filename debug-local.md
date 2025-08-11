@@ -20,9 +20,11 @@ This guide provides instructions on how to debug the application locally.
 
 ## Frontend (Vue.js)
 
-1.  **Start the frontend development server:**
+1.  **Install dependencies and start the server:**
+    From the root directory, run the following commands to install frontend dependencies and start the development server:
     ```bash
     cd client
+    npm install
     npm run serve
     ```
 2.  **Open the browser DevTools:**
