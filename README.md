@@ -9,3 +9,8 @@ This project is a website that provides a Gantt chart view for a GitHub.com repo
 *   **Task Grouping:** Group tasks by adding a parent task to them.
 *   **Task Dependencies:** Specify successor tasks for a task, and the successor tasks will automatically generate their own start and end dates.
 *   **Data Persistence:** Saves the necessary information back in the project, including creating custom attributes for tasks.
+
+## Documentation
+
+*   [Technical Specification](tech-spec.md)
+*   [Local Debugging Guide](debug-local.md)
