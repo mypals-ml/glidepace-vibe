@@ -2,10 +2,6 @@ const express = require('express');
 const { Octokit } = require('@octokit/rest');
 const router = express.Router();
 
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN,
-});
-
 function parseRepoUrl(url) {
   const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
   if (match) {
@@ -16,10 +12,10 @@ function parseRepoUrl(url) {
 }
 
 router.post('/connect', async (req, res) => {
-  const { repoUrl, projectId } = req.body;
+  const { repoUrl, projectName, githubToken } = req.body;
 
-  if (!repoUrl || !projectId) {
-    return res.status(400).json({ error: 'Repository URL and Project ID are required' });
+  if (!repoUrl || !projectName || !githubToken) {
+    return res.status(400).json({ error: 'Repository URL, Project Name, and GitHub Token are required' });
   }
 
   const repoInfo = parseRepoUrl(repoUrl);
@@ -31,17 +27,22 @@ router.post('/connect', async (req, res) => {
   try {
     const { owner, repo } = repoInfo;
 
-    // The GitHub API for Projects (classic) requires project_id as an integer
-    const project_id = parseInt(projectId, 10);
+    const octokit = new Octokit({ auth: githubToken });
 
-    if (isNaN(project_id)) {
-      return res.status(400).json({ error: 'Project ID must be a number.' });
+    // 1. Find the project ID from the project name
+    const { data: projects } = await octokit.projects.listForRepo({
+      owner,
+      repo,
+      state: 'open',
+    });
+
+    const project = projects.find(p => p.name === projectName);
+
+    if (!project) {
+      return res.status(404).json({ error: `Project '${projectName}' not found in this repository.` });
     }
 
-    // 1. Get project
-    const { data: project } = await octokit.projects.get({
-      project_id,
-    });
+    const project_id = project.id;
 
     // 2. Get columns
     const { data: columns } = await octokit.projects.listColumns({
@@ -55,7 +56,6 @@ router.post('/connect', async (req, res) => {
         column_id: column.id,
       });
       for (const card of cards) {
-        // We are interested in issues, which are the tasks
         if (card.content_url) {
           const issueUrlParts = card.content_url.split('/');
           const issue_number = issueUrlParts[issueUrlParts.length - 1];
@@ -67,10 +67,10 @@ router.post('/connect', async (req, res) => {
           tasks.push({
             id: issue.id,
             text: issue.title,
-            start_date: issue.created_at, // This is not correct for a Gantt chart, but a placeholder
-            end_date: issue.closed_at,     // This is also a placeholder
+            start_date: issue.created_at,
+            end_date: issue.closed_at,
             progress: issue.state === 'closed' ? 1 : 0,
-            parent: 0 // Placeholder for parent task
+            parent: 0,
           });
         }
       }
@@ -79,7 +79,10 @@ router.post('/connect', async (req, res) => {
     res.json({ project, tasks });
   } catch (error) {
     console.error('Error connecting to GitHub:', error);
-    res.status(500).json({ error: 'Failed to connect to GitHub project' });
+    if (error.status === 401) {
+        return res.status(401).json({ error: 'Authentication failed. Please check your GitHub token.' });
+    }
+    res.status(500).json({ error: 'Failed to connect to GitHub project. Check server logs for details.' });
   }
 });
 

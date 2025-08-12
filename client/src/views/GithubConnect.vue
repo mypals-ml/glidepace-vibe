@@ -7,8 +7,12 @@
         <input type="text" id="repoUrl" v-model="repoUrl" required>
       </div>
       <div>
-        <label for="projectId">Project ID:</label>
-        <input type="text" id="projectId" v-model="projectId" required>
+        <label for="projectName">Project Name:</label>
+        <input type="text" id="projectName" v-model="projectName" required>
+      </div>
+      <div>
+        <label for="githubToken">GitHub Token:</label>
+        <input type="password" id="githubToken" v-model="githubToken" required>
       </div>
       <button type="submit" :disabled="loading">
         {{ loading ? 'Connecting...' : 'Connect' }}
@@ -26,7 +30,8 @@ export default {
   data() {
     return {
       repoUrl: '',
-      projectId: '',
+      projectName: '',
+      githubToken: '',
       loading: false,
       error: null,
     };
@@ -38,7 +43,8 @@ export default {
       try {
         const response = await axios.post('/api/github/connect', {
           repoUrl: this.repoUrl,
-          projectId: this.projectId,
+          projectName: this.projectName,
+          githubToken: this.githubToken,
         });
         const { tasks } = response.data;
         this.$router.push({ name: 'GanttChart', params: { tasks } });
