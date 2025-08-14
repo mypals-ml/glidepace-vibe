@@ -30,7 +30,7 @@ router.post('/connect', async (req, res) => {
     const octokit = new Octokit({ auth: githubToken });
 
     // 1. Find the project ID from the project name
-    const { data: projects } = await octokit.projects.listForRepo({
+    const { data: projects } = await octokit.rest.projects.listForRepo({
       owner,
       repo,
       state: 'open',
@@ -45,21 +45,21 @@ router.post('/connect', async (req, res) => {
     const project_id = project.id;
 
     // 2. Get columns
-    const { data: columns } = await octokit.projects.listColumns({
+    const { data: columns } = await octokit.rest.projects.listColumns({
       project_id,
     });
 
     // 3. Get cards for each column
     const tasks = [];
     for (const column of columns) {
-      const { data: cards } = await octokit.projects.listCards({
+      const { data: cards } = await octokit.rest.projects.listCards({
         column_id: column.id,
       });
       for (const card of cards) {
         if (card.content_url) {
           const issueUrlParts = card.content_url.split('/');
           const issue_number = issueUrlParts[issueUrlParts.length - 1];
-          const { data: issue } = await octokit.issues.get({
+          const { data: issue } = await octokit.rest.issues.get({
             owner,
             repo,
             issue_number,
