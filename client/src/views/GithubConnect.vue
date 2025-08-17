@@ -47,7 +47,8 @@ export default {
           githubToken: this.githubToken,
         });
         const { tasks } = response.data;
-        this.$router.push({ name: 'GanttChart', params: { tasks } });
+        localStorage.setItem('githubTasks', JSON.stringify(tasks));
+        this.$router.push({ name: 'GanttChart' });
       } catch (err) {
         this.error = 'Failed to connect to GitHub project. Check the console for more details.';
         console.error(err);

@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1>Gantt Chart</h1>
-    <div v-if="tasks && tasks.length > 0">
+    <div v-if="effectiveTasks && effectiveTasks.length > 0">
       <g-gantt-chart
         :chart-start="chartStart"
         :chart-end="chartEnd"
@@ -40,30 +40,38 @@ export default {
   props: {
     tasks: {
       type: Array,
-      default: () => [],
+      default: null,
     },
   },
   data() {
     return {
       chartStart: "",
       chartEnd: "",
+      localTasks: [],
     };
   },
   computed: {
+    effectiveTasks() {
+      // Use prop if provided, else fallback to localStorage
+      if (this.tasks && this.tasks.length > 0) {
+        return this.tasks;
+      }
+      const stored = localStorage.getItem('githubTasks');
+      return stored ? JSON.parse(stored) : [];
+    },
     formattedTasks() {
-      if (!this.tasks || this.tasks.length === 0) {
+      if (!this.effectiveTasks || this.effectiveTasks.length === 0) {
         return [];
       }
-      return this.tasks.map(task => ({
+      return this.effectiveTasks.map(task => ({
         ...task,
         start_date: moment(task.start_date).format("YYYY-MM-DD HH:mm:ss"),
-        // If end_date is null (for open issues), we'll set it to start_date + 1 day for visualization
         end_date: task.end_date ? moment(task.end_date).format("YYYY-MM-DD HH:mm:ss") : moment(task.start_date).add(1, 'days').format("YYYY-MM-DD HH:mm:ss"),
       }));
     }
   },
   watch: {
-    tasks: {
+    effectiveTasks: {
       immediate: true,
       handler(newTasks) {
         if (newTasks && newTasks.length > 0) {
