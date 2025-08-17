@@ -30,18 +30,13 @@
 <script>
 import { GGanttChart, GGanttRow } from "@infectoone/vue-ganttastic";
 import moment from "moment";
+import { store } from "../store";
 
 export default {
   name: "GanttChart",
   components: {
     GGanttChart,
     GGanttRow,
-  },
-  props: {
-    tasks: {
-      type: Array,
-      default: () => [],
-    },
   },
   data() {
     return {
@@ -50,6 +45,9 @@ export default {
     };
   },
   computed: {
+    tasks() {
+      return store.tasks;
+    },
     formattedTasks() {
       if (!this.tasks || this.tasks.length === 0) {
         return [];
