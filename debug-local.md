@@ -13,11 +13,8 @@ This guide provides instructions on how to debug the application locally.
     node --inspect src/index.js
     ```
 3.  **Open the Chrome DevTools:**
-    *   Open Chrome and navigate to `chrome://inspect`. 
+    *   Open Chrome and navigate to `chrome://inspect`.
     *   Click on the "Open dedicated DevTools for Node" link.
-   3.1  **Open the Edge DevTools:**
-       *   Open Edge and navigate to `edge://inspect`.
-       *   Click on the "Open dedicated DevTools for Node" link.
 4.  **Set breakpoints:**
     *   You can now set breakpoints in your backend code and inspect variables.
 

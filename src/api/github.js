@@ -1,6 +1,5 @@
 const express = require('express');
 const { Octokit } = require('@octokit/rest');
-const { graphql } = require('@octokit/graphql');
 const router = express.Router();
 
 function parseRepoUrl(url) {
@@ -27,69 +26,55 @@ router.post('/connect', async (req, res) => {
 
   try {
     const { owner, repo } = repoInfo;
-    const octokit = new Octokit({ auth: githubToken });
-    const graphqlWithAuth = graphql.defaults({ headers: { authorization: `token ${githubToken}` } });
 
-    // 1. Get Projects Next (Beta) for the repository
-    const projectsQuery = `
-      query($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          projectsV2(first: 10) {
-            nodes {
-              id
-              title
-            }
-          }
-        }
-      }
-    `;
-    const projectsResult = await graphqlWithAuth(projectsQuery, { owner, repo });
-    const projects = projectsResult.repository.projectsV2.nodes;
-    const project = projects.find(p => p.title === projectName);
+    const octokit = new Octokit({ auth: githubToken });
+
+    // 1. Find the project ID from the project name
+    const { data: projects } = await octokit.request('GET /repos/{owner}/{repo}/projects', {
+        owner,
+        repo,
+        state: 'open',
+    });
+
+    const project = projects.find(p => p.name === projectName);
+
     if (!project) {
-      return res.status(404).json({ error: `Project '${projectName}' not found in this repository.` });
+        return res.status(404).json({ error: `Project '${projectName}' not found in this repository.` });
     }
+
     const project_id = project.id;
 
-    // 2. Get items (tasks) in the project
-    const itemsQuery = `
-      query($projectId: ID!) {
-        node(id: $projectId) {
-          ... on ProjectV2 {
-            items(first: 50) {
-              nodes {
-                id
-                content {
-                  ... on Issue {
-                    id
-                    number
-                    title
-                    state
-                    createdAt
-                    closedAt
-                  }
-                }
-              }
+    // 2. Get columns
+    const { data: columns } = await octokit.request('GET /projects/{project_id}/columns', {
+        project_id,
+    });
+
+    // 3. Get cards for each column
+    const tasks = [];
+    for (const column of columns) {
+        const { data: cards } = await octokit.request('GET /projects/columns/{column_id}/cards', {
+            column_id: column.id,
+        });
+        for (const card of cards) {
+            if (card.content_url) {
+                const issueUrlParts = card.content_url.split('/');
+                const issue_number = issueUrlParts[issueUrlParts.length - 1];
+                const { data: issue } = await octokit.request('GET /repos/{owner}/{repo}/issues/{issue_number}', {
+                    owner,
+                    repo,
+                    issue_number,
+                });
+                tasks.push({
+                    id: issue.id,
+                    text: issue.title,
+                    start_date: issue.created_at,
+                    end_date: issue.closed_at,
+                    progress: issue.state === 'closed' ? 1 : 0,
+                    parent: 0,
+                });
             }
-          }
         }
-      }
-    `;
-    const itemsResult = await graphqlWithAuth(itemsQuery, { projectId: project_id });
-    const items = itemsResult.node.items.nodes;
-    const tasks = items
-      .filter(item => item.content)
-      .map(item => {
-        const issue = item.content;
-        return {
-          id: issue.id,
-          text: issue.title,
-          start_date: issue.createdAt,
-          end_date: issue.closedAt,
-          progress: issue.state === 'CLOSED' ? 1 : 0,
-          parent: 0,
-        };
-      });
+    }
 
     res.json({ project, tasks });
   } catch (error) {
