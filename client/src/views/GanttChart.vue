@@ -54,9 +54,9 @@ export default {
       }
       return this.tasks.map(task => ({
         ...task,
-        start_date: moment(task.start_date).format("YYYY-MM-DD HH:mm:ss"),
+        start_date: moment(task.start_date),
         // If end_date is null (for open issues), we'll set it to start_date + 1 day for visualization
-        end_date: task.end_date ? moment(task.end_date).format("YYYY-MM-DD HH:mm:ss") : moment(task.start_date).add(1, 'days').format("YYYY-MM-DD HH:mm:ss"),
+        end_date: task.end_date ? moment(task.end_date) : moment(task.start_date).add(1, 'days'),
       }));
     }
   },
@@ -67,8 +67,8 @@ export default {
         if (newTasks && newTasks.length > 0) {
           const startDates = newTasks.map(t => moment(t.start_date));
           const endDates = newTasks.map(t => t.end_date ? moment(t.end_date) : moment(t.start_date).add(1, 'days'));
-          this.chartStart = moment.min(startDates).subtract(1, 'days').format("YYYY-MM-DD HH:mm:ss");
-          this.chartEnd = moment.max(endDates).add(1, 'days').format("YYYY-MM-DD HH:mm:ss");
+          this.chartStart = moment.min(startDates).subtract(1, 'days');
+          this.chartEnd = moment.max(endDates).add(1, 'days');
         }
       },
     },
