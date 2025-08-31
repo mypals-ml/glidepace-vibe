@@ -13,7 +13,7 @@ This guide provides instructions on how to debug the application locally.
     node --inspect src/index.js
     ```
 3.  **Open the Chrome DevTools:**
-    *   Open Chrome and navigate to `chrome://inspect`. 
+    *   Open Chrome and navigate to `chrome://inspect`.
     *   Click on the "Open dedicated DevTools for Node" link.
    3.1  **Open the Edge DevTools:**
        *   Open Edge and navigate to `edge://inspect`.
@@ -36,7 +36,8 @@ This guide provides instructions on how to debug the application locally.
 3.  **Use Vue Devtools:**
     *   Install the Vue Devtools browser extension for a better debugging experience.
     *   You can inspect components, view their data, and track events.
-
+4. **Add `debugger` at the line you want it to break**
+    *   That will help you to break and locate the js file in the browser more quickly.
 ---
 
 ## A Note on `npm install` and Security Audits
