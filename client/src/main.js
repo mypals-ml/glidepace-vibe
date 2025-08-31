@@ -1,5 +1,9 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import ganttastic from '@infectoone/vue-ganttastic';    
 
-createApp(App).use(router).mount('#app')
+const app = createApp(App);
+app.use(ganttastic);
+app.use(router);
+app.mount('#app');
