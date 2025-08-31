@@ -36,7 +36,8 @@ This guide provides instructions on how to debug the application locally.
 3.  **Use Vue Devtools:**
     *   Install the Vue Devtools browser extension for a better debugging experience.
     *   You can inspect components, view their data, and track events.
-
+4. **Add `debugger` at the line you want it to break**
+    *   That will help you to break and locate the js file in the browser more quickly.
 ---
 
 ## A Note on `npm install` and Security Audits
