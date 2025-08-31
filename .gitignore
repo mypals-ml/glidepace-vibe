@@ -24,11 +24,9 @@ hs_err_pid*
 replay_pid*
 
 # Node
-client/node_modules/
 node_modules/
 dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.idea/
-.vscode/
+/.idea/
