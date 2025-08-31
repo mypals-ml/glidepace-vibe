@@ -9,7 +9,6 @@
         :hide-timeaxis="false"
         :push-on-overlap="true"
         :row-label-width="200"
-        precision="day"
       >
         <g-gantt-row
           v-for="task in formattedTasks"
@@ -29,9 +28,6 @@
 </template>
 
 <script>
-import { GGanttChart, GGanttRow } from '@infectoone/vue-ganttastic';
-import moment from 'moment';
-import { store } from '../store';
 import { GGanttChart, GGanttRow } from "@infectoone/vue-ganttastic";
 import moment from "moment";
 import { store } from "../store";
@@ -41,12 +37,6 @@ export default {
   components: {
     GGanttChart,
     GGanttRow,
-  },
-  props: {
-    tasks: {
-      type: Array,
-      default: () => [],
-    },
   },
   data() {
     return {
