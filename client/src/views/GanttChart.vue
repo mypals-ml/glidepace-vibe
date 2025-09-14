@@ -68,8 +68,8 @@ export default {
       }
       return this.tasks.map(task => {
         const bar = {
-          start_date: moment(task.start_date),
-          end_date: task.end_date ? moment(task.end_date) : moment(task.start_date).add(1, 'days'),
+          start_date: moment(task.start_date).format("YYYY-MM-DD HH:mm"),
+          end_date: (task.end_date ? moment(task.end_date) : moment(task.start_date).add(1, 'days')).format("YYYY-MM-DD HH:mm"),
           ganttBarConfig: {
             id: task.id,
             label: task.text,
@@ -90,8 +90,8 @@ export default {
         if (newTasks && newTasks.length > 0) {
           const startDates = newTasks.map(t => moment(t.start_date));
           const endDates = newTasks.map(t => t.end_date ? moment(t.end_date) : moment(t.start_date).add(1, 'days'));
-          this.chartStart = moment.min(startDates).subtract(1, 'days');
-          this.chartEnd = moment.max(endDates).add(1, 'days');
+          this.chartStart = moment.min(startDates).subtract(1, 'days').format("YYYY-MM-DD HH:mm");
+          this.chartEnd = moment.max(endDates).add(1, 'days').format("YYYY-MM-DD HH:mm");
         }
       },
     },
