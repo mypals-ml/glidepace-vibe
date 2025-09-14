@@ -1,6 +1,11 @@
 <template>
   <div>
     <h1>Gantt Chart</h1>
+    <div>
+      <button @click="setPrecision('day')">Day</button>
+      <button @click="setPrecision('week')">Week</button>
+      <button @click="setPrecision('month')">Month</button>
+    </div>
     <div v-if="tasks && tasks.length > 0">
       <g-gantt-chart
         :chart-start="chartStart"
@@ -9,6 +14,7 @@
         :hide-timeaxis="false"
         :push-on-overlap="true"
         :row-label-width="200"
+        :precision="precision"
       >
         <g-gantt-row
           v-for="task in formattedTasks"
@@ -42,7 +48,13 @@ export default {
     return {
       chartStart: "",
       chartEnd: "",
+      precision: "day",
     };
+  },
+  methods: {
+    setPrecision(precision) {
+      this.precision = precision;
+    },
   },
   computed: {
     tasks() {
