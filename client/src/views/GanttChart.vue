@@ -13,7 +13,8 @@
         :grid="true"
         :hide-timeaxis="false"
         :push-on-overlap="true"
-        :row-label-width="200"
+        label-column-title="Tasks"
+        label-column-width="200px"
         :precision="precision"
       >
         <g-gantt-row
