@@ -16,14 +16,14 @@
         label-column-title="Tasks"
         label-column-width="200px"
         :precision="precision"
+        bar-start="start_date"
+        bar-end="end_date"
       >
         <g-gantt-row
           v-for="task in formattedTasks"
           :key="task.id"
           :label="task.text"
           :bars="[task.bar]"
-          bar-start="start_date"
-          bar-end="end_date"
         />
       </g-gantt-chart>
     </div>
