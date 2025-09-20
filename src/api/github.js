@@ -1,6 +1,4 @@
 const express = require('express');
-const { Octokit } = require('@octokit/rest');
-const { graphql } = require('@octokit/graphql');
 const router = express.Router();
 
 function parseRepoUrl(url) {
@@ -13,6 +11,8 @@ function parseRepoUrl(url) {
 }
 
 router.post('/connect', async (req, res) => {
+  const { Octokit } = await import('@octokit/rest');
+  const { graphql } = await import('@octokit/graphql');
   const { repoUrl, projectName, githubToken } = req.body;
 
   if (!repoUrl || !projectName || !githubToken) {
