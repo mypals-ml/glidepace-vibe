@@ -1,6 +1,4 @@
 const express = require('express');
-const { Octokit } = require('@octokit/rest');
-const { graphql } = require('@octokit/graphql');
 const router = express.Router();
 
 function parseRepoUrl(url) {
@@ -13,6 +11,9 @@ function parseRepoUrl(url) {
 }
 
 router.post('/connect', async (req, res) => {
+  const { Octokit } = await import('@octokit/rest');
+  const { graphql } = await import('@octokit/graphql');
+  const fetch = (await import("node-fetch")).default;
   const { repoUrl, projectName, githubToken } = req.body;
 
   if (!repoUrl || !projectName || !githubToken) {
@@ -27,8 +28,14 @@ router.post('/connect', async (req, res) => {
 
   try {
     const { owner, repo } = repoInfo;
-    const octokit = new Octokit({ auth: githubToken });
-    const graphqlWithAuth = graphql.defaults({ headers: { authorization: `token ${githubToken}` } });
+    const octokit = new Octokit({ auth: githubToken,
+      request: { fetch}
+  });
+ 
+    const graphqlWithAuth = graphql.defaults({ headers: { authorization: `token ${githubToken}` }
+    
+    , request: { fetch }
+    });
 
     // 1. Get Projects Next (Beta) for the repository
     const projectsQuery = `
