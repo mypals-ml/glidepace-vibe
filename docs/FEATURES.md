@@ -1,0 +1,15 @@
+# Feature Specifications
+
+## Core Capabilities
+*   **Connect to GitHub Projects:** Connects to your GitHub.com repository's project to visualize the project's tasks.
+*   **Authentication & Discovery:** Provides a starting page to authenticate securely via GitHub OAuth in the browser. Users can input a "Project ID" which is permanently cached in LocalStorage for seamless future access.
+*   **Themes:** Supports Light and Dark mode toggling. The default interface is Bright (Light mode).
+*   **MS Project Style Layout:** The main dashboard splits the screen: the left panel lists issues (with assignees and status), while the wide right panel displays the horizontal Gantt chart.
+*   **Task Grouping:** Group tasks by adding a parent task to them.
+*   **Task Dependencies:** Specify successor tasks for a task, and the successor tasks will automatically generate their own start and end dates.
+*   **Data Persistence:** Saves the necessary information back in the project, including creating custom attributes for tasks.
+*   **Draft Issue Conversion & Setup:** If the connected GitHub project contains "Draft Issues", the app will prompt the user to automatically convert them to full Repository Issues to enable dependencies. This prompt explicitly reminds users to:
+    1. Ensure "Issues" are enabled in Repository -> Settings -> General.
+    2. Set the GitHub Project's "Default Repository" to the connected repo so future tasks map natively.
+    If declined or impossible, the app operates in a "Read-Only" mode.
+*   **Save the Gantt Chart as a View in GitHub:** Save the Gantt chart as a view in GitHub, making it easy to share the Gantt chart with others, and the view will be used to display the Gantt chart in this application again.
