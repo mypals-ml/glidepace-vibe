@@ -6,7 +6,7 @@ const resources = {
   en: {
     translation: {
       app: {
-        name: "Glidepace",
+        name: "Glidelines",
         syncedJustNow: "Synced just now",
         signInWithGitHub: "Sign In with GitHub",
         projectLabel: "Project",
@@ -48,7 +48,7 @@ const resources = {
   ja: {
     translation: {
       app: {
-        name: "Glidepace",
+        name: "Glidelines",
         syncedJustNow: "たった今同期しました",
         signInWithGitHub: "GitHubでサインイン",
         projectLabel: "プロジェクト",
@@ -90,7 +90,7 @@ const resources = {
   'zh-CN': {
     translation: {
       app: {
-        name: "Glidepace",
+        name: "Glidelines",
         syncedJustNow: "刚刚同步",
         signInWithGitHub: "使用 GitHub 登录",
         projectLabel: "项目",
