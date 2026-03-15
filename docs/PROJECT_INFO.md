@@ -10,6 +10,6 @@ This document contains important links and identifiers for the various platforms
 - **Organization Projects URL**: [https://github.com/orgs/mypals-ml/projects](https://github.com/orgs/mypals-ml/projects)
 
 ## Stitch Project
-- **Title**: Glidepace Vibe Gantt UI
+- **Title**: Glidepace Gantt UI
 - **Project ID**: `8237837084928552484`
 - **Resource Name**: `projects/8237837084928552484`

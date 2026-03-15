@@ -43,10 +43,8 @@ export function GanttDashboard() {
       <header className="glass-panel border-b border-surface-border px-6 py-3 flex items-center justify-between z-20 sticky top-0 bg-white/70 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-primary shadow-sm">
-              <span className="material-symbols-outlined text-xl">account_tree</span>
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Glidepace Vibe</h1>
+
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">Glidepace</h1>
           </div>
           <div className="h-6 w-px bg-slate-200 mx-2 hidden md:block"></div>
           <div className="hidden md:flex items-center">
@@ -95,26 +93,30 @@ export function GanttDashboard() {
               <tbody className="divide-y divide-slate-100">
                 {DUMMY_TASKS.map(task => (
                   <tr key={task.id} className={`hover:bg-slate-50/80 transition-colors cursor-pointer group bg-white relative`}>
-                    {task.status === 'In Progress' && <td className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary"></td>}
-                    <td className="px-4 py-3 text-xs text-slate-400 font-mono align-top pt-4">{task.id}</td>
+                    <td className="px-4 py-3 text-xs text-slate-400 font-mono align-top pt-4 relative">
+                      {task.status === 'In Progress' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-inprogress-highlight"></div>}
+                      {task.status === 'Done' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-done-highlight"></div>}
+                      {task.status === 'Todo' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-todo-highlight"></div>}
+                      {task.id}
+                    </td>
                     <td className="px-4 py-3 align-top">
                       <span className={`text-sm font-medium transition-colors ${task.status === 'Done' ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>{task.title}</span>
                       <div className="mt-1 text-[11px] text-slate-500">{task.startDate} - {task.endDate}</div>
                     </td>
                     <td className="px-4 py-3 align-top pt-3">
                       {task.status === 'Done' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>Done
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-done-bg text-status-done-text border border-status-done-border">
+                          <span className="w-1.5 h-1.5 rounded-full bg-status-done-highlight mr-1.5"></span>Done
                         </span>
                       )}
                       {task.status === 'In Progress' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-600 border border-blue-100">
-                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5 animate-pulse"></span>In Progress
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-inprogress-bg text-status-inprogress-text border border-status-inprogress-border">
+                           <span className="w-1.5 h-1.5 rounded-full bg-status-inprogress-highlight mr-1.5 animate-pulse"></span>In Progress
                         </span>
                       )}
                       {task.status === 'Todo' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></span>Todo
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-todo-bg text-status-todo-text border border-status-todo-border">
+                          <span className="w-1.5 h-1.5 rounded-full bg-status-todo-highlight mr-1.5"></span>Todo
                         </span>
                       )}
                     </td>

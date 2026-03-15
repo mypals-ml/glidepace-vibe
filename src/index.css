@@ -9,8 +9,23 @@
   --shadow-glass: 0 4px 30px rgba(0, 0, 0, 0.05);
   --shadow-glow: 0 0 15px rgba(79, 70, 229, 0.3);
   --font-sans: 'Inter', sans-serif;
-}
 
+  /* Status semantic colors */
+  --color-status-done-bg: #ecfdf5;
+  --color-status-done-text: #059669;
+  --color-status-done-border: #d1fae5;
+  --color-status-done-highlight: #10b981;
+
+  --color-status-inprogress-bg: #eff6ff;
+  --color-status-inprogress-text: #2563eb;
+  --color-status-inprogress-border: #dbeafe;
+  --color-status-inprogress-highlight: #3b82f6;
+
+  --color-status-todo-bg: #f1f5f9;
+  --color-status-todo-text: #475569;
+  --color-status-todo-border: #e2e8f0;
+  --color-status-todo-highlight: #94a3b8;
+}
 @layer components {
   .glass-panel {
     background: var(--color-surface);

@@ -1,6 +1,6 @@
-# Glidepace Vibe
+# Glidepace
 
-Glidepace Vibe is a modern, responsive Gantt Chart application for managing GitHub tasks and dependencies seamlessly. Built using **Vite, React, Tailwind CSS v4, and Capacitor** to ensure robust performance across web, iOS, and Android.
+Glidepace is a modern, responsive Gantt Chart application for managing GitHub tasks and dependencies seamlessly. Built using **Vite, React, Tailwind CSS v4, and Capacitor** to ensure robust performance across web, iOS, and Android.
 
 ## Documentation
 
