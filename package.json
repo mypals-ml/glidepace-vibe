@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@capacitor/core": "^8.2.0",
+    "i18next": "^25.8.18",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-i18next": "^16.5.8"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.2.0",

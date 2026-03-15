@@ -1,4 +1,4 @@
-# Glidepace Vibe Architecture (Draft)
+# Glidepace Architecture (Draft)
 
 ## Core Stack
 *   **Framework:** TBD (Pending selection)

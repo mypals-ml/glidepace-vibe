@@ -1,6 +1,6 @@
 # Debugging & Development Guide
 
-This guide covers how to run, test, and debug the Glidepace Vibe project across its different environments.
+This guide covers how to run, test, and debug the Glidepace project across its different environments.
 
 ## 1. Local Web Development (Vite + React)
 The easiest way to build and debug the UI is entirely through the web browser using the Vite development server.
