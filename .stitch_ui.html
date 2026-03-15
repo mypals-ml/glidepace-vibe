@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Glidepace Vibe Light Gantt Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#4f46e5",
+                        "primary-hover": "#4338ca",
+                        "background-main": "#f8fafc",
+                        "surface": "rgba(255, 255, 255, 0.7)",
+                        "surface-border": "rgba(226, 232, 240, 0.8)",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"]
+                    },
+                    boxShadow: {
+                        'glass': '0 4px 30px rgba(0, 0, 0, 0.05)',
+                        'glow': '0 0 15px rgba(79, 70, 229, 0.3)',
+                    }
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        .glass-panel {
+            background: var(--tw-colors-surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--tw-colors-surface-border);
+            box-shadow: var(--tw-shadows-glass);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background-main text-slate-800 font-sans min-h-screen flex flex-col overflow-hidden relative">
+<div class="absolute inset-0 z-0 pointer-events-none opacity-40" style="background-image: radial-gradient(circle at 2px 2px, rgba(148,163,184,0.15) 1px, transparent 0); background-size: 24px 24px;"></div>
+<div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-400/10 rounded-full blur-[100px] pointer-events-none z-0"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-indigo-400/10 rounded-full blur-[100px] pointer-events-none z-0"></div>
+<header class="glass-panel border-b border-surface-border px-6 py-3 flex items-center justify-between z-20 sticky top-0 bg-white/70">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-primary shadow-sm">
+<span class="material-symbols-outlined text-xl">account_tree</span>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-slate-900">Glidepace Vibe</h1>
+</div>
+<div class="h-6 w-px bg-slate-200 mx-2 hidden md:block"></div>
+<div class="hidden md:flex items-center">
+<div class="relative flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
+<div class="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-xs font-medium text-slate-500">Project ID</div>
+<input class="border-0 focus:ring-0 text-sm py-1.5 px-3 w-32 text-slate-700 font-mono placeholder-slate-400" placeholder="Enter ID..." type="text" value="GH-proj-842"/>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-xs font-medium text-emerald-700 shadow-sm">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+</span>
+                Synced just now
+            </div>
+<button class="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition-colors text-sm font-medium shadow-sm">
+<svg aria-hidden="true" class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.699-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" fill-rule="evenodd"></path></svg>
+                Sign In with GitHub
+            </button>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden relative z-10 w-full p-4 gap-4">
+<aside class="w-96 flex-shrink-0 glass-panel rounded-xl flex flex-col z-10 h-full overflow-hidden hidden md:flex bg-white/80 shadow-sm border border-slate-200/60">
+<div class="p-4 border-b border-slate-200/80 bg-white/50 backdrop-blur-md">
+<div class="flex items-center justify-between mb-3">
+<h3 class="font-semibold text-slate-800 text-sm">Issues List</h3>
+<div class="flex gap-1">
+<button class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+</button>
+<button class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+<input class="w-full bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="Filter issues..." type="text"/>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead class="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+<tr>
+<th class="px-4 py-2.5 text-xs font-medium text-slate-500 w-12">ID</th>
+<th class="px-4 py-2.5 text-xs font-medium text-slate-500">Title</th>
+<th class="px-4 py-2.5 text-xs font-medium text-slate-500 w-24">Status</th>
+<th class="px-4 py-2.5 text-xs font-medium text-slate-500 w-16 text-center">Assignee</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100">
+<tr class="hover:bg-slate-50/80 transition-colors cursor-pointer group bg-slate-50/30">
+<td class="px-4 py-3 text-xs text-slate-400 font-mono align-top pt-4">#138</td>
+<td class="px-4 py-3 align-top">
+<span class="text-sm font-medium text-slate-500 line-through decoration-slate-300">Implement Basic OAuth Flow UI</span>
+<div class="mt-1 text-[11px] text-slate-400">Oct 10 - Oct 11</div>
+</td>
+<td class="px-4 py-3 align-top pt-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-100">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                                    Done
+                                </span>
+</td>
+<td class="px-4 py-3 align-top pt-3">
+<div class="flex justify-center">
+<div class="w-6 h-6 rounded-full bg-amber-200 border border-white shadow-sm flex items-center justify-center text-[10px] font-bold text-amber-700" title="User">U1</div>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-indigo-50/30 transition-colors cursor-pointer group bg-white relative">
+<td class="absolute left-0 top-0 bottom-0 w-0.5 bg-primary"></td>
+<td class="px-4 py-3 text-xs text-slate-500 font-mono align-top pt-4">#142</td>
+<td class="px-4 py-3 align-top">
+<span class="text-sm font-medium text-slate-800 group-hover:text-primary transition-colors">Refactor API Auth Layer for OAuth2 Support</span>
+<div class="mt-1 text-[11px] text-slate-500">Oct 12 - Oct 15</div>
+</td>
+<td class="px-4 py-3 align-top pt-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-600 border border-blue-100">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5 animate-pulse"></span>
+                                    In Progress
+                                </span>
+</td>
+<td class="px-4 py-3 align-top pt-3">
+<div class="flex justify-center -space-x-1.5">
+<div class="w-6 h-6 rounded-full bg-indigo-200 border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold text-indigo-700 z-10" title="User 2">U2</div>
+<div class="w-6 h-6 rounded-full bg-emerald-200 border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold text-emerald-700 z-0" title="User 3">U3</div>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/80 transition-colors cursor-pointer group bg-white">
+<td class="px-4 py-3 text-xs text-slate-400 font-mono align-top pt-4">#145</td>
+<td class="px-4 py-3 align-top">
+<span class="text-sm font-medium text-slate-700 group-hover:text-primary transition-colors">Update Database Schema for User Profiles</span>
+<div class="mt-1 text-[11px] text-slate-500">Oct 16 - Oct 18</div>
+</td>
+<td class="px-4 py-3 align-top pt-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></span>
+                                    Todo
+                                </span>
+</td>
+<td class="px-4 py-3 align-top pt-3">
+<div class="flex justify-center">
+<div class="w-6 h-6 rounded-full bg-rose-200 border border-white shadow-sm flex items-center justify-center text-[10px] font-bold text-rose-700" title="User 4">U4</div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</aside>
+<main class="flex-1 flex flex-col overflow-hidden relative z-10 glass-panel rounded-xl bg-white/80 shadow-sm border border-slate-200/60">
+<div class="h-12 border-b border-slate-200/80 bg-white/90 backdrop-blur-md flex sticky top-0 z-20">
+<div class="flex-1 flex text-[11px] font-semibold text-slate-500 select-none uppercase tracking-wider">
+<div class="flex-1 border-r border-slate-100 flex flex-col justify-center items-center">
+<span>Mon 10</span>
+</div>
+<div class="flex-1 border-r border-slate-100 flex flex-col justify-center items-center">
+<span>Tue 11</span>
+</div>
+<div class="flex-1 border-r border-slate-200 flex flex-col justify-center items-center bg-indigo-50/50 text-indigo-600 relative">
+<div class="absolute top-0 w-full h-0.5 bg-indigo-500"></div>
+<span>Wed 12</span>
+<span class="h-1 w-1 rounded-full bg-indigo-500 mt-0.5"></span>
+</div>
+<div class="flex-1 border-r border-slate-100 flex flex-col justify-center items-center">
+<span>Thu 13</span>
+</div>
+<div class="flex-1 border-r border-slate-100 flex flex-col justify-center items-center">
+<span>Fri 14</span>
+</div>
+<div class="flex-1 border-r border-slate-100 flex flex-col justify-center items-center bg-slate-50/50 text-slate-400">
+<span>Sat 15</span>
+</div>
+<div class="flex-1 border-r border-slate-100 flex flex-col justify-center items-center bg-slate-50/50 text-slate-400">
+<span>Sun 16</span>
+</div>
+</div>
+</div>
+<div class="flex-1 overflow-auto relative custom-scrollbar bg-white/40">
+<div class="absolute inset-0 flex pointer-events-none">
+<div class="flex-1 border-r border-slate-100"></div>
+<div class="flex-1 border-r border-slate-100"></div>
+<div class="flex-1 border-r border-indigo-100 bg-indigo-50/20"></div>
+<div class="flex-1 border-r border-slate-100"></div>
+<div class="flex-1 border-r border-slate-100"></div>
+<div class="flex-1 border-r border-slate-100 bg-slate-50/30"></div>
+<div class="flex-1 border-r border-slate-100 bg-slate-50/30"></div>
+</div>
+<div class="absolute inset-0 w-full h-full pointer-events-none" style="background-image: linear-gradient(to bottom, transparent 49px, rgba(226, 232, 240, 0.4) 50px); background-size: 100% 50px;"></div>
+<div class="relative w-full h-full pt-[5px] pb-10">
+<svg class="absolute inset-0 w-full h-full pointer-events-none z-0" style="min-height: 400px;">
+<defs>
+<marker id="arrowhead" markerHeight="6" markerWidth="6" orient="auto" refX="5" refY="3">
+<polygon fill="#94a3b8" points="0 0, 6 3, 0 6"></polygon>
+</marker>
+</defs>
+<path d="M 28% 25 C 32% 25, 32% 75, 36% 75" fill="none" marker-end="url(#arrowhead)" stroke="#94a3b8" stroke-width="1.5"></path>
+<path d="M 64% 75 C 68% 75, 68% 125, 72% 125" fill="none" marker-end="url(#arrowhead)" stroke="#94a3b8" stroke-width="1.5"></path>
+</svg>
+<div class="relative h-[50px] w-full flex items-center group z-10 px-2">
+<div class="absolute left-0 w-[28%] ml-2 h-8 rounded-md bg-emerald-50 border border-emerald-200 flex items-center px-3 cursor-pointer hover:bg-emerald-100/50 transition-colors shadow-sm">
+<span class="text-xs font-medium text-emerald-700 truncate opacity-70 line-through">#138 Implement UI</span>
+<div class="ml-auto flex items-center">
+<span class="material-symbols-outlined text-[14px] text-emerald-500">check_circle</span>
+</div>
+</div>
+</div>
+<div class="relative h-[50px] w-full flex items-center group z-10 px-2">
+<div class="absolute left-[29%] w-[50%] h-9 rounded-lg bg-primary border border-primary-hover flex items-center px-3 shadow-glow cursor-pointer hover:bg-primary-hover transition-all">
+<div class="w-1 h-5 bg-white/40 rounded-full mr-2"></div>
+<span class="text-sm font-semibold text-white truncate">#142 Refactor API Auth Layer</span>
+<div class="ml-auto flex items-center gap-2">
+<div class="w-16 h-1.5 bg-white/20 rounded-full overflow-hidden">
+<div class="h-full bg-white w-[65%] rounded-full"></div>
+</div>
+<span class="text-[10px] font-bold text-white/90">65%</span>
+</div>
+</div>
+</div>
+<div class="relative h-[50px] w-full flex items-center group z-10 px-2">
+<div class="absolute left-[72%] w-[25%] h-8 rounded-md bg-white border border-slate-300 flex items-center px-3 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm">
+<span class="text-xs font-medium text-slate-600 truncate">#145 DB Schema Update</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+</body></html>
