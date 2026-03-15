@@ -1,4 +1,4 @@
-# Glidepace Architecture (Draft)
+# Glidelines Architecture (Draft)
 
 ## Core Stack
 *   **Framework:** TBD (Pending selection)
