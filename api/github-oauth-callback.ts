@@ -57,12 +57,12 @@ export default async function handler(req, res) {
         'User-Agent': 'Glidepace-Vibe',
       },
     });
-    
+
     if (!userResponse.ok) {
-       console.error('Failed to fetch user profile', await userResponse.text());
-       return res.status(500).json({ error: 'Failed to fetch user profile from GitHub.' });
+      console.error('Failed to fetch user profile', await userResponse.text());
+      return res.status(500).json({ error: 'Failed to fetch user profile from GitHub.' });
     }
-    
+
     const userData = await userResponse.json();
 
     const accountData = {
