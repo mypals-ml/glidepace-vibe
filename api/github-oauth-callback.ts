@@ -1,6 +1,6 @@
 import { GITHUB_OAUTH_ACCESS_TOKEN_URL } from '../src/lib/constants';
 
-export default async function handler(req, res) {
+export default async function handler(req: any, res: any) {
   // Setup CORS just in case
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
