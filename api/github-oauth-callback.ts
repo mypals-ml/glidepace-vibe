@@ -49,7 +49,73 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: data.error_description || data.error });
     }
 
-    return res.status(200).json({ access_token: data.access_token });
+    // Fetch user profile info using the access token
+    const userResponse = await fetch('https://api.github.com/user', {
+      headers: {
+        Authorization: `Bearer ${data.access_token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'Glidepace-Vibe',
+      },
+    });
+    
+    if (!userResponse.ok) {
+       console.error('Failed to fetch user profile', await userResponse.text());
+       return res.status(500).json({ error: 'Failed to fetch user profile from GitHub.' });
+    }
+    
+    const userData = await userResponse.json();
+
+    const accountData = {
+      id: userData.id.toString(),
+      login: userData.login,
+      name: userData.name || userData.login,
+      avatar_url: userData.avatar_url,
+      token: data.access_token
+    };
+
+    if (req.headers.accept && req.headers.accept.includes('application/json')) {
+      return res.status(200).json({ 
+        access_token: data.access_token,
+        user: accountData
+      });
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head><title>Authenticating...</title></head>
+        <body>
+          <script>
+            const account = ${JSON.stringify(accountData)};
+            const newAccount = {
+              id: account.id,
+              login: account.login,
+              name: account.name,
+              avatarUrl: account.avatar_url,
+              token: account.token
+            };
+            let accounts = [];
+            try {
+              accounts = JSON.parse(localStorage.getItem('github_accounts') || '[]');
+            } catch (e) {}
+            const filtered = accounts.filter(a => a.id !== newAccount.id);
+            filtered.push(newAccount);
+            localStorage.setItem('github_accounts', JSON.stringify(filtered));
+            localStorage.setItem('active_github_account_id', newAccount.id);
+            window.location.href = '/';
+          </script>
+        </body>
+      </html>
+    `;
+    
+    if (typeof res.setHeader === 'function') {
+      res.setHeader('Content-Type', 'text/html');
+    }
+    if (typeof res.send === 'function') {
+      return res.send(html);
+    } else {
+      return res.end(html);
+    }
   } catch (error) {
     console.error('Failed to exchange code for token:', error);
     return res.status(500).json({ error: 'Failed to exchange token with GitHub.' });

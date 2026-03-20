@@ -12,8 +12,18 @@ export function GanttDashboard() {
   const { t, i18n } = useTranslation();
   const [sidebarWidth, setSidebarWidth] = useState(450);
   const [hasProject, setHasProject] = useState(false);
-  const [githubToken, setGithubToken] = useState(() => localStorage.getItem('github_oauth_token') || localStorage.getItem('github_pat') || '');
+  const [githubAccounts, setGithubAccounts] = useState<any[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('github_accounts') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [activeAccountId, setActiveAccountId] = useState<string>(() => localStorage.getItem('active_github_account_id') || '');
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
+
+  const githubToken = githubAccounts.find(a => a.id === activeAccountId)?.token || '';
   const [projectsList, setProjectsList] = useState<GitHubProject[]>([]);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const isResizing = useRef(false);
@@ -27,11 +37,28 @@ export function GanttDashboard() {
         setIsLoadingAuth(true);
         try {
           // Send code to the local mock or vercel serverless function
-          const res = await fetch(`/api/github-oauth-callback?code=${code}`);
+          const res = await fetch(`/api/github-oauth-callback?code=${code}`, {
+            headers: { 'Accept': 'application/json' }
+          });
           const data = await res.json();
-          if (data.access_token) {
-            localStorage.setItem('github_oauth_token', data.access_token);
-            setGithubToken(data.access_token);
+          if (data.access_token && data.user) {
+            const newAccount = {
+              id: data.user.id,
+              login: data.user.login,
+              name: data.user.name,
+              avatarUrl: data.user.avatar_url,
+              token: data.access_token
+            };
+            setGithubAccounts(prev => {
+              const filtered = prev.filter(acc => acc.id !== newAccount.id);
+              const nextAccounts = [...filtered, newAccount];
+              localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
+              return nextAccounts;
+            });
+            setActiveAccountId(newAccount.id);
+            localStorage.setItem('active_github_account_id', newAccount.id);
+            // Optionally clear the modal if it's open
+            // setIsAccountModalOpen(false);
             window.history.replaceState({}, document.title, window.location.pathname);
           } else {
             console.error('OAuth Error:', data.error);
@@ -86,11 +113,19 @@ export function GanttDashboard() {
     window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=repo,read:org,project`;
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('github_oauth_token');
-    localStorage.removeItem('github_pat');
-    setGithubToken('');
-    setHasProject(false);
+  const handleDisconnect = (accountId: string) => {
+    const nextAccounts = githubAccounts.filter(a => a.id !== accountId);
+    setGithubAccounts(nextAccounts);
+    localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
+    if (activeAccountId === accountId) {
+      const nextActive = nextAccounts.length > 0 ? nextAccounts[0].id : '';
+      setActiveAccountId(nextActive);
+      localStorage.setItem('active_github_account_id', nextActive);
+    }
+    if (nextAccounts.length === 0) {
+      setIsAccountModalOpen(false);
+      setHasProject(false);
+    }
   };
 
   const handleSelectRealProject = (id: string, title: string) => {
@@ -183,17 +218,17 @@ export function GanttDashboard() {
           )}
           
           <button 
-            onClick={githubToken ? handleLogout : handleOpenAuth}
+            onClick={githubAccounts.length > 0 ? () => setIsAccountModalOpen(true) : handleOpenAuth}
             disabled={isLoadingAuth}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm ${githubToken ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'} ${isLoadingAuth ? 'opacity-50 cursor-not-allowed' : ''}`}
-            aria-label={githubToken ? t('app.connected') : t('app.connectToGitHub')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm ${githubAccounts.length > 0 ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'} ${isLoadingAuth ? 'opacity-50 cursor-not-allowed' : ''}`}
+            aria-label={githubAccounts.length > 0 ? t('app.connectedAccounts') : t('app.connectToGitHub')}
           >
             {isLoadingAuth ? (
                <svg aria-hidden="true" className="w-4 h-4 fill-current animate-spin" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"></path></svg>
             ) : (
                <svg aria-hidden="true" className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.699-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" fillRule="evenodd"></path></svg>
             )}
-            {githubToken ? t('app.connected') : t('app.connectToGitHub')}
+            {githubAccounts.length > 0 ? t('app.connectedAccounts') : t('app.connectToGitHub')}
           </button>
         </div>
       </header>
@@ -430,6 +465,55 @@ export function GanttDashboard() {
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Connected Accounts Management Modal */}
+      {isAccountModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="relative bg-white/70 backdrop-blur-xl border border-white w-full max-w-md rounded-xl shadow-[0_12px_40px_rgba(25,28,30,0.15)] overflow-hidden animate-in fade-in zoom-in duration-300">
+            {/* Modal Header */}
+            <div className="p-8 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-sans text-2xl font-extrabold text-slate-900">{t('app.connectedAccounts')}</h3>
+                <button onClick={() => setIsAccountModalOpen(false)} className="text-slate-500 hover:text-slate-900 transition-colors">
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <p className="text-slate-500 text-sm">{t('app.manageAccounts')}</p>
+            </div>
+            {/* Modal Content (Account List) */}
+            <div className="p-8 space-y-4 pt-4 max-h-[60vh] overflow-y-auto">
+              {githubAccounts.map((account) => (
+                <div key={account.id} onClick={() => { setActiveAccountId(account.id); localStorage.setItem('active_github_account_id', account.id); }} className={`flex items-center justify-between bg-white/50 p-4 rounded-xl border transition-all cursor-pointer ${activeAccountId === account.id ? 'border-primary ring-1 ring-primary' : 'border-white/40 hover:border-primary/50'}`}>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 ring-2 ring-primary/20">
+                      <img className="w-full h-full object-cover" alt={account.login} src={account.avatarUrl || `https://ui-avatars.com/api/?name=${account.login}`} />
+                    </div>
+                    <div>
+                      <p className="font-sans font-bold text-slate-900 leading-tight flex items-center gap-2">
+                        {account.name || account.login}
+                        {activeAccountId === account.id && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded-sm font-bold">ACTIVE</span>}
+                      </p>
+                      <p className="text-xs text-slate-500">@{account.login}</p>
+                    </div>
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); handleDisconnect(account.id); }} className="text-sm font-semibold text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-full transition-all">
+                    {t('app.disconnect')}
+                  </button>
+                </div>
+              ))}
+            </div>
+            {/* Modal Footer (Action) */}
+            <div className="p-8 pt-2">
+              <button onClick={handleOpenAuth} className="w-full bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-sans font-bold py-4 rounded-full shadow-lg shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-lg">add_circle</span>
+                {t('app.connectToAdd')}
+              </button>
+              <p className="text-center mt-4 text-xs text-slate-500 px-6">
+                Adding new accounts may require additional permissions from your Github account.
+              </p>
             </div>
           </div>
         </div>
