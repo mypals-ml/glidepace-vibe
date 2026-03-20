@@ -3,7 +3,7 @@ export default function vitePluginVercelMock() {
     name: 'vite-plugin-vercel-mock',
     configureServer(server: any) {
       server.middlewares.use(async (req: any, res: any, next: any) => {
-        if (req.url?.startsWith('/api/callback')) {
+        if (req.url?.startsWith('/api/github-oauth-callback')) {
           const url = new URL(req.url, `http://${req.headers.host}`);
           const code = url.searchParams.get('code');
           if (!code) {

@@ -16,7 +16,7 @@ Because Glidelines is a client-side React application, securely exchanging an OA
 3. Set the details:
    - **Application name:** `Glidelines (Local)`
    - **Homepage URL:** `http://localhost:5173`
-   - **Authorization callback URL:** `http://localhost:5173/api/callback`
+   - **Authorization callback URL:** `http://localhost:5173/api/github-oauth-callback`
 4. Generate a **Client Secret**.
 5. Save the `Client ID` and `Client Secret` in a `.env.local` file in the project root:
    ```env
@@ -28,15 +28,15 @@ Because Glidelines is a client-side React application, securely exchanging an OA
 1. Create a second OAuth App named `Glidelines`.
 2. Set the details:
    - **Homepage URL:** `https://glidelines.vercel.app`
-   - **Authorization callback URL:** `https://glidelines.vercel.app/api/callback`
+   - **Authorization callback URL:** `https://glidelines.vercel.app/api/github-oauth-callback`
    - **Application description:** `A modern, reactive Gantt chart dashboard for visualizing and managing GitHub project timelines, dependencies, and issues in real-time.`
 3. Generate a **Client Secret** for this production app.
 
-## 2. Create the Secure Vercel Function
+## 2. Create the Secure Callback Function
 
-Vercel allows us to write serverless functions in an `api/` directory at the root of the project. 
+To securely trade the temporary OAuth code for an access token without exposing the secret to the browser, we need a backend endpoint. We write this as a generic serverless function located in the `api/` directory.
 
-The `api/callback.ts` function will:
+The `api/github-oauth-callback.ts` function will:
 1. Receive the temporary `code` from GitHub via the URL query parameters after the user authorizes.
 2. Make a secure server-to-server `POST` request to `https://github.com/login/oauth/access_token` using the `code`, `Client ID`, and the hidden `GITHUB_CLIENT_SECRET` environment variable.
 3. Receive the permanent `access_token` from GitHub.
@@ -61,4 +61,4 @@ When deploying to Vercel, you need to securely inject the Production OAuth App s
    - `VITE_GITHUB_CLIENT_ID` (Value: your production client ID)
    - `GITHUB_CLIENT_SECRET` (Value: your production client secret)
 4. Trigger a redeployment if necessary.
-5. Once deployed, the live Vercel application will use the Production OAuth app, protecting your secrets and ensuring the `api/callback` route fires securely.
+5. Once deployed, the live environment will protect your secrets and ensure the `api/github-oauth-callback` route fires securely.

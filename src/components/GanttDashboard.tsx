@@ -26,7 +26,7 @@ export function GanttDashboard() {
         setIsLoadingAuth(true);
         try {
           // Send code to the local mock or vercel serverless function
-          const res = await fetch(`/api/callback?code=${code}`);
+          const res = await fetch(`/api/github-oauth-callback?code=${code}`);
           const data = await res.json();
           if (data.access_token) {
             localStorage.setItem('github_oauth_token', data.access_token);
