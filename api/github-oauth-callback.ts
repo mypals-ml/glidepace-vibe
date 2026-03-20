@@ -1,3 +1,5 @@
+import { GITHUB_OAUTH_ACCESS_TOKEN_URL } from '../src/lib/constants';
+
 export default async function handler(req, res) {
   // Setup CORS just in case
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -28,7 +30,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://github.com/login/oauth/access_token', {
+    const response = await fetch(GITHUB_OAUTH_ACCESS_TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

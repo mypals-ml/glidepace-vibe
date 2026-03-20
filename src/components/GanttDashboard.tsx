@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { DUMMY_TASKS } from '../lib/dummyData';
 import { useTranslation } from 'react-i18next';
+import { GITHUB_GRAPHQL_API_URL, GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
 
 interface GitHubProject {
   id: string;
@@ -49,7 +50,7 @@ export function GanttDashboard() {
     const fetchProjects = async () => {
       if (githubToken && !hasProject) {
         try {
-          const res = await fetch('https://api.github.com/graphql', {
+          const res = await fetch(GITHUB_GRAPHQL_API_URL, {
             method: 'POST',
             headers: { Authorization: `Bearer ${githubToken}` },
             body: JSON.stringify({
@@ -82,7 +83,7 @@ export function GanttDashboard() {
       alert("Missing VITE_GITHUB_CLIENT_ID environment variable!");
       return;
     }
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=repo,read:org,project`;
+    window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=repo,read:org,project`;
   };
 
   const handleLogout = () => {

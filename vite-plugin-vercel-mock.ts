@@ -1,3 +1,5 @@
+import { GITHUB_OAUTH_ACCESS_TOKEN_URL } from './src/lib/constants';
+
 export default function vitePluginVercelMock() {
   return {
     name: 'vite-plugin-vercel-mock',
@@ -16,7 +18,7 @@ export default function vitePluginVercelMock() {
             const clientId = process.env.VITE_GITHUB_CLIENT_ID;
             const clientSecret = process.env.GITHUB_CLIENT_SECRET;
 
-            const response = await fetch('https://github.com/login/oauth/access_token', {
+            const response = await fetch(GITHUB_OAUTH_ACCESS_TOKEN_URL, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
