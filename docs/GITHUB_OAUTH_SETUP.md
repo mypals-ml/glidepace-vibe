@@ -53,8 +53,9 @@ Once the React frontend securely receives and saves the `access_token`:
 
 ## 4. Deploy and Connect the OAuth App via Vercel
 
-When deploying to Vercel, you need to securely inject the Production OAuth App secrets into the build environment.
+Vercel features **Zero-Config Serverless Functions**. This means you do absolutely nothing to configure the backend API—just by placing `github-oauth-callback.ts` inside the `api/` folder, Vercel automatically detects it and deploys it as a standalone, secure AWS Lambda function mapped to `/api/github-oauth-callback`.
 
+To finalize the deployment:
 1. Go to your project on the [Vercel Dashboard](https://vercel.com/dashboard).
 2. Navigate to **Settings** -> **Environment Variables**.
 3. Add the following keys using the values from your **Production OAuth App**:

@@ -1,4 +1,6 @@
-import { GITHUB_OAUTH_ACCESS_TOKEN_URL } from './src/lib/constants';
+import { loadEnv } from 'vite';
+// @ts-ignore - Ignore TS complaining about importing a file outside of root if applicable
+import callbackHandler from './api/github-oauth-callback';
 
 export default function vitePluginVercelMock() {
   return {
@@ -6,41 +8,34 @@ export default function vitePluginVercelMock() {
     configureServer(server: any) {
       server.middlewares.use(async (req: any, res: any, next: any) => {
         if (req.url?.startsWith('/api/github-oauth-callback')) {
-          const url = new URL(req.url, `http://${req.headers.host}`);
-          const code = url.searchParams.get('code');
-          if (!code) {
-            res.statusCode = 400;
-            res.setHeader('Content-Type', 'application/json');
-            return res.end(JSON.stringify({ error: 'Missing code parameter' }));
-          }
-
           try {
-            const clientId = process.env.VITE_GITHUB_CLIENT_ID;
-            const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+            const url = new URL(req.url, `http://${req.headers.host}`);
+            
+            // 1. Polyfill req.query (Vercel provides this natively)
+            req.query = Object.fromEntries(url.searchParams);
+            
+            // 2. Polyfill res.status and res.json (Vercel provides these natively)
+            res.status = (code: number) => {
+              res.statusCode = code;
+              return res;
+            };
+            res.json = (data: any) => {
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(data));
+            };
 
-            const response = await fetch(GITHUB_OAUTH_ACCESS_TOKEN_URL, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-              },
-              body: JSON.stringify({
-                client_id: clientId,
-                client_secret: clientSecret,
-                code: code,
-              }),
-            });
-
-            const data = await response.json();
-            res.statusCode = response.status;
-            res.setHeader('Content-Type', 'application/json');
-            if (data.error) {
-              return res.end(JSON.stringify({ error: data.error_description || data.error }));
-            }
-            return res.end(JSON.stringify({ access_token: data.access_token }));
-          } catch (err: any) {
+            // 3. Ensure process.env secrets are loaded for the external handler
+            const env = loadEnv('', process.cwd(), '');
+            process.env.VITE_GITHUB_CLIENT_ID = env.VITE_GITHUB_CLIENT_ID;
+            process.env.GITHUB_CLIENT_SECRET = env.GITHUB_CLIENT_SECRET;
+            
+            // 4. Delegate completely to the real Vercel API route handler!
+            return await callbackHandler(req, res);
+            
+          } catch (err) {
+            console.error('Vite Mock Server Error:', err);
             res.statusCode = 500;
-            return res.end(JSON.stringify({ error: 'Failed to exchange token with GitHub.' }));
+            return res.end(JSON.stringify({ error: 'Local Dev Server Fault' }));
           }
         }
         next();
