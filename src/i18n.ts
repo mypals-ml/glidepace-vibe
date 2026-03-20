@@ -19,6 +19,11 @@ const resources = {
         emptyProjectOption: "Empty Project",
         dummyProjectOption: "Dummy Project",
         language: "Language",
+        locales: {
+          en: "EN",
+          ja: "日本語",
+          zhCN: "中文"
+        },
         authTitle: "GitHub Authentication",
         authDesc: "Enter your Personal Access Token to connect securely.",
         authInputPlaceholder: "ghp_...",
@@ -71,6 +76,11 @@ const resources = {
         emptyProjectOption: "空のプロジェクト",
         dummyProjectOption: "ダミープロジェクト",
         language: "言語",
+        locales: {
+          en: "EN",
+          ja: "日本語",
+          zhCN: "中文"
+        },
         authTitle: "GitHub認証",
         authDesc: "パーソナルアクセストークンを入力して安全に接続してください。",
         authInputPlaceholder: "ghp_...",
@@ -123,6 +133,11 @@ const resources = {
         emptyProjectOption: "空项目",
         dummyProjectOption: "演示项目",
         language: "语言",
+        locales: {
+          en: "EN",
+          ja: "日本語",
+          zhCN: "中文"
+        },
         authTitle: "GitHub 身份验证",
         authDesc: "输入您的个人访问令牌以安全连接。",
         authInputPlaceholder: "ghp_...",

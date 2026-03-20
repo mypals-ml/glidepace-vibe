@@ -198,9 +198,9 @@ export function GanttDashboard() {
                 onChange={(e) => i18n.changeLanguage(e.target.value)}
                 aria-labelledby="language-select-label"
               >
-                <option value="en">EN</option>
-                <option value="ja">日本語</option>
-                <option value="zh-CN">中文</option>
+                <option value="en">{t('app.locales.en')}</option>
+                <option value="ja">{t('app.locales.ja')}</option>
+                <option value="zh-CN">{t('app.locales.zhCN')}</option>
               </select>
               <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]" aria-hidden="true">language</span>
             </div>
