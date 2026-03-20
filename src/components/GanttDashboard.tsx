@@ -2,11 +2,101 @@ import { useState, useRef, useEffect } from 'react';
 import { DUMMY_TASKS } from '../lib/dummyData';
 import { useTranslation } from 'react-i18next';
 
+interface GitHubProject {
+  id: string;
+  title: string;
+}
+
 export function GanttDashboard() {
   const { t, i18n } = useTranslation();
   const [sidebarWidth, setSidebarWidth] = useState(450);
   const [hasProject, setHasProject] = useState(false);
+  const [githubToken, setGithubToken] = useState(() => localStorage.getItem('github_oauth_token') || localStorage.getItem('github_pat') || '');
+  const [isLoadingAuth, setIsLoadingAuth] = useState(false);
+  const [projectsList, setProjectsList] = useState<GitHubProject[]>([]);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const isResizing = useRef(false);
+
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      
+      if (code && !githubToken) {
+        setIsLoadingAuth(true);
+        try {
+          // Send code to the local mock or vercel serverless function
+          const res = await fetch(`/api/callback?code=${code}`);
+          const data = await res.json();
+          if (data.access_token) {
+            localStorage.setItem('github_oauth_token', data.access_token);
+            setGithubToken(data.access_token);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } else {
+            console.error('OAuth Error:', data.error);
+          }
+        } catch (e) {
+          console.error('Failed to authenticate:', e);
+        } finally {
+          setIsLoadingAuth(false);
+        }
+      }
+    };
+    handleAuthCallback();
+  }, [githubToken]);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      if (githubToken && !hasProject) {
+        try {
+          const res = await fetch('https://api.github.com/graphql', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${githubToken}` },
+            body: JSON.stringify({
+              query: `
+                query {
+                  viewer {
+                    projectsV2(first: 20) {
+                      nodes { id title }
+                    }
+                  }
+                }
+              `
+            })
+          });
+          const json = await res.json();
+          const projects = json.data?.viewer?.projectsV2?.nodes || [];
+          setProjectsList(projects);
+          setIsProjectModalOpen(true);
+        } catch (e) {
+          console.error('Failed to fetch user projects:', e);
+        }
+      }
+    };
+    fetchProjects();
+  }, [githubToken, hasProject]);
+
+  const handleOpenAuth = () => {
+    const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
+    if (!clientId) {
+      alert("Missing VITE_GITHUB_CLIENT_ID environment variable!");
+      return;
+    }
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=repo,read:org,project`;
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('github_oauth_token');
+    localStorage.removeItem('github_pat');
+    setGithubToken('');
+    setHasProject(false);
+  };
+
+  const handleSelectRealProject = (id: string, title: string) => {
+    setIsProjectModalOpen(false);
+    setHasProject(true);
+    console.log("Selected project ID mapping:", id, title);
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -81,19 +171,28 @@ export function GanttDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-xs font-medium text-emerald-700 shadow-sm">
-             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            {t('app.syncedJustNow')}
-          </div>
+          {githubToken && (
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-xs font-medium text-emerald-700 shadow-sm" aria-live="polite">
+               <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              {t('app.syncedJustNow')}
+            </div>
+          )}
+          
           <button 
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition-colors text-sm font-medium shadow-sm"
-            aria-label={t('app.signInWithGitHub')}
+            onClick={githubToken ? handleLogout : handleOpenAuth}
+            disabled={isLoadingAuth}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm ${githubToken ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'} ${isLoadingAuth ? 'opacity-50 cursor-not-allowed' : ''}`}
+            aria-label={githubToken ? t('app.connected') : t('app.connectToGitHub')}
           >
-            <svg aria-hidden="true" className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.699-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" fillRule="evenodd"></path></svg>
-            {t('app.signInWithGitHub')}
+            {isLoadingAuth ? (
+               <svg aria-hidden="true" className="w-4 h-4 fill-current animate-spin" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"></path></svg>
+            ) : (
+               <svg aria-hidden="true" className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.699-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" fillRule="evenodd"></path></svg>
+            )}
+            {githubToken ? t('app.connected') : t('app.connectToGitHub')}
           </button>
         </div>
       </header>
@@ -294,6 +393,46 @@ export function GanttDashboard() {
           </div>
         )}
       </div>
+      {/* Real OAuth Project Selector Modal overlay */}
+      {isProjectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden transform transition-all" role="dialog" aria-modal="true" aria-labelledby="project-modal-title">
+            <div className="px-6 py-5 border-b border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-900" id="project-modal-title">Select GitHub Project</h3>
+              <p className="text-sm text-slate-500 mt-1">Choose a project workspace to attach to the Gantt timeline.</p>
+            </div>
+            <div className="bg-slate-50 max-h-64 overflow-y-auto px-4 py-2 border-b border-slate-200">
+              {projectsList.length > 0 ? (
+                <ul className="space-y-2 py-2">
+                  {projectsList.map(proj => (
+                    <li key={proj.id}>
+                      <button 
+                        onClick={() => handleSelectRealProject(proj.id, proj.title)}
+                        className="w-full text-left px-4 py-3 bg-white border border-slate-200 hover:border-primary hover:ring-1 hover:ring-primary rounded-lg text-sm font-medium text-slate-800 transition-all shadow-sm flex items-center gap-3 group"
+                      >
+                         <svg className="w-5 h-5 text-slate-400 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                        {proj.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="py-6 text-center text-sm text-slate-500">
+                    No active GitHub Projects found in this account.
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 bg-slate-50/80 flex justify-end">
+              <button 
+                onClick={() => setIsProjectModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

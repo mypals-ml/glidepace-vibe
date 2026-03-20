@@ -8,12 +8,18 @@ const resources = {
       app: {
         name: "Glidelines",
         syncedJustNow: "Synced just now",
-        signInWithGitHub: "Sign In with GitHub",
+        connectToGitHub: "Connect to GitHub",
+        connected: "Connected",
         projectLabel: "Project",
         projectIdPlaceholder: "Enter ID...",
         emptyProjectOption: "Empty Project",
         dummyProjectOption: "Dummy Project",
         language: "Language",
+        authTitle: "GitHub Authentication",
+        authDesc: "Enter your Personal Access Token to connect securely.",
+        authInputPlaceholder: "ghp_...",
+        authSave: "Save Token",
+        authCancel: "Cancel"
       },
       dashboard: {
         issuesList: "Issues List",
@@ -50,12 +56,18 @@ const resources = {
       app: {
         name: "Glidelines",
         syncedJustNow: "たった今同期しました",
-        signInWithGitHub: "GitHubでサインイン",
+        connectToGitHub: "GitHubへ接続",
+        connected: "接続済み",
         projectLabel: "プロジェクト",
         projectIdPlaceholder: "IDを入力...",
         emptyProjectOption: "空のプロジェクト",
         dummyProjectOption: "ダミープロジェクト",
         language: "言語",
+        authTitle: "GitHub認証",
+        authDesc: "パーソナルアクセストークンを入力して安全に接続してください。",
+        authInputPlaceholder: "ghp_...",
+        authSave: "トークンを保存",
+        authCancel: "キャンセル"
       },
       dashboard: {
         issuesList: "課題リスト",
@@ -92,12 +104,18 @@ const resources = {
       app: {
         name: "Glidelines",
         syncedJustNow: "刚刚同步",
-        signInWithGitHub: "使用 GitHub 登录",
+        connectToGitHub: "连接到 GitHub",
+        connected: "已连接",
         projectLabel: "项目",
         projectIdPlaceholder: "输入 ID...",
         emptyProjectOption: "空项目",
         dummyProjectOption: "演示项目",
         language: "语言",
+        authTitle: "GitHub 身份验证",
+        authDesc: "输入您的个人访问令牌以安全连接。",
+        authInputPlaceholder: "ghp_...",
+        authSave: "保存令牌",
+        authCancel: "取消"
       },
       dashboard: {
         issuesList: "问题列表",
