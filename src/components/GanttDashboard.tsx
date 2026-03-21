@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { DUMMY_TASKS } from '../lib/dummyData';
 import { useTranslation } from 'react-i18next';
 import { GITHUB_GRAPHQL_API_URL, GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
+import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
 
 type SortMethod = 'recent' | 'oldest' | 'nameAZ' | 'nameZA';
 
@@ -29,13 +30,14 @@ export function GanttDashboard() {
   const [sidebarWidth, setSidebarWidth] = useState(450);
   const [hasProject, setHasProject] = useState(false);
   const [githubAccounts, setGithubAccounts] = useState<GithubAccount[]>(() => {
+    if (USE_MOCK_DATA) return MOCK_ACCOUNTS;
     try {
       return JSON.parse(localStorage.getItem('github_accounts') || '[]');
     } catch {
       return [];
     }
   });
-  const [activeAccountId, setActiveAccountId] = useState<string>(() => localStorage.getItem('active_github_account_id') || '');
+  const [activeAccountId, setActiveAccountId] = useState<string>(() => USE_MOCK_DATA ? MOCK_ACCOUNTS[0].id : (localStorage.getItem('active_github_account_id') || ''));
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState<Record<string, boolean>>({});
@@ -44,8 +46,8 @@ export function GanttDashboard() {
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   const githubToken = githubAccounts.find(a => a.id === activeAccountId)?.token || '';
-  const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>([]);
-  const [activeTabLogin, setActiveTabLogin] = useState<string>('');
+  const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
+  const [activeTabLogin, setActiveTabLogin] = useState<string>(USE_MOCK_DATA ? MOCK_ACCOUNTS[0].login : '');
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const isResizing = useRef(false);
 
