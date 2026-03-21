@@ -8,11 +8,19 @@ interface GitHubProject {
   title: string;
 }
 
+interface GithubAccount {
+  id: string;
+  login: string;
+  name?: string;
+  avatarUrl: string;
+  token: string;
+}
+
 export function GanttDashboard() {
   const { t, i18n } = useTranslation();
   const [sidebarWidth, setSidebarWidth] = useState(450);
   const [hasProject, setHasProject] = useState(false);
-  const [githubAccounts, setGithubAccounts] = useState<any[]>(() => {
+  const [githubAccounts, setGithubAccounts] = useState<GithubAccount[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('github_accounts') || '[]');
     } catch {
@@ -22,6 +30,7 @@ export function GanttDashboard() {
   const [activeAccountId, setActiveAccountId] = useState<string>(() => localStorage.getItem('active_github_account_id') || '');
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState<Record<string, boolean>>({});
 
   const githubToken = githubAccounts.find(a => a.id === activeAccountId)?.token || '';
   const [projectsList, setProjectsList] = useState<GitHubProject[]>([]);
@@ -76,35 +85,43 @@ export function GanttDashboard() {
     handleAuthCallback();
   }, [githubToken]);
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      if (githubToken && !hasProject) {
-        try {
-          const res = await fetch(GITHUB_GRAPHQL_API_URL, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${githubToken}` },
-            body: JSON.stringify({
-              query: `
-                query {
-                  viewer {
-                    projectsV2(first: 20) {
-                      nodes { id title }
-                    }
-                  }
+  const fetchProjects = async (token: string, accountId: string, forceModal: boolean = false) => {
+    setIsRefreshing(prev => ({ ...prev, [accountId]: true }));
+    try {
+      const res = await fetch(GITHUB_GRAPHQL_API_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          query: `
+            query {
+              viewer {
+                projectsV2(first: 20) {
+                  nodes { id title }
                 }
-              `
-            })
-          });
-          const json = await res.json();
-          const projects = json.data?.viewer?.projectsV2?.nodes || [];
-          setProjectsList(projects);
-          setIsProjectModalOpen(true);
-        } catch (e) {
-          console.error('Failed to fetch user projects:', e);
-        }
+              }
+            }
+          `
+        })
+      });
+      const json = await res.json();
+      const projects = json.data?.viewer?.projectsV2?.nodes || [];
+      
+      setProjectsList(projects);
+      if (forceModal) {
+        setIsProjectModalOpen(true);
       }
-    };
-    fetchProjects();
+    } catch (e) {
+      console.error('Failed to fetch user projects:', e);
+    } finally {
+      setIsRefreshing(prev => ({ ...prev, [accountId]: false }));
+    }
+  };
+
+  useEffect(() => {
+    if (githubToken && !hasProject) {
+      fetchProjects(githubToken, activeAccountId, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [githubToken, hasProject]);
 
   const handleOpenAuth = () => {
@@ -443,37 +460,50 @@ export function GanttDashboard() {
       </div>
       {/* Real OAuth Project Selector Modal overlay */}
       {isProjectModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="open-projects-title">
           <div className="bg-white/90 backdrop-blur-xl w-full max-w-5xl rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col border border-white/40">
             {/* Header */}
             <div className="px-8 py-6 flex justify-between items-center bg-slate-50/40 border-b border-slate-200">
               <div>
-                <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Open Projects</h2>
-                <p className="text-sm text-slate-500 font-medium mt-1">Connect and open a GitHub project</p>
+                <h2 id="open-projects-title" className="text-2xl font-extrabold tracking-tight text-slate-900">{t('dashboard.openProjectsModalTitle')}</h2>
+                <p className="text-sm text-slate-500 font-medium mt-1">{t('dashboard.openProjectsModalDesc')}</p>
               </div>
-              <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
-                <span className="material-symbols-outlined">close</span>
+              <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500" aria-label="Close">
+                <span className="material-symbols-outlined" aria-hidden="true">close</span>
               </button>
             </div>
             {/* Modal Content */}
             <div className="flex flex-1 min-h-[550px]">
               {/* Left Column: Connected Accounts */}
               <div className="w-[32%] bg-slate-50/50 p-8 border-r border-slate-200 flex flex-col">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8">Connected Accounts</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8">{t('app.connectedAccountsLabel')}</h3>
                 <div className="space-y-4 flex-1">
                   {githubAccounts.map((account) => (
                     <div 
                       key={account.id} 
                       onClick={() => { setActiveAccountId(account.id); localStorage.setItem('active_github_account_id', account.id); }}
-                      className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all group ${activeAccountId === account.id ? 'bg-white shadow-[0_4px_12px_rgba(0,0,0,0.03)] ring-1 ring-slate-200' : 'hover:bg-slate-100/60'}`}
+                      className={`relative flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all group ${activeAccountId === account.id ? 'bg-white shadow-[0_4px_12px_rgba(0,0,0,0.03)] ring-1 ring-slate-200' : 'hover:bg-slate-100/60'}`}
                     >
                       <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 bg-slate-200">
                         <img alt={account.login} className={`w-full h-full object-cover ${activeAccountId !== account.id ? 'grayscale opacity-50' : ''}`} src={account.avatarUrl || `https://ui-avatars.com/api/?name=${account.login}`} />
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pr-8">
                         <p className={`text-sm font-bold truncate transition-colors ${activeAccountId === account.id ? 'text-slate-900' : 'text-slate-500 group-hover:text-slate-900'}`}>@{account.login}</p>
-                        <p className="text-[11px] font-bold tracking-tight mt-0.5 text-slate-400">Connected</p>
+                        <p className="text-[11px] font-bold tracking-tight mt-0.5 text-slate-400">{t('app.connected')}</p>
                       </div>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveAccountId(account.id);
+                          localStorage.setItem('active_github_account_id', account.id);
+                          fetchProjects(account.token, account.id, false);
+                        }}
+                        className={`absolute right-4 top-1/2 -translate-y-1/2 ${isRefreshing[account.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity p-2 hover:bg-slate-200 rounded-full flex items-center justify-center bg-white/80 backdrop-blur shadow-sm`}
+                        title={t('dashboard.refreshProjects')}
+                        aria-label={t('dashboard.refreshProjects')}
+                      >
+                        <span className={`material-symbols-outlined text-slate-500 text-[18px] ${isRefreshing[account.id] ? 'animate-spin' : ''}`}>refresh</span>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -482,8 +512,8 @@ export function GanttDashboard() {
                   onClick={() => setIsAccountModalOpen(true)}
                   className="w-full mt-8 flex items-center justify-center gap-3 p-4 bg-slate-100/50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 rounded-xl transition-all group"
                 >
-                  <span className="material-symbols-outlined text-slate-500 group-hover:text-slate-800 transition-colors">settings</span>
-                  <span className="text-sm font-bold text-slate-500 group-hover:text-slate-800 transition-colors">Manage</span>
+                  <span className="material-symbols-outlined text-slate-500 group-hover:text-slate-800 transition-colors" aria-hidden="true">settings</span>
+                  <span className="text-sm font-bold text-slate-500 group-hover:text-slate-800 transition-colors">{t('dashboard.manageButton')}</span>
                 </button>
               </div>
               {/* Right Column: Projects */}
@@ -491,13 +521,13 @@ export function GanttDashboard() {
                 {/* Filters & Search */}
                 <div className="flex items-center gap-4 mb-8">
                   <div className="relative flex-1">
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
-                    <input className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-4 focus:ring-slate-100 focus:border-slate-300 placeholder:text-slate-400 transition-all shadow-sm" placeholder="Search repositories..." type="text" />
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg" aria-hidden="true">search</span>
+                    <input className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-4 focus:ring-slate-100 focus:border-slate-300 placeholder:text-slate-400 transition-all shadow-sm" placeholder={t('dashboard.searchReposPlaceholder')} type="text" aria-label={t('dashboard.searchReposPlaceholder')} />
                   </div>
                   <div className="flex items-center gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm">
-                    <span className="opacity-70">Sort by:</span>
-                    <span className="text-slate-900">Recent</span>
-                    <span className="material-symbols-outlined text-sm">expand_more</span>
+                    <span className="opacity-70">{t('dashboard.sortBy')}</span>
+                    <span className="text-slate-900">{t('dashboard.sortRecent')}</span>
+                    <span className="material-symbols-outlined text-sm" aria-hidden="true">expand_more</span>
                   </div>
                 </div>
                 <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
@@ -510,15 +540,15 @@ export function GanttDashboard() {
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-900 text-base">{proj.title}</h4>
-                            <p className="text-xs text-slate-500 mt-0.5">Project ID: {proj.id}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{t('dashboard.projectIdPrefix')}{proj.id}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-6">
                           <div className="flex items-center transition-all">
-                            <span className="px-3 py-1 rounded-full bg-emerald-100 text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider block group-hover:hidden transition-opacity">Available</span>
+                            <span className="px-3 py-1 rounded-full bg-emerald-100 text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider block group-hover:hidden transition-opacity">{t('dashboard.projectAvailable')}</span>
                             <div className="hidden group-hover:flex items-center gap-3 transition-all">
                               <button onClick={() => handleSelectRealProject(proj.id, proj.title)} className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors shadow-sm shadow-primary/20">
-                                Open
+                                {t('dashboard.openProjectAction')}
                               </button>
                             </div>
                           </div>
@@ -527,8 +557,8 @@ export function GanttDashboard() {
                     ))
                   ) : (
                     <div className="py-12 text-center text-slate-500 flex flex-col items-center">
-                      <span className="material-symbols-outlined text-4xl mb-4 text-slate-300">inbox</span>
-                      <p>No active GitHub Projects found in this account.</p>
+                      <span className="material-symbols-outlined text-4xl mb-4 text-slate-300" aria-hidden="true">inbox</span>
+                      <p>{t('dashboard.noProjectsFound')}</p>
                     </div>
                   )}
                 </div>
@@ -539,14 +569,14 @@ export function GanttDashboard() {
       )}
       {/* Connected Accounts Management Modal */}
       {isAccountModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-labelledby="manage-accounts-title">
           <div className="relative bg-white/70 backdrop-blur-xl border border-white w-full max-w-md rounded-xl shadow-[0_12px_40px_rgba(25,28,30,0.15)] overflow-hidden animate-in fade-in zoom-in duration-300">
             {/* Modal Header */}
             <div className="p-8 pb-4">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-sans text-2xl font-extrabold text-slate-900">{t('app.connectedAccounts')}</h3>
-                <button onClick={() => setIsAccountModalOpen(false)} className="text-slate-500 hover:text-slate-900 transition-colors">
-                  <span className="material-symbols-outlined">close</span>
+                <h3 id="manage-accounts-title" className="font-sans text-2xl font-extrabold text-slate-900">{t('app.connectedAccounts')}</h3>
+                <button onClick={() => setIsAccountModalOpen(false)} className="text-slate-500 hover:text-slate-900 transition-colors" aria-label="Close">
+                  <span className="material-symbols-outlined" aria-hidden="true">close</span>
                 </button>
               </div>
               <p className="text-slate-500 text-sm">{t('app.manageAccounts')}</p>
@@ -562,7 +592,7 @@ export function GanttDashboard() {
                     <div>
                       <p className="font-sans font-bold text-slate-900 leading-tight flex items-center gap-2">
                         {account.name || account.login}
-                        {activeAccountId === account.id && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded-sm font-bold">ACTIVE</span>}
+                        {activeAccountId === account.id && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded-sm font-bold">{t('app.activeStatus')}</span>}
                       </p>
                       <p className="text-xs text-slate-500">@{account.login}</p>
                     </div>
@@ -576,11 +606,11 @@ export function GanttDashboard() {
             {/* Modal Footer (Action) */}
             <div className="p-8 pt-2">
               <button onClick={handleOpenAuth} className="w-full bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-sans font-bold py-4 rounded-full shadow-lg shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined text-lg">add_circle</span>
+                <span className="material-symbols-outlined text-lg" aria-hidden="true">add_circle</span>
                 {t('app.connectToAdd')}
               </button>
               <p className="text-center mt-4 text-xs text-slate-500 px-6">
-                Adding new accounts may require additional permissions from your Github account.
+                {t('app.addAccountPermissionNotice')}
               </p>
             </div>
           </div>

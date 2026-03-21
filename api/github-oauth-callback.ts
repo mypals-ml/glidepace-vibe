@@ -1,6 +1,8 @@
 import { GITHUB_OAUTH_ACCESS_TOKEN_URL } from '../src/lib/constants';
 
-export default async function handler(req: any, res: any) {
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Setup CORS just in case
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,7 +45,7 @@ export default async function handler(req: any, res: any) {
       }),
     });
 
-    const data = (await response.json()) as any;
+    const data = (await response.json()) as { access_token?: string; error?: string; error_description?: string };
 
     if (data.error) {
       return res.status(400).json({ error: data.error_description || data.error });
@@ -63,7 +65,7 @@ export default async function handler(req: any, res: any) {
       return res.status(500).json({ error: 'Failed to fetch user profile from GitHub.' });
     }
 
-    const userData = (await userResponse.json()) as any;
+    const userData = (await userResponse.json()) as { id: number; login: string; name?: string; avatar_url: string };
 
     const accountData = {
       id: userData.id.toString(),

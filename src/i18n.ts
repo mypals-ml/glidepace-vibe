@@ -28,7 +28,10 @@ const resources = {
         authDesc: "Enter your Personal Access Token to connect securely.",
         authInputPlaceholder: "ghp_...",
         authSave: "Save Token",
-        authCancel: "Cancel"
+        authCancel: "Cancel",
+        connectedAccountsLabel: "Connected Accounts",
+        activeStatus: "ACTIVE",
+        addAccountPermissionNotice: "Adding new accounts may require additional permissions from your Github account."
       },
       dashboard: {
         issuesList: "Issues List",
@@ -37,6 +40,17 @@ const resources = {
         emptyStateDesc: "Get started by creating a new project.",
         addProjectButton: "Open Project",
         addProjectTimelinePrompt: "Add a project to view timeline",
+        openProjectsModalTitle: "Open Projects",
+        openProjectsModalDesc: "Connect and open a GitHub project",
+        manageButton: "Manage",
+        searchReposPlaceholder: "Search repositories...",
+        sortBy: "Sort by:",
+        sortRecent: "Recent",
+        projectIdPrefix: "Project ID: ",
+        projectAvailable: "Available",
+        openProjectAction: "Open",
+        noProjectsFound: "No active GitHub Projects found in this account.",
+        refreshProjects: "Refresh Projects"
       },
       table: {
         id: "ID",
@@ -85,7 +99,10 @@ const resources = {
         authDesc: "パーソナルアクセストークンを入力して安全に接続してください。",
         authInputPlaceholder: "ghp_...",
         authSave: "トークンを保存",
-        authCancel: "キャンセル"
+        authCancel: "キャンセル",
+        connectedAccountsLabel: "接続されたアカウント",
+        activeStatus: "アクティブ",
+        addAccountPermissionNotice: "新しいアカウントを追加するには、Githubアカウントからの追加の権限が必要になる場合があります。"
       },
       dashboard: {
         issuesList: "課題リスト",
@@ -94,6 +111,17 @@ const resources = {
         emptyStateDesc: "新しいプロジェクトを作成して始めましょう。",
         addProjectButton: "プロジェクトを開く",
         addProjectTimelinePrompt: "タイムラインを表示するにはプロジェクトを追加してください",
+        openProjectsModalTitle: "プロジェクトを開く",
+        openProjectsModalDesc: "GitHubプロジェクトに接続して開く",
+        manageButton: "管理",
+        searchReposPlaceholder: "リポジトリを検索...",
+        sortBy: "並べ替え:",
+        sortRecent: "最近",
+        projectIdPrefix: "プロジェクトID: ",
+        projectAvailable: "利用可能",
+        openProjectAction: "開く",
+        noProjectsFound: "このアカウントでアクティブなGitHubプロジェクトが見つかりませんでした。",
+        refreshProjects: "プロジェクトを更新"
       },
       table: {
         id: "ID",
@@ -142,7 +170,10 @@ const resources = {
         authDesc: "输入您的个人访问令牌以安全连接。",
         authInputPlaceholder: "ghp_...",
         authSave: "保存令牌",
-        authCancel: "取消"
+        authCancel: "取消",
+        connectedAccountsLabel: "已连接的帐户",
+        activeStatus: "活跃",
+        addAccountPermissionNotice: "添加新帐户可能需要您的 Github 帐户提供其他权限。"
       },
       dashboard: {
         issuesList: "问题列表",
@@ -151,6 +182,17 @@ const resources = {
         emptyStateDesc: "新建一个项目开始你的工作。",
         addProjectButton: "打开项目",
         addProjectTimelinePrompt: "添加一个项目以查看时间线",
+        openProjectsModalTitle: "打开项目",
+        openProjectsModalDesc: "连接并打开 GitHub 项目",
+        manageButton: "管理",
+        searchReposPlaceholder: "搜索存储库...",
+        sortBy: "排序方式:",
+        sortRecent: "最近",
+        projectIdPrefix: "项目 ID: ",
+        projectAvailable: "可用",
+        openProjectAction: "打开",
+        noProjectsFound: "此帐户中未找到处于活动状态的 GitHub 项目。",
+        refreshProjects: "刷新项目"
       },
       table: {
         id: "ID",
