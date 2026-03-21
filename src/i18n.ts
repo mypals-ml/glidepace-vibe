@@ -50,7 +50,8 @@ const resources = {
         projectAvailable: "Available",
         openProjectAction: "Open",
         noProjectsFound: "No active GitHub Projects found in this account.",
-        refreshProjects: "Refresh Projects"
+        refreshProjects: "Refresh Projects",
+        orgProjectsHelpLink: "Projects In an Organization?"
       },
       table: {
         id: "ID",
@@ -71,6 +72,23 @@ const resources = {
         inProgress: "In Progress",
         done: "Done",
         todo: "Todo"
+      },
+      help: {
+        orgProjectsTitle: "How to Access Organization Projects",
+        orgProjectsIntro: "If you cannot see an organization's projects, it may be because you need to grant third-party OAuth access or update your token's scopes.",
+        checkScopeTitle: "1. Check Token Scopes",
+        checkScopeDesc: "The application requests the read:org scope. If your current token doesn't have it, reconnect your account:",
+        checkScopeStep1: "In the Open Projects modal, click Manage.",
+        checkScopeStep2: "Click Disconnect next to your account.",
+        checkScopeStep3: "Click Connect to add to log in again.",
+        checkScopeWarning: "Make sure you see \"read:org\" or \"Read org and team membership\" in the authorization page.",
+        grantAccessTitle: "2. Grant Third-party Access",
+        grantAccessDesc: "By default, GitHub blocks third-party applications from reading organization data until an admin approves it.",
+        grantAccessStep1: "Go to GitHub -> Settings -> Applications -> Authorized OAuth Apps.",
+        grantAccessStep2: "Click on Glidepace Vibe (or your app name).",
+        grantAccessStep3: "Scroll down to Organization access.",
+        grantAccessStep4: "Click Grant next to the organization. If you are not an admin, click Request, and an admin will need to approve it before projects will appear.",
+        closeWindow: "Close Window"
       }
     }
   },
@@ -121,7 +139,8 @@ const resources = {
         projectAvailable: "利用可能",
         openProjectAction: "開く",
         noProjectsFound: "このアカウントでアクティブなGitHubプロジェクトが見つかりませんでした。",
-        refreshProjects: "プロジェクトを更新"
+        refreshProjects: "プロジェクトを更新",
+        orgProjectsHelpLink: "組織のプロジェクトですか？"
       },
       table: {
         id: "ID",
@@ -142,6 +161,23 @@ const resources = {
         inProgress: "進行中",
         done: "完了",
         todo: "未着手"
+      },
+      help: {
+        orgProjectsTitle: "組織のプロジェクトへのアクセス方法",
+        orgProjectsIntro: "組織のプロジェクトが見えない場合、サードパーティOAuthアクセスを許可するか、トークンのスコープを書き換える必要があるかもしれません。",
+        checkScopeTitle: "1. トークンのスコープを確認する",
+        checkScopeDesc: "このアプリケーションは read:org スコープを要求します。現在のトークンにその権限がない場合は、アカウントを再接続してください:",
+        checkScopeStep1: "「プロジェクトを開く」モーダルで「管理」をクリックします。",
+        checkScopeStep2: "アカウントの横にある「切断する」をクリックします。",
+        checkScopeStep3: "「接続して追加」をクリックして再度ログインします。",
+        checkScopeWarning: "認証ページで「read:org」権限が要求されていることを確認してください。",
+        grantAccessTitle: "2. サードパーティアクセスを許可する",
+        grantAccessDesc: "デフォルトでは、管理者が承認するまでGitHubはサードパーティアプリが組織のデータを読み取ることをブロックします。",
+        grantAccessStep1: "GitHubの「Settings (設定)」->「Applications (アプリケーション)」->「Authorized OAuth Apps (承認済みOAuthアプリ)」へ移動します。",
+        grantAccessStep2: "Glidepace Vibe（またはアプリ名）をクリックします。",
+        grantAccessStep3: "「Organization access (組織アクセス)」まで下にスクロールします。",
+        grantAccessStep4: "組織の横にある「Grant (許可)」をクリックします。管理者でない場合は「Request (リクエスト)」をクリックし、プロジェクトが表示される前に管理者が承認する必要があります。",
+        closeWindow: "ウィンドウを閉じる"
       }
     }
   },
@@ -192,7 +228,8 @@ const resources = {
         projectAvailable: "可用",
         openProjectAction: "打开",
         noProjectsFound: "此帐户中未找到处于活动状态的 GitHub 项目。",
-        refreshProjects: "刷新项目"
+        refreshProjects: "刷新项目",
+        orgProjectsHelpLink: "组织的仓库在哪里？"
       },
       table: {
         id: "ID",
@@ -213,6 +250,23 @@ const resources = {
         inProgress: "进行中",
         done: "已完成",
         todo: "待办"
+      },
+      help: {
+        orgProjectsTitle: "如何访问组织的 GitHub 项目",
+        orgProjectsIntro: "如果您无法看到组织的仓库，可能是因为您需要授予第三方 OAuth 访问权限或更新您的令牌权限范围。",
+        checkScopeTitle: "1. 检查令牌权限范围",
+        checkScopeDesc: "此应用程序会请求 read:org 权限。如果您当前的令牌没有此权限，请重新连接您的帐户:",
+        checkScopeStep1: "在“打开项目”窗口中，单击“管理”。",
+        checkScopeStep2: "单击您帐户旁边的“断开连接”。",
+        checkScopeStep3: "单击“连接以添加”重新登录。",
+        checkScopeWarning: "在授权页面中，请确保看到“read:org”权限被请求。",
+        grantAccessTitle: "2. 授予第三方访问权限",
+        grantAccessDesc: "默认情况下，GitHub 会阻止第三方应用程序读取组织数据，除非管理员进行审批。",
+        grantAccessStep1: "转到 GitHub -> Settings（设置） -> Applications（应用） -> Authorized OAuth Apps（已授权的OAuth应用）。",
+        grantAccessStep2: "单击 Glidepace Vibe（或您的应用名称）。",
+        grantAccessStep3: "向下滚动到 Organization access（组织访问）。",
+        grantAccessStep4: "单击组织旁的 Grant（授予权限）。如果您不是管理员，请单击 Request（请求权限），这需要管理员批准后才能查看项目。",
+        closeWindow: "关闭窗口"
       }
     }
   }

@@ -8,6 +8,12 @@ interface GitHubProject {
   title: string;
 }
 
+interface ProjectOwnerInfo {
+  login: string;
+  isOrg: boolean;
+  projects: GitHubProject[];
+}
+
 interface GithubAccount {
   id: string;
   login: string;
@@ -33,7 +39,8 @@ export function GanttDashboard() {
   const [isRefreshing, setIsRefreshing] = useState<Record<string, boolean>>({});
 
   const githubToken = githubAccounts.find(a => a.id === activeAccountId)?.token || '';
-  const [projectsList, setProjectsList] = useState<GitHubProject[]>([]);
+  const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>([]);
+  const [activeTabLogin, setActiveTabLogin] = useState<string>('');
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const isResizing = useRef(false);
 
@@ -95,8 +102,17 @@ export function GanttDashboard() {
           query: `
             query {
               viewer {
+                login
                 projectsV2(first: 20) {
                   nodes { id title }
+                }
+                organizations(first: 10) {
+                  nodes {
+                    login
+                    projectsV2(first: 20) {
+                      nodes { id title }
+                    }
+                  }
                 }
               }
             }
@@ -104,9 +120,27 @@ export function GanttDashboard() {
         })
       });
       const json = await res.json();
-      const projects = json.data?.viewer?.projectsV2?.nodes || [];
-      
-      setProjectsList(projects);
+      const viewer = json.data?.viewer;
+      if (viewer) {
+        const owners: ProjectOwnerInfo[] = [];
+        owners.push({
+          login: viewer.login,
+          isOrg: false,
+          projects: viewer.projectsV2?.nodes || []
+        });
+        
+        const orgs = viewer.organizations?.nodes || [];
+        for (const org of orgs) {
+          owners.push({
+            login: org.login,
+            isOrg: true,
+            projects: org.projectsV2?.nodes || []
+          });
+        }
+        
+        setProjectsData(owners);
+        setActiveTabLogin(viewer.login);
+      }
       if (forceModal) {
         setIsProjectModalOpen(true);
       }
@@ -518,8 +552,37 @@ export function GanttDashboard() {
               </div>
               {/* Right Column: Projects */}
               <div className="w-[68%] p-8 bg-white/50 flex flex-col">
+                {/* Tabs for user/orgs */}
+                {projectsData.length > 0 && (
+                  <div className="flex items-end justify-between mb-6 border-b border-slate-200">
+                    <div className="flex flex-wrap gap-2">
+                      {projectsData.map(owner => (
+                        <button
+                          key={owner.login}
+                          onClick={() => setActiveTabLogin(owner.login)}
+                          className={`px-4 py-2 text-sm font-bold border-b-2 transition-all ${
+                            activeTabLogin === owner.login 
+                              ? 'border-primary text-primary' 
+                              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                          }`}
+                        >
+                          {owner.login}
+                        </button>
+                      ))}
+                    </div>
+                    <a 
+                      href="/help/org-projects" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-xs font-bold text-primary hover:text-primary-hover hover:underline pb-2 px-2 flex items-center gap-1 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">help</span>
+                      {t('dashboard.orgProjectsHelpLink')}
+                    </a>
+                  </div>
+                )}
                 {/* Filters & Search */}
-                <div className="flex items-center gap-4 mb-8">
+                <div className="flex items-center gap-4 mb-6">
                   <div className="relative flex-1">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg" aria-hidden="true">search</span>
                     <input className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-4 focus:ring-slate-100 focus:border-slate-300 placeholder:text-slate-400 transition-all shadow-sm" placeholder={t('dashboard.searchReposPlaceholder')} type="text" aria-label={t('dashboard.searchReposPlaceholder')} />
@@ -531,36 +594,43 @@ export function GanttDashboard() {
                   </div>
                 </div>
                 <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
-                  {projectsList.length > 0 ? (
-                    projectsList.map(proj => (
-                      <div key={proj.id} className="group flex items-center justify-between p-5 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all">
-                        <div className="flex items-center gap-5">
-                          <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-slate-500">account_tree</span>
+                  {(() => {
+                    const activeOwner = projectsData.find(o => o.login === activeTabLogin);
+                    const list = activeOwner?.projects || [];
+                    
+                    if (list.length > 0) {
+                      return list.map(proj => (
+                        <div key={proj.id} className="group flex items-center justify-between p-5 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all">
+                          <div className="flex items-center gap-5">
+                            <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
+                              <span className="material-symbols-outlined text-slate-500">account_tree</span>
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-slate-900 text-base">{proj.title}</h4>
+                              <p className="text-xs text-slate-500 mt-0.5">{t('dashboard.projectIdPrefix')}{proj.id}</p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="font-bold text-slate-900 text-base">{proj.title}</h4>
-                            <p className="text-xs text-slate-500 mt-0.5">{t('dashboard.projectIdPrefix')}{proj.id}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-6">
-                          <div className="flex items-center transition-all">
-                            <span className="px-3 py-1 rounded-full bg-emerald-100 text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider block group-hover:hidden transition-opacity">{t('dashboard.projectAvailable')}</span>
-                            <div className="hidden group-hover:flex items-center gap-3 transition-all">
-                              <button onClick={() => handleSelectRealProject(proj.id, proj.title)} className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors shadow-sm shadow-primary/20">
-                                {t('dashboard.openProjectAction')}
-                              </button>
+                          <div className="flex items-center gap-6">
+                            <div className="flex items-center transition-all">
+                              <span className="px-3 py-1 rounded-full bg-emerald-100 text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider block group-hover:hidden transition-opacity">{t('dashboard.projectAvailable')}</span>
+                              <div className="hidden group-hover:flex items-center gap-3 transition-all">
+                                <button onClick={() => handleSelectRealProject(proj.id, proj.title)} className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors shadow-sm shadow-primary/20">
+                                  {t('dashboard.openProjectAction')}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="py-12 text-center text-slate-500 flex flex-col items-center">
-                      <span className="material-symbols-outlined text-4xl mb-4 text-slate-300" aria-hidden="true">inbox</span>
-                      <p>{t('dashboard.noProjectsFound')}</p>
-                    </div>
-                  )}
+                      ));
+                    } else {
+                      return (
+                        <div className="py-12 text-center text-slate-500 flex flex-col items-center">
+                          <span className="material-symbols-outlined text-4xl mb-4 text-slate-300" aria-hidden="true">inbox</span>
+                          <p>{t('dashboard.noProjectsFound')}</p>
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
               </div>
             </div>
