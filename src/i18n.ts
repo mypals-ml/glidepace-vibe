@@ -35,7 +35,7 @@ const resources = {
         filterPlaceholder: "Filter issues...",
         emptyStateTitle: "No projects",
         emptyStateDesc: "Get started by creating a new project.",
-        addProjectButton: "Add Project",
+        addProjectButton: "Open Project",
         addProjectTimelinePrompt: "Add a project to view timeline",
       },
       table: {
@@ -92,7 +92,7 @@ const resources = {
         filterPlaceholder: "課題をフィルタリング...",
         emptyStateTitle: "プロジェクトがありません",
         emptyStateDesc: "新しいプロジェクトを作成して始めましょう。",
-        addProjectButton: "プロジェクトを追加",
+        addProjectButton: "プロジェクトを開く",
         addProjectTimelinePrompt: "タイムラインを表示するにはプロジェクトを追加してください",
       },
       table: {
@@ -149,7 +149,7 @@ const resources = {
         filterPlaceholder: "过滤问题...",
         emptyStateTitle: "暂无项目",
         emptyStateDesc: "新建一个项目开始你的工作。",
-        addProjectButton: "添加项目",
+        addProjectButton: "打开项目",
         addProjectTimelinePrompt: "添加一个项目以查看时间线",
       },
       table: {

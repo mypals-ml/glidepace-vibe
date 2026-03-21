@@ -57,9 +57,12 @@ export function GanttDashboard() {
             });
             setActiveAccountId(newAccount.id);
             localStorage.setItem('active_github_account_id', newAccount.id);
-            // Optionally clear the modal if it's open
             // setIsAccountModalOpen(false);
             window.history.replaceState({}, document.title, window.location.pathname);
+            if (localStorage.getItem('pending_open_project') === 'true') {
+              localStorage.removeItem('pending_open_project');
+              setIsProjectModalOpen(true);
+            }
           } else {
             console.error('OAuth Error:', data.error);
           }
@@ -111,6 +114,15 @@ export function GanttDashboard() {
       return;
     }
     window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=repo,read:org,project`;
+  };
+
+  const handleOpenProjectClick = () => {
+    if (githubAccounts.length > 0) {
+      setIsProjectModalOpen(true);
+    } else {
+      localStorage.setItem('pending_open_project', 'true');
+      handleOpenAuth();
+    }
   };
 
   const handleDisconnect = (accountId: string) => {
@@ -397,11 +409,11 @@ export function GanttDashboard() {
                 <h2 className="text-lg font-semibold mb-1 text-slate-800">{t('dashboard.emptyStateTitle')}</h2>
                 <p className="text-sm text-slate-500 mb-6 text-center">{t('dashboard.emptyStateDesc')}</p>
                 <button
-                  onClick={() => setHasProject(true)}
+                  onClick={handleOpenProjectClick}
                   className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm"
                   aria-label={t('dashboard.addProjectButton')}
                 >
-                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
+                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">folder_open</span>
                   {t('dashboard.addProjectButton')}
                 </button>
              </div>
@@ -431,40 +443,96 @@ export function GanttDashboard() {
       </div>
       {/* Real OAuth Project Selector Modal overlay */}
       {isProjectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden transform transition-all" role="dialog" aria-modal="true" aria-labelledby="project-modal-title">
-            <div className="px-6 py-5 border-b border-slate-100">
-              <h3 className="text-lg font-semibold text-slate-900" id="project-modal-title">Select GitHub Project</h3>
-              <p className="text-sm text-slate-500 mt-1">Choose a project workspace to attach to the Gantt timeline.</p>
-            </div>
-            <div className="bg-slate-50 max-h-64 overflow-y-auto px-4 py-2 border-b border-slate-200">
-              {projectsList.length > 0 ? (
-                <ul className="space-y-2 py-2">
-                  {projectsList.map(proj => (
-                    <li key={proj.id}>
-                      <button 
-                        onClick={() => handleSelectRealProject(proj.id, proj.title)}
-                        className="w-full text-left px-4 py-3 bg-white border border-slate-200 hover:border-primary hover:ring-1 hover:ring-primary rounded-lg text-sm font-medium text-slate-800 transition-all shadow-sm flex items-center gap-3 group"
-                      >
-                         <svg className="w-5 h-5 text-slate-400 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
-                        {proj.title}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="py-6 text-center text-sm text-slate-500">
-                    No active GitHub Projects found in this account.
-                </div>
-              )}
-            </div>
-            <div className="px-6 py-4 bg-slate-50/80 flex justify-end">
-              <button 
-                onClick={() => setIsProjectModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
-              >
-                Cancel
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white/90 backdrop-blur-xl w-full max-w-5xl rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col border border-white/40">
+            {/* Header */}
+            <div className="px-8 py-6 flex justify-between items-center bg-slate-50/40 border-b border-slate-200">
+              <div>
+                <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Open Projects</h2>
+                <p className="text-sm text-slate-500 font-medium mt-1">Connect and open a GitHub project</p>
+              </div>
+              <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
+                <span className="material-symbols-outlined">close</span>
               </button>
+            </div>
+            {/* Modal Content */}
+            <div className="flex flex-1 min-h-[550px]">
+              {/* Left Column: Connected Accounts */}
+              <div className="w-[32%] bg-slate-50/50 p-8 border-r border-slate-200 flex flex-col">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8">Connected Accounts</h3>
+                <div className="space-y-4 flex-1">
+                  {githubAccounts.map((account) => (
+                    <div 
+                      key={account.id} 
+                      onClick={() => { setActiveAccountId(account.id); localStorage.setItem('active_github_account_id', account.id); }}
+                      className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all group ${activeAccountId === account.id ? 'bg-white shadow-[0_4px_12px_rgba(0,0,0,0.03)] ring-1 ring-slate-200' : 'hover:bg-slate-100/60'}`}
+                    >
+                      <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 bg-slate-200">
+                        <img alt={account.login} className={`w-full h-full object-cover ${activeAccountId !== account.id ? 'grayscale opacity-50' : ''}`} src={account.avatarUrl || `https://ui-avatars.com/api/?name=${account.login}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-bold truncate transition-colors ${activeAccountId === account.id ? 'text-slate-900' : 'text-slate-500 group-hover:text-slate-900'}`}>@{account.login}</p>
+                        <p className="text-[11px] font-bold tracking-tight mt-0.5 text-slate-400">Connected</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Add Account Button -> maps to Manage */}
+                <button 
+                  onClick={() => setIsAccountModalOpen(true)}
+                  className="w-full mt-8 flex items-center justify-center gap-3 p-4 bg-slate-100/50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 rounded-xl transition-all group"
+                >
+                  <span className="material-symbols-outlined text-slate-500 group-hover:text-slate-800 transition-colors">settings</span>
+                  <span className="text-sm font-bold text-slate-500 group-hover:text-slate-800 transition-colors">Manage</span>
+                </button>
+              </div>
+              {/* Right Column: Projects */}
+              <div className="w-[68%] p-8 bg-white/50 flex flex-col">
+                {/* Filters & Search */}
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="relative flex-1">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+                    <input className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-4 focus:ring-slate-100 focus:border-slate-300 placeholder:text-slate-400 transition-all shadow-sm" placeholder="Search repositories..." type="text" />
+                  </div>
+                  <div className="flex items-center gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm">
+                    <span className="opacity-70">Sort by:</span>
+                    <span className="text-slate-900">Recent</span>
+                    <span className="material-symbols-outlined text-sm">expand_more</span>
+                  </div>
+                </div>
+                <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                  {projectsList.length > 0 ? (
+                    projectsList.map(proj => (
+                      <div key={proj.id} className="group flex items-center justify-between p-5 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all">
+                        <div className="flex items-center gap-5">
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-slate-500">account_tree</span>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-base">{proj.title}</h4>
+                            <p className="text-xs text-slate-500 mt-0.5">Project ID: {proj.id}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <div className="flex items-center transition-all">
+                            <span className="px-3 py-1 rounded-full bg-emerald-100 text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider block group-hover:hidden transition-opacity">Available</span>
+                            <div className="hidden group-hover:flex items-center gap-3 transition-all">
+                              <button onClick={() => handleSelectRealProject(proj.id, proj.title)} className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors shadow-sm shadow-primary/20">
+                                Open
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-12 text-center text-slate-500 flex flex-col items-center">
+                      <span className="material-symbols-outlined text-4xl mb-4 text-slate-300">inbox</span>
+                      <p>No active GitHub Projects found in this account.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

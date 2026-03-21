@@ -43,7 +43,7 @@ export default async function handler(req: any, res: any) {
       }),
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as any;
 
     if (data.error) {
       return res.status(400).json({ error: data.error_description || data.error });
@@ -63,7 +63,7 @@ export default async function handler(req: any, res: any) {
       return res.status(500).json({ error: 'Failed to fetch user profile from GitHub.' });
     }
 
-    const userData = await userResponse.json();
+    const userData = (await userResponse.json()) as any;
 
     const accountData = {
       id: userData.id.toString(),
