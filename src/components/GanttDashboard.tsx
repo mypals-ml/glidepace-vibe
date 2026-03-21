@@ -575,9 +575,9 @@ export function GanttDashboard() {
                         href="/help/org-projects" 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-xs font-bold text-primary hover:text-primary-hover pb-2 px-2 flex items-center gap-1 transition-colors group"
+                        className="text-xs text-primary hover:text-primary-hover pb-2 px-2 flex items-center gap-1 transition-colors group"
                       >
-                        <span className="material-symbols-outlined text-[14px]">help</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 'var(--text-base)' }}>help</span>
                         <span className="group-hover:underline">{t('dashboard.orgProjectsHelpLink')}</span>
                       </a>
                     </div>
@@ -587,9 +587,9 @@ export function GanttDashboard() {
                         href="/help/org-projects" 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-xs font-bold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors group"
+                        className="text-xs text-primary hover:text-primary-hover flex items-center gap-1 transition-colors group"
                       >
-                        <span className="material-symbols-outlined text-[14px]">help</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 'var(--text-base)' }}>help</span>
                         <span className="group-hover:underline">{t('dashboard.orgProjectsHelpLink')}</span>
                       </a>
                     </div>
@@ -626,7 +626,6 @@ export function GanttDashboard() {
                           </div>
                           <div className="flex items-center gap-6">
                             <div className="flex items-center transition-all">
-                              <span className="px-3 py-1 rounded-full bg-emerald-100 text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider block group-hover:hidden transition-opacity">{t('dashboard.projectAvailable')}</span>
                               <div className="hidden group-hover:flex items-center gap-3 transition-all">
                                 <button onClick={() => handleSelectRealProject(proj.id, proj.title)} className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors shadow-sm shadow-primary/20">
                                   {t('dashboard.openProjectAction')}
