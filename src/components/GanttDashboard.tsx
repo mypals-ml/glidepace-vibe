@@ -235,7 +235,7 @@ export function GanttDashboard() {
       <header className="glass-panel border-b border-surface-border px-6 py-3 flex items-center justify-between z-20 sticky top-0 bg-white/70 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">{t('app.name')}</h1>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900"><a href="https://github.com/mypals-ml/glidepace-vibe" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{t('app.name')}</a></h1>
           </div>
           <div className="h-6 w-px bg-slate-200 mx-2 hidden md:block"></div>
           <div className="hidden md:flex items-center gap-3">
