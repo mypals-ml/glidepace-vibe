@@ -1,7 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { DUMMY_TASKS } from '../lib/dummyData';
 import { useTranslation } from 'react-i18next';
 import { GITHUB_GRAPHQL_API_URL, GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
+
+type SortMethod = 'recent' | 'oldest' | 'nameAZ' | 'nameZA';
 
 interface GitHubProject {
   id: string;
@@ -37,6 +39,9 @@ export function GanttDashboard() {
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState<Record<string, boolean>>({});
+  const [sortMethod, setSortMethod] = useState<SortMethod>('recent');
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   const githubToken = githubAccounts.find(a => a.id === activeAccountId)?.token || '';
   const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>([]);
@@ -224,6 +229,42 @@ export function GanttDashboard() {
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, []);
+
+  // Close sort dropdown on click outside
+  const handleClickOutsideSort = useCallback((e: MouseEvent) => {
+    if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+      setIsSortDropdownOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isSortDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutsideSort);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutsideSort);
+  }, [isSortDropdownOpen, handleClickOutsideSort]);
+
+  const sortLabelKey: Record<SortMethod, string> = {
+    recent: 'dashboard.sortRecent',
+    oldest: 'dashboard.sortOldest',
+    nameAZ: 'dashboard.sortNameAZ',
+    nameZA: 'dashboard.sortNameZA',
+  };
+
+  const sortProjects = (projects: GitHubProject[]): GitHubProject[] => {
+    const sorted = [...projects];
+    switch (sortMethod) {
+      case 'oldest':
+        return sorted.reverse();
+      case 'nameAZ':
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      case 'nameZA':
+        return sorted.sort((a, b) => b.title.localeCompare(a.title));
+      case 'recent':
+      default:
+        return sorted;
+    }
+  };
 
   return (
     <div className="bg-background-main text-slate-800 font-sans h-full flex flex-col overflow-hidden relative">
@@ -601,16 +642,46 @@ export function GanttDashboard() {
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg" aria-hidden="true">search</span>
                     <input className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-4 focus:ring-slate-100 focus:border-slate-300 placeholder:text-slate-400 transition-all shadow-sm" placeholder={t('dashboard.searchReposPlaceholder')} type="text" aria-label={t('dashboard.searchReposPlaceholder')} />
                   </div>
-                  <div className="flex items-center gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm">
-                    <span className="opacity-70">{t('dashboard.sortBy')}</span>
-                    <span className="text-slate-900">{t('dashboard.sortRecent')}</span>
-                    <span className="material-symbols-outlined text-sm" aria-hidden="true">expand_more</span>
+                  <div className="relative" ref={sortDropdownRef}>
+                    <div
+                      onClick={() => setIsSortDropdownOpen(prev => !prev)}
+                      className="flex items-center gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm select-none"
+                      role="button"
+                      aria-haspopup="listbox"
+                      aria-expanded={isSortDropdownOpen}
+                    >
+                      <span className="opacity-70">{t('dashboard.sortBy')}</span>
+                      <span className="text-slate-900">{t(sortLabelKey[sortMethod])}</span>
+                      <span className={`material-symbols-outlined text-sm transition-transform ${isSortDropdownOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
+                    </div>
+                    {isSortDropdownOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 animate-in fade-in slide-in-from-top-1 duration-150" role="listbox">
+                        {(['recent', 'oldest', 'nameAZ', 'nameZA'] as SortMethod[]).map((method) => (
+                          <button
+                            key={method}
+                            onClick={() => { setSortMethod(method); setIsSortDropdownOpen(false); }}
+                            className={`w-full text-left px-4 py-2.5 text-xs font-medium transition-colors flex items-center justify-between ${
+                              sortMethod === method
+                                ? 'bg-primary/5 text-primary font-bold'
+                                : 'text-slate-600 hover:bg-slate-50'
+                            }`}
+                            role="option"
+                            aria-selected={sortMethod === method}
+                          >
+                            {t(sortLabelKey[method])}
+                            {sortMethod === method && (
+                              <span className="material-symbols-outlined text-primary text-sm" aria-hidden="true">check</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
                   {(() => {
                     const activeOwner = projectsData.find(o => o.login === activeTabLogin);
-                    const list = activeOwner?.projects || [];
+                    const list = sortProjects(activeOwner?.projects || []);
                     
                     if (list.length > 0) {
                       return list.map(proj => (
