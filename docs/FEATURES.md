@@ -1,16 +1,16 @@
 # Feature Specifications
 
 ## Core Capabilities
-*   **Connect to GitHub Projects:** Connects to your GitHub.com repository's project to visualize the project's tasks.
+*   **Connect to GitHub Projects:** Connects to your GitHub.com projects to visualize tasks.
 *   **Authentication & Multiple Accounts:** Provides a starting page to authenticate securely via GitHub OAuth. Users can connect multiple GitHub accounts, store them locally, and seamlessly switch between them.
-*   **Project Discovery & Selection:** Instead of manually inputting a Project ID, authenticated users can browse their active repositories and projects via a dedicated "Open Project" modal, with selections cached in `localStorage`.
+*   **Project Discovery & Selection:** Instead of manually inputting a Project ID, authenticated users can browse their active projects via a dedicated "Open Project" modal, with selections cached in `localStorage`.
 *   **Localization (i18n):** Fully translated interface supporting English, Japanese, and Simplified Chinese.
 *   **Themes:** Supports Light and Dark mode toggling. The default interface is a polished Bright (Light) mode with a glassmorphism aesthetic.
 *   **MS Project Style Layout:** The main dashboard uses a resizable split-pane layout: the left panel lists issues (with assignees and status), while the wide right panel displays a horizontal Gantt chart.
 *   **Task Grouping:** Group tasks by adding a parent task to them.
 *   **Task Dependencies:** Specify successor tasks for a task, and the successor tasks will automatically generate their own start and end dates.
 *   **Data Persistence:** Saves the necessary information back in the project, including creating custom attributes for tasks.
-*   **Draft Issue Conversion & Setup:** If the connected GitHub project contains "Draft Issues", the app will prompt the user to automatically convert them to full Repository Issues to enable dependencies. This prompt explicitly reminds users to:
+*   **Draft Issue Conversion & Setup:** If the connected GitHub project contains "Draft Issues", the app will prompt the user to automatically convert them to full Issues to enable dependencies. This prompt explicitly reminds users to:
     1. Ensure "Issues" are enabled in Repository -> Settings -> General.
     2. Set the GitHub Project's "Default Repository" to the connected repo so future tasks map natively.
     If declined or impossible, the app operates in a "Read-Only" mode.

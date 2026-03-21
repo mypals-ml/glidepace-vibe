@@ -1,6 +1,6 @@
 # Test Case: Sort Open Projects
 
-Verify that the sorting functionality in the "Open Projects" modal correctly reorders the list of repositories/projects across all four available methods.
+Verify that the sorting functionality in the "Open Projects" modal correctly reorders the list of projects across all four available methods.
 
 ## Prerequisites
 1.  Run the application in **Mock Mode**: `npm run dev:test`

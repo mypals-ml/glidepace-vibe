@@ -171,7 +171,7 @@ export function GanttDashboard() {
       alert("Missing VITE_GITHUB_CLIENT_ID environment variable!");
       return;
     }
-    window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=repo,read:org,project`;
+    window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=read:org,project`;
   };
 
   const handleOpenProjectClick = () => {
@@ -642,7 +642,7 @@ export function GanttDashboard() {
                 <div className="flex items-center gap-4 mb-6">
                   <div className="relative flex-1">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg" aria-hidden="true">search</span>
-                    <input className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-4 focus:ring-slate-100 focus:border-slate-300 placeholder:text-slate-400 transition-all shadow-sm" placeholder={t('dashboard.searchReposPlaceholder')} type="text" aria-label={t('dashboard.searchReposPlaceholder')} />
+                    <input className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-4 focus:ring-slate-100 focus:border-slate-300 placeholder:text-slate-400 transition-all shadow-sm" placeholder={t('dashboard.searchProjectsPlaceholder')} type="text" aria-label={t('dashboard.searchProjectsPlaceholder')} />
                   </div>
                   <div className="relative" ref={sortDropdownRef}>
                     <div

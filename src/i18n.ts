@@ -43,7 +43,7 @@ const resources = {
         openProjectsModalTitle: "Open Projects",
         openProjectsModalDesc: "Connect and open a GitHub project",
         manageButton: "Manage",
-        searchReposPlaceholder: "Search repositories...",
+        searchProjectsPlaceholder: "Search projects...",
         sortBy: "Sort by:",
         sortRecent: "Recent",
         sortOldest: "Oldest",
@@ -137,7 +137,7 @@ const resources = {
         openProjectsModalTitle: "プロジェクトを開く",
         openProjectsModalDesc: "GitHubプロジェクトに接続して開く",
         manageButton: "管理",
-        searchReposPlaceholder: "リポジトリを検索...",
+        searchProjectsPlaceholder: "プロジェクトを検索...",
         sortBy: "並べ替え:",
         sortRecent: "最近",
         sortOldest: "古い順",
@@ -231,7 +231,7 @@ const resources = {
         openProjectsModalTitle: "打开项目",
         openProjectsModalDesc: "连接并打开 GitHub 项目",
         manageButton: "管理",
-        searchReposPlaceholder: "搜索存储库...",
+        searchProjectsPlaceholder: "搜索项目...",
         sortBy: "排序方式:",
         sortRecent: "最近",
         sortOldest: "最早",
@@ -242,7 +242,7 @@ const resources = {
         openProjectAction: "打开",
         noProjectsFound: "此帐户中未找到处于活动状态的 GitHub 项目。",
         refreshProjects: "刷新项目",
-        orgProjectsHelpLink: "组织的仓库在哪里？"
+        orgProjectsHelpLink: "组织的项目在哪里？"
       },
       table: {
         id: "ID",
@@ -266,7 +266,7 @@ const resources = {
       },
       help: {
         orgProjectsTitle: "如何访问组织的 GitHub 项目",
-        orgProjectsIntro: "如果您无法看到组织的仓库，可能是因为您需要授予第三方 OAuth 访问权限或更新您的令牌权限范围。",
+        orgProjectsIntro: "如果您无法看到组织的项目，可能是因为您需要授予第三方 OAuth 访问权限或更新您的令牌权限范围。",
         checkScopeTitle: "1. 检查令牌权限范围",
         checkScopeDesc: "此应用程序会请求 read:org 权限。如果您当前的令牌没有此权限，请重新连接您的帐户:",
         checkScopeStep1: "在“打开项目”窗口中，单击“管理”。",

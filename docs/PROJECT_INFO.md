@@ -2,11 +2,10 @@
 
 This document contains important links and identifiers for the various platforms used in the Glidepace Vibe project.
 
-## GitHub Repository
-- **URL**: [https://github.com/mypals-ml/glidepace-vibe](https://github.com/mypals-ml/glidepace-vibe)
+## GitHub Repository (Source Code)
+- **Repository URL**: [https://github.com/mypals-ml/glidepace-vibe](https://github.com/mypals-ml/glidepace-vibe)
 - **Upstream**: [https://github.com/mypals-ml/glidepace-dev](https://github.com/mypals-ml/glidepace-dev)
-
-## GitHub Project
+## GitHub Project (Tasks)
 - **Organization Projects URL**: [https://github.com/orgs/mypals-ml/projects](https://github.com/orgs/mypals-ml/projects)
 
 ## Stitch Project
