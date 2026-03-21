@@ -25,4 +25,5 @@ This document outlines the core principles and guidelines for developing within 
 *   **Mock Data via Environment Variables:** Mock data is defined in `src/lib/mockData.ts` and controlled by the `VITE_USE_MOCK_DATA` environment variable. Never hardcode `USE_MOCK_DATA = true` in source files.
 *   **Test Mode:** Run `npm run dev:test` to start the dev server with mock data enabled. This loads `.env.test` (which sets `VITE_USE_MOCK_DATA=true`) via Vite's `--mode test` flag.
 *   **Normal Mode:** Run `npm run dev` for normal development with real GitHub OAuth. `USE_MOCK_DATA` defaults to `false` when the env variable is absent.
+*   **Test Documentation:** Save manual test plans and behavior descriptions in the `test/` directory using Markdown files (e.g., `test/SORT_DROPDOWN.md`).
 *   **Adding Mock Data:** When new features require authenticated data for testing, add mock fixtures to `src/lib/mockData.ts` and gate them behind the `USE_MOCK_DATA` flag.
