@@ -66,6 +66,18 @@ export function HelpOrgProjects() {
               <li>{t('help.grantAccessStep3')}</li>
               <li>{t('help.grantAccessStep4')}</li>
             </ol>
+            <p className="text-slate-500 mt-6 text-sm bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <span className="material-symbols-outlined text-sm align-middle mr-1">info</span>
+              {t('help.grantAccessOrgPolicy')}{' '}
+              <a 
+                href="https://docs.github.com/en/organizations/managing-oauth-access-to-your-organizations-data/disabling-oauth-app-access-restrictions-for-your-organization"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline hover:text-primary-hover font-semibold"
+              >
+                {t('help.grantAccessOrgPolicyLink')}
+              </a>
+            </p>
           </section>
         </div>
       </div>

@@ -552,34 +552,48 @@ export function GanttDashboard() {
               </div>
               {/* Right Column: Projects */}
               <div className="w-[68%] p-8 bg-white/50 flex flex-col">
-                {/* Tabs for user/orgs */}
+                {/* Tabs for user/orgs or help link only */}
                 {projectsData.length > 0 && (
-                  <div className="flex items-end justify-between mb-6 border-b border-slate-200">
-                    <div className="flex flex-wrap gap-2">
-                      {projectsData.map(owner => (
-                        <button
-                          key={owner.login}
-                          onClick={() => setActiveTabLogin(owner.login)}
-                          className={`px-4 py-2 text-sm font-bold border-b-2 transition-all ${
-                            activeTabLogin === owner.login 
-                              ? 'border-primary text-primary' 
-                              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                          }`}
-                        >
-                          {owner.login}
-                        </button>
-                      ))}
+                  projectsData.some(o => o.isOrg) ? (
+                    <div className="flex items-end justify-between mb-6 border-b border-slate-200">
+                      <div className="flex flex-wrap gap-2">
+                        {projectsData.map(owner => (
+                          <button
+                            key={owner.login}
+                            onClick={() => setActiveTabLogin(owner.login)}
+                            className={`px-4 py-2 text-sm font-bold border-b-2 transition-all ${
+                              activeTabLogin === owner.login 
+                                ? 'border-primary text-primary' 
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                            }`}
+                          >
+                            {owner.login}
+                          </button>
+                        ))}
+                      </div>
+                      <a 
+                        href="/help/org-projects" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-xs font-bold text-primary hover:text-primary-hover pb-2 px-2 flex items-center gap-1 transition-colors group"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">help</span>
+                        <span className="group-hover:underline">{t('dashboard.orgProjectsHelpLink')}</span>
+                      </a>
                     </div>
-                    <a 
-                      href="/help/org-projects" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-xs font-bold text-primary hover:text-primary-hover hover:underline pb-2 px-2 flex items-center gap-1 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">help</span>
-                      {t('dashboard.orgProjectsHelpLink')}
-                    </a>
-                  </div>
+                  ) : (
+                    <div className="flex justify-end mb-6">
+                      <a 
+                        href="/help/org-projects" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-xs font-bold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors group"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">help</span>
+                        <span className="group-hover:underline">{t('dashboard.orgProjectsHelpLink')}</span>
+                      </a>
+                    </div>
+                  )
                 )}
                 {/* Filters & Search */}
                 <div className="flex items-center gap-4 mb-6">

@@ -88,6 +88,8 @@ const resources = {
         grantAccessStep2: "Click on Glidepace Vibe (or your app name).",
         grantAccessStep3: "Scroll down to Organization access.",
         grantAccessStep4: "Click Grant next to the organization. If you are not an admin, click Request, and an admin will need to approve it before projects will appear.",
+        grantAccessOrgPolicy: "If you revoked access to an organization and find no way to re-grant it, please follow the instructions here:",
+        grantAccessOrgPolicyLink: "Read GitHub Docs",
         closeWindow: "Close Window"
       }
     }
@@ -177,6 +179,8 @@ const resources = {
         grantAccessStep2: "Glidepace Vibe（またはアプリ名）をクリックします。",
         grantAccessStep3: "「Organization access (組織アクセス)」まで下にスクロールします。",
         grantAccessStep4: "組織の横にある「Grant (許可)」をクリックします。管理者でない場合は「Request (リクエスト)」をクリックし、プロジェクトが表示される前に管理者が承認する必要があります。",
+        grantAccessOrgPolicy: "組織へのアクセスを取り消した後、再度許可する方法が見つからない場合は、こちらの手順に従ってください：",
+        grantAccessOrgPolicyLink: "GitHub ドキュメントを読む",
         closeWindow: "ウィンドウを閉じる"
       }
     }
@@ -266,6 +270,8 @@ const resources = {
         grantAccessStep2: "单击 Glidepace Vibe（或您的应用名称）。",
         grantAccessStep3: "向下滚动到 Organization access（组织访问）。",
         grantAccessStep4: "单击组织旁的 Grant（授予权限）。如果您不是管理员，请单击 Request（请求权限），这需要管理员批准后才能查看项目。",
+        grantAccessOrgPolicy: "如果您撤销了对某个组织的访问权限，并且找不到重新授权的方法，请按照此处的说明操作：",
+        grantAccessOrgPolicyLink: "阅读 GitHub 文档",
         closeWindow: "关闭窗口"
       }
     }
