@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { DUMMY_TASKS } from '../lib/dummyData';
 import { useTranslation } from 'react-i18next';
 import { GITHUB_GRAPHQL_API_URL, GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
@@ -348,6 +349,40 @@ export function GanttDashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [githubToken]);
+  
+  // Real-time sync listener
+  useEffect(() => {
+    if (!selectedProject?.id) return;
+    
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.warn('Supabase credentials missing, auto-sync disabled.');
+      return;
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    
+    const channel = supabase.channel(`project-${selectedProject.id}`);
+    
+    channel
+      .on('broadcast', { event: 'sync' }, (payload) => {
+        console.log('Real-time sync triggered via Supabase:', payload);
+        if (githubToken && selectedProject.id) {
+          fetchProjectTasks(selectedProject.id, githubToken);
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to Supabase Realtime');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedProject?.id, githubToken]);
 
   const handleOpenAuth = () => {
     const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
