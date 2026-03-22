@@ -34,7 +34,9 @@ interface GithubAccount {
 export function GanttDashboard() {
   const { t, i18n } = useTranslation();
   const [sidebarWidth, setSidebarWidth] = useState(450);
-  const [hasProject, setHasProject] = useState(false);
+  const [hasProject, setHasProject] = useState(() => {
+    return !!localStorage.getItem('selected_project_type') || !!localStorage.getItem('selected_project');
+  });
   const [githubAccounts, setGithubAccounts] = useState<GithubAccount[]>(() => {
     if (USE_MOCK_DATA) return MOCK_ACCOUNTS;
     try {
@@ -70,7 +72,14 @@ export function GanttDashboard() {
   const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
   const [activeTabLogin, setActiveTabLogin] = useState<string>(USE_MOCK_DATA ? MOCK_ACCOUNTS[0].login : '');
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<{id: string, title: string} | null>(null);
+  const [selectedProject, setSelectedProject] = useState<{id: string, title: string} | null>(() => {
+    try {
+      const saved = localStorage.getItem('selected_project');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [tasks, setTasks] = useState<any[]>(DUMMY_TASKS);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const isResizing = useRef(false);
@@ -292,8 +301,16 @@ export function GanttDashboard() {
     if (githubToken && !hasProject) {
       fetchProjects(githubToken, activeAccountId, true);
     }
+    
+    // If we have a selected project on mount, fetch its tasks
+    const projectType = localStorage.getItem('selected_project_type');
+    if (githubToken && selectedProject && !projectType) {
+      fetchProjectTasks(selectedProject.id, githubToken);
+    } else if (projectType === 'dummy') {
+      setTasks(DUMMY_TASKS);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [githubToken, hasProject]);
+  }, [githubToken]);
 
   const handleOpenAuth = () => {
     const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
@@ -330,8 +347,12 @@ export function GanttDashboard() {
 
   const handleSelectRealProject = (id: string, title: string) => {
     setIsProjectModalOpen(false);
-    setSelectedProject({ id, title });
+    const project = { id, title };
+    setSelectedProject(project);
     setHasProject(true);
+    localStorage.setItem('selected_project', JSON.stringify(project));
+    localStorage.removeItem('selected_project_type');
+    
     if (githubToken) {
       fetchProjectTasks(id, githubToken);
     }
@@ -487,22 +508,35 @@ export function GanttDashboard() {
                     {!(hasProject && selectedProject) && (
                       <>
                         <button 
-                          onClick={() => { setHasProject(false); setSelectedProject(null); setIsProjectDropdownOpen(false); }}
-                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!hasProject ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                          onClick={() => { 
+                            setHasProject(true); 
+                            setSelectedProject(null); 
+                            setIsProjectDropdownOpen(false); 
+                            localStorage.removeItem('selected_project');
+                            localStorage.setItem('selected_project_type', 'none');
+                          }}
+                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!selectedProject && localStorage.getItem('selected_project_type') === 'none' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
                           role="option"
-                          aria-selected={!hasProject}
+                          aria-selected={!selectedProject && localStorage.getItem('selected_project_type') === 'none'}
                         >
                           {t('app.emptyProjectOption')}
-                          {!hasProject && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
+                          {!selectedProject && localStorage.getItem('selected_project_type') === 'none' && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
                         </button>
                         <button 
-                          onClick={() => { setHasProject(true); setSelectedProject(null); setIsProjectDropdownOpen(false); setTasks(DUMMY_TASKS); }}
-                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${hasProject && !selectedProject ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                          onClick={() => { 
+                            setHasProject(true); 
+                            setSelectedProject(null); 
+                            setIsProjectDropdownOpen(false); 
+                            setTasks(DUMMY_TASKS);
+                            localStorage.removeItem('selected_project');
+                            localStorage.setItem('selected_project_type', 'dummy');
+                          }}
+                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!selectedProject && localStorage.getItem('selected_project_type') === 'dummy' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
                           role="option"
-                          aria-selected={hasProject && !selectedProject}
+                          aria-selected={!selectedProject && localStorage.getItem('selected_project_type') === 'dummy'}
                         >
                           {t('app.dummyProjectOption')}
-                          {hasProject && !selectedProject && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
+                          {!selectedProject && localStorage.getItem('selected_project_type') === 'dummy' && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
                         </button>
                       </>
                     )}
