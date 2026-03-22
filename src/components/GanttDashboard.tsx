@@ -1089,26 +1089,48 @@ export function GanttDashboard() {
                           </button>
                         ))}
                       </div>
+                      <div className="flex items-center gap-4 pb-2 px-2">
+                        <a 
+                          href="/help/org-projects" 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-xs text-primary hover:text-primary-hover flex items-center gap-1 transition-colors group font-semibold"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: 'var(--text-base)' }}>help</span>
+                          <span className="group-hover:underline">{t('dashboard.orgProjectsHelpLink')}</span>
+                        </a>
+                        <a 
+                          href={import.meta.env.VITE_GITHUB_APP_INSTALL_URL || '#'} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-all shadow-sm font-bold border border-teal-500 hover:shadow-md"
+                          title="Install GitHub App to enable automatic sync for more repositories"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                          Install App
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-end items-center gap-4 mb-6">
                       <a 
                         href="/help/org-projects" 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-xs text-primary hover:text-primary-hover pb-2 px-2 flex items-center gap-1 transition-colors group"
+                        className="text-xs text-primary hover:text-primary-hover flex items-center gap-1 transition-colors group font-semibold"
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: 'var(--text-base)' }}>help</span>
                         <span className="group-hover:underline">{t('dashboard.orgProjectsHelpLink')}</span>
                       </a>
-                    </div>
-                  ) : (
-                    <div className="flex justify-end mb-6">
                       <a 
-                        href="/help/org-projects" 
+                        href={import.meta.env.VITE_GITHUB_APP_INSTALL_URL || '#'} 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-xs text-primary hover:text-primary-hover flex items-center gap-1 transition-colors group"
+                        className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-all shadow-sm font-bold border border-teal-500 hover:shadow-md"
+                        title="Install GitHub App to enable automatic sync for more repositories"
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: 'var(--text-base)' }}>help</span>
-                        <span className="group-hover:underline">{t('dashboard.orgProjectsHelpLink')}</span>
+                        <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                        Install App
                       </a>
                     </div>
                   )
