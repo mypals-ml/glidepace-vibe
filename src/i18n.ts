@@ -54,7 +54,9 @@ const resources = {
         openProjectAction: "Open",
         noProjectsFound: "No active GitHub Projects found in this account.",
         refreshProjects: "Refresh Projects",
-        orgProjectsHelpLink: "Projects In an Organization?"
+        orgProjectsHelpLink: "Projects In an Organization?",
+        loadingTasks: "Loading tasks from project...",
+        noTasksInProject: "No tasks found in this project. Items must be added to the project board to appear here."
       },
       table: {
         id: "ID",
@@ -148,7 +150,9 @@ const resources = {
         openProjectAction: "開く",
         noProjectsFound: "このアカウントでアクティブなGitHubプロジェクトが見つかりませんでした。",
         refreshProjects: "プロジェクトを更新",
-        orgProjectsHelpLink: "組織のプロジェクトですか？"
+        orgProjectsHelpLink: "組織のプロジェクトですか？",
+        loadingTasks: "プロジェクトからタスクを読み込んでいます...",
+        noTasksInProject: "このプロジェクトにタスクが見つかりませんでした。表示するにはプロジェクトボードに項目を追加する必要があります。"
       },
       table: {
         id: "ID",
@@ -242,7 +246,9 @@ const resources = {
         openProjectAction: "打开",
         noProjectsFound: "此帐户中未找到处于活动状态的 GitHub 项目。",
         refreshProjects: "刷新项目",
-        orgProjectsHelpLink: "组织的项目在哪里？"
+        orgProjectsHelpLink: "组织的项目在哪里？",
+        loadingTasks: "正在从项目加载任务...",
+        noTasksInProject: "此项目中未找到任务。必须将项添加到项目板才能在此处显示。"
       },
       table: {
         id: "ID",

@@ -51,7 +51,116 @@ export function GanttDashboard() {
   const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
   const [activeTabLogin, setActiveTabLogin] = useState<string>(USE_MOCK_DATA ? MOCK_ACCOUNTS[0].login : '');
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<{id: string, title: string} | null>(null);
+  const [tasks, setTasks] = useState<any[]>(DUMMY_TASKS);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const isResizing = useRef(false);
+
+  const fetchProjectTasks = async (projectId: string, token: string) => {
+    setIsLoadingTasks(true);
+    try {
+      const res = await fetch(GITHUB_GRAPHQL_API_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          query: `
+            query($projectId: ID!) {
+              node(id: $projectId) {
+                ... on ProjectV2 {
+                  items(first: 50) {
+                    nodes {
+                      id
+                      content {
+                        ... on DraftIssue { title body }
+                        ... on Issue {
+                          title
+                          number
+                          state
+                          assignees(first: 5) {
+                            nodes { login name avatarUrl }
+                          }
+                        }
+                        ... on PullRequest {
+                          title
+                          number
+                          state
+                          assignees(first: 5) {
+                            nodes { login name avatarUrl }
+                          }
+                        }
+                      }
+                      fieldValues(first: 20) {
+                        nodes {
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            name
+                            field { ... on ProjectV2SingleSelectField { name } }
+                          }
+                          ... on ProjectV2ItemFieldDateValue {
+                            date
+                            field { ... on ProjectV2Field { name } }
+                          }
+                          ... on ProjectV2ItemFieldTextValue {
+                            text
+                            field { ... on ProjectV2Field { name } }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          variables: { projectId }
+        })
+      });
+      const json = await res.json();
+      const items = json.data?.node?.items?.nodes || [];
+      
+      const mappedTasks = items.map((item: any) => {
+        const content = item.content;
+        const fieldValues = item.fieldValues.nodes;
+        
+        // Extract status from fieldValues
+        const statusField = fieldValues.find((f: any) => f.field?.name === 'Status');
+        const status = statusField?.name || 'Todo';
+        
+        // Extract dates (Start Date, End Date) if they exist
+        const startDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('start'));
+        const endDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('end'));
+        
+        const startDate = startDateField?.date || new Date().toISOString().split('T')[0];
+        const endDate = endDateField?.date || startDate;
+
+        // Map assignees
+        const assignees = (content?.assignees?.nodes || []).map((a: any, idx: number) => ({
+          id: a.login,
+          name: a.name || a.login,
+          avatarUrl: a.avatarUrl,
+          initials: (a.name || a.login).substring(0, 2).toUpperCase(),
+          avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4]
+        }));
+
+        return {
+          id: content?.number ? `#${content.number}` : item.id.substring(0, 5),
+          title: content?.title || 'No Title',
+          startDate: new Date(startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          endDate: new Date(endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          fullStartDate: startDate,
+          fullEndDate: endDate,
+          status: status === 'Done' ? 'Done' : (status === 'In Progress' ? 'In Progress' : 'Todo'),
+          assignees: assignees.length > 0 ? assignees : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }],
+          progress: status === 'Done' ? 100 : (status === 'In Progress' ? 50 : 0)
+        };
+      });
+      
+      setTasks(mappedTasks);
+    } catch (e) {
+      console.error('Failed to fetch project tasks:', e);
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  };
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -202,8 +311,11 @@ export function GanttDashboard() {
 
   const handleSelectRealProject = (id: string, title: string) => {
     setIsProjectModalOpen(false);
+    setSelectedProject({ id, title });
     setHasProject(true);
-    console.log("Selected project ID mapping:", id, title);
+    if (githubToken) {
+      fetchProjectTasks(id, githubToken);
+    }
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -308,7 +420,9 @@ export function GanttDashboard() {
               >
                 <div className="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t('app.projectLabel')}</div>
                 <div className="px-3 py-1.5 text-sm font-bold text-slate-700 flex items-center gap-2">
-                  {hasProject ? t('app.dummyProjectOption') : t('app.emptyProjectOption')}
+                  {hasProject 
+                    ? (selectedProject ? selectedProject.title : t('app.dummyProjectOption')) 
+                    : t('app.emptyProjectOption')}
                   <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform ${isProjectDropdownOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
                 </div>
               </div>
@@ -317,7 +431,7 @@ export function GanttDashboard() {
                 <div className="absolute left-0 top-full mt-2 w-64 glass-panel rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60" role="listbox">
                   <div className="p-2 space-y-1">
                     <button 
-                      onClick={() => { setHasProject(false); setIsProjectDropdownOpen(false); }}
+                      onClick={() => { setHasProject(false); setSelectedProject(null); setIsProjectDropdownOpen(false); }}
                       className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!hasProject ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
                       role="option"
                       aria-selected={!hasProject}
@@ -326,14 +440,28 @@ export function GanttDashboard() {
                       {!hasProject && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
                     </button>
                     <button 
-                      onClick={() => { setHasProject(true); setIsProjectDropdownOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${hasProject ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                      onClick={() => { setHasProject(true); setSelectedProject(null); setIsProjectDropdownOpen(false); setTasks(DUMMY_TASKS); }}
+                      className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${hasProject && !selectedProject ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
                       role="option"
-                      aria-selected={hasProject}
+                      aria-selected={hasProject && !selectedProject}
                     >
                       {t('app.dummyProjectOption')}
-                      {hasProject && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
+                      {hasProject && !selectedProject && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
                     </button>
+                    {selectedProject && (
+                      <div className="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-t border-slate-100 mt-1 pt-3">Current Selection</div>
+                    )}
+                    {selectedProject && (
+                      <button 
+                        onClick={() => setIsProjectDropdownOpen(false)}
+                        className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between bg-primary/10 text-primary font-bold shadow-sm`}
+                        role="option"
+                        aria-selected={true}
+                      >
+                        {selectedProject.title}
+                        <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>
+                      </button>
+                    )}
                   </div>
                   
                   <div className="p-2 border-t border-slate-100 bg-slate-50/50">
@@ -411,44 +539,73 @@ export function GanttDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {DUMMY_TASKS.map(task => (
-                  <tr key={task.id} className={`h-[50px] hover:bg-slate-50/80 transition-colors cursor-pointer group bg-white relative`} tabIndex={0} aria-label={`${task.title} - ${t('table.status')} ${task.status}`}>
-                    <td className="px-4 py-0 text-xs text-slate-400 font-mono align-middle relative">
-                      {task.status === 'In Progress' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-inprogress-highlight" aria-hidden="true"></div>}
-                      {task.status === 'Done' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-done-highlight" aria-hidden="true"></div>}
-                      {task.status === 'Todo' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-todo-highlight" aria-hidden="true"></div>}
-                      {task.id}
-                    </td>
-                    <td className="px-4 py-0 align-middle">
-                      <span className={`text-sm font-medium transition-colors block leading-tight ${task.status === 'Done' ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>{task.title}</span>
-                      <div className="text-[10px] text-slate-400 mt-0.5">{task.startDate} - {task.endDate}</div>
-                    </td>
-                    <td className="px-4 py-0 align-middle">
-                      {task.status === 'Done' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-done-bg text-status-done-text border border-status-done-border">
-                          <span className="w-1.5 h-1.5 rounded-full bg-status-done-highlight mr-1.5"></span>{t('taskStatuses.done')}
-                        </span>
-                      )}
-                      {task.status === 'In Progress' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-inprogress-bg text-status-inprogress-text border border-status-inprogress-border">
-                           <span className="w-1.5 h-1.5 rounded-full bg-status-inprogress-highlight mr-1.5 animate-pulse"></span>{t('taskStatuses.inProgress')}
-                        </span>
-                      )}
-                      {task.status === 'Todo' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-todo-bg text-status-todo-text border border-status-todo-border">
-                          <span className="w-1.5 h-1.5 rounded-full bg-status-todo-highlight mr-1.5"></span>{t('taskStatuses.todo')}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 align-top pt-3">
-                      <div className="flex justify-center -space-x-1.5">
-                        {task.assignees.map((user, idx) => (
-                           <div key={user.id} className={`w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>{user.initials}</div>
-                        ))}
+                {isLoadingTasks ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                      <div className="flex flex-col items-center gap-2">
+                        <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>{t('dashboard.loadingTasks')}</span>
                       </div>
                     </td>
                   </tr>
-                ))}
+                ) : tasks.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-xs italic">
+                      {t('dashboard.noTasksInProject')}
+                    </td>
+                  </tr>
+                ) : (
+                  tasks.map(task => (
+                    <tr key={task.id} className={`h-[50px] hover:bg-slate-50/80 transition-colors cursor-pointer group bg-white relative`} tabIndex={0} aria-label={`${task.title} - ${t('table.status')} ${task.status}`}>
+                      <td className="px-4 py-0 text-xs text-slate-400 font-mono align-middle relative">
+                        {task.status === 'In Progress' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-inprogress-highlight" aria-hidden="true"></div>}
+                        {task.status === 'Done' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-done-highlight" aria-hidden="true"></div>}
+                        {task.status === 'Todo' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-todo-highlight" aria-hidden="true"></div>}
+                        {task.id}
+                      </td>
+                      <td className="px-4 py-0 align-middle">
+                        <span className={`text-sm font-medium transition-colors block leading-tight ${task.status === 'Done' ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>{task.title}</span>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{task.startDate} - {task.endDate}</div>
+                      </td>
+                      <td className="px-4 py-0 align-middle">
+                        {task.status === 'Done' && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-done-bg text-status-done-text border border-status-done-border">
+                            <span className="w-1.5 h-1.5 rounded-full bg-status-done-highlight mr-1.5"></span>{t('taskStatuses.done')}
+                          </span>
+                        )}
+                        {task.status === 'In Progress' && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-inprogress-bg text-status-inprogress-text border border-status-inprogress-border">
+                             <span className="w-1.5 h-1.5 rounded-full bg-status-inprogress-highlight mr-1.5 animate-pulse"></span>{t('taskStatuses.inProgress')}
+                          </span>
+                        )}
+                        {task.status === 'Todo' && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-todo-bg text-status-todo-text border border-status-todo-border">
+                            <span className="w-1.5 h-1.5 rounded-full bg-status-todo-highlight mr-1.5"></span>{t('taskStatuses.todo')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 align-top pt-3">
+                        <div className="flex justify-center -space-x-1.5">
+                          {task.assignees.slice(0, 3).map((user: any, idx: number) => (
+                             <div key={user.id} className={`w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
+                               {user.avatarUrl ? (
+                                 <img src={user.avatarUrl} alt={user.initials} className="w-full h-full rounded-full object-cover" />
+                               ) : user.initials}
+                             </div>
+                          ))}
+                          {task.assignees.length > 3 && (
+                            <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[8px] font-bold bg-slate-100 text-slate-500" style={{ zIndex: 0 }}>
+                              +{task.assignees.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -502,47 +659,76 @@ export function GanttDashboard() {
               <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ backgroundImage: 'linear-gradient(to bottom, transparent 49px, rgba(226, 232, 240, 0.4) 50px)', backgroundSize: '100% 50px' }}></div>
               
               <div className="relative w-full h-full pt-[5px] pb-10">
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{ minHeight: '400px' }}>
-                  <defs>
-                    <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                      <polygon points="0 0, 6 3, 0 6" fill="#94a3b8" />
-                    </marker>
-                  </defs>
-                  {/* Basic static arrows to match dummy data flow */}
-                  <path d="M 28% 25 C 32% 25, 32% 75, 36% 75" fill="none" stroke="#94a3b8" strokeWidth="1.5" markerEnd="url(#arrowhead)"></path>
-                  <path d="M 64% 75 C 68% 75, 68% 125, 72% 125" fill="none" stroke="#94a3b8" strokeWidth="1.5" markerEnd="url(#arrowhead)"></path>
-                </svg>
-
-                {/* Simulated row for Task 1 */}
-                <div className="relative h-[50px] w-full flex items-center group z-10 px-2">
-                  <div className="absolute left-0 w-[28%] ml-2 h-8 rounded-md bg-emerald-50 border border-emerald-200 flex items-center px-3 cursor-pointer hover:bg-emerald-100/50 transition-colors shadow-sm">
-                    <span className="text-xs font-medium text-emerald-700 truncate opacity-70 line-through">#138 Implement UI</span>
-                    <div className="ml-auto flex items-center">
-                      <span className="material-symbols-outlined text-[14px] text-emerald-500">check_circle</span>
-                    </div>
+                {isLoadingTasks ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px] z-30">
+                     <div className="flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 rounded-full border-4 border-slate-200 border-t-primary animate-spin"></div>
+                        <span className="text-sm font-bold text-slate-500">{t('dashboard.loadingTasks')}</span>
+                     </div>
                   </div>
-                </div>
-
-                {/* Simulated row for Task 2 */}
-                <div className="relative h-[50px] w-full flex items-center group z-10 px-2">
-                  <div className="absolute left-[29%] w-[50%] h-9 rounded-lg bg-primary border border-primary-hover flex items-center px-3 shadow-glow cursor-pointer hover:bg-primary-hover transition-all">
-                    <div className="w-1 h-5 bg-white/40 rounded-full mr-2"></div>
-                    <span className="text-sm font-semibold text-white truncate">#142 Refactor API Auth Layer</span>
-                    <div className="ml-auto flex items-center gap-2">
-                       <div className="w-16 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                         <div className="h-full bg-white w-[65%] rounded-full"></div>
-                       </div>
-                       <span className="text-[10px] font-bold text-white/90">65%</span>
-                    </div>
+                ) : tasks.length === 0 ? (
+                  <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm italic">
+                    {t('dashboard.noTasksInProject')}
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{ minHeight: '400px' }}>
+                      <defs>
+                        <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                          <polygon points="0 0, 6 3, 0 6" fill="#94a3b8" />
+                        </marker>
+                      </defs>
+                      {/* Basic static arrows - could be made dynamic if dependencies are implemented */}
+                      <path d="M 28% 25 C 32% 25, 32% 75, 36% 75" fill="none" stroke="#94a3b8" strokeWidth="1.5" markerEnd="url(#arrowhead)"></path>
+                      <path d="M 64% 75 C 68% 75, 68% 125, 72% 125" fill="none" stroke="#94a3b8" strokeWidth="1.5" markerEnd="url(#arrowhead)"></path>
+                    </svg>
 
-                {/* Simulated row for Task 3 */}
-                <div className="relative h-[50px] w-full flex items-center group z-10 px-2">
-                  <div className="absolute left-[72%] w-[25%] h-8 rounded-md bg-white border border-slate-300 flex items-center px-3 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm">
-                    <span className="text-xs font-medium text-slate-600 truncate">#145 DB Schema Update</span>
-                  </div>
-                </div>
+                    {tasks.map((task, idx) => {
+                      // Simple positioning logic for demo purposes
+                      // In a real app, this would be based on actual dates
+                      const leftPos = (idx * 15 + 5) % 80;
+                      const width = 20 + (idx * 10) % 40;
+                      
+                      return (
+                        <div key={task.id} className="relative h-[50px] w-full flex items-center group z-10 px-2">
+                          <div 
+                            className={`absolute h-8 rounded-md border flex items-center px-3 cursor-pointer transition-all shadow-sm ${
+                              task.status === 'Done' 
+                                ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100/50' 
+                                : task.status === 'In Progress'
+                                  ? 'bg-primary border-primary-hover shadow-glow hover:bg-primary-hover'
+                                  : 'bg-white border-slate-300 hover:bg-slate-50'
+                            }`}
+                            style={{ 
+                              left: `${leftPos}%`, 
+                              width: `${width}%` 
+                            }}
+                          >
+                            {task.status === 'In Progress' && <div className="w-1 h-5 bg-white/40 rounded-full mr-2"></div>}
+                            <span className={`text-xs font-medium truncate ${
+                              task.status === 'Done' ? 'text-emerald-700 opacity-70 line-through' : task.status === 'In Progress' ? 'text-white font-bold' : 'text-slate-600'
+                            }`}>
+                              {task.id} {task.title}
+                            </span>
+                            {task.status === 'Done' && (
+                              <div className="ml-auto flex items-center">
+                                <span className="material-symbols-outlined text-[14px] text-emerald-500">check_circle</span>
+                              </div>
+                            )}
+                            {task.status === 'In Progress' && (
+                              <div className="ml-auto flex items-center gap-2">
+                                <div className="w-12 h-1 bg-white/20 rounded-full overflow-hidden hidden sm:block">
+                                  <div className="h-full bg-white opacity-80" style={{ width: `${task.progress}%` }}></div>
+                                </div>
+                                <span className="text-[9px] font-bold text-white/90">{task.progress}%</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
               </div>
            </div>
         </main>
