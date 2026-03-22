@@ -527,7 +527,7 @@ export function GanttDashboard() {
                               {group.label}
                             </div>
                             {items.map(item => (
-                              <div key={item.id} className="relative group/item">
+                              <div key={item.id} className="relative group">
                                 <button 
                                   onClick={() => { handleSelectRealProject(item.id, item.title); setIsProjectDropdownOpen(false); }}
                                   className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${selectedProject?.id === item.id ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
@@ -535,11 +535,15 @@ export function GanttDashboard() {
                                   aria-selected={selectedProject?.id === item.id}
                                 >
                                   <span className="truncate pr-6">{item.title}</span>
-                                  {selectedProject?.id === item.id && <span className="material-symbols-outlined text-sm group-hover/item:hidden" aria-hidden="true">check</span>}
+                                  {selectedProject?.id === item.id && (
+                                    <span className="material-symbols-outlined text-sm group-hover:opacity-0 transition-opacity" aria-hidden="true">
+                                      check
+                                    </span>
+                                  )}
                                 </button>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleRemoveFromHistory(item.id); }}
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-500 opacity-0 group-hover/item:opacity-100 transition-opacity rounded-md hover:bg-rose-50"
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-rose-50 z-10"
                                   title={t('dashboard.removeFromHistory')}
                                 >
                                   <span className="material-symbols-outlined text-base">close</span>
