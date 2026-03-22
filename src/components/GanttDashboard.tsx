@@ -44,6 +44,8 @@ export function GanttDashboard() {
   const [sortMethod, setSortMethod] = useState<SortMethod>('recent');
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
+  const projectDropdownRef = useRef<HTMLDivElement>(null);
 
   const githubToken = githubAccounts.find(a => a.id === activeAccountId)?.token || '';
   const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
@@ -246,6 +248,20 @@ export function GanttDashboard() {
     return () => document.removeEventListener('mousedown', handleClickOutsideSort);
   }, [isSortDropdownOpen, handleClickOutsideSort]);
 
+  // Close project dropdown on click outside
+  const handleClickOutsideProject = useCallback((e: MouseEvent) => {
+    if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node)) {
+      setIsProjectDropdownOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isProjectDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutsideProject);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutsideProject);
+  }, [isProjectDropdownOpen, handleClickOutsideProject]);
+
   const sortLabelKey: Record<SortMethod, string> = {
     recent: 'dashboard.sortRecent',
     oldest: 'dashboard.sortOldest',
@@ -282,18 +298,55 @@ export function GanttDashboard() {
           </div>
           <div className="h-6 w-px bg-slate-200 mx-2 hidden md:block"></div>
           <div className="hidden md:flex items-center gap-3">
-            <div className="relative flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
-              <div className="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-xs font-medium text-slate-500" id="project-select-label">{t('app.projectLabel')}</div>
-              <select 
-                className="border-0 focus:ring-0 text-sm py-1.5 px-3 w-40 text-slate-700 font-medium focus:outline-none bg-transparent appearance-none cursor-pointer"
-                value={hasProject ? "dummy" : "empty"}
-                onChange={(e) => setHasProject(e.target.value === "dummy")}
-                aria-labelledby="project-select-label"
+            <div className="relative" ref={projectDropdownRef}>
+              <div 
+                onClick={() => setIsProjectDropdownOpen(prev => !prev)}
+                className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm cursor-pointer hover:bg-slate-50 transition-colors h-9 overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary"
+                role="button"
+                aria-haspopup="listbox"
+                aria-expanded={isProjectDropdownOpen}
               >
-                <option value="empty">{t('app.emptyProjectOption')}</option>
-                <option value="dummy">{t('app.dummyProjectOption')}</option>
-              </select>
-              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]" aria-hidden="true">expand_more</span>
+                <div className="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t('app.projectLabel')}</div>
+                <div className="px-3 py-1.5 text-sm font-bold text-slate-700 flex items-center gap-2">
+                  {hasProject ? t('app.dummyProjectOption') : t('app.emptyProjectOption')}
+                  <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform ${isProjectDropdownOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
+                </div>
+              </div>
+
+              {isProjectDropdownOpen && (
+                <div className="absolute left-0 top-full mt-2 w-64 glass-panel rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60" role="listbox">
+                  <div className="p-2 space-y-1">
+                    <button 
+                      onClick={() => { setHasProject(false); setIsProjectDropdownOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!hasProject ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                      role="option"
+                      aria-selected={!hasProject}
+                    >
+                      {t('app.emptyProjectOption')}
+                      {!hasProject && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
+                    </button>
+                    <button 
+                      onClick={() => { setHasProject(true); setIsProjectDropdownOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${hasProject ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                      role="option"
+                      aria-selected={hasProject}
+                    >
+                      {t('app.dummyProjectOption')}
+                      {hasProject && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
+                    </button>
+                  </div>
+                  
+                  <div className="p-2 border-t border-slate-100 bg-slate-50/50">
+                    <button 
+                      onClick={() => { handleOpenProjectClick(); setIsProjectDropdownOpen(false); }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-lg transition-all shadow-md shadow-primary/20"
+                    >
+                      <span className="material-symbols-outlined text-[18px]" aria-hidden="true">folder_open</span>
+                      {t('dashboard.addProjectButton')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="relative flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
