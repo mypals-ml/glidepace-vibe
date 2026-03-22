@@ -530,23 +530,23 @@ export function GanttDashboard() {
                               <div key={item.id} className="relative group">
                                 <button 
                                   onClick={() => { handleSelectRealProject(item.id, item.title); setIsProjectDropdownOpen(false); }}
-                                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${selectedProject?.id === item.id ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center ${selectedProject?.id === item.id ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
                                   role="option"
                                   aria-selected={selectedProject?.id === item.id}
                                 >
-                                  <span className="truncate pr-6">{item.title}</span>
+                                  <span className="truncate pr-10">{item.title}</span>
                                   {selectedProject?.id === item.id && (
-                                    <span className="material-symbols-outlined text-sm group-hover:opacity-0 transition-opacity" aria-hidden="true">
-                                      check
-                                    </span>
+                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center group-hover:opacity-0 transition-opacity pointer-events-none" aria-hidden="true">
+                                      <span className="material-symbols-outlined text-[20px]">check</span>
+                                    </div>
                                   )}
                                 </button>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleRemoveFromHistory(item.id); }}
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-rose-50 z-10"
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-rose-50 z-10"
                                   title={t('dashboard.removeFromHistory')}
                                 >
-                                  <span className="material-symbols-outlined text-base">close</span>
+                                  <span className="material-symbols-outlined text-[20px]">close</span>
                                 </button>
                               </div>
                             ))}
