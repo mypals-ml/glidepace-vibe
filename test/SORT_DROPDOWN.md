@@ -1,11 +1,11 @@
-# Test Case: Sort Open Projects
+# Test Case: Sort Open Project
 
-Verify that the sorting functionality in the "Open Projects" modal correctly reorders the list of projects across all four available methods.
+Verify that the sorting functionality in the "Open Project" modal correctly reorders the list of projects across all four available methods.
 
 ## Prerequisites
 1.  Run the application in **Mock Mode**: `npm run dev:test`
 2.  Open `http://localhost:5173`
-3.  Ensure the "Open Projects" modal is accessible (automatically "connected" in mock mode)
+3.  Ensure the "Open Project" modal is accessible (automatically "connected" in mock mode)
 
 ## Mock Data Baseline
 The mock data (defined in `src/lib/mockData.ts`) provides 6 projects in this default order:

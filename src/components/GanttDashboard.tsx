@@ -590,13 +590,13 @@ export function GanttDashboard() {
       </div>
       {/* Real OAuth Project Selector Modal overlay */}
       {isProjectModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="open-projects-title">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="open-project-title">
           <div className="bg-white/90 backdrop-blur-xl w-full max-w-5xl rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col border border-white/40">
             {/* Header */}
             <div className="px-8 py-6 flex justify-between items-center bg-slate-50/40 border-b border-slate-200">
               <div>
-                <h2 id="open-projects-title" className="text-2xl font-extrabold tracking-tight text-slate-900">{t('dashboard.openProjectsModalTitle')}</h2>
-                <p className="text-sm text-slate-500 font-medium mt-1">{t('dashboard.openProjectsModalDesc')}</p>
+                <h2 id="open-project-title" className="text-2xl font-extrabold tracking-tight text-slate-900">{t('dashboard.openProjectModalTitle')}</h2>
+                <p className="text-sm text-slate-500 font-medium mt-1">{t('dashboard.openProjectModalDesc')}</p>
               </div>
               <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500" aria-label="Close">
                 <span className="material-symbols-outlined" aria-hidden="true">close</span>
