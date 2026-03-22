@@ -56,7 +56,12 @@ const resources = {
         refreshProjects: "Refresh Projects",
         orgProjectsHelpLink: "Projects In an Organization?",
         loadingTasks: "Loading tasks from project...",
-        noTasksInProject: "No tasks found in this project. Items must be added to the project board to appear here."
+        noTasksInProject: "No tasks found in this project. Items must be added to the project board to appear here.",
+        historyToday: "Today",
+        historyYesterday: "Yesterday",
+        historyLast7Days: "Last 7 Days",
+        historyEarlier: "Earlier",
+        removeFromHistory: "Remove"
       },
       table: {
         id: "ID",
@@ -152,7 +157,12 @@ const resources = {
         refreshProjects: "プロジェクトを更新",
         orgProjectsHelpLink: "組織のプロジェクトですか？",
         loadingTasks: "プロジェクトからタスクを読み込んでいます...",
-        noTasksInProject: "このプロジェクトにタスクが見つかりませんでした。表示するにはプロジェクトボードに項目を追加する必要があります。"
+        noTasksInProject: "このプロジェクトにタスクが見つかりませんでした。表示するにはプロジェクトボードに項目を追加する必要があります。",
+        historyToday: "今日",
+        historyYesterday: "昨日",
+        historyLast7Days: "過去7日間",
+        historyEarlier: "それ以前",
+        removeFromHistory: "削除"
       },
       table: {
         id: "ID",
@@ -248,7 +258,12 @@ const resources = {
         refreshProjects: "刷新项目",
         orgProjectsHelpLink: "组织的项目在哪里？",
         loadingTasks: "正在从项目加载任务...",
-        noTasksInProject: "此项目中未找到任务。必须将项添加到项目板才能在此处显示。"
+        noTasksInProject: "此项目中未找到任务。必须将项添加到项目板才能在此处显示。",
+        historyToday: "今天",
+        historyYesterday: "昨天",
+        historyLast7Days: "过去 7 天",
+        historyEarlier: "更早以前",
+        removeFromHistory: "移除"
       },
       table: {
         id: "ID",

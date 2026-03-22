@@ -17,6 +17,12 @@ interface ProjectOwnerInfo {
   projects: GitHubProject[];
 }
 
+interface ProjectHistoryItem {
+  id: string;
+  title: string;
+  lastOpened: number;
+}
+
 interface GithubAccount {
   id: string;
   login: string;
@@ -46,6 +52,19 @@ export function GanttDashboard() {
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [projectHistory, setProjectHistory] = useState<ProjectHistoryItem[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('project_history') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const saveHistory = (history: ProjectHistoryItem[]) => {
+    setProjectHistory(history);
+    localStorage.setItem('project_history', JSON.stringify(history));
+  };
 
   const githubToken = githubAccounts.find(a => a.id === activeAccountId)?.token || '';
   const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
@@ -316,6 +335,40 @@ export function GanttDashboard() {
     if (githubToken) {
       fetchProjectTasks(id, githubToken);
     }
+
+    // Update history
+    const newItem: ProjectHistoryItem = { id, title, lastOpened: Date.now() };
+    const filtered = projectHistory.filter(item => item.id !== id);
+    const nextHistory = [newItem, ...filtered].slice(0, 20); // Keep last 20
+    saveHistory(nextHistory);
+  };
+
+  const handleRemoveFromHistory = (id: string) => {
+    const nextHistory = projectHistory.filter(item => item.id !== id);
+    saveHistory(nextHistory);
+  };
+
+  const groupHistoryByDate = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterday = today - 86400000;
+    const last7Days = today - 7 * 86400000;
+
+    const groups: Record<string, ProjectHistoryItem[]> = {
+      today: [],
+      yesterday: [],
+      last7Days: [],
+      earlier: []
+    };
+
+    projectHistory.forEach(item => {
+      if (item.lastOpened >= today) groups.today.push(item);
+      else if (item.lastOpened >= yesterday) groups.yesterday.push(item);
+      else if (item.lastOpened >= last7Days) groups.last7Days.push(item);
+      else groups.earlier.push(item);
+    });
+
+    return groups;
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -430,38 +483,73 @@ export function GanttDashboard() {
               {isProjectDropdownOpen && (
                 <div className="absolute left-0 top-full mt-2 w-64 glass-panel rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60" role="listbox">
                   <div className="p-2 space-y-1">
-                    <button 
-                      onClick={() => { setHasProject(false); setSelectedProject(null); setIsProjectDropdownOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!hasProject ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                      role="option"
-                      aria-selected={!hasProject}
-                    >
-                      {t('app.emptyProjectOption')}
-                      {!hasProject && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
-                    </button>
-                    <button 
-                      onClick={() => { setHasProject(true); setSelectedProject(null); setIsProjectDropdownOpen(false); setTasks(DUMMY_TASKS); }}
-                      className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${hasProject && !selectedProject ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                      role="option"
-                      aria-selected={hasProject && !selectedProject}
-                    >
-                      {t('app.dummyProjectOption')}
-                      {hasProject && !selectedProject && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
-                    </button>
-                    {selectedProject && (
-                      <div className="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-t border-slate-100 mt-1 pt-3">Current Selection</div>
+                    {/* Hide empty/dummy when a real project is selected */}
+                    {!(hasProject && selectedProject) && (
+                      <>
+                        <button 
+                          onClick={() => { setHasProject(false); setSelectedProject(null); setIsProjectDropdownOpen(false); }}
+                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!hasProject ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                          role="option"
+                          aria-selected={!hasProject}
+                        >
+                          {t('app.emptyProjectOption')}
+                          {!hasProject && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
+                        </button>
+                        <button 
+                          onClick={() => { setHasProject(true); setSelectedProject(null); setIsProjectDropdownOpen(false); setTasks(DUMMY_TASKS); }}
+                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${hasProject && !selectedProject ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                          role="option"
+                          aria-selected={hasProject && !selectedProject}
+                        >
+                          {t('app.dummyProjectOption')}
+                          {hasProject && !selectedProject && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
+                        </button>
+                      </>
                     )}
-                    {selectedProject && (
-                      <button 
-                        onClick={() => setIsProjectDropdownOpen(false)}
-                        className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between bg-primary/10 text-primary font-bold shadow-sm`}
-                        role="option"
-                        aria-selected={true}
-                      >
-                        {selectedProject.title}
-                        <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>
-                      </button>
-                    )}
+
+                    {/* Project History */}
+                    {(() => {
+                      const groups = groupHistoryByDate();
+                      const groupOrder = [
+                        { key: 'today', label: t('dashboard.historyToday') },
+                        { key: 'yesterday', label: t('dashboard.historyYesterday') },
+                        { key: 'last7Days', label: t('dashboard.historyLast7Days') },
+                        { key: 'earlier', label: t('dashboard.historyEarlier') }
+                      ];
+
+                      return groupOrder.map(group => {
+                        const items = groups[group.key];
+                        if (items.length === 0) return null;
+
+                        return (
+                          <div key={group.key} className="space-y-1">
+                            <div className="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-t border-slate-100 first:border-0 mt-1 first:mt-0 pt-3 first:pt-1">
+                              {group.label}
+                            </div>
+                            {items.map(item => (
+                              <div key={item.id} className="relative group/item">
+                                <button 
+                                  onClick={() => { handleSelectRealProject(item.id, item.title); setIsProjectDropdownOpen(false); }}
+                                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${selectedProject?.id === item.id ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                                  role="option"
+                                  aria-selected={selectedProject?.id === item.id}
+                                >
+                                  <span className="truncate pr-6">{item.title}</span>
+                                  {selectedProject?.id === item.id && <span className="material-symbols-outlined text-sm group-hover/item:hidden" aria-hidden="true">check</span>}
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleRemoveFromHistory(item.id); }}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-500 opacity-0 group-hover/item:opacity-100 transition-opacity rounded-md hover:bg-rose-50"
+                                  title={t('dashboard.removeFromHistory')}
+                                >
+                                  <span className="material-symbols-outlined text-base">close</span>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                   
                   <div className="p-2 border-t border-slate-100 bg-slate-50/50">
