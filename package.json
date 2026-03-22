@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@capacitor/core": "^8.2.0",
+    "@supabase/supabase-js": "^2.99.3",
     "i18next": "^25.8.18",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

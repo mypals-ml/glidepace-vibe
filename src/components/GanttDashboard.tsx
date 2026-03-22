@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { DUMMY_TASKS } from '../lib/dummyData';
 import { useTranslation } from 'react-i18next';
 import { GITHUB_GRAPHQL_API_URL, GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
@@ -82,7 +83,42 @@ export function GanttDashboard() {
   });
   const [tasks, setTasks] = useState<any[]>(DUMMY_TASKS);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState<number>(() => {
+    const saved = localStorage.getItem('last_synced_time');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [isHoveringSync, setIsHoveringSync] = useState(false);
+  const [, setTick] = useState(0); // Force re-render for relative time
   const isResizing = useRef(false);
+
+  const updateSyncTime = () => {
+    const now = Date.now();
+    setLastSyncedTime(now);
+    localStorage.setItem('last_synced_time', now.toString());
+  };
+
+  const getSyncedTimeText = (time: number) => {
+    if (!time) return '';
+    const diff = Date.now() - time;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+
+    if (seconds < 5) return t('app.syncedJustNow');
+    if (minutes < 60) return t('app.syncedMinutesAgo', { count: minutes });
+    if (hours < 24) return t('app.syncedHoursAgo', { count: hours });
+    if (days < 30) return t('app.syncedDaysAgo', { count: days });
+    if (months < 12) return t('app.syncedMonthsAgo', { count: months });
+    return t('app.syncedYearsAgo', { count: years });
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 10000); // Update every 10s
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchProjectTasks = async (projectId: string, token: string) => {
     setIsLoadingTasks(true);
@@ -183,6 +219,7 @@ export function GanttDashboard() {
       });
       
       setTasks(mappedTasks);
+      updateSyncTime();
     } catch (e) {
       console.error('Failed to fetch project tasks:', e);
     } finally {
@@ -286,6 +323,7 @@ export function GanttDashboard() {
         
         setProjectsData(owners);
         setActiveTabLogin(viewer.login);
+        updateSyncTime();
       }
       if (forceModal) {
         setIsProjectModalOpen(true);
@@ -311,6 +349,40 @@ export function GanttDashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [githubToken]);
+  
+  // Real-time sync listener
+  useEffect(() => {
+    if (!selectedProject?.id) return;
+    
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.warn('Supabase credentials missing, auto-sync disabled.');
+      return;
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    
+    const channel = supabase.channel(`project-${selectedProject.id}`);
+    
+    channel
+      .on('broadcast', { event: 'sync' }, (payload) => {
+        console.log('Real-time sync triggered via Supabase:', payload);
+        if (githubToken && selectedProject.id) {
+          fetchProjectTasks(selectedProject.id, githubToken);
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to Supabase Realtime');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedProject?.id, githubToken]);
 
   const handleOpenAuth = () => {
     const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
@@ -355,6 +427,7 @@ export function GanttDashboard() {
     
     if (githubToken) {
       fetchProjectTasks(id, githubToken);
+      updateSyncTime();
     }
 
     // Update history
@@ -621,12 +694,49 @@ export function GanttDashboard() {
         </div>
         <div className="flex items-center gap-3">
           {githubToken && (
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-xs font-medium text-emerald-700 shadow-sm" aria-live="polite">
-               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              {t('app.syncedJustNow')}
+            <div 
+              className="hidden lg:flex items-center"
+              onMouseEnter={() => setIsHoveringSync(true)}
+              onMouseLeave={() => setIsHoveringSync(false)}
+            >
+              {(() => {
+                const isStale = lastSyncedTime && (Date.now() - lastSyncedTime) > 60000;
+                
+                if (isHoveringSync) {
+                  return (
+                    <button 
+                      onClick={() => {
+                        if (selectedProject?.id) {
+                          fetchProjectTasks(selectedProject.id, githubToken);
+                        } else {
+                          fetchProjects(githubToken, activeAccountId);
+                        }
+                      }}
+                      className="flex items-center gap-2 px-3 h-8 rounded-full border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold shadow-sm transition-all animate-in fade-in zoom-in duration-200"
+                    >
+                      <span className="material-symbols-outlined text-[16px] animate-spin-slow">sync</span>
+                      <span className="leading-none">{t('app.syncNow')}</span>
+                    </button>
+                  );
+                }
+                
+                return (
+                  <div 
+                    className={`flex items-center gap-2 px-3 h-8 rounded-full border text-xs font-medium shadow-sm transition-all animate-in fade-in duration-300 ${
+                      isStale 
+                        ? 'bg-slate-50 border-slate-200 text-slate-500' 
+                        : 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                    }`} 
+                    aria-live="polite"
+                  >
+                    <span className="relative flex h-2 w-2">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isStale ? 'bg-slate-300' : 'bg-emerald-400'}`}></span>
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${isStale ? 'bg-slate-400' : 'bg-emerald-500'}`}></span>
+                    </span>
+                    <span className="leading-none">{getSyncedTimeText(lastSyncedTime)}</span>
+                  </div>
+                );
+              })()}
             </div>
           )}
           
