@@ -20,15 +20,15 @@ This use case describes the step-by-step process of a user connecting to a GitHu
 
 ---
 
-### Step 2: Connecting to a GitHub Repository
+### Step 2: Connecting to a GitHub Project
 
 *   **View:** GitHub Connection View
 *   **UI Elements:**
-    *   "Repository URL" input field
+    *   "Project Name" search/select
     *   "Project ID" input field
     *   "Connect" button
 *   **User Actions:**
-    *   The user enters the URL of the GitHub repository.
+    *   The user selects a GitHub project from the discovery list.
     *   The user enters the ID of the GitHub project.
     *   The user clicks the "Connect" button.
 
