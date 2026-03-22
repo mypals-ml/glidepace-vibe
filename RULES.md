@@ -27,3 +27,7 @@ This document outlines the core principles and guidelines for developing within 
 *   **Normal Mode:** Run `npm run dev` for normal development with real GitHub OAuth. `USE_MOCK_DATA` defaults to `false` when the env variable is absent.
 *   **Test Documentation:** Save manual test plans and behavior descriptions in the `test/` directory using Markdown files (e.g., `test/SORT_DROPDOWN.md`).
 *   **Adding Mock Data:** When new features require authenticated data for testing, add mock fixtures to `src/lib/mockData.ts` and gate them behind the `USE_MOCK_DATA` flag.
+
+## 6. AI Assistant Preferences
+*   **Creating Tasks:** Whenever the user asks to "Add a task in the github task project" or similar phrasing, it strictly means to *both* add the task to the project *and* convert it into an issue.
+
