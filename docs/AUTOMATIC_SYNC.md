@@ -1,9 +1,14 @@
 # Automatic Sync via GitHub Webhooks (Supabase)
 
-This project supports automatic task synchronization using GitHub Webhooks and Supabase Realtime as a relay.
+This project supports automatic task synchronization using GitHub Webhooks and Supabase Realtime as a relay. 
+
+## Dual Architecture Explained
+Glidelines uses a **Dual Architecture** to handle data efficiently and safely:
+1. **OAuth App:** Handles the frontend login and fetches ALL your projects securely.
+2. **GitHub App:** Exists **strictly** for webhooks to power this automatic sync feature in the background.
 
 ## How it Works
-1.  **GitHub Event**: When an issue or project item is updated on GitHub, it sends a webhook to `/api/github-webhook`.
+1.  **GitHub Event**: When an issue or project item is updated on GitHub, your installed GitHub App sends a webhook to `/api/github-webhook`.
 2.  **Webhook Handler**: The Vercel serverless function receives the event and triggers a Supabase Realtime broadcast.
 3.  **Real-time Update**: The frontend listens for the broadcast event and automatically calls `fetchProjectTasks` to update the dashboard.
 
@@ -16,28 +21,25 @@ This project supports automatic task synchronization using GitHub Webhooks and S
 - **Important**: Ensure Realtime is enabled for your project (Go to Realtime settings in the dashboard).
 
 ### 2. GitHub Webhook Setup
-- **For OAuth Apps (Current Setup)**: Webhooks must be added **manually** to each Repository or Organization because OAuth permissions are user-level, not repo-level.
-  - Go to your GitHub Repository/Org Settings > **Webhooks**.
-  - **Payload URL**: `https://your-vercel-domain.app/api/github-webhook`
-  - **Content type**: `application/json`
-  - **Secret**: Must match your `GITHUB_WEBHOOK_SECRET`.
-  - **Events**: Select "Project v2 items", "Issues", and "Pushes".
-
-- **For GitHub Apps (Recommended for Production)**: 
-  - If you convert this project to a **GitHub App**, you can configure these webhooks once in the App settings.
-  - Users only need to "Install" the app on their Org/Repo for sync to work automatically.
-  - No manual webhook configuration is required for individual users.
+To enable automatic sync across organizations without manual setup per-repository, you must create a GitHub App specifically for webhook relay.
+- Follow the instructions in [`GITHUB_APP_SETUP.md`](./GITHUB_APP_SETUP.md) to set up the Webhook App.
+- After logging in using the OAuth app, the user will be prompted to "Install" the GitHub App on their desired organizations to activate automatic sync for them.
 
 ### 3. Environment Variables
 Add the following to your Vercel project settings or `.env.local`:
 
 ```env
-# Backend (Vercel Functions Env)
-GITHUB_WEBHOOK_SECRET=your_secret_here
+# 1. OAuth App (Frontend Login & Data)
+VITE_GITHUB_OAUTH_CLIENT_ID=your_oauth_client_id
+GITHUB_OAUTH_CLIENT_SECRET=your_oauth_client_secret
+
+# 2. GitHub App (Background Webhooks)
+VITE_GITHUB_APP_INSTALL_URL=https://github.com/apps/your-app-name
+GITHUB_WEBHOOK_SECRET=your_webhook_secret
+
+# 3. Supabase Relays
 SUPABASE_URL=your_supabase_url
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# Frontend (Vite)
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_anon_key
 ```

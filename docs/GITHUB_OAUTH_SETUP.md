@@ -1,6 +1,8 @@
 # GitHub OAuth Setup Guide
 
-This document outlines the architecture and setup process for implementing a secure GitHub OAuth flow in Glidelines, utilizing Vercel's serverless functions.
+This document outlines the architecture and setup process for implementing a secure GitHub OAuth flow in Glidelines, utilizing Vercel's serverless functions. 
+
+Because we use a **Dual Architecture**, this Classic OAuth App is solely responsible for logging the user in and fetching their project lists natively without API blockers.
 
 ## Overview
 
@@ -18,10 +20,11 @@ Because Glidelines is a client-side React application, securely exchanging an OA
    - **Homepage URL:** `http://localhost:5173`
    - **Authorization callback URL:** `http://localhost:5173/api/github-oauth-callback`
 4. Generate a **Client Secret**.
-5. Save the `Client ID` and `Client Secret` in a `.env.local` file in the project root:
+5. Save the `Client ID` and `Client Secret` as part of your **Local Environment Variables**:
    ```env
-   VITE_GITHUB_CLIENT_ID=your_local_client_id
-   GITHUB_CLIENT_SECRET=your_local_client_secret
+   # 1. OAuth App (Frontend Login & Data)
+   VITE_GITHUB_OAUTH_CLIENT_ID=your_local_client_id
+   GITHUB_OAUTH_CLIENT_SECRET=your_local_client_secret
    ```
 
 ### Production OAuth App
@@ -38,7 +41,7 @@ To securely trade the temporary OAuth code for an access token without exposing 
 
 The `api/github-oauth-callback.ts` function will:
 1. Receive the temporary `code` from GitHub via the URL query parameters after the user authorizes.
-2. Make a secure server-to-server `POST` request to `https://github.com/login/oauth/access_token` using the `code`, `Client ID`, and the hidden `GITHUB_CLIENT_SECRET` environment variable.
+2. Make a secure server-to-server `POST` request to `https://github.com/login/oauth/access_token` using the `code`, `Client ID`, and the hidden `GITHUB_OAUTH_CLIENT_SECRET` environment variable.
 3. Receive the permanent `access_token` from GitHub.
 4. Redirect the user back to the main frontend application (`/`), passing the token securely so the React app can store it in browser `localStorage`.
 
@@ -47,9 +50,10 @@ The `api/github-oauth-callback.ts` function will:
 Once the React frontend securely receives and saves the `access_token`:
 1. The UI checks if a GitHub Project is already selected.
 2. If no project is selected, the frontend makes an authenticated request to the GitHub GraphQL API to fetch a list of all `ProjectsV2` associated with the authenticated user or organization.
-3. An overlay modal is triggered, prompting the user to *"Select a GitHub Project"*.
-4. The user selects a project from the dropdown.
-5. The selected Project ID is stored, and the Gantt chart boots up sequentially, fetching the real issue timeline data.
+3. Because we use a classic OAuth app token instead of a GitHub App user-to-server token, the fetch fully supports `viewer.projectsV2` for personal projects without any GitHub API permission errors.
+4. An overlay modal is triggered, prompting the user to *"Select a GitHub Project"*.
+5. The user selects a project from the dropdown.
+6. The selected Project ID is stored, and the Gantt chart boots up sequentially, fetching the real issue timeline data.
 
 ## 4. Deploy and Connect the OAuth App via Vercel
 
@@ -57,9 +61,9 @@ Vercel features **Zero-Config Serverless Functions**. This means you do absolute
 
 To finalize the deployment:
 1. Go to your project on the [Vercel Dashboard](https://vercel.com/dashboard).
-2. Navigate to **Settings** -> **Environment Variables**.
+2. Navigate to **Settings** -> **Environment Variables**. These are your **Production Environment Variables**.
 3. Add the following keys using the values from your **Production OAuth App**:
-   - `VITE_GITHUB_CLIENT_ID` (Value: your production client ID)
-   - `GITHUB_CLIENT_SECRET` (Value: your production client secret)
+   - `VITE_GITHUB_OAUTH_CLIENT_ID` (Value: your production client ID)
+   - `GITHUB_OAUTH_CLIENT_SECRET` (Value: your production client secret)
 4. Trigger a redeployment if necessary.
 5. Once deployed, the live environment will protect your secrets and ensure the `api/github-oauth-callback` route fires securely.

@@ -50,11 +50,13 @@ export function GanttDashboard() {
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState<Record<string, boolean>>({});
+  const [isAppInstalled, setIsAppInstalled] = useState<Record<string, boolean>>({});
   const [sortMethod, setSortMethod] = useState<SortMethod>('recent');
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const [projectHistory, setProjectHistory] = useState<ProjectHistoryItem[]>(() => {
     try {
@@ -206,7 +208,7 @@ export function GanttDashboard() {
         }));
 
         return {
-          id: content?.number ? `#${content.number}` : item.id.substring(0, 5),
+          id: content?.number ? `#${content.number}` : item.id.slice(-6),
           title: content?.title || 'No Title',
           startDate: new Date(startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
           endDate: new Date(endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
@@ -275,6 +277,32 @@ export function GanttDashboard() {
     handleAuthCallback();
   }, [githubToken]);
 
+  useEffect(() => {
+    // Only verify if we haven't successfully checked this account yet
+    if (activeAccountId && typeof isAppInstalled[activeAccountId] === 'undefined') {
+      const currentAccount = githubAccounts.find(a => a.id === activeAccountId);
+      if (!currentAccount) return;
+
+      const checkAppInstallation = async () => {
+        try {
+          const res = await fetch(`/api/check-github-app-installation?login=${encodeURIComponent(currentAccount.login)}`);
+          if (!res.ok) {
+            console.error('Failed to verify installation from backend');
+            setIsAppInstalled(prev => ({ ...prev, [activeAccountId]: false }));
+            return;
+          }
+          const data = await res.json();
+          setIsAppInstalled(prev => ({ ...prev, [activeAccountId]: !!data.installed }));
+        } catch (e) {
+          console.error('Failed to check app installation:', e);
+          setIsAppInstalled(prev => ({ ...prev, [activeAccountId]: false }));
+        }
+      };
+      
+      checkAppInstallation();
+    }
+  }, [activeAccountId, isAppInstalled, githubAccounts]);
+
   const fetchProjects = async (token: string, accountId: string, forceModal: boolean = false) => {
     setIsRefreshing(prev => ({ ...prev, [accountId]: true }));
     try {
@@ -303,21 +331,30 @@ export function GanttDashboard() {
         })
       });
       const json = await res.json();
+      
+      if (json.errors) {
+        console.error('GraphQL Errors:', json.errors);
+        setApiError(json.errors.map((e: any) => e.message).join(', '));
+      } else {
+        setApiError(null);
+      }
+      
       const viewer = json.data?.viewer;
       if (viewer) {
         const owners: ProjectOwnerInfo[] = [];
         owners.push({
           login: viewer.login,
           isOrg: false,
-          projects: viewer.projectsV2?.nodes || []
+          projects: (viewer.projectsV2?.nodes || []).filter(Boolean)
         });
         
         const orgs = viewer.organizations?.nodes || [];
         for (const org of orgs) {
+          if (!org || !org.login) continue; // Defensive check against null organizations
           owners.push({
             login: org.login,
             isOrg: true,
-            projects: org.projectsV2?.nodes || []
+            projects: (org.projectsV2?.nodes || []).filter(Boolean)
           });
         }
         
@@ -385,16 +422,19 @@ export function GanttDashboard() {
   }, [selectedProject?.id, githubToken]);
 
   const handleOpenAuth = () => {
-    const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
+    const clientId = import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID;
     if (!clientId) {
-      alert("Missing VITE_GITHUB_CLIENT_ID environment variable!");
+      alert("Missing VITE_GITHUB_OAUTH_CLIENT_ID environment variable!");
       return;
     }
-    window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=read:org,project`;
+    window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=read:org,project,repo`;
   };
 
   const handleOpenProjectClick = () => {
     if (githubAccounts.length > 0) {
+      if (githubToken && projectsData.length === 0) {
+        fetchProjects(githubToken, activeAccountId);
+      }
       setIsProjectModalOpen(true);
     } else {
       localStorage.setItem('pending_open_project', 'true');
@@ -403,9 +443,25 @@ export function GanttDashboard() {
   };
 
   const handleDisconnect = (accountId: string) => {
+    // Clear project history to ensure projects from disconnected accounts do not linger
+    setProjectHistory([]);
+    localStorage.removeItem('project_history');
+    
+    // If the currently selected project belongs to this account, we should ideally clear it,
+    // but clearing the whole dashboard is safer to protect privacy.
+    setHasProject(false);
+    setSelectedProject(null);
+    localStorage.removeItem('selected_project');
+    localStorage.removeItem('selected_project_type');
+    setTasks(DUMMY_TASKS);
+
     const nextAccounts = githubAccounts.filter(a => a.id !== accountId);
     setGithubAccounts(nextAccounts);
-    localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
+    localStorage.removeItem('github_accounts'); // Clear completely first
+    if (nextAccounts.length > 0) {
+      localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
+    }
+    
     if (activeAccountId === accountId) {
       const nextActive = nextAccounts.length > 0 ? nextAccounts[0].id : '';
       setActiveAccountId(nextActive);
@@ -413,7 +469,6 @@ export function GanttDashboard() {
     }
     if (nextAccounts.length === 0) {
       setIsAccountModalOpen(false);
-      setHasProject(false);
     }
   };
 
@@ -580,6 +635,9 @@ export function GanttDashboard() {
                     {/* Hide empty/dummy when a real project is selected */}
                     {!(hasProject && selectedProject) && (
                       <>
+                        <div className="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          Demo Environments
+                        </div>
                         <button 
                           onClick={() => { 
                             setHasProject(true); 
@@ -1033,7 +1091,11 @@ export function GanttDashboard() {
                   {githubAccounts.map((account) => (
                     <div 
                       key={account.id} 
-                      onClick={() => { setActiveAccountId(account.id); localStorage.setItem('active_github_account_id', account.id); }}
+                      onClick={() => { 
+                        setActiveAccountId(account.id); 
+                        localStorage.setItem('active_github_account_id', account.id); 
+                        fetchProjects(account.token, account.id, false);
+                      }}
                       className={`relative flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all group ${activeAccountId === account.id ? 'bg-white shadow-[0_4px_12px_rgba(0,0,0,0.03)] ring-1 ring-slate-200' : 'hover:bg-slate-100/60'}`}
                     >
                       <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 bg-slate-200">
@@ -1070,71 +1132,72 @@ export function GanttDashboard() {
               </div>
               {/* Right Column: Projects */}
               <div className="w-[68%] p-8 bg-white/50 flex flex-col">
-                {/* Tabs for user/orgs or help link only */}
-                {projectsData.length > 0 && (
-                  projectsData.some(o => o.isOrg) ? (
-                    <div className="flex items-end justify-between mb-6 border-b border-slate-200">
-                      <div className="flex flex-wrap gap-2">
-                        {projectsData.map(owner => (
-                          <button
-                            key={owner.login}
-                            onClick={() => setActiveTabLogin(owner.login)}
-                            className={`px-4 py-2 text-sm font-bold border-b-2 transition-all ${
-                              activeTabLogin === owner.login 
-                                ? 'border-primary text-primary' 
-                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                            }`}
-                          >
-                            {owner.login}
-                          </button>
-                        ))}
+                
+                {/* Auto Sync Banner */}
+                {projectsData.length > 0 && isAppInstalled[activeAccountId] === false && (
+                  <div className="mb-6 bg-indigo-50/80 backdrop-blur-sm border border-indigo-200/60 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-indigo-100/50 rounded-lg">
+                        <span className="material-symbols-outlined text-indigo-600 text-[20px]">sync</span>
                       </div>
-                      <div className="flex items-center gap-4 pb-2 px-2">
-                        <a 
-                          href="/help/org-projects" 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="text-xs text-primary hover:text-primary-hover flex items-center gap-1 transition-colors group font-semibold"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: 'var(--text-base)' }}>help</span>
-                          <span className="group-hover:underline">{t('dashboard.orgProjectsHelpLink')}</span>
-                        </a>
-                        <a 
-                          href={import.meta.env.VITE_GITHUB_APP_INSTALL_URL || '#'} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-all shadow-sm font-bold border border-teal-500 hover:shadow-md"
-                          title="Install GitHub App to enable automatic sync for more repositories"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">add_circle</span>
-                          Install App
-                        </a>
+                      <div>
+                        <h4 className="text-sm font-bold text-indigo-900">Enable Automatic Sync</h4>
+                        <p className="text-xs text-indigo-700/80 mt-0.5 max-w-sm leading-relaxed">
+                          Get real-time task updates. Install our official GitHub App to safely enable background webhooks for these projects.
+                        </p>
                       </div>
                     </div>
-                  ) : (
-                    <div className="flex justify-end items-center gap-4 mb-6">
+                    <a 
+                      href={import.meta.env.VITE_GITHUB_APP_INSTALL_URL || '#'} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="whitespace-nowrap flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow-md transition-all ml-4"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                      Install App
+                    </a>
+                  </div>
+                )}
+
+                {/* Tabs for user/orgs */}
+                {projectsData.length > 0 && (
+                  <div className="flex items-end justify-between mb-6 border-b border-slate-200">
+                    <div className="flex flex-wrap gap-2">
+                      {projectsData.map(owner => (
+                        <button
+                          key={owner.login}
+                          onClick={() => setActiveTabLogin(owner.login)}
+                          className={`px-4 py-2 text-sm font-bold border-b-2 transition-all ${
+                            activeTabLogin === owner.login 
+                              ? 'border-primary text-primary' 
+                              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                          }`}
+                        >
+                          {owner.login}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-4 pb-2 px-2">
                       <a 
                         href="/help/org-projects" 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-xs text-primary hover:text-primary-hover flex items-center gap-1 transition-colors group font-semibold"
+                        className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors group font-semibold"
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: 'var(--text-base)' }}>help</span>
+                        <span className="material-symbols-outlined text-[16px]">help</span>
                         <span className="group-hover:underline">{t('dashboard.orgProjectsHelpLink')}</span>
                       </a>
-                      <a 
-                        href={import.meta.env.VITE_GITHUB_APP_INSTALL_URL || '#'} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-all shadow-sm font-bold border border-teal-500 hover:shadow-md"
-                        title="Install GitHub App to enable automatic sync for more repositories"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">add_circle</span>
-                        Install App
-                      </a>
                     </div>
-                  )
+                  </div>
                 )}
+
+                {apiError && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                    <strong>GitHub API Error:</strong> {apiError}
+                    <p className="mt-2 text-xs opacity-80">This usually means the GitHub App is missing some permissions (like Projects or Members) or hasn't been updated. Check your browser console for more details.</p>
+                  </div>
+                )}
+                
                 {/* Filters & Search */}
                 <div className="flex items-center gap-4 mb-6">
                   <div className="relative flex-1">
@@ -1207,9 +1270,21 @@ export function GanttDashboard() {
                       ));
                     } else {
                       return (
-                        <div className="py-12 text-center text-slate-500 flex flex-col items-center">
+                        <div className="py-12 px-6 text-center text-slate-500 flex flex-col items-center">
                           <span className="material-symbols-outlined text-4xl mb-4 text-slate-300" aria-hidden="true">inbox</span>
-                          <p>{t('dashboard.noProjectsFound')}</p>
+                          <p className="mb-2 font-bold text-slate-700">{t('dashboard.noProjectsFound')}</p>
+                          <p className="text-xs opacity-90 max-w-md mb-6 leading-relaxed">
+                            {t('dashboard.noProjectsFoundHint')}
+                          </p>
+                          <a 
+                            href={import.meta.env.VITE_GITHUB_APP_INSTALL_URL || '#'} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-2 px-4 rounded-lg shadow-sm transition-colors border border-slate-200 flex items-center gap-2"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">manage_accounts</span>
+                            {t('dashboard.manageAppInstall')}
+                          </a>
                         </div>
                       );
                     }
