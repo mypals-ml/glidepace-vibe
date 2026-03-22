@@ -1,4 +1,4 @@
-import { GITHUB_OAUTH_ACCESS_TOKEN_URL } from '../src/lib/constants';
+import { GITHUB_OAUTH_ACCESS_TOKEN_URL } from '../src/lib/constants.js';
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
