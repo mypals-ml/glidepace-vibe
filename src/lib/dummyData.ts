@@ -1,21 +1,7 @@
-export type TaskStatus = 'Todo' | 'In Progress' | 'Done';
+import type { Task, User, TaskStatus } from '../types';
 
-export interface User {
-  id: string;
-  name: string;
-  avatarColor: string;
-  initials: string;
-}
-
-export interface Task {
-  id: string;
-  title: string;
-  startDate: string; // Used for UI labels currently
-  endDate: string;
-  status: TaskStatus;
-  assignees: User[];
-  progress: number;
-}
+// Re-export types for backward compatibility
+export type { Task, User, TaskStatus };
 
 export const DUMMY_TASKS: Task[] = [
   {
