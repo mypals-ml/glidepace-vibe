@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useDashboard } from '../../context/DashboardContext';
@@ -8,7 +8,6 @@ export function OpenProjectModal() {
   const { t } = useTranslation();
   const {
     githubAccounts,
-    activeAccountId,
     setActiveAccountId,
     isRefreshing,
     isAppInstalled,
@@ -27,7 +26,14 @@ export function OpenProjectModal() {
   } = useDashboard();
 
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isProjectModalOpen) {
+      setSelectedAccountId(null);
+    }
+  }, [isProjectModalOpen]);
 
   useClickOutside(sortDropdownRef, () => setIsSortDropdownOpen(false), isSortDropdownOpen);
 
@@ -39,6 +45,14 @@ export function OpenProjectModal() {
     nameAZ: 'dashboard.sortNameAZ',
     nameZA: 'dashboard.sortNameZA',
   };
+
+  const appInstallUrl = (() => {
+    let url = import.meta.env.VITE_GITHUB_APP_INSTALL_URL || '#';
+    if (url !== '#' && url.includes('github.com/apps/') && !url.includes('/installations/new')) {
+      url = url.replace(/\/$/, '') + '/installations/new';
+    }
+    return url;
+  })();
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="open-project-title">
@@ -63,16 +77,17 @@ export function OpenProjectModal() {
                 <div
                   key={account.id}
                   onClick={() => {
+                    setSelectedAccountId(account.id);
                     setActiveAccountId(account.id);
                     fetchProjects(account.token, account.id, false);
                   }}
-                  className={`relative flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all group ${activeAccountId === account.id ? 'bg-white shadow-[0_4px_12px_rgba(0,0,0,0.03)] ring-1 ring-slate-200' : 'hover:bg-slate-100/60'}`}
+                  className={`relative flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all group ${selectedAccountId === account.id ? 'bg-white shadow-[0_4px_12px_rgba(0,0,0,0.03)] ring-1 ring-slate-200' : 'hover:bg-slate-100/60'}`}
                 >
                   <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 bg-slate-200">
-                    <img alt={account.login} className={`w-full h-full object-cover ${activeAccountId !== account.id ? 'grayscale opacity-50' : ''}`} src={account.avatarUrl || `https://ui-avatars.com/api/?name=${account.login}`} />
+                    <img alt={account.login} className="w-full h-full object-cover" src={account.avatarUrl || `https://ui-avatars.com/api/?name=${account.login}`} />
                   </div>
                   <div className="flex-1 min-w-0 pr-8">
-                    <p className={`text-sm font-bold truncate transition-colors ${activeAccountId === account.id ? 'text-slate-900' : 'text-slate-500 group-hover:text-slate-900'}`}>@{account.login}</p>
+                    <p className={`text-sm font-bold truncate transition-colors ${selectedAccountId === account.id ? 'text-slate-900' : 'text-slate-600 group-hover:text-slate-900'}`}>@{account.login}</p>
                     <p className="text-[11px] font-bold tracking-tight mt-0.5 text-slate-400">{t('app.connected')}</p>
                   </div>
                   <button
@@ -81,7 +96,11 @@ export function OpenProjectModal() {
                       setActiveAccountId(account.id);
                       fetchProjects(account.token, account.id, false);
                     }}
-                    className={`absolute right-4 top-1/2 -translate-y-1/2 ${isRefreshing[account.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity p-2 hover:bg-slate-200 rounded-full flex items-center justify-center bg-white/80 backdrop-blur shadow-sm`}
+                    className={`absolute right-4 top-1/2 -translate-y-1/2 ${
+                      isRefreshing[account.id] 
+                        ? 'opacity-100' 
+                        : (selectedAccountId === account.id ? 'opacity-0 group-hover:opacity-100' : 'hidden')
+                    } transition-opacity p-2 hover:bg-slate-200 rounded-full flex items-center justify-center bg-white/80 backdrop-blur shadow-sm`}
                     title={t('dashboard.refreshProjects')}
                     aria-label={t('dashboard.refreshProjects')}
                   >
@@ -101,32 +120,48 @@ export function OpenProjectModal() {
           </div>
           {/* Right Column: Projects */}
           <div className="w-[68%] p-8 bg-white/50 flex flex-col">
+            {!selectedAccountId ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 animate-in fade-in duration-300">
+                <span className="material-symbols-outlined text-5xl mb-4 opacity-50">account_circle</span>
+                <p className="font-medium text-slate-600">Select an account from the left list to view projects.</p>
+              </div>
+            ) : (
+              <>
 
             {/* Auto Sync Banner */}
-            {projectsData.length > 0 && !isAppInstalled[activeAccountId] && (
-              <div className="mb-6 bg-indigo-50/80 backdrop-blur-sm border border-indigo-200/60 rounded-xl p-4 flex items-center justify-between shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-indigo-100/50 rounded-lg">
-                    <span className="material-symbols-outlined text-indigo-600 text-[20px]">sync</span>
+            {(() => {
+              const activeOwner = projectsData.find(o => o.login === activeTabLogin);
+              let targetUrl = appInstallUrl;
+              if (activeOwner?.databaseId && targetUrl !== '#') {
+                const connector = targetUrl.includes('?') ? '&' : '?';
+                targetUrl += `${connector}target_id=${activeOwner.databaseId}&suggested_target_id=${activeOwner.databaseId}`;
+              }
+
+              return projectsData.length > 0 && !isAppInstalled[activeTabLogin] && (
+                <div className="mb-6 bg-indigo-50/80 backdrop-blur-sm border border-indigo-200/60 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-indigo-100/50 rounded-lg">
+                      <span className="material-symbols-outlined text-indigo-600 text-[20px]">sync</span>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-indigo-900">Enable Automatic Sync</h4>
+                      <p className="text-xs text-indigo-700/80 mt-0.5 max-w-sm leading-relaxed">
+                        Get real-time task updates. Install our official GitHub App to safely enable background webhooks for these projects.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-indigo-900">Enable Automatic Sync</h4>
-                    <p className="text-xs text-indigo-700/80 mt-0.5 max-w-sm leading-relaxed">
-                      Get real-time task updates. Install our official GitHub App to safely enable background webhooks for these projects.
-                    </p>
-                  </div>
+                  <a
+                    href={targetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="whitespace-nowrap flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow-md transition-all ml-4"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                    Install App
+                  </a>
                 </div>
-                <a
-                  href={import.meta.env.VITE_GITHUB_APP_INSTALL_URL || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="whitespace-nowrap flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow-md transition-all ml-4"
-                >
-                  <span className="material-symbols-outlined text-[16px]">add_circle</span>
-                  Install App
-                </a>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Tabs for user/orgs */}
             {projectsData.length > 0 && (
@@ -214,6 +249,12 @@ export function OpenProjectModal() {
                 const activeOwner = projectsData.find(o => o.login === activeTabLogin);
                 const list = sortProjects(activeOwner?.projects || []);
 
+                let targetUrl = appInstallUrl;
+                if (activeOwner?.databaseId && targetUrl !== '#') {
+                  const connector = targetUrl.includes('?') ? '&' : '?';
+                  targetUrl += `${connector}target_id=${activeOwner.databaseId}&suggested_target_id=${activeOwner.databaseId}`;
+                }
+
                 if (list.length > 0) {
                   return list.map(proj => (
                     <div key={proj.id} className="group flex items-center justify-between p-5 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all">
@@ -246,7 +287,7 @@ export function OpenProjectModal() {
                         {t('dashboard.noProjectsFoundHint')}
                       </p>
                       <a
-                        href={import.meta.env.VITE_GITHUB_APP_INSTALL_URL || '#'}
+                        href={targetUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-2 px-4 rounded-lg shadow-sm transition-colors border border-slate-200 flex items-center gap-2"
@@ -259,6 +300,8 @@ export function OpenProjectModal() {
                 }
               })()}
             </div>
+            </>
+            )}
           </div>
         </div>
       </div>

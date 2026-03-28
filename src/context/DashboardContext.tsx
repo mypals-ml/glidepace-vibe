@@ -4,14 +4,97 @@ import { useTranslation } from 'react-i18next';
 import { DUMMY_TASKS } from '../lib/dummyData';
 import { GITHUB_GRAPHQL_API_URL, GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
 import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
-import type {
-  GithubAccount,
-  ProjectOwnerInfo,
-  ProjectHistoryItem,
-  GitHubProject,
-  SortMethod,
-  Task,
-} from '../types';
+import type { Task, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const supabase = (supabaseUrl && supabaseAnonKey) 
+  ? createClient(supabaseUrl, supabaseAnonKey) 
+  : null;
+
+// ========================================
+// Helper: Map GitHub Project Item to Task
+// ========================================
+
+const PROJECT_ITEM_FRAGMENT = `
+  id
+  content {
+    ... on DraftIssue { id title body }
+    ... on Issue {
+      id
+      title
+      number
+      state
+      repository { nameWithOwner }
+      assignees(first: 5) {
+        nodes { login name avatarUrl }
+      }
+    }
+    ... on PullRequest {
+      id
+      title
+      number
+      state
+      repository { nameWithOwner }
+      assignees(first: 5) {
+        nodes { login name avatarUrl }
+      }
+    }
+  }
+  fieldValues(first: 20) {
+    nodes {
+      ... on ProjectV2ItemFieldSingleSelectValue {
+        name
+        field { ... on ProjectV2SingleSelectField { name } }
+      }
+      ... on ProjectV2ItemFieldDateValue {
+        date
+        field { ... on ProjectV2Field { name } }
+      }
+      ... on ProjectV2ItemFieldTextValue {
+        text
+        field { ... on ProjectV2Field { name } }
+      }
+    }
+  }
+`;
+
+function mapProjectItemToTask(item: any): Task {
+  const content = item.content;
+  const fieldValues = item.fieldValues.nodes;
+
+  const statusField = fieldValues.find((f: any) => f.field?.name === 'Status');
+  const status = statusField?.name || 'Todo';
+
+  const startDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('start'));
+  const endDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('end'));
+
+  const startDate = startDateField?.date || new Date().toISOString().split('T')[0];
+  const endDate = endDateField?.date || startDate;
+
+  const assignees = (content?.assignees?.nodes || []).map((a: any, idx: number) => ({
+    id: a.login,
+    name: a.name || a.login,
+    avatarUrl: a.avatarUrl,
+    initials: (a.name || a.login).substring(0, 2).toUpperCase(),
+    avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
+  }));
+
+  return {
+    id: content?.number ? `#${content.number}` : item.id.slice(-6),
+    title: content?.title || 'No Title',
+    startDate: new Date(startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+    endDate: new Date(endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+    fullStartDate: startDate,
+    fullEndDate: endDate,
+    status: status === 'Done' ? 'Done' : (status === 'In Progress' ? 'In Progress' : 'Todo'),
+    assignees: assignees.length > 0 ? assignees : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }],
+    progress: status === 'Done' ? 100 : (status === 'In Progress' ? 50 : 0),
+    repository: content?.repository?.nameWithOwner,
+    itemId: item.id,
+    contentId: content?.id,
+  };
+}
 
 // ========================================
 // Context value shape
@@ -177,11 +260,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // ---- Helpers ----
 
-  const saveHistory = useCallback((history: ProjectHistoryItem[]) => {
-    setProjectHistory(history);
-    localStorage.setItem('project_history', JSON.stringify(history));
-  }, []);
-
   const groupHistoryByDate = useCallback(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -222,6 +300,39 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // ---- API: fetch project tasks ----
 
+  const fetchSingleProjectItem = useCallback(async (itemId: string, token: string) => {
+    try {
+      const res = await fetch(GITHUB_GRAPHQL_API_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          query: `
+            query($itemId: ID!) {
+              node(id: $itemId) {
+                ... on ProjectV2Item {
+                  ${PROJECT_ITEM_FRAGMENT}
+                }
+              }
+            }
+          `,
+          variables: { itemId },
+        }),
+      });
+      const json = await res.json();
+      const itemData = json.data?.node;
+      
+      if (itemData) {
+        const updatedTask = mapProjectItemToTask(itemData);
+        setTasks(prevTasks => prevTasks.map(t => 
+          (t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId) ? updatedTask : t
+        ));
+        updateSyncTime();
+      }
+    } catch (e) {
+      console.error('Failed to fetch single project item:', e);
+    }
+  }, [updateSyncTime]);
+
   const fetchProjectTasks = useCallback(async (projectId: string, token: string) => {
     setIsLoadingTasks(true);
     try {
@@ -235,42 +346,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
                 ... on ProjectV2 {
                   items(first: 50) {
                     nodes {
-                      id
-                      content {
-                        ... on DraftIssue { title body }
-                        ... on Issue {
-                          title
-                          number
-                          state
-                          assignees(first: 5) {
-                            nodes { login name avatarUrl }
-                          }
-                        }
-                        ... on PullRequest {
-                          title
-                          number
-                          state
-                          assignees(first: 5) {
-                            nodes { login name avatarUrl }
-                          }
-                        }
-                      }
-                      fieldValues(first: 20) {
-                        nodes {
-                          ... on ProjectV2ItemFieldSingleSelectValue {
-                            name
-                            field { ... on ProjectV2SingleSelectField { name } }
-                          }
-                          ... on ProjectV2ItemFieldDateValue {
-                            date
-                            field { ... on ProjectV2Field { name } }
-                          }
-                          ... on ProjectV2ItemFieldTextValue {
-                            text
-                            field { ... on ProjectV2Field { name } }
-                          }
-                        }
-                      }
+                      ${PROJECT_ITEM_FRAGMENT}
                     }
                   }
                 }
@@ -283,39 +359,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const json = await res.json();
       const items = json.data?.node?.items?.nodes || [];
 
-      const mappedTasks: Task[] = items.map((item: any) => {
-        const content = item.content;
-        const fieldValues = item.fieldValues.nodes;
-
-        const statusField = fieldValues.find((f: any) => f.field?.name === 'Status');
-        const status = statusField?.name || 'Todo';
-
-        const startDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('start'));
-        const endDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('end'));
-
-        const startDate = startDateField?.date || new Date().toISOString().split('T')[0];
-        const endDate = endDateField?.date || startDate;
-
-        const assignees = (content?.assignees?.nodes || []).map((a: any, idx: number) => ({
-          id: a.login,
-          name: a.name || a.login,
-          avatarUrl: a.avatarUrl,
-          initials: (a.name || a.login).substring(0, 2).toUpperCase(),
-          avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
-        }));
-
-        return {
-          id: content?.number ? `#${content.number}` : item.id.slice(-6),
-          title: content?.title || 'No Title',
-          startDate: new Date(startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-          endDate: new Date(endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-          fullStartDate: startDate,
-          fullEndDate: endDate,
-          status: status === 'Done' ? 'Done' : (status === 'In Progress' ? 'In Progress' : 'Todo'),
-          assignees: assignees.length > 0 ? assignees : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }],
-          progress: status === 'Done' ? 100 : (status === 'In Progress' ? 50 : 0),
-        };
-      });
+      const mappedTasks: Task[] = items.map(mapProjectItemToTask);
 
       setTasks(mappedTasks);
       updateSyncTime();
@@ -339,12 +383,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             query {
               viewer {
                 login
+                databaseId
                 projectsV2(first: 20) {
                   nodes { id title }
                 }
                 organizations(first: 10) {
                   nodes {
                     login
+                    databaseId
                     projectsV2(first: 20) {
                       nodes { id title }
                     }
@@ -370,6 +416,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         owners.push({
           login: viewer.login,
           isOrg: false,
+          databaseId: viewer.databaseId,
           projects: (viewer.projectsV2?.nodes || []).filter(Boolean),
         });
 
@@ -379,12 +426,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           owners.push({
             login: org.login,
             isOrg: true,
+            databaseId: org.databaseId,
             projects: (org.projectsV2?.nodes || []).filter(Boolean),
           });
         }
-
         setProjectsData(owners);
-        setActiveTabLogin(viewer.login);
+        setActiveTabLogin(prev => {
+          if (prev && owners.some(o => o.login === prev)) {
+            return prev;
+          }
+          return viewer.login;
+        });
         updateSyncTime();
       }
       if (forceModal) {
@@ -447,29 +499,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // ---- Auth: check app installation ----
 
   useEffect(() => {
-    if (githubToken && activeAccountId) {
+    if (activeTabLogin) {
+      if (isAppInstalled[activeTabLogin] !== undefined) return; // Already checked
+
       const checkAppInstallation = async () => {
         try {
-          const res = await fetch('https://api.github.com/user/installations', {
-            headers: {
-              Authorization: `Bearer ${githubToken}`,
-              Accept: 'application/vnd.github.v3+json',
-            },
-          });
+          const res = await fetch(`/api/check-github-app-installation?login=${activeTabLogin}`);
           if (!res.ok) return;
           const data = await res.json();
-          if (data && data.installations) {
-            const installUrl = import.meta.env.VITE_GITHUB_APP_INSTALL_URL || '';
-            const match = installUrl.match(/\/apps\/([^/?]+)/);
-            const slug = match ? match[1] : null;
-
-            let installed = false;
-            if (slug) {
-              installed = data.installations.some((inst: any) => inst.app_slug === slug);
-            } else {
-              installed = data.total_count > 0;
-            }
-            setIsAppInstalled(prev => ({ ...prev, [activeAccountId]: installed }));
+          if (data && typeof data.installed === 'boolean') {
+            setIsAppInstalled(prev => ({ ...prev, [activeTabLogin]: data.installed }));
           }
         } catch (e) {
           console.error('Failed to check app installation:', e);
@@ -477,7 +516,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       };
       checkAppInstallation();
     }
-  }, [githubToken, activeAccountId]);
+  }, [activeTabLogin, isAppInstalled]);
 
   // ---- Initial data load ----
 
@@ -498,36 +537,49 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // ---- Supabase real-time sync ----
 
   useEffect(() => {
-    if (!selectedProject?.id) return;
+    if (!selectedProject?.id || !supabase) return;
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const projectChannelLabel = `project-${selectedProject.id}`;
+    const repoNames = Array.from(new Set(tasks.map(t => t.repository).filter(Boolean)));
+    const repoChannelLabels = repoNames.map(name => `repo-${name!.replace(/\//g, '-')}`);
+    
+    const allChannels = [projectChannelLabel, ...repoChannelLabels];
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn('Supabase credentials missing, auto-sync disabled.');
-      return;
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-    const channel = supabase.channel(`project-${selectedProject.id}`);
-
-    channel
-      .on('broadcast', { event: 'sync' }, (payload) => {
-        console.log('Real-time sync triggered via Supabase:', payload);
-        if (githubToken && selectedProject.id) {
-          fetchProjectTasks(selectedProject.id, githubToken);
-        }
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to Supabase Realtime');
-        }
-      });
+    const activeChannels = allChannels.map(label => {
+      const channel = supabase.channel(label);
+      channel
+        .on('broadcast', { event: 'sync' }, () => {
+          if (githubToken && selectedProject.id) {
+            fetchProjectTasks(selectedProject.id, githubToken);
+          }
+        })
+        .on('broadcast', { event: 'refresh_task' }, (payload) => {
+          const { itemId, contentId } = payload.payload || {};
+          console.log(`[DashboardSync] Targeted Refresh RECEIVED on ${label}:`, { itemId, contentId });
+          
+          if (githubToken && itemId) {
+            fetchSingleProjectItem(itemId, githubToken);
+          } else if (githubToken && contentId) {
+            // Find the itemId for this contentId from our local state
+            const task = tasks.find(t => t.contentId === contentId);
+            if (task) {
+              fetchSingleProjectItem(task.itemId, githubToken);
+            } else if (selectedProject?.id) {
+              // Not found locally? Maybe it's a new task we don't have yet.
+              fetchProjectTasks(selectedProject.id, githubToken);
+            }
+          } else if (githubToken && selectedProject?.id) {
+            fetchProjectTasks(selectedProject.id, githubToken);
+          }
+        })
+        .subscribe();
+      return channel;
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      activeChannels.forEach(channel => supabase.removeChannel(channel));
     };
-  }, [selectedProject?.id, githubToken, fetchProjectTasks]);
+  }, [selectedProject?.id, githubToken, fetchProjectTasks, tasks]);
 
   // ---- Action handlers ----
 

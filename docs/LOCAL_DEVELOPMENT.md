@@ -1,8 +1,8 @@
 # Glidelines Local Development Environment Guide
 
-Welcome to the Glidelines developer onboarding map! 
+Welcome to the Glidelines developer onboarding map! 🗺️
 
-To get your local environment fully operational, you need to configure a dual-app architecture (for both login and background syncing), link a real-time database, and run a serverless engine proxy.
+To get your local environment fully operational, you need to configure a dual-app architecture (for both login and background syncing), link a real-time database, and set up a webhook proxy.
 
 Please complete the following documentation steps sequentially to guarantee a working `localhost` setup:
 
@@ -14,17 +14,20 @@ Because Gantt charts rely on real-time broadcast channels for webhook updates, y
 ## 2. GitHub OAuth App Setup
 To allow users to log into your local environment securely and grant permission to read their repository/project data, you must create a GitHub **OAuth App** specifically for your `localhost` callback URLs.
 
-👉 **Next Step:** [Read GITHUB_OAUTH_SETUP.md](./GITHUB_OAUTH_SETUP.md)
+👉 **Next Step:** [Read GITHUB_OAUTH_SETUP.md](./GITHUB_OAUTH_SETUP.md) (Follow the Local Development section)
 
-## 3. GitHub Background Sync App Setup
-Because we do not use OAuth for webhooks (to keep user permissions explicit), you need to create a dedicated **GitHub App**. This app handles background triggers (like creating an Issue) and secure backend API checks (via Private Keys). You will route these local webhooks using a proxy like Smee.io.
+## 3. Webhook Setup (Local)
+Because GitHub cannot deliver webhooks to `localhost`, you need to set up a [Smee.io](https://smee.io/) proxy channel to forward webhook payloads to your local development server. You will also learn how `vite-plugin-vercel-mock.ts` lets you run everything with `npm run dev` — no Vercel CLI needed.
 
-👉 **Next Step:** [Read GITHUB_APP_SETUP.md](./GITHUB_APP_SETUP.md)
+👉 **Next Step:** [Read WEBHOOK_SETUP.md](./WEBHOOK_SETUP.md) (Follow the Local Development section)
 
-## 4. Vercel Serverless Development
-Since Glidelines uses secure backend APIs (`api/github-oauth-callback`, `api/check-github-app-installation`, etc.), running `npm run dev` directly via Vite isn't enough. You must use the Vercel CLI to spin up a hybrid environment that hosts both the frontend UI and the serverless functions simultaneously.
+> [!TIP]
+> Have your Smee.io Webhook Proxy URL ready before proceeding to the next step — you'll paste it when creating your GitHub App.
 
-👉 **Final Step:** [Read VERCEL_SETUP.md](./VERCEL_SETUP.md)
+## 4. GitHub Background Sync App Setup
+Because we do not use OAuth for webhooks (to keep user permissions explicit), you need to create a dedicated **GitHub App**. This app handles background triggers (like creating an Issue) and secure backend API checks (via Private Keys). You'll use the webhook URL from Step 3 during app creation.
+
+👉 **Final Step:** [Read GITHUB_APP_SETUP.md](./GITHUB_APP_SETUP.md) (Follow the Local Dev App section)
 
 ---
 

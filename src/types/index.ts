@@ -25,6 +25,9 @@ export interface Task {
   status: TaskStatus;
   assignees: User[];
   progress: number;
+  repository?: string;
+  itemId: string;
+  contentId: string;
 }
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---
@@ -39,6 +42,7 @@ export interface GitHubProject {
 export interface ProjectOwnerInfo {
   login: string;
   isOrg: boolean;
+  databaseId?: number;
   projects: GitHubProject[];
 }
 
