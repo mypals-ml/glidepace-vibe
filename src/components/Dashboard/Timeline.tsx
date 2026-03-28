@@ -55,8 +55,6 @@ export function Timeline() {
                     <polygon points="0 0, 6 3, 0 6" fill="#94a3b8" />
                   </marker>
                 </defs>
-                <path d="M 28% 25 C 32% 25, 32% 75, 36% 75" fill="none" stroke="#94a3b8" strokeWidth="1.5" markerEnd="url(#arrowhead)"></path>
-                <path d="M 64% 75 C 68% 75, 68% 125, 72% 125" fill="none" stroke="#94a3b8" strokeWidth="1.5" markerEnd="url(#arrowhead)"></path>
               </svg>
 
               {tasks.map((task, idx) => {

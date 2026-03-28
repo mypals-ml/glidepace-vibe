@@ -26,7 +26,9 @@ To enable automatic sync across organizations without manual setup per-repositor
 - After logging in using the OAuth app, the user will be prompted to "Install" the GitHub App on their desired organizations to activate automatic sync for them.
 
 ### 3. Environment Variables
-Add the following to your Vercel project settings or `.env.local`:
+Add the following to your Vercel project settings
+- For local debugging: Add to your Vercel's Local Development Environment and pull to the local `.env.local` file
+- For production: Add to the Production Environment
 
 ```env
 # 1. OAuth App (Frontend Login & Data)
@@ -35,7 +37,7 @@ GITHUB_OAUTH_CLIENT_SECRET=your_oauth_client_secret
 
 # 2. GitHub App (Background Webhooks)
 VITE_GITHUB_APP_INSTALL_URL=https://github.com/apps/your-app-name
-GITHUB_WEBHOOK_SECRET=your_webhook_secret
+GITHUB_APP_WEBHOOK_SECRET=your_webhook_secret
 
 # 3. Supabase Relays
 SUPABASE_URL=your_supabase_url

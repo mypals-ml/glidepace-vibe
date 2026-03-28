@@ -8,24 +8,27 @@ This guide explains how to set up the **GitHub App** layer explicitly to route b
 
 To make local development seamless, you should create **two separate GitHub Apps**: one for Production and one for Local Testing.
 
+> [!TIP]
+> Before creating your GitHub App, make sure you have your **webhook URL** ready from [WEBHOOK_SETUP.md](./WEBHOOK_SETUP.md). You'll need it during the setup below.
+
 ---
 
-## 🚀 1. Creating the Production Webhook App
+## 💻 1. Creating the Local Dev App
 
-1. Go to your [GitHub Developer Settings -> GitHub Apps](https://github.com/settings/apps).
+1. Go to your [GitHub Developer Settings → GitHub Apps](https://github.com/settings/apps).
 2. Click **New GitHub App**.
 
 ### Basic Information
-*   **GitHub App name**: `Glidelines Sync` (or similar)
+*   **GitHub App name**: `Glidelines Sync (Local)` (or similar)
 *   **Description**: `Auto-sync webhooks for Glidelines Gantt charts`
-*   **Homepage URL**: `https://your-vercel-domain.app`
-*   **Callback URL**: `https://your-vercel-domain.app` (Not critically used by this app, as OAuth handles login)
+*   **Homepage URL**: `http://localhost:5173`
+*   **Callback URL**: `http://localhost:5173` (Not critically used by this app, as OAuth handles login)
 *   **Request user authorization (OAuth) during installation**: `Unchecked` (OAuth is handled by your other app)
 
 ### Webhook
 *   **Active**: `Checked`
-*   **Webhook URL**: `https://your-vercel-domain.app/api/github-webhook`
-*   **Webhook secret**: Generate a long, secure random string (Save this as `GITHUB_WEBHOOK_SECRET` in `.env.local`).
+*   **Webhook URL**: Paste your **Smee.io Webhook Proxy URL** (from [WEBHOOK_SETUP.md](./WEBHOOK_SETUP.md))
+*   **Webhook secret**: Set a simple secret (e.g., `local_dev_secret` for local testing).
 
 ### Repository Permissions
 Set the following to **Read & Write**:
@@ -51,28 +54,22 @@ Check the following boxes:
 
 ### Finish Setup
 1. Click **Create GitHub App**.
-2. Note the "Public link" URL on the app's settings page (e.g., `https://github.com/apps/glidelines-sync`). You will need this for the `VITE_GITHUB_APP_INSTALL_URL` variable.
+2. Note the "Public page" URL on the app's settings page (e.g., `https://github.com/apps/glidelines-sync-local`). You will need this for the `VITE_GITHUB_APP_INSTALL_URL` variable.
 
 ---
 
-## 💻 2. Creating the Local Dev App
+## 🚀 2. Creating the Production Webhook App
 
-Follow the exact same steps as above, but with the following changes designed for `localhost`:
+Follow the exact same steps as above, but with the following changes for your **production domain**:
 
-### Webhook (Local)
-Since GitHub cannot send webhooks to `localhost`, you need a proxy. We recommend [Smee.io](https://smee.io/).
-1. Go to `https://smee.io/` and click "Start a new channel".
-2. Copy the "Webhook Proxy URL".
-*   **Webhook URL**: Paste your Smee URL here.
-*   **Webhook secret**: Set a simple secret (e.g., `local_dev_secret`).
+### Basic Information (Production)
+*   **GitHub App name**: `Glidelines Sync` (or similar)
+*   **Homepage URL**: `https://your-vercel-domain.app`
+*   **Callback URL**: `https://your-vercel-domain.app`
 
-> [!NOTE]
-> You will need to run the `smee-client` in a separate terminal to forward these webhooks to your local server.
->
-> **Example:**
-> ```bash
-> npx smee-client -u <YOUR_SMEE_URL_HERE> -t http://localhost:5173/api/github-webhook
-> ```
+### Webhook (Production)
+*   **Webhook URL**: `https://your-vercel-domain.app/api/github-webhook` (from [WEBHOOK_SETUP.md](./WEBHOOK_SETUP.md))
+*   **Webhook secret**: Generate a long, secure random string (Save this as `GITHUB_APP_WEBHOOK_SECRET`).
 
 ---
 
@@ -88,10 +85,10 @@ To avoid issues with multi-line strings in `.env.local`, we recommend encoding y
    base64 -i your-app.private-key.pem | tr -d '\n'
    ```
 2. Copy the resulting long string.
-3. Add these to your local `.env.local` file:
+3. Add to your Vercel's Local Development Environment and pull to the local `.env.local` file:
 ```env
 # 2. GitHub App (Background Webhooks & Verification)
-GITHUB_WEBHOOK_SECRET=<Your Local Webhook Secret>
+GITHUB_APP_WEBHOOK_SECRET=<Your Local Webhook Secret>
 VITE_GITHUB_APP_INSTALL_URL=<Your Local App Public Link>
 
 # These are uniquely required to securely verify if the user installed the app correctly via the backend API:
@@ -102,10 +99,10 @@ GITHUB_APP_PRIVATE_KEY="<Your Long Base64 String Here>"
 ### Production Environment (Vercel)
 In Vercel, you can either paste the Base64 string (same as above) or paste the **Raw PEM content**. Vercel's UI usually handles the conversion of newlines automatically.
 
-Add these identically-named but Live-valued keys to your **Vercel Project Settings -> Environment Variables**:
+Add these identically-named but Live-valued keys to your **Vercel Project Settings → Environment Variables**:
 ```env
 # 2. GitHub App (Background Webhooks & Verification)
-GITHUB_WEBHOOK_SECRET=<Your Production Webhook Secret>
+GITHUB_APP_WEBHOOK_SECRET=<Your Production Webhook Secret>
 VITE_GITHUB_APP_INSTALL_URL=<Your Production App Public Link>
 
 GITHUB_APP_ID=<Your Production App numeric ID>
