@@ -32,22 +32,37 @@ To make local development seamless, you should create **two separate GitHub Apps
 
 ### Repository Permissions
 Set the following to **Read & Write**:
+*   `Discussions`
 *   `Issues`
-*   `Projects (v2)`
+*   `Projects`
 Set the following to **Read-only**:
 *   `Metadata` (Mandatory for all apps)
 
 ### Organization Permissions
 Set the following to **Read & Write**:
-*   `Projects (v2)`
+*   `Issue Fields`
+*   `Issue Types`
+*   `Projects`
 Set the following to **Read-only**:
 *   `Members`
 
 ### Subscribe to events
 Check the following boxes:
+*   `Discussion comment`
+*   `Issue comment`
 *   `Issues`
-*   `Project v2`
-*   `Project v2 item`
+*   `Label`
+*   `Milestone`
+*   `Member`
+*   `Membership`
+*   `Organization`
+*   `Projects V2 item`
+*   `Projects V2`
+*   `Projects V2 status update`
+*   `Repository`
+*   `Team`
+*   `Team add`
+*   `Sub issues`
 
 ### Where can this GitHub App be installed?
 *   Select **Any account** (So other users/organizations can install it).
