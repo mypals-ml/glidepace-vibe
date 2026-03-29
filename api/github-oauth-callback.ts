@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!clientId || !clientSecret) {
     console.error('Missing OAuth credentials in environment.');
     return res.status(500).json({
-      error: 'Server misconfiguration: Missing OAuth credentials.',
+      error: `Server misconfiguration: Missing OAuth credentials. (ID: ${clientId || 'MISSING'}, Secret: ${clientSecret ? clientSecret.substring(0, 6) + '...' : 'MISSING'})`,
       debug_client_id: clientId || 'MISSING',
       debug_client_secret_preview: clientSecret ? clientSecret.substring(0, 6) + '...' : 'MISSING',
     });
@@ -61,8 +61,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const data = (await response.json()) as { access_token?: string; error?: string; error_description?: string };
 
     if (data.error) {
+      const errorMsg = data.error_description || data.error;
       return res.status(400).json({
-        error: data.error_description || data.error,
+        error: `${errorMsg} (Client ID: ${clientId}, Secret: ${clientSecret ? clientSecret.substring(0, 6) + '...' : 'MISSING'})`,
         debug_client_id: clientId,
         debug_client_secret_preview: clientSecret ? clientSecret.substring(0, 6) + '...' : 'MISSING',
       });
@@ -81,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const profileError = await userResponse.text();
       console.error('Failed to fetch user profile', profileError);
       return res.status(500).json({
-        error: 'Failed to fetch user profile from GitHub.',
+        error: `Failed to fetch user profile from GitHub. (Profile Error: ${profileError}, Client ID: ${clientId})`,
         debug_client_id: clientId,
         debug_client_secret_preview: clientSecret ? clientSecret.substring(0, 6) + '...' : 'MISSING',
         debug_profile_error: profileError,
@@ -144,7 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     console.error('Failed to exchange code for token:', error);
     return res.status(500).json({
-      error: 'Failed to exchange token with GitHub.',
+      error: `Failed to exchange token with GitHub: ${String(error)} (Client ID: ${clientId})`,
       debug_client_id: clientId,
       debug_client_secret_preview: clientSecret ? clientSecret.substring(0, 6) + '...' : 'MISSING',
       debug_catch_error: String(error),
