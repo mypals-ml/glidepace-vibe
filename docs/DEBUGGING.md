@@ -5,6 +5,10 @@ This guide covers how to run, test, and debug the Glidelines project across its 
 ## 1. Local Web Development (Vite + React)
 The easiest way to build and debug the UI is entirely through the web browser using the Vite development server.
 
+### Environment Variables Setup
+By pulling environment variables from Vercel, a .evn.local file will be created automatically.
+Reference: https://vercel.com/docs/deployments/environments#local-development-environment
+
 ### Starting the Server
 1. Ensure you are in the project root folder.
 2. Install dependencies (if not done already): `npm install`

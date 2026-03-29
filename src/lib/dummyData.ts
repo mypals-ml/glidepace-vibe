@@ -1,21 +1,7 @@
-export type TaskStatus = 'Todo' | 'In Progress' | 'Done';
+import type { Task, User, TaskStatus } from '../types';
 
-export interface User {
-  id: string;
-  name: string;
-  avatarColor: string;
-  initials: string;
-}
-
-export interface Task {
-  id: string;
-  title: string;
-  startDate: string; // Used for UI labels currently
-  endDate: string;
-  status: TaskStatus;
-  assignees: User[];
-  progress: number;
-}
+// Re-export types for backward compatibility
+export type { Task, User, TaskStatus };
 
 export const DUMMY_TASKS: Task[] = [
   {
@@ -26,6 +12,8 @@ export const DUMMY_TASKS: Task[] = [
     status: 'Done',
     assignees: [{ id: 'u1', name: 'User 1', avatarColor: 'bg-amber-200 text-amber-700', initials: 'U1' }],
     progress: 100,
+    itemId: 'dummy-1',
+    contentId: 'dummy-1-content',
   },
   {
     id: '#142',
@@ -38,6 +26,8 @@ export const DUMMY_TASKS: Task[] = [
       { id: 'u3', name: 'User 3', avatarColor: 'bg-emerald-200 text-emerald-700', initials: 'U3' }
     ],
     progress: 65,
+    itemId: 'dummy-2',
+    contentId: 'dummy-2-content',
   },
   {
     id: '#145',
@@ -47,5 +37,7 @@ export const DUMMY_TASKS: Task[] = [
     status: 'Todo',
     assignees: [{ id: 'u4', name: 'User 4', avatarColor: 'bg-rose-200 text-rose-700', initials: 'U4' }],
     progress: 0,
+    itemId: 'dummy-3',
+    contentId: 'dummy-3-content',
   }
 ];

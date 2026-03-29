@@ -17,14 +17,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const setupAction = req.query.setup_action;
+  if (setupAction === 'install' || setupAction === 'update') {
+    // Intercept GitHub App installation redirects.
+    // By architecture design, this callback endpoint is strictly for OAuth App logins.
+    // GitHub App installations append setup_action, so we can detect it and safely redirect home.
+    res.setHeader('Location', '/');
+    return res.status(302).end();
+  }
+
   const code = req.query.code;
 
   if (!code) {
     return res.status(400).json({ error: 'Missing code parameter' });
   }
 
-  const clientId = process.env.VITE_GITHUB_CLIENT_ID;
-  const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+  const clientId = process.env.VITE_GITHUB_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GITHUB_OAUTH_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     console.error('Missing OAuth credentials in environment.');

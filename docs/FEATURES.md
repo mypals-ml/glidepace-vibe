@@ -15,3 +15,5 @@
     2. Set the GitHub Project's "Default Repository" to the connected repo so future tasks map natively.
     If declined or impossible, the app operates in a "Read-Only" mode.
 *   **Save the Gantt Chart as a View in GitHub:** Save the Gantt chart as a view in GitHub, making it easy to share the Gantt chart with others, and the view will be used to display the Gantt chart in this application again.
+*   **Sync Status & Manual Sync:** Automatically tracks the last synchronization time with GitHub and displays it in the header (e.g., "Synced 5 minutes ago"). Users can hover over the status to reveal a "Sync Now" button for manual synchronization.
+
