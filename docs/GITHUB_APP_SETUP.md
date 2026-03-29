@@ -52,6 +52,10 @@ Check the following boxes:
 ### Where can this GitHub App be installed?
 *   Select **Any account** (So other users/organizations can install it).
 
+### Generate a private key
+*   Click **Generate a private key**.
+*   Save the private key to a file (e.g., `your-app.private-key.pem`).
+
 ### Finish Setup
 1. Click **Create GitHub App**.
 2. Note the "Public page" URL on the app's settings page (e.g., `https://github.com/apps/glidelines-sync-local`). You will need this for the `VITE_GITHUB_APP_INSTALL_URL` variable.
