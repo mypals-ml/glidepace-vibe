@@ -26,8 +26,8 @@ export interface Task {
   assignees: User[];
   progress: number;
   repository?: string;
-  itemId: string;
-  contentId: string;
+  itemId?: string;
+  contentId?: string;
 }
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---

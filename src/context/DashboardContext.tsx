@@ -562,7 +562,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           } else if (githubToken && contentId) {
             // Find the itemId for this contentId from our local state
             const task = tasks.find(t => t.contentId === contentId);
-            if (task) {
+            if (task && task.itemId) {
               fetchSingleProjectItem(task.itemId, githubToken);
             } else if (selectedProject?.id) {
               // Not found locally? Maybe it's a new task we don't have yet.
