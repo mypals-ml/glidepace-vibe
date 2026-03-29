@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="barGrad" x1="512" y1="0" x2="0" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="108" ry="108" fill="white"/>
+
+  <!-- Bar 1 -->
+  <line x1="361" y1="100" x2="151" y2="100"
+        stroke="url(#barGrad)" stroke-width="28" stroke-linecap="round"
+        stroke-dasharray="74,64"/>
+
+  <!-- Bar 2 -->
+  <line x1="396" y1="152" x2="116" y2="152"
+        stroke="url(#barGrad)" stroke-width="28" stroke-linecap="round"
+        stroke-dasharray="74,64"/>
+
+  <!-- Bar 3 -->
+  <line x1="416" y1="204" x2="96" y2="204"
+        stroke="url(#barGrad)" stroke-width="28" stroke-linecap="round"
+        stroke-dasharray="74,64"/>
+
+  <!-- Bar 4 (center) -->
+  <line x1="446" y1="256" x2="66" y2="256"
+        stroke="url(#barGrad)" stroke-width="28" stroke-linecap="round"
+        stroke-dasharray="74,64"/>
+
+  <!-- Bar 5 -->
+  <line x1="416" y1="308" x2="96" y2="308"
+        stroke="url(#barGrad)" stroke-width="28" stroke-linecap="round"
+        stroke-dasharray="74,64"/>
+
+  <!-- Bar 6 -->
+  <line x1="396" y1="360" x2="116" y2="360"
+        stroke="url(#barGrad)" stroke-width="28" stroke-linecap="round"
+        stroke-dasharray="74,64"/>
+
+  <!-- Bar 7 -->
+  <line x1="361" y1="412" x2="151" y2="412"
+        stroke="url(#barGrad)" stroke-width="28" stroke-linecap="round"
+        stroke-dasharray="74,64"/>
+</svg>
