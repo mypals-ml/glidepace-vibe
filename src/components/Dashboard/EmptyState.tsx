@@ -3,11 +3,11 @@ import { useDashboard } from '../../context/DashboardContext';
 
 export function EmptyState() {
   const { t } = useTranslation();
-  const { handleOpenProjectClick } = useDashboard();
+  const { handleOpenProjectClick, isChartVisible } = useDashboard();
 
   return (
     <div className="flex-1 flex overflow-hidden glass-panel bg-white/80 shadow-sm border border-slate-200/60 rounded-xl">
-      <div className="w-1/3 min-w-[350px] bg-white border-r border-slate-200/60 flex flex-col items-center justify-center p-8">
+      <div className={`w-full md:w-1/3 bg-white md:border-r border-slate-200/60 flex flex-col items-center justify-center p-8 ${isChartVisible ? 'hidden md:flex' : 'flex'}`}>
         <div className="w-16 h-16 rounded-full border border-dashed border-slate-300 flex items-center justify-center mb-4 text-slate-400" aria-hidden="true">
           <span className="material-symbols-outlined text-3xl">folder_off</span>
         </div>
@@ -23,7 +23,7 @@ export function EmptyState() {
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col bg-slate-50/50">
+      <div className={`flex-1 flex-col bg-slate-50/50 ${isChartVisible ? 'flex' : 'hidden md:flex'}`}>
         <div className="h-12 border-b border-slate-200/80 bg-white/90 backdrop-blur-md flex shadow-sm z-10" aria-hidden="true">
           <div className="flex-1 flex text-[11px] font-semibold text-slate-500 select-none uppercase tracking-wider">
             <div className="flex-1 border-r border-slate-100 flex flex-col justify-center items-center"><span>{t('days.mon')}</span></div>

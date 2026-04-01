@@ -46,7 +46,7 @@ export function Header() {
         </div>
       </div>
       <div className="flex items-center gap-3">
-        {hasProject && (
+        {(
           <button
             onClick={() => setIsChartVisible(!isChartVisible)}
             className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm"
