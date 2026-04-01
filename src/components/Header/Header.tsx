@@ -12,7 +12,6 @@ export function Header() {
     setIsAccountModalOpen,
     isChartVisible,
     setIsChartVisible,
-    hasProject,
   } = useDashboard();
 
   return (

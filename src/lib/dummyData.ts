@@ -17,7 +17,7 @@ export const DUMMY_TASKS: Task[] = [
   },
   {
     id: '#142',
-    title: 'Refactor API Auth Layer for OAuth2 Support',
+    title: 'Refactor API Auth Layer for OAuth2 Support (Refactor for narrow screen)',
     startDate: 'Oct 12',
     endDate: 'Oct 15',
     status: 'In Progress',
