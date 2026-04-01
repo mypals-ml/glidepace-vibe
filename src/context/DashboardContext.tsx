@@ -144,6 +144,10 @@ interface DashboardContextValue {
   isAccountModalOpen: boolean;
   setIsAccountModalOpen: (open: boolean) => void;
 
+  // UI state
+  isChartVisible: boolean;
+  setIsChartVisible: (visible: boolean) => void;
+
   // Demo environment helpers
   setHasProject: (val: boolean) => void;
   setSelectedProject: (val: { id: string; title: string } | null) => void;
@@ -217,6 +221,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // ---- Modal state ----
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+
+  // ---- UI state ----
+  const [isChartVisible, setIsChartVisible] = useState(false);
 
   // ---- Task state ----
   const [tasks, setTasks] = useState<Task[]>(DUMMY_TASKS);
@@ -698,6 +705,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setIsProjectModalOpen,
     isAccountModalOpen,
     setIsAccountModalOpen,
+
+    isChartVisible,
+    setIsChartVisible,
 
     setHasProject,
     setSelectedProject,

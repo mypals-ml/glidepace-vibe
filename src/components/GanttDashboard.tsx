@@ -10,7 +10,7 @@ import { EmptyState } from './Dashboard/EmptyState';
 
 function DashboardLayout() {
   const { t } = useTranslation();
-  const { hasProject } = useDashboard();
+  const { hasProject, isChartVisible } = useDashboard();
   const { width: sidebarWidth, onMouseDown } = useResizablePanel();
 
   return (
@@ -26,13 +26,19 @@ function DashboardLayout() {
         {hasProject ? (
           <>
             {/* Sidebar: Issues List */}
-            <aside style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 glass-panel rounded-xl flex flex-col z-10 h-full overflow-hidden hidden md:flex bg-white/80 shadow-sm border border-slate-200/60" aria-label={t('dashboard.issuesList')}>
+            <aside
+              className={`flex-shrink-0 glass-panel rounded-xl flex flex-col z-10 h-full overflow-hidden bg-white/80 shadow-sm border border-slate-200/60 transition-[width] duration-300 ${
+                isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-auto'
+              }`}
+              style={{ width: window.innerWidth >= 768 ? `${sidebarWidth}px` : (isChartVisible ? '0' : '100%') }}
+              aria-label={t('dashboard.issuesList')}
+            >
               <Sidebar />
             </aside>
 
             {/* Resizer Handle */}
             <div
-              className="w-2 hover:bg-slate-300/50 cursor-col-resize z-20 transition-colors -mx-1 flex items-center justify-center group"
+              className="w-2 hover:bg-slate-300/50 cursor-col-resize z-20 transition-colors -mx-1 hidden md:flex items-center justify-center group"
               onMouseDown={onMouseDown}
               title="Drag to resize"
             >
@@ -40,7 +46,7 @@ function DashboardLayout() {
             </div>
 
             {/* Timeline Region */}
-            <Timeline />
+            <Timeline className={isChartVisible ? 'flex' : 'hidden md:flex'} />
           </>
         ) : (
           <EmptyState />
