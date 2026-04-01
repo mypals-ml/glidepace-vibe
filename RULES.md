@@ -30,4 +30,6 @@ This document outlines the core principles and guidelines for developing within 
 
 ## 6. AI Assistant Preferences
 *   **Creating Tasks:** Whenever the user asks to "Add a task in the github task project" or similar phrasing, it strictly means to *both* add the task to the project *and* convert it into an issue.
+*   **Google Jules Branches:** If Jules needs to create a branch, always create it under `/jules/`.
+*   **Google Jules Branch Naming:** If the branch has a connecting task or issue, the branch name should start with `task#{task/issue number}`.
 
