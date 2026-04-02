@@ -69,26 +69,29 @@ export function OpenProjectModal() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsChartVisible(!isChartVisible)}
-              className="md:hidden flex items-center p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
+              className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm"
               aria-label={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
-              title={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
             >
-              <span className="material-symbols-outlined text-[24px]">
+              <span className="material-symbols-outlined text-[20px]">
                 {isChartVisible ? 'format_list_bulleted' : 'show_chart'}
               </span>
+              <span>{isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}</span>
             </button>
-            <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500" aria-label="Close">
+            <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 ml-2" aria-label="Close">
               <span className="material-symbols-outlined" aria-hidden="true">close</span>
             </button>
           </div>
         </div>
         {/* Modal Content */}
-        <div className="flex flex-col md:flex-row flex-1 min-h-0 md:min-h-[550px] overflow-hidden">
+        <div className="flex flex-row flex-1 min-h-0 md:min-h-[550px] overflow-hidden bg-slate-50/50">
           {/* Left Column: Connected Accounts */}
-          <div className={`w-full md:w-[32%] bg-slate-50/50 p-6 md:p-8 md:border-r border-slate-200 flex-col flex-1 md:flex-none ${isChartVisible ? 'hidden md:flex' : 'flex'}`}>
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8">{t('app.connectedAccountsLabel')}</h3>
-            <div className="space-y-4 flex-1">
-              {githubAccounts.map((account) => (
+          <div
+            className={`flex-col flex-shrink-0 border-slate-200 md:border-r transition-all duration-300 ${isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-[32%]'}`}
+          >
+            <div className="p-6 md:p-8 flex flex-col h-full min-h-0">
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8 shrink-0">{t('app.connectedAccountsLabel')}</h3>
+              <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0">
+                {githubAccounts.map((account) => (
                 <div
                   key={account.id}
                   onClick={() => {
@@ -125,25 +128,29 @@ export function OpenProjectModal() {
                 </div>
               ))}
             </div>
-            {/* Manage Button */}
-            <button
-              onClick={() => setIsAccountModalOpen(true)}
-              className="w-full mt-8 flex items-center justify-center gap-3 p-4 bg-slate-100/50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 rounded-xl transition-all group"
-            >
-              <span className="material-symbols-outlined text-slate-500 group-hover:text-slate-800 transition-colors" aria-hidden="true">settings</span>
-              <span className="text-sm font-bold text-slate-500 group-hover:text-slate-800 transition-colors">{t('dashboard.manageButton')}</span>
-            </button>
+              {/* Manage Button */}
+              <button
+                onClick={() => setIsAccountModalOpen(true)}
+                className="w-full mt-8 flex items-center justify-center gap-3 p-4 bg-slate-100/50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 rounded-xl transition-all group shrink-0"
+              >
+                <span className="material-symbols-outlined text-slate-500 group-hover:text-slate-800 transition-colors" aria-hidden="true">settings</span>
+                <span className="text-sm font-bold text-slate-500 group-hover:text-slate-800 transition-colors">{t('dashboard.manageButton')}</span>
+              </button>
+            </div>
           </div>
           {/* Right Column: Projects */}
-          <div className={`w-full md:w-[68%] p-6 md:p-8 bg-white/50 flex-col flex-1 md:flex-none ${!isChartVisible ? 'hidden md:flex' : 'flex'}`}>
-            <button
-              onClick={() => setIsChartVisible(false)}
-              className="md:hidden flex items-center gap-2 text-slate-500 font-bold text-sm mb-6 hover:text-slate-700 transition-colors self-start"
-            >
-              <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-              Back to Accounts
-            </button>
-            {!selectedAccountId ? (
+          <div
+            className={`flex-col flex-1 bg-white/50 transition-all duration-300 ${!isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-auto'}`}
+          >
+            <div className="p-6 md:p-8 flex flex-col h-full min-h-0">
+              <button
+                onClick={() => setIsChartVisible(false)}
+                className="md:hidden flex items-center gap-2 text-slate-500 font-bold text-sm mb-6 hover:text-slate-700 transition-colors self-start shrink-0"
+              >
+                <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+                {t('app.connectedAccountsLabel')}
+              </button>
+              {!selectedAccountId ? (
               <div className="flex-1 flex flex-col items-center justify-center text-slate-400 animate-in fade-in duration-300">
                 <span className="material-symbols-outlined text-5xl mb-4 opacity-50">account_circle</span>
                 <p className="font-medium text-slate-600">Select an account from the left list to view projects.</p>
@@ -267,7 +274,7 @@ export function OpenProjectModal() {
                 )}
               </div>
             </div>
-            <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
+            <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1 min-h-0">
               {(() => {
                 const activeOwner = projectsData.find(o => o.login === activeTabLogin);
                 const list = sortProjects(activeOwner?.projects || []);
@@ -326,6 +333,7 @@ export function OpenProjectModal() {
             </>
             )}
           </div>
+        </div>
         </div>
       </div>
     </div>
