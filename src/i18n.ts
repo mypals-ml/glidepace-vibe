@@ -69,7 +69,9 @@ const resources = {
         historyYesterday: "Yesterday",
         historyLast7Days: "Last 7 Days",
         historyEarlier: "Earlier",
-        removeFromHistory: "Remove"
+        removeFromHistory: "Remove",
+        chartToggle: "Chart",
+        listToggle: "List"
       },
       table: {
         id: "ID",
@@ -178,7 +180,9 @@ const resources = {
         historyYesterday: "昨日",
         historyLast7Days: "過去7日間",
         historyEarlier: "それ以前",
-        removeFromHistory: "削除"
+        removeFromHistory: "削除",
+        chartToggle: "チャート",
+        listToggle: "リスト"
       },
       table: {
         id: "ID",
@@ -287,7 +291,9 @@ const resources = {
         historyYesterday: "昨天",
         historyLast7Days: "过去 7 天",
         historyEarlier: "更早以前",
-        removeFromHistory: "移除"
+        removeFromHistory: "移除",
+        chartToggle: "图表",
+        listToggle: "列表"
       },
       table: {
         id: "ID",

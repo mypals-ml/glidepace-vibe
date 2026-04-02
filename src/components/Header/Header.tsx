@@ -10,6 +10,8 @@ export function Header() {
     isLoadingAuth,
     handleOpenAuth,
     setIsAccountModalOpen,
+    isChartVisible,
+    setIsChartVisible,
   } = useDashboard();
 
   return (
@@ -43,6 +45,19 @@ export function Header() {
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {(
+          <button
+            onClick={() => setIsChartVisible(!isChartVisible)}
+            className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm"
+            aria-label={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
+          >
+            <span className="material-symbols-outlined text-[20px]">
+              {isChartVisible ? 'format_list_bulleted' : 'show_chart'}
+            </span>
+            <span>{isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}</span>
+          </button>
+        )}
+
         <SyncStatusIndicator />
 
         <button
