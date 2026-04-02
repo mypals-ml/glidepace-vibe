@@ -23,19 +23,20 @@ export function OpenProjectModal() {
     isProjectModalOpen,
     setIsProjectModalOpen,
     setIsAccountModalOpen,
+    isChartVisible,
+    setIsChartVisible,
   } = useDashboard();
 
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [isMobileProjectsView, setIsMobileProjectsView] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isProjectModalOpen) {
       setSelectedAccountId(null);
-      setIsMobileProjectsView(false);
+      setIsChartVisible(false);
     }
-  }, [isProjectModalOpen]);
+  }, [isProjectModalOpen, setIsChartVisible]);
 
   useClickOutside(sortDropdownRef, () => setIsSortDropdownOpen(false), isSortDropdownOpen);
 
@@ -65,14 +66,26 @@ export function OpenProjectModal() {
             <h2 id="open-project-title" className="text-xl md:text-2xl font-extrabold tracking-tight text-slate-900">{t('dashboard.openProjectModalTitle')}</h2>
             <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">{t('dashboard.openProjectModalDesc')}</p>
           </div>
-          <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500" aria-label="Close">
-            <span className="material-symbols-outlined" aria-hidden="true">close</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsChartVisible(!isChartVisible)}
+              className="md:hidden flex items-center p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
+              aria-label={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
+              title={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
+            >
+              <span className="material-symbols-outlined text-[24px]">
+                {isChartVisible ? 'format_list_bulleted' : 'show_chart'}
+              </span>
+            </button>
+            <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500" aria-label="Close">
+              <span className="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
+          </div>
         </div>
         {/* Modal Content */}
         <div className="flex flex-col md:flex-row flex-1 min-h-0 md:min-h-[550px] overflow-hidden">
           {/* Left Column: Connected Accounts */}
-          <div className={`w-full md:w-[32%] bg-slate-50/50 p-6 md:p-8 md:border-r border-slate-200 flex-col flex-1 md:flex-none ${isMobileProjectsView ? 'hidden md:flex' : 'flex'}`}>
+          <div className={`w-full md:w-[32%] bg-slate-50/50 p-6 md:p-8 md:border-r border-slate-200 flex-col flex-1 md:flex-none ${isChartVisible ? 'hidden md:flex' : 'flex'}`}>
             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8">{t('app.connectedAccountsLabel')}</h3>
             <div className="space-y-4 flex-1">
               {githubAccounts.map((account) => (
@@ -82,7 +95,7 @@ export function OpenProjectModal() {
                     setSelectedAccountId(account.id);
                     setActiveAccountId(account.id);
                     fetchProjects(account.token, account.id, false);
-                    setIsMobileProjectsView(true);
+                    setIsChartVisible(true);
                   }}
                   className={`relative flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all group ${selectedAccountId === account.id ? 'bg-white shadow-[0_4px_12px_rgba(0,0,0,0.03)] ring-1 ring-slate-200' : 'hover:bg-slate-100/60'}`}
                 >
@@ -122,9 +135,9 @@ export function OpenProjectModal() {
             </button>
           </div>
           {/* Right Column: Projects */}
-          <div className={`w-full md:w-[68%] p-6 md:p-8 bg-white/50 flex-col flex-1 md:flex-none ${!isMobileProjectsView ? 'hidden md:flex' : 'flex'}`}>
+          <div className={`w-full md:w-[68%] p-6 md:p-8 bg-white/50 flex-col flex-1 md:flex-none ${!isChartVisible ? 'hidden md:flex' : 'flex'}`}>
             <button
-              onClick={() => setIsMobileProjectsView(false)}
+              onClick={() => setIsChartVisible(false)}
               className="md:hidden flex items-center gap-2 text-slate-500 font-bold text-sm mb-6 hover:text-slate-700 transition-colors self-start"
             >
               <span className="material-symbols-outlined text-[20px]">arrow_back</span>
@@ -213,7 +226,7 @@ export function OpenProjectModal() {
             )}
 
             {/* Filters & Search */}
-            <div className="flex items-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-6">
               <div className="relative flex-1">
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg" aria-hidden="true">search</span>
                 <input className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-4 focus:ring-slate-100 focus:border-slate-300 placeholder:text-slate-400 transition-all shadow-sm" placeholder={t('dashboard.searchProjectsPlaceholder')} type="text" aria-label={t('dashboard.searchProjectsPlaceholder')} />
@@ -221,7 +234,7 @@ export function OpenProjectModal() {
               <div className="relative" ref={sortDropdownRef}>
                 <div
                   onClick={() => setIsSortDropdownOpen(prev => !prev)}
-                  className="flex items-center gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm select-none"
+                  className="flex items-center justify-between sm:justify-start gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm select-none"
                   role="button"
                   aria-haspopup="listbox"
                   aria-expanded={isSortDropdownOpen}
