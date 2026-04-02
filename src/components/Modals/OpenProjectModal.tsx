@@ -70,9 +70,9 @@ export function OpenProjectModal() {
           </button>
         </div>
         {/* Modal Content */}
-        <div className="flex flex-col md:flex-row flex-1 min-h-[400px] md:min-h-[550px] overflow-hidden">
+        <div className="flex flex-col md:flex-row flex-1 min-h-0 md:min-h-[550px] overflow-hidden">
           {/* Left Column: Connected Accounts */}
-          <div className={`w-full md:w-[32%] bg-slate-50/50 p-6 md:p-8 md:border-r border-slate-200 flex-col overflow-y-auto ${isMobileProjectsView ? 'hidden md:flex' : 'flex'}`}>
+          <div className={`w-full md:w-[32%] bg-slate-50/50 p-6 md:p-8 md:border-r border-slate-200 flex-col flex-1 md:flex-none ${isMobileProjectsView ? 'hidden md:flex' : 'flex'}`}>
             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8">{t('app.connectedAccountsLabel')}</h3>
             <div className="space-y-4 flex-1">
               {githubAccounts.map((account) => (
@@ -122,7 +122,7 @@ export function OpenProjectModal() {
             </button>
           </div>
           {/* Right Column: Projects */}
-          <div className={`w-full md:w-[68%] p-6 md:p-8 bg-white/50 flex-col overflow-y-auto ${!isMobileProjectsView ? 'hidden md:flex' : 'flex'}`}>
+          <div className={`w-full md:w-[68%] p-6 md:p-8 bg-white/50 flex-col flex-1 md:flex-none ${!isMobileProjectsView ? 'hidden md:flex' : 'flex'}`}>
             <button
               onClick={() => setIsMobileProjectsView(false)}
               className="md:hidden flex items-center gap-2 text-slate-500 font-bold text-sm mb-6 hover:text-slate-700 transition-colors self-start"
