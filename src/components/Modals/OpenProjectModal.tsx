@@ -83,10 +83,10 @@ export function OpenProjectModal() {
           </div>
         </div>
         {/* Modal Content */}
-        <div className="flex flex-row flex-1 min-h-0 md:min-h-[550px] overflow-hidden bg-slate-50/50">
+        <div className="flex flex-col md:flex-row flex-1 min-h-0 md:min-h-[550px] overflow-hidden bg-slate-50/50">
           {/* Left Column: Connected Accounts */}
           <div
-            className={`flex-col flex-shrink-0 border-slate-200 md:border-r transition-all duration-300 ${isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-[32%]'}`}
+            className={`flex-shrink-0 border-slate-200 md:border-r transition-all duration-300 w-full md:w-[32%] ${isChartVisible ? 'hidden md:flex md:flex-col' : 'flex flex-col'}`}
           >
             <div className="p-6 md:p-8 flex flex-col h-full min-h-0">
               <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8 shrink-0">{t('app.connectedAccountsLabel')}</h3>
@@ -140,7 +140,7 @@ export function OpenProjectModal() {
           </div>
           {/* Right Column: Projects */}
           <div
-            className={`flex-col flex-1 bg-white/50 transition-all duration-300 ${!isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-auto'}`}
+            className={`flex-1 bg-white/50 transition-all duration-300 w-full md:w-auto ${!isChartVisible ? 'hidden md:flex md:flex-col' : 'flex flex-col'}`}
           >
             <div className="p-6 md:p-8 flex flex-col h-full min-h-0">
               <button

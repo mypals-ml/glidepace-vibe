@@ -601,6 +601,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const handleOpenProjectClick = useCallback(() => {
     if (githubAccounts.length > 0) {
+      setIsChartVisible(false);
       setIsProjectModalOpen(true);
     } else {
       localStorage.setItem('pending_open_project', 'true');
