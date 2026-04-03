@@ -58,18 +58,18 @@ export function OpenProjectModal() {
   })();
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-slate-900/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="open-project-title">
-      <div className="bg-white/90 backdrop-blur-xl w-full max-w-5xl h-full md:h-auto rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col border border-white/40">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-6 bg-slate-900/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="open-project-title">
+      <div className="bg-white/90 backdrop-blur-xl w-full max-w-5xl h-full lg:h-auto rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col border border-white/40">
         {/* Header */}
-        <div className="px-6 md:px-8 py-4 md:py-6 flex justify-between items-center bg-slate-50/40 border-b border-slate-200">
+        <div className="px-6 lg:px-8 py-4 lg:py-6 flex justify-between items-center bg-slate-50/40 border-b border-slate-200">
           <div>
-            <h2 id="open-project-title" className="text-xl md:text-2xl font-extrabold tracking-tight text-slate-900">{t('dashboard.openProjectModalTitle')}</h2>
-            <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">{t('dashboard.openProjectModalDesc')}</p>
+            <h2 id="open-project-title" className="text-xl lg:text-2xl font-extrabold tracking-tight text-slate-900">{t('dashboard.openProjectModalTitle')}</h2>
+            <p className="text-xs lg:text-sm text-slate-500 font-medium mt-1">{t('dashboard.openProjectModalDesc')}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsChartVisible(!isChartVisible)}
-              className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm"
+              className="lg:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm"
               aria-label={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
             >
               <span className="material-symbols-outlined text-[20px]">
@@ -83,12 +83,12 @@ export function OpenProjectModal() {
           </div>
         </div>
         {/* Modal Content */}
-        <div className="flex flex-col md:flex-row flex-1 min-h-0 md:min-h-[550px] overflow-hidden bg-slate-50/50">
+        <div className="flex flex-col lg:flex-row flex-1 min-h-0 lg:min-h-[550px] overflow-hidden bg-slate-50/50">
           {/* Left Column: Connected Accounts */}
           <div
-            className={`flex-shrink-0 border-slate-200 md:border-r transition-all duration-300 w-full md:w-[32%] ${isChartVisible ? 'hidden md:flex md:flex-col' : 'flex flex-col'}`}
+            className={`flex-shrink-0 border-slate-200 lg:border-r w-full lg:w-[32%] ${isChartVisible ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'}`}
           >
-            <div className="p-6 md:p-8 flex flex-col h-full min-h-0">
+            <div className="p-6 lg:p-8 flex flex-col h-full min-h-0">
               <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8 shrink-0">{t('app.connectedAccountsLabel')}</h3>
               <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0">
                 {githubAccounts.map((account) => (
@@ -140,12 +140,12 @@ export function OpenProjectModal() {
           </div>
           {/* Right Column: Projects */}
           <div
-            className={`flex-1 bg-white/50 transition-all duration-300 w-full md:w-auto ${!isChartVisible ? 'hidden md:flex md:flex-col' : 'flex flex-col'}`}
+            className={`flex-1 bg-white/50 w-full lg:w-auto ${!isChartVisible ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'}`}
           >
-            <div className="p-6 md:p-8 flex flex-col h-full min-h-0">
+            <div className="p-6 lg:p-8 flex flex-col h-full min-h-0">
               <button
                 onClick={() => setIsChartVisible(false)}
-                className="md:hidden flex items-center gap-2 text-slate-500 font-bold text-sm mb-6 hover:text-slate-700 transition-colors self-start shrink-0"
+                className="lg:hidden flex items-center gap-2 text-slate-500 font-bold text-sm mb-6 hover:text-slate-700 transition-colors self-start shrink-0"
               >
                 <span className="material-symbols-outlined text-[20px]">arrow_back</span>
                 {t('app.connectedAccountsLabel')}
