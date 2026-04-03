@@ -12,6 +12,7 @@ export function SyncStatusIndicator() {
     fetchProjectTasks,
     fetchProjects,
     activeAccountId,
+    isNarrowScreen,
   } = useDashboard();
   const [isHoveringSync, setIsHoveringSync] = useState(false);
 
@@ -21,7 +22,7 @@ export function SyncStatusIndicator() {
 
   return (
     <div
-      className="hidden lg:flex items-center"
+      className={`${isNarrowScreen ? 'hidden' : 'flex'} items-center`}
       onMouseEnter={() => setIsHoveringSync(true)}
       onMouseLeave={() => setIsHoveringSync(false)}
     >

@@ -12,6 +12,7 @@ export function Header() {
     setIsAccountModalOpen,
     isChartVisible,
     setIsChartVisible,
+    isNarrowScreen,
   } = useDashboard();
 
   return (
@@ -24,9 +25,11 @@ export function Header() {
             </a>
           </h1>
         </div>
-        <div className="h-6 w-px bg-slate-200 mx-2 hidden md:block"></div>
-        <div className="hidden md:flex items-center gap-3">
-          <ProjectSelectorDropdown />
+        {!isNarrowScreen && (
+          <>
+            <div className="h-6 w-px bg-slate-200 mx-2"></div>
+            <div className="flex items-center gap-3">
+              <ProjectSelectorDropdown />
 
           <div className="relative flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
             <div className="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-xs font-medium text-slate-500" id="language-select-label">{t('app.language')}</div>
@@ -43,12 +46,14 @@ export function Header() {
             <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]" aria-hidden="true">language</span>
           </div>
         </div>
+          </>
+        )}
       </div>
       <div className="flex items-center gap-3">
-        {(
+        {isNarrowScreen && (
           <button
             onClick={() => setIsChartVisible(!isChartVisible)}
-            className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm"
             aria-label={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
           >
             <span className="material-symbols-outlined text-[20px]">

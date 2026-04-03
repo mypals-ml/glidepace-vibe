@@ -16,7 +16,7 @@ export function ConnectedAccountsModal() {
   if (!isAccountModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-labelledby="manage-accounts-title">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 lg:p-8" role="dialog" aria-modal="true" aria-labelledby="manage-accounts-title">
       <div className="relative bg-white/70 backdrop-blur-xl border border-white w-full max-w-md rounded-xl shadow-[0_12px_40px_rgba(25,28,30,0.15)] overflow-hidden animate-in fade-in zoom-in duration-300">
         {/* Modal Header */}
         <div className="p-8 pb-4">

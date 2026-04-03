@@ -25,6 +25,7 @@ export function OpenProjectModal() {
     setIsAccountModalOpen,
     isChartVisible,
     setIsChartVisible,
+    isNarrowScreen,
   } = useDashboard();
 
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
@@ -58,37 +59,39 @@ export function OpenProjectModal() {
   })();
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-6 bg-slate-900/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="open-project-title">
-      <div className="bg-white/90 backdrop-blur-xl w-full max-w-5xl h-full lg:h-auto rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col border border-white/40">
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm ${isNarrowScreen ? 'p-4' : 'p-6'}`} role="dialog" aria-modal="true" aria-labelledby="open-project-title">
+      <div className={`bg-white/90 backdrop-blur-xl w-full max-w-5xl rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col border border-white/40 ${isNarrowScreen ? 'h-full' : 'h-auto'}`}>
         {/* Header */}
-        <div className="px-6 lg:px-8 py-4 lg:py-6 flex justify-between items-center bg-slate-50/40 border-b border-slate-200">
+        <div className={`flex justify-between items-center bg-slate-50/40 border-b border-slate-200 ${isNarrowScreen ? 'px-6 py-4' : 'px-8 py-6'}`}>
           <div>
-            <h2 id="open-project-title" className="text-xl lg:text-2xl font-extrabold tracking-tight text-slate-900">{t('dashboard.openProjectModalTitle')}</h2>
-            <p className="text-xs lg:text-sm text-slate-500 font-medium mt-1">{t('dashboard.openProjectModalDesc')}</p>
+            <h2 id="open-project-title" className={`font-extrabold tracking-tight text-slate-900 ${isNarrowScreen ? 'text-xl' : 'text-2xl'}`}>{t('dashboard.openProjectModalTitle')}</h2>
+            <p className={`text-slate-500 font-medium mt-1 ${isNarrowScreen ? 'text-xs' : 'text-sm'}`}>{t('dashboard.openProjectModalDesc')}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsChartVisible(!isChartVisible)}
-              className="lg:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm"
-              aria-label={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
-            >
-              <span className="material-symbols-outlined text-[20px]">
-                {isChartVisible ? 'format_list_bulleted' : 'show_chart'}
-              </span>
-              <span>{isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}</span>
-            </button>
+            {isNarrowScreen && (
+              <button
+                onClick={() => setIsChartVisible(!isChartVisible)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm"
+                aria-label={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  {isChartVisible ? 'format_list_bulleted' : 'show_chart'}
+                </span>
+                <span>{isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}</span>
+              </button>
+            )}
             <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 ml-2" aria-label="Close">
               <span className="material-symbols-outlined" aria-hidden="true">close</span>
             </button>
           </div>
         </div>
         {/* Modal Content */}
-        <div className="flex flex-col lg:flex-row flex-1 min-h-0 lg:min-h-[550px] overflow-hidden bg-slate-50/50">
+        <div className={`flex flex-1 min-h-0 overflow-hidden bg-slate-50/50 ${isNarrowScreen ? 'flex-col' : 'flex-row min-h-[550px]'}`}>
           {/* Left Column: Connected Accounts */}
           <div
-            className={`flex-shrink-0 border-slate-200 lg:border-r w-full lg:w-[32%] ${isChartVisible ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'}`}
+            className={`flex-shrink-0 border-slate-200 transition-all duration-300 ${isNarrowScreen ? (isChartVisible ? 'hidden' : 'flex w-full') : 'flex border-r w-[32%]'}`}
           >
-            <div className="p-6 lg:p-8 flex flex-col h-full min-h-0">
+            <div className={`flex flex-col h-full min-h-0 w-full ${isNarrowScreen ? 'p-6' : 'p-8'}`}>
               <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8 shrink-0">{t('app.connectedAccountsLabel')}</h3>
               <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0">
                 {githubAccounts.map((account) => (
@@ -140,16 +143,18 @@ export function OpenProjectModal() {
           </div>
           {/* Right Column: Projects */}
           <div
-            className={`flex-1 bg-white/50 w-full lg:w-auto ${!isChartVisible ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'}`}
+            className={`flex-1 bg-white/50 transition-all duration-300 ${isNarrowScreen ? (isChartVisible ? 'flex w-full' : 'hidden') : 'flex w-auto'}`}
           >
-            <div className="p-6 lg:p-8 flex flex-col h-full min-h-0">
-              <button
-                onClick={() => setIsChartVisible(false)}
-                className="lg:hidden flex items-center gap-2 text-slate-500 font-bold text-sm mb-6 hover:text-slate-700 transition-colors self-start shrink-0"
-              >
-                <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-                {t('app.connectedAccountsLabel')}
-              </button>
+            <div className={`flex flex-col h-full min-h-0 w-full ${isNarrowScreen ? 'p-6' : 'p-8'}`}>
+              {isNarrowScreen && (
+                <button
+                  onClick={() => setIsChartVisible(false)}
+                  className="flex items-center gap-2 text-slate-500 font-bold text-sm mb-6 hover:text-slate-700 transition-colors self-start shrink-0"
+                >
+                  <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+                  {t('app.connectedAccountsLabel')}
+                </button>
+              )}
               {!selectedAccountId ? (
               <div className="flex-1 flex flex-col items-center justify-center text-slate-400 animate-in fade-in duration-300">
                 <span className="material-symbols-outlined text-5xl mb-4 opacity-50">account_circle</span>
@@ -233,7 +238,7 @@ export function OpenProjectModal() {
             )}
 
             {/* Filters & Search */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-6">
+            <div className={`flex items-stretch gap-4 mb-6 ${isNarrowScreen ? 'flex-col' : 'flex-row sm:items-center'}`}>
               <div className="relative flex-1">
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg" aria-hidden="true">search</span>
                 <input className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-4 focus:ring-slate-100 focus:border-slate-300 placeholder:text-slate-400 transition-all shadow-sm" placeholder={t('dashboard.searchProjectsPlaceholder')} type="text" aria-label={t('dashboard.searchProjectsPlaceholder')} />

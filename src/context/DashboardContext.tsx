@@ -147,6 +147,7 @@ interface DashboardContextValue {
   // UI state
   isChartVisible: boolean;
   setIsChartVisible: (visible: boolean) => void;
+  isNarrowScreen: boolean;
 
   // Demo environment helpers
   setHasProject: (val: boolean) => void;
@@ -224,6 +225,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // ---- UI state ----
   const [isChartVisible, setIsChartVisible] = useState(false);
+  const [isNarrowScreen, setIsNarrowScreen] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 1023px)');
+    const handler = (e: MediaQueryListEvent) => setIsNarrowScreen(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
 
   // ---- Task state ----
   const [tasks, setTasks] = useState<Task[]>(DUMMY_TASKS);
@@ -709,6 +718,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     isChartVisible,
     setIsChartVisible,
+    isNarrowScreen,
 
     setHasProject,
     setSelectedProject,
