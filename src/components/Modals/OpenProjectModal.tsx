@@ -271,7 +271,11 @@ export function OpenProjectModal() {
 
                 if (list.length > 0) {
                   return list.map(proj => (
-                    <div key={proj.id} className="group flex items-center justify-between p-5 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all">
+                    <div 
+                      key={proj.id} 
+                      onClick={() => handleSelectRealProject(proj.id, proj.title)}
+                      className="group flex items-center justify-between p-5 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all cursor-pointer"
+                    >
                       <div className="flex items-center gap-5">
                         <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
                           <span className="material-symbols-outlined text-slate-500">account_tree</span>
@@ -284,7 +288,13 @@ export function OpenProjectModal() {
                       <div className="flex items-center gap-6">
                         <div className="flex items-center transition-all">
                           <div className="hidden group-hover:flex items-center gap-3 transition-all">
-                            <button onClick={() => handleSelectRealProject(proj.id, proj.title)} className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors shadow-sm shadow-primary/20">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectRealProject(proj.id, proj.title);
+                              }} 
+                              className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors shadow-sm shadow-primary/20"
+                            >
                               {t('dashboard.openProjectAction')}
                             </button>
                           </div>
