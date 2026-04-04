@@ -27,11 +27,13 @@ export function OpenProjectModal() {
 
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<'accounts' | 'projects'>('accounts');
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isProjectModalOpen) {
       setSelectedAccountId(null);
+      setMobileView('accounts');
     }
   }, [isProjectModalOpen]);
 
@@ -55,23 +57,34 @@ export function OpenProjectModal() {
   })();
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="open-project-title">
-      <div className="bg-white/90 backdrop-blur-xl w-full max-w-5xl rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col border border-white/40">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-6 bg-slate-900/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="open-project-title">
+      <div className="bg-white/90 backdrop-blur-xl w-full h-full md:h-auto md:max-w-5xl md:rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col border-0 md:border md:border-white/40">
         {/* Header */}
-        <div className="px-8 py-6 flex justify-between items-center bg-slate-50/40 border-b border-slate-200">
-          <div>
-            <h2 id="open-project-title" className="text-2xl font-extrabold tracking-tight text-slate-900">{t('dashboard.openProjectModalTitle')}</h2>
-            <p className="text-sm text-slate-500 font-medium mt-1">{t('dashboard.openProjectModalDesc')}</p>
+        <div className="px-6 md:px-8 py-5 md:py-6 flex justify-between items-center bg-slate-50/40 border-b border-slate-200">
+          <div className="flex items-center gap-3">
+            {mobileView === 'projects' && (
+              <button 
+                onClick={() => setMobileView('accounts')}
+                className="md:hidden p-1 -ml-1 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
+                aria-label="Back to accounts"
+              >
+                <span className="material-symbols-outlined">arrow_back</span>
+              </button>
+            )}
+            <div>
+              <h2 id="open-project-title" className="text-xl md:text-2xl font-extrabold tracking-tight text-slate-900 line-clamp-1">{t('dashboard.openProjectModalTitle')}</h2>
+              <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5 line-clamp-1">{t('dashboard.openProjectModalDesc')}</p>
+            </div>
           </div>
           <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500" aria-label="Close">
             <span className="material-symbols-outlined" aria-hidden="true">close</span>
           </button>
         </div>
         {/* Modal Content */}
-        <div className="flex flex-1 min-h-[550px]">
+        <div className="flex flex-1 min-h-0 md:min-h-[550px]">
           {/* Left Column: Connected Accounts */}
-          <div className="w-[32%] bg-slate-50/50 p-8 border-r border-slate-200 flex flex-col">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-8">{t('app.connectedAccountsLabel')}</h3>
+          <div className={`${mobileView === 'accounts' ? 'flex' : 'hidden md:flex'} w-full md:w-[32%] bg-slate-50/50 p-6 md:p-8 border-r border-slate-200 flex-col overflow-y-auto`}>
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-6 md:mb-8">{t('app.connectedAccountsLabel')}</h3>
             <div className="space-y-4 flex-1">
               {githubAccounts.map((account) => (
                 <div
@@ -80,6 +93,7 @@ export function OpenProjectModal() {
                     setSelectedAccountId(account.id);
                     setActiveAccountId(account.id);
                     fetchProjects(account.token, account.id, false);
+                    setMobileView('projects');
                   }}
                   className={`relative flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all group ${selectedAccountId === account.id ? 'bg-white shadow-[0_4px_12px_rgba(0,0,0,0.03)] ring-1 ring-slate-200' : 'hover:bg-slate-100/60'}`}
                 >
@@ -112,14 +126,14 @@ export function OpenProjectModal() {
             {/* Manage Button */}
             <button
               onClick={() => setIsAccountModalOpen(true)}
-              className="w-full mt-8 flex items-center justify-center gap-3 p-4 bg-slate-100/50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 rounded-xl transition-all group"
+              className="w-full mt-6 md:mt-8 flex items-center justify-center gap-3 p-4 bg-slate-100/50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 rounded-xl transition-all group"
             >
               <span className="material-symbols-outlined text-slate-500 group-hover:text-slate-800 transition-colors" aria-hidden="true">settings</span>
               <span className="text-sm font-bold text-slate-500 group-hover:text-slate-800 transition-colors">{t('dashboard.manageButton')}</span>
             </button>
           </div>
           {/* Right Column: Projects */}
-          <div className="w-[68%] p-8 bg-white/50 flex flex-col">
+          <div className={`${mobileView === 'projects' ? 'flex' : 'hidden md:flex'} w-full md:w-[68%] p-6 md:p-8 bg-white/50 flex-col overflow-y-auto`}>
             {!selectedAccountId ? (
               <div className="flex-1 flex flex-col items-center justify-center text-slate-400 animate-in fade-in duration-300">
                 <span className="material-symbols-outlined text-5xl mb-4 opacity-50">account_circle</span>

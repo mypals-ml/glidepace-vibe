@@ -32,7 +32,7 @@ export function ProjectSelectorDropdown() {
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <div className="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t('app.projectLabel')}</div>
+        <div className="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 hidden sm:block">{t('app.projectLabel')}</div>
         <div className="px-3 py-1.5 text-sm font-bold text-slate-700 flex items-center gap-2">
           {hasProject
             ? (selectedProject ? selectedProject.title : t('app.dummyProjectOption'))

@@ -22,12 +22,12 @@ function DashboardLayout() {
       <Header />
 
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden relative z-10 w-full p-4 gap-4">
+      <div className="flex flex-1 overflow-hidden relative z-10 w-full p-0 md:p-4 gap-0 md:gap-4">
         {hasProject ? (
           <>
             {/* Sidebar: Issues List */}
             <aside
-              className={`flex-shrink-0 glass-panel rounded-xl flex flex-col z-10 h-full overflow-hidden bg-white/80 shadow-sm border border-slate-200/60 transition-[width] duration-300 ${
+              className={`flex-shrink-0 lg:glass-panel md:rounded-xl flex flex-col z-10 h-full overflow-hidden bg-white/80 shadow-sm border-r md:border border-slate-200/60 transition-[width] duration-300 ${
                 isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-auto'
               }`}
               style={{ width: window.innerWidth >= 768 ? `${sidebarWidth}px` : (isChartVisible ? '0' : '100%') }}
