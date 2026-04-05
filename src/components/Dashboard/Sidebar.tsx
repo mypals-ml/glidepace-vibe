@@ -10,7 +10,7 @@ export function Sidebar() {
     <>
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <table className="w-full text-left border-collapse" aria-label={t('dashboard.issuesList')}>
-          <thead className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <thead className="sticky top-0 bg-white/95 backdrop-blur-sm z-20 border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
             <tr>
               <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500 w-12">{t('table.id')}</th>
               <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500">{t('table.title')}</th>
