@@ -18,55 +18,51 @@ export const MOCK_PROJECTS_DATA: ProjectOwnerInfo[] = [
   },
 ];
 
-const MOCK_TASKS: Task[] = [
-  {
-    id: '#101',
-    title: 'Design System Implementation',
-    startDate: 'Apr 01',
-    endDate: 'Apr 05',
-    status: 'Done',
-    assignees: [{ id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-200 text-amber-700' }],
-    progress: 100,
-    itemId: 'item-1',
-    contentId: 'content-1',
-  },
-  {
-    id: '#102',
-    title: 'Gantt Chart View Component',
-    startDate: 'Apr 06',
-    endDate: 'Apr 12',
-    status: 'In Progress',
-    assignees: [
-      { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-200 text-indigo-700' },
-      { id: 'u3', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-200 text-emerald-700' }
-    ],
-    progress: 45,
-    itemId: 'item-2',
-    contentId: 'content-2',
-  },
-  {
-    id: '#103',
-    title: 'GitHub API Integration Layer',
-    startDate: 'Apr 10',
-    endDate: 'Apr 15',
-    status: 'Todo',
-    assignees: [{ id: 'u4', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-200 text-rose-700' }],
-    progress: 0,
-    itemId: 'item-3',
-    contentId: 'content-3',
-  },
-  {
-    id: '#104',
-    title: 'Mobile Layout Optimization',
-    startDate: 'Apr 16',
-    endDate: 'Apr 20',
-    status: 'Todo',
-    assignees: [{ id: 'u5', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-200 text-purple-700' }],
-    progress: 0,
-    itemId: 'item-4',
-    contentId: 'content-4',
-  }
-];
+const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
+  const id = i + 101;
+  const statuses: TaskStatus[] = ['Todo', 'In Progress', 'Done'];
+  const status = statuses[i % 3];
+  
+  // Varied dates
+  const startDay = (i % 20) + 1;
+  const endDay = startDay + (i % 5) + 2;
+  const startDate = `Apr ${startDay.toString().padStart(2, '0')}`;
+  const endDate = `Apr ${endDay.toString().padStart(2, '0')}`;
+  
+  const assigneePool = [
+    { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
+    { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
+    { id: 'u3', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
+    { id: 'u4', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
+    { id: 'u5', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
+  ];
+  
+  const numAssignees = (i % 2) + 1;
+  const assignees = assigneePool.slice(i % 4, (i % 4) + numAssignees);
+
+  return {
+    id: `#${id}`,
+    title: `Task ${id}: ${[
+      'Implement UI Component',
+      'Fix Performance Issue',
+      'Update Documentation',
+      'Optimize Database Query',
+      'Refactor API Auth',
+      'Add Unit Tests',
+      'Design New Feature',
+      'Deploy to Production'
+    ][i % 8]}`,
+    startDate,
+    endDate,
+    status,
+    assignees,
+    progress: status === 'Done' ? 100 : (status === 'In Progress' ? 50 : 0),
+    itemId: `item-${id}`,
+    contentId: `content-${id}`,
+  };
+});
+
+import type { TaskStatus } from '../types';
 
 // Helper to map tasks back to GitHub GraphQL nodes
 function mapTaskToGraphQLNode(task: Task) {
