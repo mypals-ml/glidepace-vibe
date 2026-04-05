@@ -1,10 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
+import { AssigneeSelector } from './AssigneeSelector';
 import type { User } from '../../types';
+import { useState } from 'react';
 
 export function Sidebar() {
   const { t } = useTranslation();
   const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery } = useDashboard();
+  const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
 
   return (
     <>
@@ -73,8 +76,15 @@ export function Sidebar() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 align-top pt-3">
-                    <div className="flex justify-center -space-x-1.5">
+                  <td className="px-4 py-3 align-top pt-3 group/assignee relative">
+                    <div 
+                      className="flex justify-center -space-x-1.5 cursor-pointer hover:scale-110 transition-transform"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenSelectorTaskId(openSelectorTaskId === task.id ? null : task.id);
+                      }}
+                      title="Update assignees"
+                    >
                       {task.assignees.slice(0, 3).map((user: User, idx: number) => (
                         <div key={user.id} className={`w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
                           {user.avatarUrl ? (
@@ -88,6 +98,13 @@ export function Sidebar() {
                         </div>
                       )}
                     </div>
+                    {openSelectorTaskId === task.id && (
+                      <AssigneeSelector 
+                        taskId={task.id} 
+                        currentAssignees={task.assignees} 
+                        onClose={() => setOpenSelectorTaskId(null)} 
+                      />
+                    )}
                   </td>
                 </tr>
               ))

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { DUMMY_TASKS } from '../lib/dummyData';
 import { GITHUB_GRAPHQL_API_URL, GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
 import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
-import type { Task, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
+import type { Task, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -155,6 +155,8 @@ interface DashboardContextValue {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   filteredTasks: Task[];
+  availableUsers: User[];
+  updateTaskAssignees: (taskId: string, userIds: string[]) => void;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -232,6 +234,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(DUMMY_TASKS);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [availableUsers] = useState<User[]>([
+    { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
+    { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
+    { id: 'u3', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
+    { id: 'u4', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
+    { id: 'u5', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
+    { id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' },
+  ]);
 
   // ---- Sync state ----
   const [lastSyncedTime, setLastSyncedTime] = useState<number>(() => {
@@ -679,6 +689,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateTaskAssignees = useCallback((taskId: string, userIds: string[]) => {
+    const selectedUsers = availableUsers.filter(u => userIds.includes(u.id));
+    setTasks(prevTasks => prevTasks.map(task => 
+      task.id === taskId ? { ...task, assignees: selectedUsers.length > 0 ? selectedUsers : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }] } : task
+    ));
+  }, [availableUsers]);
+
   // ---- Context value ----
 
   const value: DashboardContextValue = {
@@ -729,6 +746,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     searchQuery,
     setSearchQuery,
     filteredTasks,
+    availableUsers,
+    updateTaskAssignees,
   };
 
   return (
