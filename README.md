@@ -17,6 +17,9 @@ For detailed information about the project's structure, rules, and backlog, plea
 
 This project is a collaborative effort between human expertise and advanced AI intelligence.
 
-*   **Lead Developer:** [willwhui](https://github.com/willwhui) (Repository Owner)
-*   **AI Collaborators:** Google Antigravity and Jules
+*   **Human Developers:**
+    *   [willwhui](https://github.com/willwhui)
 
+*   **AI Collaborators:**
+    *   Google Antigravity
+    *   Jules
