@@ -19,6 +19,8 @@ export const MOCK_PROJECTS_DATA: ProjectOwnerInfo[] = [
   },
 ];
 
+
+
 const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   const id = i + 101;
   const statuses: TaskStatus[] = ['Todo', 'In Progress', 'Done'];
@@ -156,6 +158,8 @@ export async function handleMockGraphQL(query: string, variables: any) {
           },
           organizations: { nodes: [] }
         }
+
+
       }
     };
   }

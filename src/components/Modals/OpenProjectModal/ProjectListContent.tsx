@@ -58,6 +58,8 @@ export function ProjectListContent({
     return url;
   };
 
+  const hasAnyOrg = projectsData.some(owner => owner.isOrg);
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <AutoSyncBanner appInstallUrl={appInstallUrl} />
@@ -80,19 +82,22 @@ export function ProjectListContent({
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-4 pb-2 px-2">
-            <a
-              href="/help/org-projects"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors group font-semibold"
-            >
-              <span className="material-symbols-outlined text-[16px]">help</span>
-              <span className="group-hover:underline">{t('dashboard.orgProjectsHelpLink')}</span>
-            </a>
-          </div>
+          {!hasAnyOrg && (
+            <div className="flex items-center gap-4 pb-2 px-2">
+              <a
+                href="/help/org-projects"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors group font-semibold"
+              >
+                <span className="material-symbols-outlined text-[16px]">help</span>
+                <span className="group-hover:underline">{t('dashboard.orgProjectsHelpLink')}</span>
+              </a>
+            </div>
+          )}
         </div>
       )}
+
 
       {apiError && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
