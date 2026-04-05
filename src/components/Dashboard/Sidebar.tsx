@@ -4,7 +4,7 @@ import type { User } from '../../types';
 
 export function Sidebar() {
   const { t } = useTranslation();
-  const { tasks, isLoadingTasks } = useDashboard();
+  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery } = useDashboard();
 
   return (
     <>
@@ -37,8 +37,14 @@ export function Sidebar() {
                   {t('dashboard.noTasksInProject')}
                 </td>
               </tr>
+            ) : filteredTasks.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-xs italic">
+                  {t('dashboard.noMatchingTasks')}
+                </td>
+              </tr>
             ) : (
-              tasks.map(task => (
+              filteredTasks.map(task => (
                 <tr key={task.id} className="h-[50px] hover:bg-slate-50/80 transition-colors cursor-pointer group bg-white relative" tabIndex={0} aria-label={`${task.title} - ${t('table.status')} ${task.status}`}>
                   <td className="px-4 py-0 text-xs text-slate-400 font-mono align-middle relative">
                     {task.status === 'In Progress' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-inprogress-highlight" aria-hidden="true"></div>}
@@ -94,7 +100,14 @@ export function Sidebar() {
       <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md mt-auto">
         <div className="relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]" aria-hidden="true">search</span>
-          <input className="w-full bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder={t('dashboard.filterPlaceholder')} aria-label={t('dashboard.filterPlaceholder')} type="text" />
+          <input
+            className="w-full bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+            placeholder={t('dashboard.filterPlaceholder')}
+            aria-label={t('dashboard.filterPlaceholder')}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </div>
     </>

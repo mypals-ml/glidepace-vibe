@@ -3,7 +3,7 @@ import { useDashboard } from '../../context/DashboardContext';
 
 export function Timeline({ className = '' }: { className?: string }) {
   const { t } = useTranslation();
-  const { tasks, isLoadingTasks } = useDashboard();
+  const { filteredTasks, isLoadingTasks } = useDashboard();
 
   return (
     <main className={`flex-1 flex-col overflow-hidden relative z-10 glass-panel rounded-xl bg-white/80 shadow-sm border border-slate-200/60 ${className}`} aria-label="Timeline View" role="region">
@@ -43,9 +43,9 @@ export function Timeline({ className = '' }: { className?: string }) {
                 <span className="text-sm font-bold text-slate-500">{t('dashboard.loadingTasks')}</span>
               </div>
             </div>
-          ) : tasks.length === 0 ? (
+          ) : filteredTasks.length === 0 ? (
             <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm italic">
-              {t('dashboard.noTasksInProject')}
+              {t('dashboard.noMatchingTasks')}
             </div>
           ) : (
             <>
@@ -57,7 +57,7 @@ export function Timeline({ className = '' }: { className?: string }) {
                 </defs>
               </svg>
 
-              {tasks.map((task, idx) => {
+              {filteredTasks.map((task, idx) => {
                 const leftPos = (idx * 15 + 5) % 80;
                 const width = 20 + (idx * 10) % 40;
 

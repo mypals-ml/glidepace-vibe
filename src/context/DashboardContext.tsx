@@ -152,6 +152,9 @@ interface DashboardContextValue {
   setHasProject: (val: boolean) => void;
   setSelectedProject: (val: { id: string; title: string } | null) => void;
   setTasks: (tasks: Task[]) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  filteredTasks: Task[];
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -228,6 +231,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // ---- Task state ----
   const [tasks, setTasks] = useState<Task[]>(DUMMY_TASKS);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // ---- Sync state ----
   const [lastSyncedTime, setLastSyncedTime] = useState<number>(() => {
@@ -304,6 +308,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         return sorted;
     }
   }, [sortMethod]);
+
+  const filteredTasks = (tasks || []).filter(task => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    const matchesTitle = task.title.toLowerCase().includes(query);
+    const matchesAssignee = task.assignees.some(
+      a => a.name.toLowerCase().includes(query) || a.id.toLowerCase().includes(query)
+    );
+    return matchesTitle || matchesAssignee;
+  });
 
   // ---- API: fetch project tasks ----
 
@@ -712,6 +726,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setHasProject,
     setSelectedProject,
     setTasks,
+    searchQuery,
+    setSearchQuery,
+    filteredTasks,
   };
 
   return (
