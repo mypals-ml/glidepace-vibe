@@ -1,10 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
 
-const appId = process.env.GITHUB_APP_ID;
-const privateKey = process.env.GITHUB_APP_PRIVATE_KEY;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const appId = process.env.GITHUB_APP_ID;
+  const privateKey = process.env.GITHUB_APP_PRIVATE_KEY;
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

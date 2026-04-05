@@ -25,6 +25,11 @@
   --color-status-todo-text: #475569;
   --color-status-todo-border: #e2e8f0;
   --color-status-todo-highlight: #94a3b8;
+
+  --header-button-height: 2.25rem;
+  --header-gap-sm: 0.5rem;
+  --header-gap-md: 0.75rem;
+  --header-gap-lg: 1rem;
 }
 @layer components {
   .glass-panel {

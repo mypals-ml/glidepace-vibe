@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 
-export function Timeline() {
+export function Timeline({ className = '' }: { className?: string }) {
   const { t } = useTranslation();
-  const { tasks, isLoadingTasks } = useDashboard();
+  const { filteredTasks, isLoadingTasks } = useDashboard();
 
   return (
-    <main className="flex-1 flex flex-col overflow-hidden relative z-10 glass-panel rounded-xl bg-white/80 shadow-sm border border-slate-200/60" aria-label="Timeline View" role="region">
+    <main className={`flex-1 flex-col overflow-hidden relative z-10 glass-panel rounded-xl bg-white/80 shadow-sm border border-slate-200/60 ${className}`} aria-label="Timeline View" role="region">
       <div className="h-12 border-b border-slate-200/80 bg-white/90 backdrop-blur-md flex sticky top-0 z-20" aria-hidden="true">
         <div className="flex-1 flex text-[11px] font-semibold text-slate-500 select-none uppercase tracking-wider">
           <div className="flex-1 border-r border-slate-100 flex flex-col justify-center items-center"><span>{t('days.mon')}</span></div>
@@ -43,9 +43,9 @@ export function Timeline() {
                 <span className="text-sm font-bold text-slate-500">{t('dashboard.loadingTasks')}</span>
               </div>
             </div>
-          ) : tasks.length === 0 ? (
+          ) : filteredTasks.length === 0 ? (
             <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm italic">
-              {t('dashboard.noTasksInProject')}
+              {t('dashboard.noMatchingTasks')}
             </div>
           ) : (
             <>
@@ -57,29 +57,27 @@ export function Timeline() {
                 </defs>
               </svg>
 
-              {tasks.map((task, idx) => {
+              {filteredTasks.map((task, idx) => {
                 const leftPos = (idx * 15 + 5) % 80;
                 const width = 20 + (idx * 10) % 40;
 
                 return (
                   <div key={task.id} className="relative h-[50px] w-full flex items-center group z-10 px-2">
                     <div
-                      className={`absolute h-8 rounded-md border flex items-center px-3 cursor-pointer transition-all shadow-sm ${
-                        task.status === 'Done'
+                      className={`absolute h-8 rounded-md border flex items-center px-3 cursor-pointer transition-all shadow-sm ${task.status === 'Done'
                           ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100/50'
                           : task.status === 'In Progress'
                             ? 'bg-primary border-primary-hover shadow-glow hover:bg-primary-hover'
                             : 'bg-white border-slate-300 hover:bg-slate-50'
-                      }`}
+                        }`}
                       style={{
                         left: `${leftPos}%`,
                         width: `${width}%`,
                       }}
                     >
                       {task.status === 'In Progress' && <div className="w-1 h-5 bg-white/40 rounded-full mr-2"></div>}
-                      <span className={`text-xs font-medium truncate ${
-                        task.status === 'Done' ? 'text-emerald-700 opacity-70 line-through' : task.status === 'In Progress' ? 'text-white font-bold' : 'text-slate-600'
-                      }`}>
+                      <span className={`text-xs font-medium truncate ${task.status === 'Done' ? 'text-emerald-700 opacity-70 line-through' : task.status === 'In Progress' ? 'text-white font-bold' : 'text-slate-600'
+                        }`}>
                         {task.id} {task.title}
                       </span>
                       {task.status === 'Done' && (

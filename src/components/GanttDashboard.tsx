@@ -4,13 +4,14 @@ import { useResizablePanel } from '../hooks/useResizablePanel';
 import { Header } from './Header/Header';
 import { ConnectedAccountsModal } from './Modals/ConnectedAccountsModal';
 import { OpenProjectModal } from './Modals/OpenProjectModal';
+import { PatAuthModal } from './Modals/PatAuthModal';
 import { Sidebar } from './Dashboard/Sidebar';
 import { Timeline } from './Dashboard/Timeline';
 import { EmptyState } from './Dashboard/EmptyState';
 
 function DashboardLayout() {
   const { t } = useTranslation();
-  const { hasProject } = useDashboard();
+  const { hasProject, isChartVisible } = useDashboard();
   const { width: sidebarWidth, onMouseDown } = useResizablePanel();
 
   return (
@@ -22,17 +23,23 @@ function DashboardLayout() {
       <Header />
 
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden relative z-10 w-full p-4 gap-4">
+      <div className="flex flex-1 overflow-hidden relative z-10 w-full p-0 md:p-4 gap-0 md:gap-4">
         {hasProject ? (
           <>
             {/* Sidebar: Issues List */}
-            <aside style={{ width: `${sidebarWidth}px` }} className="flex-shrink-0 glass-panel rounded-xl flex flex-col z-10 h-full overflow-hidden hidden md:flex bg-white/80 shadow-sm border border-slate-200/60" aria-label={t('dashboard.issuesList')}>
+            <aside
+              className={`flex-shrink-0 lg:glass-panel md:rounded-xl flex flex-col z-10 h-full overflow-hidden bg-white/80 shadow-sm border-r md:border border-slate-200/60 transition-[width] duration-300 ${
+                isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-auto'
+              }`}
+              style={{ width: window.innerWidth >= 768 ? `${sidebarWidth}px` : (isChartVisible ? '0' : '100%') }}
+              aria-label={t('dashboard.issuesList')}
+            >
               <Sidebar />
             </aside>
 
             {/* Resizer Handle */}
             <div
-              className="w-2 hover:bg-slate-300/50 cursor-col-resize z-20 transition-colors -mx-1 flex items-center justify-center group"
+              className="w-2 hover:bg-slate-300/50 cursor-col-resize z-20 transition-colors -mx-1 hidden md:flex items-center justify-center group"
               onMouseDown={onMouseDown}
               title="Drag to resize"
             >
@@ -40,7 +47,7 @@ function DashboardLayout() {
             </div>
 
             {/* Timeline Region */}
-            <Timeline />
+            <Timeline className={isChartVisible ? 'flex' : 'hidden md:flex'} />
           </>
         ) : (
           <EmptyState />
@@ -50,6 +57,7 @@ function DashboardLayout() {
       {/* Modals */}
       <OpenProjectModal />
       <ConnectedAccountsModal />
+      <PatAuthModal />
     </div>
   );
 }

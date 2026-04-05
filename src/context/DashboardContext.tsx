@@ -2,14 +2,16 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { createClient } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
 import { DUMMY_TASKS } from '../lib/dummyData';
-import { GITHUB_GRAPHQL_API_URL, GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
+import { GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
 import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
-import type { Task, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
+import { fetchGitHubGraphQL } from '../lib/githubService';
+import { DUMMY_PROJECT_ID, MOCK_ACCOUNTS_DATA, MOCK_TOKEN } from '../lib/githubMock';
+import type { Task, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const supabase = (supabaseUrl && supabaseAnonKey) 
-  ? createClient(supabaseUrl, supabaseAnonKey) 
+const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
 // ========================================
@@ -143,11 +145,24 @@ interface DashboardContextValue {
   setIsProjectModalOpen: (open: boolean) => void;
   isAccountModalOpen: boolean;
   setIsAccountModalOpen: (open: boolean) => void;
+  isPatModalOpen: boolean;
+  setIsPatModalOpen: (open: boolean) => void;
+  handleAddAccountByToken: (token: string) => Promise<{ success: boolean; error?: string }>;
+
+  // UI state
+  isChartVisible: boolean;
+  setIsChartVisible: (visible: boolean) => void;
 
   // Demo environment helpers
   setHasProject: (val: boolean) => void;
   setSelectedProject: (val: { id: string; title: string } | null) => void;
   setTasks: (tasks: Task[]) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  filteredTasks: Task[];
+  availableUsers: User[];
+  updateTaskAssignees: (taskId: string, userIds: string[]) => void;
+  handleOpenDummyProject: () => void;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -217,10 +232,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // ---- Modal state ----
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isPatModalOpen, setIsPatModalOpen] = useState(false);
+
+  // ---- UI state ----
+  const [isChartVisible, setIsChartVisible] = useState(false);
 
   // ---- Task state ----
-  const [tasks, setTasks] = useState<Task[]>(DUMMY_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [availableUsers] = useState<User[]>([
+    { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
+    { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
+    { id: 'u3', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
+    { id: 'u4', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
+    { id: 'u5', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
+    { id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' },
+  ]);
 
   // ---- Sync state ----
   const [lastSyncedTime, setLastSyncedTime] = useState<number>(() => {
@@ -298,32 +326,35 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [sortMethod]);
 
+  const filteredTasks = (tasks || []).filter(task => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    const matchesTitle = task.title.toLowerCase().includes(query);
+    const matchesAssignee = task.assignees.some(
+      a => a.name.toLowerCase().includes(query) || a.id.toLowerCase().includes(query)
+    );
+    return matchesTitle || matchesAssignee;
+  });
+
   // ---- API: fetch project tasks ----
 
   const fetchSingleProjectItem = useCallback(async (itemId: string, token: string) => {
     try {
-      const res = await fetch(GITHUB_GRAPHQL_API_URL, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          query: `
-            query($itemId: ID!) {
-              node(id: $itemId) {
-                ... on ProjectV2Item {
-                  ${PROJECT_ITEM_FRAGMENT}
-                }
-              }
+      const query = `
+        query($itemId: ID!) {
+          node(id: $itemId) {
+            ... on ProjectV2Item {
+              ${PROJECT_ITEM_FRAGMENT}
             }
-          `,
-          variables: { itemId },
-        }),
-      });
-      const json = await res.json();
+          }
+        }
+      `;
+      const json = await fetchGitHubGraphQL(query, { itemId }, token);
       const itemData = json.data?.node;
-      
+
       if (itemData) {
         const updatedTask = mapProjectItemToTask(itemData);
-        setTasks(prevTasks => prevTasks.map(t => 
+        setTasks(prevTasks => prevTasks.map(t =>
           (t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId) ? updatedTask : t
         ));
         updateSyncTime();
@@ -336,27 +367,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const fetchProjectTasks = useCallback(async (projectId: string, token: string) => {
     setIsLoadingTasks(true);
     try {
-      const res = await fetch(GITHUB_GRAPHQL_API_URL, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          query: `
-            query($projectId: ID!) {
-              node(id: $projectId) {
-                ... on ProjectV2 {
-                  items(first: 50) {
-                    nodes {
-                      ${PROJECT_ITEM_FRAGMENT}
-                    }
-                  }
+      const query = `
+        query($projectId: ID!) {
+          node(id: $projectId) {
+            ... on ProjectV2 {
+              items(first: 50) {
+                nodes {
+                  ${PROJECT_ITEM_FRAGMENT}
                 }
               }
             }
-          `,
-          variables: { projectId },
-        }),
-      });
-      const json = await res.json();
+          }
+        }
+      `;
+      const json = await fetchGitHubGraphQL(query, { projectId }, token);
       const items = json.data?.node?.items?.nodes || [];
 
       const mappedTasks: Task[] = items.map(mapProjectItemToTask);
@@ -375,33 +399,27 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const fetchProjects = useCallback(async (token: string, accountId: string, forceModal: boolean = false) => {
     setIsRefreshing(prev => ({ ...prev, [accountId]: true }));
     try {
-      const res = await fetch(GITHUB_GRAPHQL_API_URL, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          query: `
-            query {
-              viewer {
+      const query = `
+        query {
+          viewer {
+            login
+            databaseId
+            projectsV2(first: 20) {
+              nodes { id title }
+            }
+            organizations(first: 10) {
+              nodes {
                 login
                 databaseId
                 projectsV2(first: 20) {
                   nodes { id title }
                 }
-                organizations(first: 10) {
-                  nodes {
-                    login
-                    databaseId
-                    projectsV2(first: 20) {
-                      nodes { id title }
-                    }
-                  }
-                }
               }
             }
-          `,
-        }),
-      });
-      const json = await res.json();
+          }
+        }
+      `;
+      const json = await fetchGitHubGraphQL(query, {}, token);
 
       if (json.errors) {
         console.error('GraphQL Errors:', json.errors);
@@ -494,7 +512,79 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       }
     };
     handleAuthCallback();
-  }, [githubToken, setActiveAccountId]);
+  }, [githubToken, setActiveAccountId, setIsProjectModalOpen]);
+
+  const handleAddAccountByToken = useCallback(async (token: string) => {
+    if (!token) return { success: false, error: 'Token is required' };
+
+    setIsLoadingAuth(true);
+    setApiError(null);
+    try {
+      // If it's the mock token and we're in mock mode (or always allow it)
+      if (token === MOCK_TOKEN) {
+        const mockAccount = MOCK_ACCOUNTS_DATA[0];
+        setGithubAccounts(prev => {
+          const filtered = prev.filter(acc => acc.id !== mockAccount.id);
+          const nextAccounts = [...filtered, mockAccount];
+          localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
+          return nextAccounts;
+        });
+        setActiveAccountId(mockAccount.id);
+        setIsPatModalOpen(false);
+        setIsAccountModalOpen(false);
+        // If there was a pending project open, do it now
+        if (localStorage.getItem('pending_open_project') === 'true') {
+          localStorage.removeItem('pending_open_project');
+          setIsProjectModalOpen(true);
+        }
+        return { success: true };
+      }
+
+      // Real GitHub API call to validate token
+      const res = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        return { success: false, error: errorData.message || 'Invalid token' };
+      }
+
+      const userData = await res.json();
+      const newAccount: GithubAccount = {
+        id: userData.id.toString(),
+        login: userData.login,
+        name: userData.name || userData.login,
+        avatarUrl: userData.avatar_url,
+        token: token,
+      };
+
+      setGithubAccounts(prev => {
+        const filtered = prev.filter(acc => acc.id !== newAccount.id);
+        const nextAccounts = [...filtered, newAccount];
+        localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
+        return nextAccounts;
+      });
+      setActiveAccountId(newAccount.id);
+      setIsPatModalOpen(false);
+      setIsAccountModalOpen(false);
+
+      if (localStorage.getItem('pending_open_project') === 'true') {
+        localStorage.removeItem('pending_open_project');
+        setIsProjectModalOpen(true);
+      }
+
+      return { success: true };
+    } catch (e: any) {
+      console.error('Failed to add account by token:', e);
+      return { success: false, error: e.message || 'An unexpected error occurred' };
+    } finally {
+      setIsLoadingAuth(false);
+    }
+  }, [setActiveAccountId, setIsProjectModalOpen, setIsAccountModalOpen]);
 
   // ---- Auth: check app installation ----
 
@@ -525,11 +615,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       fetchProjects(githubToken, activeAccountId, true);
     }
 
-    const projectType = localStorage.getItem('selected_project_type');
-    if (githubToken && selectedProject && !projectType) {
+    if (githubToken && selectedProject) {
+      // Even for dummy projects, we now fetch via fetchProjectTasks which uses the mock service
       fetchProjectTasks(selectedProject.id, githubToken);
-    } else if (projectType === 'dummy') {
-      setTasks(DUMMY_TASKS);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [githubToken]);
@@ -542,7 +630,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     const projectChannelLabel = `project-${selectedProject.id}`;
     const repoNames = Array.from(new Set(tasks.map(t => t.repository).filter(Boolean)));
     const repoChannelLabels = repoNames.map(name => `repo-${name!.replace(/\//g, '-')}`);
-    
+
     const allChannels = [projectChannelLabel, ...repoChannelLabels];
 
     const activeChannels = allChannels.map(label => {
@@ -556,7 +644,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         .on('broadcast', { event: 'refresh_task' }, (payload) => {
           const { itemId, contentId } = payload.payload || {};
           console.log(`[DashboardSync] Targeted Refresh RECEIVED on ${label}:`, { itemId, contentId });
-          
+
           if (githubToken && itemId) {
             fetchSingleProjectItem(itemId, githubToken);
           } else if (githubToken && contentId) {
@@ -658,6 +746,30 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateTaskAssignees = useCallback((taskId: string, userIds: string[]) => {
+    const selectedUsers = availableUsers.filter(u => userIds.includes(u.id));
+    setTasks(prevTasks => prevTasks.map(task =>
+      task.id === taskId ? { ...task, assignees: selectedUsers.length > 0 ? selectedUsers : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }] } : task
+    ));
+  }, [availableUsers]);
+
+  const handleOpenDummyProject = useCallback(() => {
+    // Add mock account if not present
+    const mockAccount = MOCK_ACCOUNTS_DATA[0];
+    setGithubAccounts(prev => {
+      if (prev.find(a => a.id === mockAccount.id)) return prev;
+      const next = [...prev, mockAccount];
+      localStorage.setItem('github_accounts', JSON.stringify(next));
+      return next;
+    });
+
+    // Set as active
+    setActiveAccountId(mockAccount.id);
+
+    // Select dummy project
+    handleSelectRealProject(DUMMY_PROJECT_ID, 'Demo: Product Roadmap 2024');
+  }, [handleSelectRealProject, setActiveAccountId]);
+
   // ---- Context value ----
 
   const value: DashboardContextValue = {
@@ -698,10 +810,22 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setIsProjectModalOpen,
     isAccountModalOpen,
     setIsAccountModalOpen,
+    isPatModalOpen,
+    setIsPatModalOpen,
+    handleAddAccountByToken,
+
+    isChartVisible,
+    setIsChartVisible,
 
     setHasProject,
     setSelectedProject,
     setTasks,
+    searchQuery,
+    setSearchQuery,
+    filteredTasks,
+    availableUsers,
+    updateTaskAssignees,
+    handleOpenDummyProject,
   };
 
   return (

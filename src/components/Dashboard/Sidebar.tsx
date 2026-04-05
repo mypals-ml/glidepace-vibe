@@ -1,16 +1,19 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
+import { AssigneeSelector } from './AssigneeSelector';
 import type { User } from '../../types';
+import { useState } from 'react';
 
 export function Sidebar() {
   const { t } = useTranslation();
-  const { tasks, isLoadingTasks } = useDashboard();
+  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery } = useDashboard();
+  const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
 
   return (
     <>
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <table className="w-full text-left border-collapse" aria-label={t('dashboard.issuesList')}>
-          <thead className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <thead className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
             <tr>
               <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500 w-12">{t('table.id')}</th>
               <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500">{t('table.title')}</th>
@@ -18,7 +21,7 @@ export function Sidebar() {
               <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500 w-20 text-center">{t('table.assignees')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 relative z-0">
             {isLoadingTasks ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
@@ -37,8 +40,14 @@ export function Sidebar() {
                   {t('dashboard.noTasksInProject')}
                 </td>
               </tr>
+            ) : filteredTasks.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-xs italic">
+                  {t('dashboard.noMatchingTasks')}
+                </td>
+              </tr>
             ) : (
-              tasks.map(task => (
+              filteredTasks.map(task => (
                 <tr key={task.id} className="h-[50px] hover:bg-slate-50/80 transition-colors cursor-pointer group bg-white relative" tabIndex={0} aria-label={`${task.title} - ${t('table.status')} ${task.status}`}>
                   <td className="px-4 py-0 text-xs text-slate-400 font-mono align-middle relative">
                     {task.status === 'In Progress' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-inprogress-highlight" aria-hidden="true"></div>}
@@ -67,8 +76,15 @@ export function Sidebar() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 align-top pt-3">
-                    <div className="flex justify-center -space-x-1.5">
+                  <td className="px-4 py-3 align-top pt-3 group/assignee relative">
+                    <div
+                      className="flex justify-center -space-x-1.5 cursor-pointer hover:scale-110 transition-transform"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenSelectorTaskId(openSelectorTaskId === task.id ? null : task.id);
+                      }}
+                      title="Update assignees"
+                    >
                       {task.assignees.slice(0, 3).map((user: User, idx: number) => (
                         <div key={user.id} className={`w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
                           {user.avatarUrl ? (
@@ -82,6 +98,13 @@ export function Sidebar() {
                         </div>
                       )}
                     </div>
+                    {openSelectorTaskId === task.id && (
+                      <AssigneeSelector
+                        taskId={task.id}
+                        currentAssignees={task.assignees}
+                        onClose={() => setOpenSelectorTaskId(null)}
+                      />
+                    )}
                   </td>
                 </tr>
               ))
@@ -94,7 +117,14 @@ export function Sidebar() {
       <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md mt-auto">
         <div className="relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]" aria-hidden="true">search</span>
-          <input className="w-full bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder={t('dashboard.filterPlaceholder')} aria-label={t('dashboard.filterPlaceholder')} type="text" />
+          <input
+            className="w-full bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+            placeholder={t('dashboard.filterPlaceholder')}
+            aria-label={t('dashboard.filterPlaceholder')}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </div>
     </>

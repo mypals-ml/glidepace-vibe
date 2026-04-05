@@ -27,17 +27,20 @@ export function ProjectSelectorDropdown() {
     <div className="relative" ref={dropdownRef}>
       <div
         onClick={() => setIsOpen(prev => !prev)}
-        className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm cursor-pointer hover:bg-slate-50 transition-colors h-9 overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary"
+        className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm cursor-pointer hover:bg-slate-50 transition-colors h-[var(--header-button-height)] overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary"
         role="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <div className="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t('app.projectLabel')}</div>
-        <div className="px-3 py-1.5 text-sm font-bold text-slate-700 flex items-center gap-2">
-          {hasProject
-            ? (selectedProject ? selectedProject.title : t('app.dummyProjectOption'))
-            : t('app.emptyProjectOption')}
-          <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
+        <div className="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 hidden lg:block">{t('app.projectLabel')}</div>
+        <div className="px-2.5 sm:px-3 py-1.5 text-sm font-bold text-slate-700 flex items-center gap-2 min-w-0 overflow-hidden">
+          <span className="material-symbols-outlined text-[20px] text-primary shrink-0" aria-hidden="true">folder_open</span>
+          <span className="truncate hidden sm:inline max-w-[100px] lg:max-w-[200px]">
+            {hasProject
+              ? (selectedProject ? selectedProject.title : t('app.dummyProjectOption'))
+              : t('app.emptyProjectOption')}
+          </span>
+          <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
         </div>
       </div>
 
@@ -62,7 +65,7 @@ export function ProjectSelectorDropdown() {
                   role="option"
                   aria-selected={!selectedProject && localStorage.getItem('selected_project_type') === 'none'}
                 >
-                  {t('app.emptyProjectOption')}
+                  <span className="truncate">{t('app.emptyProjectOption')}</span>
                   {!selectedProject && localStorage.getItem('selected_project_type') === 'none' && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
                 </button>
                 <button
@@ -78,7 +81,7 @@ export function ProjectSelectorDropdown() {
                   role="option"
                   aria-selected={!selectedProject && localStorage.getItem('selected_project_type') === 'dummy'}
                 >
-                  {t('app.dummyProjectOption')}
+                  <span className="truncate">{t('app.dummyProjectOption')}</span>
                   {!selectedProject && localStorage.getItem('selected_project_type') === 'dummy' && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
                 </button>
               </>
