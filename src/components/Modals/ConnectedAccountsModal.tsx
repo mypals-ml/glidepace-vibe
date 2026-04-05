@@ -9,6 +9,7 @@ export function ConnectedAccountsModal() {
     setActiveAccountId,
     isAccountModalOpen,
     setIsAccountModalOpen,
+    setIsPatModalOpen,
     handleOpenAuth,
     handleDisconnect,
   } = useDashboard();
@@ -16,7 +17,7 @@ export function ConnectedAccountsModal() {
   if (!isAccountModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-labelledby="manage-accounts-title">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-labelledby="manage-accounts-title">
       <div className="relative bg-white/70 backdrop-blur-xl border border-white w-full max-w-md rounded-xl shadow-[0_12px_40px_rgba(25,28,30,0.15)] overflow-hidden animate-in fade-in zoom-in duration-300">
         {/* Modal Header */}
         <div className="p-8 pb-4">
@@ -55,6 +56,12 @@ export function ConnectedAccountsModal() {
           <button onClick={handleOpenAuth} className="w-full bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-sans font-bold py-4 rounded-full shadow-lg shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
             <span className="material-symbols-outlined text-lg" aria-hidden="true">add_circle</span>
             {t('app.connectToAdd')}
+          </button>
+          <button
+            onClick={() => setIsPatModalOpen(true)}
+            className="w-full mt-3 py-3 text-sm font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100/50 rounded-xl transition-all border border-transparent hover:border-slate-200"
+          >
+            Add manually with token
           </button>
           <p className="text-center mt-4 text-xs text-slate-500 px-6">
             {t('app.addAccountPermissionNotice')}

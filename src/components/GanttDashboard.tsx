@@ -4,6 +4,7 @@ import { useResizablePanel } from '../hooks/useResizablePanel';
 import { Header } from './Header/Header';
 import { ConnectedAccountsModal } from './Modals/ConnectedAccountsModal';
 import { OpenProjectModal } from './Modals/OpenProjectModal';
+import { PatAuthModal } from './Modals/PatAuthModal';
 import { Sidebar } from './Dashboard/Sidebar';
 import { Timeline } from './Dashboard/Timeline';
 import { EmptyState } from './Dashboard/EmptyState';
@@ -56,6 +57,7 @@ function DashboardLayout() {
       {/* Modals */}
       <OpenProjectModal />
       <ConnectedAccountsModal />
+      <PatAuthModal />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { DUMMY_TASKS } from '../lib/dummyData';
 import { GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
 import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
 import { fetchGitHubGraphQL } from '../lib/githubService';
-import { DUMMY_PROJECT_ID, MOCK_ACCOUNTS_DATA } from '../lib/githubMock';
+import { DUMMY_PROJECT_ID, MOCK_ACCOUNTS_DATA, MOCK_TOKEN } from '../lib/githubMock';
 import type { Task, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -145,6 +145,9 @@ interface DashboardContextValue {
   setIsProjectModalOpen: (open: boolean) => void;
   isAccountModalOpen: boolean;
   setIsAccountModalOpen: (open: boolean) => void;
+  isPatModalOpen: boolean;
+  setIsPatModalOpen: (open: boolean) => void;
+  handleAddAccountByToken: (token: string) => Promise<{ success: boolean; error?: string }>;
 
   // UI state
   isChartVisible: boolean;
@@ -229,6 +232,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // ---- Modal state ----
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isPatModalOpen, setIsPatModalOpen] = useState(false);
 
   // ---- UI state ----
   const [isChartVisible, setIsChartVisible] = useState(false);
@@ -508,7 +512,79 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       }
     };
     handleAuthCallback();
-  }, [githubToken, setActiveAccountId]);
+  }, [githubToken, setActiveAccountId, setIsProjectModalOpen]);
+
+  const handleAddAccountByToken = useCallback(async (token: string) => {
+    if (!token) return { success: false, error: 'Token is required' };
+    
+    setIsLoadingAuth(true);
+    setApiError(null);
+    try {
+      // If it's the mock token and we're in mock mode (or always allow it)
+      if (token === MOCK_TOKEN) {
+        const mockAccount = MOCK_ACCOUNTS_DATA[0];
+        setGithubAccounts(prev => {
+          const filtered = prev.filter(acc => acc.id !== mockAccount.id);
+          const nextAccounts = [...filtered, mockAccount];
+          localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
+          return nextAccounts;
+        });
+        setActiveAccountId(mockAccount.id);
+        setIsPatModalOpen(false);
+        setIsAccountModalOpen(false);
+        // If there was a pending project open, do it now
+        if (localStorage.getItem('pending_open_project') === 'true') {
+          localStorage.removeItem('pending_open_project');
+          setIsProjectModalOpen(true);
+        }
+        return { success: true };
+      }
+
+      // Real GitHub API call to validate token
+      const res = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        return { success: false, error: errorData.message || 'Invalid token' };
+      }
+      
+      const userData = await res.json();
+      const newAccount: GithubAccount = {
+        id: userData.id.toString(),
+        login: userData.login,
+        name: userData.name || userData.login,
+        avatarUrl: userData.avatar_url,
+        token: token,
+      };
+
+      setGithubAccounts(prev => {
+        const filtered = prev.filter(acc => acc.id !== newAccount.id);
+        const nextAccounts = [...filtered, newAccount];
+        localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
+        return nextAccounts;
+      });
+      setActiveAccountId(newAccount.id);
+      setIsPatModalOpen(false);
+      setIsAccountModalOpen(false);
+      
+      if (localStorage.getItem('pending_open_project') === 'true') {
+        localStorage.removeItem('pending_open_project');
+        setIsProjectModalOpen(true);
+      }
+      
+      return { success: true };
+    } catch (e: any) {
+      console.error('Failed to add account by token:', e);
+      return { success: false, error: e.message || 'An unexpected error occurred' };
+    } finally {
+      setIsLoadingAuth(false);
+    }
+  }, [setActiveAccountId, setIsProjectModalOpen, setIsAccountModalOpen]);
 
   // ---- Auth: check app installation ----
 
@@ -734,6 +810,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setIsProjectModalOpen,
     isAccountModalOpen,
     setIsAccountModalOpen,
+    isPatModalOpen,
+    setIsPatModalOpen,
+    handleAddAccountByToken,
 
     isChartVisible,
     setIsChartVisible,
