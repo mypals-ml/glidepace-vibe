@@ -33,11 +33,13 @@ export function ProjectSelectorDropdown() {
         aria-expanded={isOpen}
       >
         <div className="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 hidden sm:block">{t('app.projectLabel')}</div>
-        <div className="px-3 py-1.5 text-sm font-bold text-slate-700 flex items-center gap-2">
-          {hasProject
-            ? (selectedProject ? selectedProject.title : t('app.dummyProjectOption'))
-            : t('app.emptyProjectOption')}
-          <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
+        <div className="px-3 py-1.5 text-sm font-bold text-slate-700 flex items-center gap-2 min-w-0 overflow-hidden">
+          <span className="truncate">
+            {hasProject
+              ? (selectedProject ? selectedProject.title : t('app.dummyProjectOption'))
+              : t('app.emptyProjectOption')}
+          </span>
+          <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
         </div>
       </div>
 
@@ -62,7 +64,7 @@ export function ProjectSelectorDropdown() {
                   role="option"
                   aria-selected={!selectedProject && localStorage.getItem('selected_project_type') === 'none'}
                 >
-                  {t('app.emptyProjectOption')}
+                  <span className="truncate">{t('app.emptyProjectOption')}</span>
                   {!selectedProject && localStorage.getItem('selected_project_type') === 'none' && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
                 </button>
                 <button
@@ -78,7 +80,7 @@ export function ProjectSelectorDropdown() {
                   role="option"
                   aria-selected={!selectedProject && localStorage.getItem('selected_project_type') === 'dummy'}
                 >
-                  {t('app.dummyProjectOption')}
+                  <span className="truncate">{t('app.dummyProjectOption')}</span>
                   {!selectedProject && localStorage.getItem('selected_project_type') === 'dummy' && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
                 </button>
               </>

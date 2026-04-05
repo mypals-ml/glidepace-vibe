@@ -64,22 +64,20 @@ export function Timeline({ className = '' }: { className?: string }) {
                 return (
                   <div key={task.id} className="relative h-[50px] w-full flex items-center group z-10 px-2">
                     <div
-                      className={`absolute h-8 rounded-md border flex items-center px-3 cursor-pointer transition-all shadow-sm ${
-                        task.status === 'Done'
+                      className={`absolute h-8 rounded-md border flex items-center px-3 cursor-pointer transition-all shadow-sm ${task.status === 'Done'
                           ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100/50'
                           : task.status === 'In Progress'
                             ? 'bg-primary border-primary-hover shadow-glow hover:bg-primary-hover'
                             : 'bg-white border-slate-300 hover:bg-slate-50'
-                      }`}
+                        }`}
                       style={{
                         left: `${leftPos}%`,
                         width: `${width}%`,
                       }}
                     >
                       {task.status === 'In Progress' && <div className="w-1 h-5 bg-white/40 rounded-full mr-2"></div>}
-                      <span className={`text-xs font-medium truncate ${
-                        task.status === 'Done' ? 'text-emerald-700 opacity-70 line-through' : task.status === 'In Progress' ? 'text-white font-bold' : 'text-slate-600'
-                      }`}>
+                      <span className={`text-xs font-medium truncate ${task.status === 'Done' ? 'text-emerald-700 opacity-70 line-through' : task.status === 'In Progress' ? 'text-white font-bold' : 'text-slate-600'
+                        }`}>
                         {task.id} {task.title}
                       </span>
                       {task.status === 'Done' && (

@@ -10,8 +10,8 @@ import type { Task, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, G
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const supabase = (supabaseUrl && supabaseAnonKey) 
-  ? createClient(supabaseUrl, supabaseAnonKey) 
+const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
 // ========================================
@@ -351,10 +351,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       `;
       const json = await fetchGitHubGraphQL(query, { itemId }, token);
       const itemData = json.data?.node;
-      
+
       if (itemData) {
         const updatedTask = mapProjectItemToTask(itemData);
-        setTasks(prevTasks => prevTasks.map(t => 
+        setTasks(prevTasks => prevTasks.map(t =>
           (t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId) ? updatedTask : t
         ));
         updateSyncTime();
@@ -516,7 +516,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const handleAddAccountByToken = useCallback(async (token: string) => {
     if (!token) return { success: false, error: 'Token is required' };
-    
+
     setIsLoadingAuth(true);
     setApiError(null);
     try {
@@ -547,12 +547,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           'Accept': 'application/json'
         }
       });
-      
+
       if (!res.ok) {
         const errorData = await res.json();
         return { success: false, error: errorData.message || 'Invalid token' };
       }
-      
+
       const userData = await res.json();
       const newAccount: GithubAccount = {
         id: userData.id.toString(),
@@ -571,12 +571,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       setActiveAccountId(newAccount.id);
       setIsPatModalOpen(false);
       setIsAccountModalOpen(false);
-      
+
       if (localStorage.getItem('pending_open_project') === 'true') {
         localStorage.removeItem('pending_open_project');
         setIsProjectModalOpen(true);
       }
-      
+
       return { success: true };
     } catch (e: any) {
       console.error('Failed to add account by token:', e);
@@ -630,7 +630,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     const projectChannelLabel = `project-${selectedProject.id}`;
     const repoNames = Array.from(new Set(tasks.map(t => t.repository).filter(Boolean)));
     const repoChannelLabels = repoNames.map(name => `repo-${name!.replace(/\//g, '-')}`);
-    
+
     const allChannels = [projectChannelLabel, ...repoChannelLabels];
 
     const activeChannels = allChannels.map(label => {
@@ -644,7 +644,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         .on('broadcast', { event: 'refresh_task' }, (payload) => {
           const { itemId, contentId } = payload.payload || {};
           console.log(`[DashboardSync] Targeted Refresh RECEIVED on ${label}:`, { itemId, contentId });
-          
+
           if (githubToken && itemId) {
             fetchSingleProjectItem(itemId, githubToken);
           } else if (githubToken && contentId) {
@@ -748,7 +748,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const updateTaskAssignees = useCallback((taskId: string, userIds: string[]) => {
     const selectedUsers = availableUsers.filter(u => userIds.includes(u.id));
-    setTasks(prevTasks => prevTasks.map(task => 
+    setTasks(prevTasks => prevTasks.map(task =>
       task.id === taskId ? { ...task, assignees: selectedUsers.length > 0 ? selectedUsers : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }] } : task
     ));
   }, [availableUsers]);
@@ -762,10 +762,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('github_accounts', JSON.stringify(next));
       return next;
     });
-    
+
     // Set as active
     setActiveAccountId(mockAccount.id);
-    
+
     // Select dummy project
     handleSelectRealProject(DUMMY_PROJECT_ID, 'Demo: Product Roadmap 2024');
   }, [handleSelectRealProject, setActiveAccountId]);

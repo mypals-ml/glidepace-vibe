@@ -77,7 +77,7 @@ export function Sidebar() {
                     )}
                   </td>
                   <td className="px-4 py-3 align-top pt-3 group/assignee relative">
-                    <div 
+                    <div
                       className="flex justify-center -space-x-1.5 cursor-pointer hover:scale-110 transition-transform"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -99,10 +99,10 @@ export function Sidebar() {
                       )}
                     </div>
                     {openSelectorTaskId === task.id && (
-                      <AssigneeSelector 
-                        taskId={task.id} 
-                        currentAssignees={task.assignees} 
-                        onClose={() => setOpenSelectorTaskId(null)} 
+                      <AssigneeSelector
+                        taskId={task.id}
+                        currentAssignees={task.assignees}
+                        onClose={() => setOpenSelectorTaskId(null)}
                       />
                     )}
                   </td>
