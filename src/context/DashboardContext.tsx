@@ -2,8 +2,10 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { createClient } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
 import { DUMMY_TASKS } from '../lib/dummyData';
-import { GITHUB_GRAPHQL_API_URL, GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
+import { GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
 import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
+import { fetchGitHubGraphQL } from '../lib/githubService';
+import { DUMMY_PROJECT_ID, MOCK_ACCOUNTS_DATA } from '../lib/githubMock';
 import type { Task, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -157,6 +159,7 @@ interface DashboardContextValue {
   filteredTasks: Task[];
   availableUsers: User[];
   updateTaskAssignees: (taskId: string, userIds: string[]) => void;
+  handleOpenDummyProject: () => void;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -231,7 +234,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [isChartVisible, setIsChartVisible] = useState(false);
 
   // ---- Task state ----
-  const [tasks, setTasks] = useState<Task[]>(DUMMY_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [availableUsers] = useState<User[]>([
@@ -333,23 +336,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const fetchSingleProjectItem = useCallback(async (itemId: string, token: string) => {
     try {
-      const res = await fetch(GITHUB_GRAPHQL_API_URL, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          query: `
-            query($itemId: ID!) {
-              node(id: $itemId) {
-                ... on ProjectV2Item {
-                  ${PROJECT_ITEM_FRAGMENT}
-                }
-              }
+      const query = `
+        query($itemId: ID!) {
+          node(id: $itemId) {
+            ... on ProjectV2Item {
+              ${PROJECT_ITEM_FRAGMENT}
             }
-          `,
-          variables: { itemId },
-        }),
-      });
-      const json = await res.json();
+          }
+        }
+      `;
+      const json = await fetchGitHubGraphQL(query, { itemId }, token);
       const itemData = json.data?.node;
       
       if (itemData) {
@@ -367,27 +363,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const fetchProjectTasks = useCallback(async (projectId: string, token: string) => {
     setIsLoadingTasks(true);
     try {
-      const res = await fetch(GITHUB_GRAPHQL_API_URL, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          query: `
-            query($projectId: ID!) {
-              node(id: $projectId) {
-                ... on ProjectV2 {
-                  items(first: 50) {
-                    nodes {
-                      ${PROJECT_ITEM_FRAGMENT}
-                    }
-                  }
+      const query = `
+        query($projectId: ID!) {
+          node(id: $projectId) {
+            ... on ProjectV2 {
+              items(first: 50) {
+                nodes {
+                  ${PROJECT_ITEM_FRAGMENT}
                 }
               }
             }
-          `,
-          variables: { projectId },
-        }),
-      });
-      const json = await res.json();
+          }
+        }
+      `;
+      const json = await fetchGitHubGraphQL(query, { projectId }, token);
       const items = json.data?.node?.items?.nodes || [];
 
       const mappedTasks: Task[] = items.map(mapProjectItemToTask);
@@ -406,33 +395,27 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const fetchProjects = useCallback(async (token: string, accountId: string, forceModal: boolean = false) => {
     setIsRefreshing(prev => ({ ...prev, [accountId]: true }));
     try {
-      const res = await fetch(GITHUB_GRAPHQL_API_URL, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          query: `
-            query {
-              viewer {
+      const query = `
+        query {
+          viewer {
+            login
+            databaseId
+            projectsV2(first: 20) {
+              nodes { id title }
+            }
+            organizations(first: 10) {
+              nodes {
                 login
                 databaseId
                 projectsV2(first: 20) {
                   nodes { id title }
                 }
-                organizations(first: 10) {
-                  nodes {
-                    login
-                    databaseId
-                    projectsV2(first: 20) {
-                      nodes { id title }
-                    }
-                  }
-                }
               }
             }
-          `,
-        }),
-      });
-      const json = await res.json();
+          }
+        }
+      `;
+      const json = await fetchGitHubGraphQL(query, {}, token);
 
       if (json.errors) {
         console.error('GraphQL Errors:', json.errors);
@@ -556,11 +539,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       fetchProjects(githubToken, activeAccountId, true);
     }
 
-    const projectType = localStorage.getItem('selected_project_type');
-    if (githubToken && selectedProject && !projectType) {
+    if (githubToken && selectedProject) {
+      // Even for dummy projects, we now fetch via fetchProjectTasks which uses the mock service
       fetchProjectTasks(selectedProject.id, githubToken);
-    } else if (projectType === 'dummy') {
-      setTasks(DUMMY_TASKS);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [githubToken]);
@@ -696,6 +677,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     ));
   }, [availableUsers]);
 
+  const handleOpenDummyProject = useCallback(() => {
+    // Add mock account if not present
+    const mockAccount = MOCK_ACCOUNTS_DATA[0];
+    setGithubAccounts(prev => {
+      if (prev.find(a => a.id === mockAccount.id)) return prev;
+      const next = [...prev, mockAccount];
+      localStorage.setItem('github_accounts', JSON.stringify(next));
+      return next;
+    });
+    
+    // Set as active
+    setActiveAccountId(mockAccount.id);
+    
+    // Select dummy project
+    handleSelectRealProject(DUMMY_PROJECT_ID, 'Demo: Product Roadmap 2024');
+  }, [handleSelectRealProject, setActiveAccountId]);
+
   // ---- Context value ----
 
   const value: DashboardContextValue = {
@@ -748,6 +746,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     filteredTasks,
     availableUsers,
     updateTaskAssignees,
+    handleOpenDummyProject,
   };
 
   return (

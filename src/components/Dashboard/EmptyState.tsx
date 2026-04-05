@@ -3,7 +3,7 @@ import { useDashboard } from '../../context/DashboardContext';
 
 export function EmptyState() {
   const { t } = useTranslation();
-  const { handleOpenProjectClick, isChartVisible } = useDashboard();
+  const { handleOpenProjectClick, handleOpenDummyProject, isChartVisible } = useDashboard();
 
   return (
     <div className="flex-1 flex overflow-hidden glass-panel bg-white/80 shadow-sm border border-slate-200/60 rounded-xl">
@@ -15,11 +15,19 @@ export function EmptyState() {
         <p className="text-sm text-slate-500 mb-6 text-center">{t('dashboard.emptyStateDesc')}</p>
         <button
           onClick={handleOpenProjectClick}
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm"
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm mb-3"
           aria-label={t('dashboard.addProjectButton')}
         >
-          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">folder_open</span>
+          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">folder_open</span>
           {t('dashboard.addProjectButton')}
+        </button>
+        <button
+          onClick={handleOpenDummyProject}
+          id="open-dummy-project-btn"
+          className="w-full bg-white hover:bg-slate-50 text-slate-600 font-medium py-2.5 px-4 rounded-lg border border-slate-200 transition-all flex items-center justify-center gap-2 shadow-sm group"
+        >
+          <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-primary transition-colors" aria-hidden="true">science</span>
+          {t('dashboard.openDummyProjectButton')}
         </button>
       </div>
 
