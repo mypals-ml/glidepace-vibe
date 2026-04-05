@@ -32,4 +32,5 @@ This document outlines the core principles and guidelines for developing within 
 *   **Creating Tasks:** Whenever the user asks to "Add a task in the github task project" or similar phrasing, it strictly means to *both* add the task to the project *and* convert it into an issue.
 *   **Google Jules Branches:** If Jules needs to create a branch, always create it under `/jules/`.
 *   **Google Jules Branch Naming:** If the branch has a connecting task or issue, the branch name should start with `task#{task/issue number}`.
+*   **Voice Input Confirmation:** If the input is a voice recording, print the command text to the chat interface before proceeding with the command.
 
