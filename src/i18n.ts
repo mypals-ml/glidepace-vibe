@@ -71,7 +71,13 @@ const resources = {
         historyEarlier: "Earlier",
         removeFromHistory: "Remove",
         chartToggle: "Chart",
-        listToggle: "List"
+        listToggle: "List",
+        selectAccountToViewProjects: "Select an account from the left list to view projects.",
+        enableAutoSyncTitle: "Enable Automatic Sync",
+        enableAutoSyncDesc: "Get real-time task updates. Install our official GitHub App to safely enable background webhooks for these projects.",
+        installAppAction: "Install App",
+        githubApiErrorTitle: "GitHub API Error:",
+        githubApiErrorDesc: "This usually means the GitHub App is missing some permissions (like Projects or Members) or hasn't been updated. Check your browser console for more details."
       },
       table: {
         id: "ID",
@@ -182,7 +188,13 @@ const resources = {
         historyEarlier: "それ以前",
         removeFromHistory: "削除",
         chartToggle: "チャート",
-        listToggle: "リスト"
+        listToggle: "リスト",
+        selectAccountToViewProjects: "左側のリストからアカウントを選択してプロジェクトを表示してください。",
+        enableAutoSyncTitle: "自動同期を有効にする",
+        enableAutoSyncDesc: "リアルタイムでタスクの更新を取得します。公式のGitHubアプリをインストールして、これらのプロジェクトのバックグラウンドWebhookを安全に有効にします。",
+        installAppAction: "アプリをインストール",
+        githubApiErrorTitle: "GitHub APIエラー:",
+        githubApiErrorDesc: "通常、これはGitHubアプリに必要な権限（プロジェクトやメンバーなど）が不足しているか、更新されていないことを意味します。詳細はブラウザのコンソールを確認してください。"
       },
       table: {
         id: "ID",
@@ -293,7 +305,13 @@ const resources = {
         historyEarlier: "更早以前",
         removeFromHistory: "移除",
         chartToggle: "图表",
-        listToggle: "列表"
+        listToggle: "列表",
+        selectAccountToViewProjects: "从左侧列表选择一个账户以查看项目。",
+        enableAutoSyncTitle: "启用自动同步",
+        enableAutoSyncDesc: "获取实时任务更新。安装我们的官方 GitHub 应用，为这些项目安全地启用后台 Webhooks。",
+        installAppAction: "安装应用",
+        githubApiErrorTitle: "GitHub API 错误：",
+        githubApiErrorDesc: "这通常意味着 GitHub 应用缺少某些权限（如项目或成员），或者尚未更新。请检查浏览器控制台了解更多详情。"
       },
       table: {
         id: "ID",
