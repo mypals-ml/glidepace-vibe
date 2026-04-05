@@ -8,7 +8,7 @@ interface ProjectListContentProps {
   appInstallUrl: string;
   isSortDropdownOpen: boolean;
   setIsSortDropdownOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
-  sortDropdownRef: React.RefObject<HTMLDivElement>;
+  sortDropdownRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function ProjectListContent({
