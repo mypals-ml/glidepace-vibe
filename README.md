@@ -10,3 +10,16 @@ For detailed information about the project's structure, rules, and backlog, plea
 *   **[Architecture Overview](docs/ARCHITECTURE.md):** Information about the project's foundational directory structure and components.
 *   **[Feature Specifications](docs/FEATURES.md):** The complete breakdown of app capabilities (Themes, Draft Issues, MS Project Layout, OAuth).
 *   **[Debugging Guide](docs/DEBUGGING.md):** Step-by-step instructions on how to run, test, and debug the web server, Vitest, and Capacitor integrations.
+
+---
+
+## Development Team
+
+This project is a collaborative effort between human expertise and advanced AI intelligence.
+
+*   **Human Developers:**
+    *   [willwhui](https://github.com/willwhui)
+
+*   **AI Collaborators:**
+    *   Google Antigravity
+    *   Google Jules
