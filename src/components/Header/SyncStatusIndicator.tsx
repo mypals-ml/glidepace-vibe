@@ -21,7 +21,7 @@ export function SyncStatusIndicator() {
 
   return (
     <div
-      className="hidden lg:flex items-center"
+      className="flex items-center shrink-0"
       onMouseEnter={() => setIsHoveringSync(true)}
       onMouseLeave={() => setIsHoveringSync(false)}
     >
@@ -36,8 +36,8 @@ export function SyncStatusIndicator() {
           }}
           className="flex items-center gap-2 px-3 h-8 rounded-full border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold shadow-sm transition-all animate-in fade-in zoom-in duration-200"
         >
-          <span className="material-symbols-outlined text-[16px] animate-spin-slow">sync</span>
-          <span className="leading-none">{t('app.syncNow')}</span>
+          <span className="material-symbols-outlined text-[16px] animate-spin-slow shrink-0">sync</span>
+          <span className="leading-none whitespace-nowrap truncate max-w-[100px] sm:max-w-none">{t('app.syncNow')}</span>
         </button>
       ) : (
         <div
@@ -52,7 +52,7 @@ export function SyncStatusIndicator() {
             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isStale ? 'bg-slate-300' : 'bg-emerald-400'}`}></span>
             <span className={`relative inline-flex rounded-full h-2 w-2 ${isStale ? 'bg-slate-400' : 'bg-emerald-500'}`}></span>
           </span>
-          <span className="leading-none">{getSyncedTimeText(lastSyncedTime)}</span>
+          <span className="leading-none whitespace-nowrap truncate max-w-[100px] sm:max-w-none">{getSyncedTimeText(lastSyncedTime)}</span>
         </div>
       )}
     </div>
