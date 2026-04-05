@@ -10,15 +10,15 @@ export function Sidebar() {
     <>
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <table className="w-full text-left border-collapse" aria-label={t('dashboard.issuesList')}>
-          <thead>
+          <thead className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
             <tr>
-              <th scope="col" className="sticky top-0 z-20 px-4 py-2.5 text-xs font-medium text-slate-500 w-12 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_0_rgba(0,0,0,0.05)]">{t('table.id')}</th>
-              <th scope="col" className="sticky top-0 z-20 px-4 py-2.5 text-xs font-medium text-slate-500 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_0_rgba(0,0,0,0.05)]">{t('table.title')}</th>
-              <th scope="col" className="sticky top-0 z-20 px-4 py-2.5 text-xs font-medium text-slate-500 w-24 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_0_rgba(0,0,0,0.05)]">{t('table.status')}</th>
-              <th scope="col" className="sticky top-0 z-20 px-4 py-2.5 text-xs font-medium text-slate-500 w-20 text-center bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_0_rgba(0,0,0,0.05)]">{t('table.assignees')}</th>
+              <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500 w-12">{t('table.id')}</th>
+              <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500">{t('table.title')}</th>
+              <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500 w-24">{t('table.status')}</th>
+              <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500 w-20 text-center">{t('table.assignees')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 relative z-0">
             {isLoadingTasks ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
