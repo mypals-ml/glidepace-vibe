@@ -16,6 +16,7 @@ export function ProjectSelectorDropdown() {
     handleSelectRealProject,
     handleRemoveFromHistory,
     groupHistoryByDate,
+    handleOpenDummyProject,
   } = useDashboard();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -67,12 +68,8 @@ export function ProjectSelectorDropdown() {
                 </button>
                 <button
                   onClick={() => {
-                    setHasProject(true);
-                    setSelectedProject(null);
+                    handleOpenDummyProject();
                     setIsOpen(false);
-                    setTasks(DUMMY_TASKS);
-                    localStorage.removeItem('selected_project');
-                    localStorage.setItem('selected_project_type', 'dummy');
                   }}
                   className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!selectedProject && localStorage.getItem('selected_project_type') === 'dummy' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
                   role="option"

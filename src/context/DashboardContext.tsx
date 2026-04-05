@@ -3,9 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
 import { DUMMY_TASKS } from '../lib/dummyData';
 import { GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
-import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
 import { fetchGitHubGraphQL } from '../lib/githubService';
-import { DUMMY_PROJECT_ID, MOCK_ACCOUNTS_DATA } from '../lib/githubMock';
+import { DUMMY_PROJECT_ID, MOCK_ACCOUNTS_DATA, USE_MOCK_DATA, MOCK_PROJECTS_DATA } from '../lib/githubMock';
 import type { Task, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -181,7 +180,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // ---- Auth state ----
   const [githubAccounts, setGithubAccounts] = useState<GithubAccount[]>(() => {
-    if (USE_MOCK_DATA) return MOCK_ACCOUNTS;
+    if (USE_MOCK_DATA) return MOCK_ACCOUNTS_DATA;
     try {
       return JSON.parse(localStorage.getItem('github_accounts') || '[]');
     } catch {
@@ -189,7 +188,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   });
   const [activeAccountId, setActiveAccountIdState] = useState<string>(
-    () => USE_MOCK_DATA ? MOCK_ACCOUNTS[0].id : (localStorage.getItem('active_github_account_id') || '')
+    () => USE_MOCK_DATA ? MOCK_ACCOUNTS_DATA[0].id : (localStorage.getItem('active_github_account_id') || '')
   );
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
   const [isAppInstalled, setIsAppInstalled] = useState<Record<string, boolean>>({});
@@ -203,8 +202,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ---- Project state ----
-  const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
-  const [activeTabLogin, setActiveTabLogin] = useState<string>(USE_MOCK_DATA ? MOCK_ACCOUNTS[0].login : '');
+  const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS_DATA : []);
+  const [activeTabLogin, setActiveTabLogin] = useState<string>(USE_MOCK_DATA ? MOCK_ACCOUNTS_DATA[0].login : '');
   const [selectedProject, setSelectedProject] = useState<{ id: string; title: string } | null>(() => {
     try {
       const saved = localStorage.getItem('selected_project');
@@ -692,6 +691,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     
     // Select dummy project
     handleSelectRealProject(DUMMY_PROJECT_ID, 'Demo: Product Roadmap 2024');
+    localStorage.setItem('selected_project_type', 'dummy');
   }, [handleSelectRealProject, setActiveAccountId]);
 
   // ---- Context value ----

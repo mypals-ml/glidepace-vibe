@@ -1,48 +1,52 @@
-import type { ProjectOwnerInfo, Task } from '../types';
+import type { ProjectOwnerInfo, Task, TaskStatus, GithubAccount } from '../types';
 
+export const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true';
 export const MOCK_TOKEN = 'mock-token-123';
 export const DUMMY_PROJECT_ID = 'PVT_DUMMY_123';
 
-export const MOCK_ACCOUNTS_DATA = [
-  { id: 'mock-1', login: 'glidelines-demo', name: 'Glidelines Demo', avatarUrl: 'https://avatars.githubusercontent.com/u/583231?v=4', token: MOCK_TOKEN },
+export const MOCK_ACCOUNTS_DATA: GithubAccount[] = [
+  { id: 'mock-1', login: 'octocat', name: 'Mona Lisa Octocat', avatarUrl: 'https://avatars.githubusercontent.com/u/583231?v=4', token: MOCK_TOKEN },
 ];
 
 export const MOCK_PROJECTS_DATA: ProjectOwnerInfo[] = [
   {
-    login: 'glidelines-demo',
+    login: 'octocat',
     isOrg: false,
     projects: [
       { id: DUMMY_PROJECT_ID, title: 'Demo: Product Roadmap 2024' },
       { id: 'PVT_2', title: 'Demo: Bug Tracker' },
+      { id: 'PVT_3', title: 'Zephyr Cloud Migration' },
     ],
   },
 ];
 
-const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
-  const id = i + 101;
-  const statuses: TaskStatus[] = ['Todo', 'In Progress', 'Done'];
-  const status = statuses[i % 3];
-  
-  // Varied dates
-  const startDay = (i % 20) + 1;
-  const endDay = startDay + (i % 5) + 2;
-  const startDate = `Apr ${startDay.toString().padStart(2, '0')}`;
-  const endDate = `Apr ${endDay.toString().padStart(2, '0')}`;
-  
-  const assigneePool = [
-    { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
-    { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
-    { id: 'u3', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
-    { id: 'u4', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
-    { id: 'u5', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
-  ];
-  
-  const numAssignees = (i % 2) + 1;
-  const assignees = assigneePool.slice(i % 4, (i % 4) + numAssignees);
+function generateMockTasks(projectId: string): Task[] {
+  const project = MOCK_PROJECTS_DATA[0].projects.find(p => p.id === projectId) || { title: 'Unknown Project' };
+  const prefix = project.title.includes('Bug') ? 'Bug' : (project.title.includes('Migration') ? 'Migration' : 'Task');
 
-  return {
-    id: `#${id}`,
-    title: `Task ${id}: ${[
+  return Array.from({ length: 20 }, (_, i) => {
+    const id = i + 101;
+    const statuses: TaskStatus[] = ['Todo', 'In Progress', 'Done'];
+    const status = statuses[i % 3];
+
+    // Varied dates
+    const startDay = (i % 20) + 1;
+    const endDay = startDay + (i % 5) + 2;
+    const startDate = `Apr ${startDay.toString().padStart(2, '0')}`;
+    const endDate = `Apr ${endDay.toString().padStart(2, '0')}`;
+
+    const assigneePool = [
+      { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
+      { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
+      { id: 'u3', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
+      { id: 'u4', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
+      { id: 'u5', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
+    ];
+
+    const numAssignees = (i % 2) + 1;
+    const assignees = assigneePool.slice(i % 4, (i % 4) + numAssignees);
+
+    const taskTitles = [
       'Implement UI Component',
       'Fix Performance Issue',
       'Update Documentation',
@@ -51,18 +55,21 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
       'Add Unit Tests',
       'Design New Feature',
       'Deploy to Production'
-    ][i % 8]}`,
-    startDate,
-    endDate,
-    status,
-    assignees,
-    progress: status === 'Done' ? 100 : (status === 'In Progress' ? 50 : 0),
-    itemId: `item-${id}`,
-    contentId: `content-${id}`,
-  };
-});
+    ];
 
-import type { TaskStatus } from '../types';
+    return {
+      id: `#${id}`,
+      title: `${prefix} ${id}: ${taskTitles[i % taskTitles.length]}`,
+      startDate,
+      endDate,
+      status,
+      assignees,
+      progress: status === 'Done' ? 100 : (status === 'In Progress' ? 50 : 0),
+      itemId: `${projectId}-item-${id}`,
+      contentId: `${projectId}-content-${id}`,
+    };
+  });
+}
 
 // Helper to map tasks back to GitHub GraphQL nodes
 function mapTaskToGraphQLNode(task: Task) {
@@ -112,7 +119,7 @@ export async function handleMockGraphQL(query: string, variables: any) {
     return {
       data: {
         viewer: {
-          login: 'glidelines-demo',
+          login: 'octocat',
           databaseId: 12345,
           projectsV2: {
             nodes: MOCK_PROJECTS_DATA[0].projects
@@ -125,11 +132,13 @@ export async function handleMockGraphQL(query: string, variables: any) {
 
   if (query.includes('items')) {
     // List project tasks
+    const projectId = variables.projectId || DUMMY_PROJECT_ID;
+    const tasks = generateMockTasks(projectId);
     return {
       data: {
         node: {
           items: {
-            nodes: MOCK_TASKS.map(mapTaskToGraphQLNode)
+            nodes: tasks.map(mapTaskToGraphQLNode)
           }
         }
       }
@@ -139,7 +148,13 @@ export async function handleMockGraphQL(query: string, variables: any) {
   if (query.includes('node(id: $itemId)')) {
     // Fetch single item
     const itemId = variables.itemId;
-    const task = MOCK_TASKS.find(t => t.itemId === itemId);
+    // We don't have a global task list anymore, so we try to guess the projectId from itemId if possible
+    // In our generateMockTasks, itemId is `${projectId}-item-${id}`
+    const parts = itemId.split('-item-');
+    const projectId = parts.length > 1 ? parts[0] : DUMMY_PROJECT_ID;
+    const tasks = generateMockTasks(projectId);
+    const task = tasks.find(t => t.itemId === itemId);
+
     if (!task) return { errors: [{ message: 'Node not found' }] };
     
     return {
