@@ -28,10 +28,10 @@ export function Header() {
         <div className="flex items-center gap-2 md:gap-3">
           <ProjectSelectorDropdown />
 
-          <div className="relative hidden lg:flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
-            <div className="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-xs font-medium text-slate-500" id="language-select-label">{t('app.language')}</div>
+          <div className="relative hidden lg:flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary h-[var(--header-button-height)]">
+            <div className="px-3 flex items-center h-full bg-slate-50 border-r border-slate-200 text-xs font-medium text-slate-500" id="language-select-label">{t('app.language')}</div>
             <select
-              className="border-0 focus:ring-0 text-sm py-1.5 pl-3 pr-8 w-28 text-slate-700 font-medium focus:outline-none bg-transparent appearance-none cursor-pointer"
+              className="border-0 focus:ring-0 text-sm h-full pl-3 pr-8 w-28 text-slate-700 font-medium focus:outline-none bg-transparent appearance-none cursor-pointer"
               value={i18n.language}
               onChange={(e) => i18n.changeLanguage(e.target.value)}
               aria-labelledby="language-select-label"
@@ -48,7 +48,7 @@ export function Header() {
         {(
         <button
           onClick={() => setIsChartVisible(!isChartVisible)}
-          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm shrink-0"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 h-[var(--header-button-height)] rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm shrink-0"
           aria-label={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
         >
           <span className="material-symbols-outlined text-[20px] shrink-0">
@@ -63,7 +63,7 @@ export function Header() {
         <button
           onClick={githubAccounts.length > 0 ? () => setIsAccountModalOpen(true) : handleOpenAuth}
           disabled={isLoadingAuth}
-          className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm ${githubAccounts.length > 0 ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'} ${isLoadingAuth ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 h-[var(--header-button-height)] rounded-lg transition-colors text-sm font-medium shadow-sm ${githubAccounts.length > 0 ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white'} ${isLoadingAuth ? 'opacity-50 cursor-not-allowed' : ''}`}
           aria-label={githubAccounts.length > 0 ? t('app.connectedAccounts') : t('app.connectToGitHub')}
         >
           {isLoadingAuth ? (

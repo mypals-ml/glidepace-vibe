@@ -34,14 +34,14 @@ export function SyncStatusIndicator() {
               fetchProjects(githubToken, activeAccountId);
             }
           }}
-          className="flex items-center gap-2 px-3 h-8 rounded-full border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold shadow-sm transition-all animate-in fade-in zoom-in duration-200"
+          className="flex items-center gap-2 px-3 h-[var(--header-button-height)] rounded-full border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold shadow-sm transition-all animate-in fade-in zoom-in duration-200"
         >
           <span className="material-symbols-outlined text-[16px] animate-spin-slow shrink-0">sync</span>
           <span className="leading-none hidden md:inline">{t('app.syncNow')}</span>
         </button>
       ) : (
         <div
-          className={`flex items-center gap-2 px-3 h-8 rounded-full border text-xs font-medium shadow-sm transition-all animate-in fade-in duration-300 ${
+          className={`flex items-center gap-2 px-3 h-[var(--header-button-height)] rounded-full border text-xs font-medium shadow-sm transition-all animate-in fade-in duration-300 ${
             isStale
               ? 'bg-slate-50 border-slate-200 text-slate-500'
               : 'bg-emerald-50 border-emerald-100 text-emerald-700'

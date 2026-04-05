@@ -27,7 +27,7 @@ export function ProjectSelectorDropdown() {
     <div className="relative" ref={dropdownRef}>
       <div
         onClick={() => setIsOpen(prev => !prev)}
-        className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm cursor-pointer hover:bg-slate-50 transition-colors h-9 overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary"
+        className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm cursor-pointer hover:bg-slate-50 transition-colors h-[var(--header-button-height)] overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary"
         role="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
