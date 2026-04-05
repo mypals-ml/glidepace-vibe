@@ -15,8 +15,8 @@ export function Header() {
   } = useDashboard();
 
   return (
-    <header className="glass-panel border-b border-surface-border px-6 py-3 flex items-center justify-between z-20 sticky top-0 bg-white/70 shadow-sm">
-      <div className="flex items-center gap-4">
+    <header className="glass-panel border-b border-surface-border px-6 py-3 flex items-center justify-between z-20 sticky top-0 bg-white/70 shadow-sm gap-[var(--header-gap-md)]">
+      <div className="flex items-center gap-[var(--header-gap-lg)]">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-bold tracking-tight text-slate-900">
             <a href="https://github.com/mypals-ml/glidepace-vibe" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
@@ -25,7 +25,7 @@ export function Header() {
           </h1>
         </div>
         <div className="h-6 w-px bg-slate-200 mx-2 hidden sm:block"></div>
-        <div className="flex items-center gap-2 md:gap-3">
+        <div className="flex items-center gap-[var(--header-gap-sm)] md:gap-[var(--header-gap-md)]">
           <ProjectSelectorDropdown />
 
           <div className="relative hidden lg:flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary h-[var(--header-button-height)]">
@@ -44,7 +44,7 @@ export function Header() {
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2 md:gap-3">
+      <div className="flex items-center gap-[var(--header-gap-sm)] md:gap-[var(--header-gap-md)]">
         {(
         <button
           onClick={() => setIsChartVisible(!isChartVisible)}
