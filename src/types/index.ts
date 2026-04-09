@@ -15,6 +15,13 @@ export interface User {
   avatarUrl?: string;
 }
 
+export interface TaskComment {
+  id: string;
+  author: User;
+  body: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -28,6 +35,8 @@ export interface Task {
   repository?: string;
   itemId?: string;
   contentId?: string;
+  body?: string;
+  comments?: TaskComment[];
 }
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---

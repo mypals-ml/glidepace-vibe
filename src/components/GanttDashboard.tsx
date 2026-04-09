@@ -8,11 +8,14 @@ import { PatAuthModal } from './Modals/PatAuthModal';
 import { Sidebar } from './Dashboard/Sidebar';
 import { Timeline } from './Dashboard/Timeline';
 import { EmptyState } from './Dashboard/EmptyState';
+import { TaskDetailsPanel } from './Dashboard/TaskDetailsPanel';
 
 function DashboardLayout() {
   const { t } = useTranslation();
-  const { hasProject, isChartVisible } = useDashboard();
+  const { hasProject, isChartVisible, tasks, selectedTaskId, setSelectedTaskId } = useDashboard();
   const { width: sidebarWidth, onMouseDown } = useResizablePanel();
+  
+  const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
 
   return (
     <div className="bg-background-main text-slate-800 font-sans h-full flex flex-col overflow-hidden relative">
@@ -55,6 +58,7 @@ function DashboardLayout() {
       </div>
 
       {/* Modals */}
+      <TaskDetailsPanel task={selectedTask} onClose={() => setSelectedTaskId(null)} />
       <OpenProjectModal />
       <ConnectedAccountsModal />
       <PatAuthModal />
