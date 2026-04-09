@@ -27,7 +27,8 @@ export function ProjectListContent({
     sortMethod,
     setSortMethod,
     sortProjects,
-    handleSelectRealProject
+    handleSelectRealProject,
+    isAppInstalled
   } = useDashboard();
 
   if (!selectedAccountId) {
@@ -195,15 +196,17 @@ export function ProjectListContent({
             <p className="text-xs opacity-90 max-w-md mb-6 leading-relaxed">
               {t('dashboard.noProjectsFoundHint')}
             </p>
-            <a
-              href={getTargetUrlForOwner(activeOwner)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-2 px-4 rounded-lg shadow-sm transition-colors border border-slate-200 flex items-center gap-2"
-            >
-              <span className="material-symbols-outlined text-[16px]">manage_accounts</span>
-              {t('dashboard.manageAppInstall')}
-            </a>
+            {isAppInstalled[activeTabLogin] === false && (
+              <a
+                href={getTargetUrlForOwner(activeOwner)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-2 px-4 rounded-lg shadow-sm transition-colors border border-slate-200 flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[16px]">manage_accounts</span>
+                {t('dashboard.manageAppInstall')}
+              </a>
+            )}
           </div>
         )}
       </div>
