@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { useDashboard } from '../../context/DashboardContext';
 import type { Task } from '../../types';
 
 interface TaskDetailsPanelProps {
@@ -192,7 +191,7 @@ function TaskContent({ task, getStatusColor, getStatusIcon, t }: { task: Task; g
             Comments ({task.comments.length})
           </label>
           <div className="space-y-3">
-            {task.comments.map((comment, idx) => (
+            {task.comments.map((comment) => (
               <div key={comment.id} className="bg-slate-50/50 rounded-lg p-3 border border-slate-200/40">
                 <div className="flex items-center gap-2 mb-1.5">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${comment.author.avatarColor}`}>

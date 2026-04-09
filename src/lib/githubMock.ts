@@ -190,8 +190,6 @@ const CONNECTED_TASKS_TASKS: Task[] = [
   }
 ];
 
-import type { TaskStatus } from '../types';
-
 // Helper to map tasks back to GitHub GraphQL nodes
 function mapTaskToGraphQLNode(task: Task) {
   const statusField = {
