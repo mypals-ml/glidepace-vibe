@@ -17,7 +17,7 @@ export function AutoSyncBanner({ appInstallUrl }: AutoSyncBannerProps) {
     targetUrl += `${connector}target_id=${activeOwner.databaseId}&suggested_target_id=${activeOwner.databaseId}`;
   }
 
-  const shouldShow = projectsData.length > 0 && !isAppInstalled[activeTabLogin];
+  const shouldShow = projectsData.length > 0 && isAppInstalled[activeTabLogin] === false;
 
   if (!shouldShow) return null;
 
