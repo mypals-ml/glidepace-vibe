@@ -38,7 +38,7 @@ export function OpenProjectModal() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-6 bg-slate-900/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="open-project-title">
-      <div className="bg-white/90 backdrop-blur-xl w-full h-full md:h-auto md:max-w-5xl md:rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col border-0 md:border md:border-white/40">
+      <div className="bg-white/90 backdrop-blur-xl w-full h-full md:h-auto md:max-h-[calc(100vh-48px)] md:max-w-5xl md:rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col border-0 md:border md:border-white/40">
         {/* Header */}
         <div className="px-6 md:px-8 py-5 md:py-6 flex justify-between items-center bg-slate-50/40 border-b border-slate-200">
           <div className="flex items-center gap-3">
@@ -70,7 +70,7 @@ export function OpenProjectModal() {
             setMobileView={setMobileView}
           />
           
-          <div className={`${mobileView === 'projects' ? 'flex' : 'hidden md:flex'} w-full md:w-[68%] p-6 md:p-8 bg-white/50 flex-col overflow-y-auto`}>
+          <div className={`${mobileView === 'projects' ? 'flex' : 'hidden md:flex'} flex-1 w-full md:w-[68%] p-6 md:p-8 bg-white/50 flex-col overflow-y-auto`}>
             <ProjectListContent 
               selectedAccountId={selectedAccountId}
               appInstallUrl={appInstallUrl}
