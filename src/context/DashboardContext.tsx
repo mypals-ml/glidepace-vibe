@@ -152,6 +152,8 @@ interface DashboardContextValue {
   // UI state
   isChartVisible: boolean;
   setIsChartVisible: (visible: boolean) => void;
+  selectedTaskId: string | null;
+  setSelectedTaskId: (id: string | null) => void;
 
   // Demo environment helpers
   setHasProject: (val: boolean) => void;
@@ -236,6 +238,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // ---- UI state ----
   const [isChartVisible, setIsChartVisible] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   // ---- Task state ----
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -816,6 +819,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     isChartVisible,
     setIsChartVisible,
+    selectedTaskId,
+    setSelectedTaskId,
 
     setHasProject,
     setSelectedProject,

@@ -23,3 +23,4 @@ This project is a collaborative effort between human expertise and advanced AI i
 *   **AI Collaborators:**
     *   Google Antigravity
     *   Google Jules
+    *   GitHub Copilot

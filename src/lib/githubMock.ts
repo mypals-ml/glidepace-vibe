@@ -1,4 +1,4 @@
-import type { ProjectOwnerInfo, Task } from '../types';
+import type { ProjectOwnerInfo, Task, TaskComment, TaskStatus } from '../types';
 
 export const MOCK_TOKEN = 'mock-token-123';
 export const DUMMY_PROJECT_ID = 'PVT_DUMMY_123';
@@ -19,7 +19,28 @@ export const MOCK_PROJECTS_DATA: ProjectOwnerInfo[] = [
   },
 ];
 
+// Sample task descriptions and comments
+const taskDescriptions = [
+  'Implement a responsive UI component that works across all device sizes. Should include proper accessibility features and follow WCAG standards.',
+  'Investigate and fix the slow query causing 2+ second load times. Consider indexing strategy and query optimization techniques.',
+  'Update README and API documentation to reflect the latest changes. Include examples and use cases.',
+  'Optimize the database query that is running in O(n²) time. Target is to reduce to O(n log n).',
+  'Refactor authentication layer to support OAuth2 and JWT tokens. Ensure backward compatibility with existing auth methods.',
+  'Add comprehensive unit and integration tests for the new payment processing module. Aim for 80%+ code coverage.',
+  'Design the new feature dashboard layout in Figma. Include mobile and desktop considerations.',
+  'Deploy the release candidate to production. Include monitoring setup and rollback plan.'
+];
 
+const commentTemplates = [
+  { author: 'Alex Rivera', comment: 'Started working on this, should have initial implementation by end of day.' },
+  { author: 'Jordan Smith', comment: 'Great progress! I reviewed the code and left some minor suggestions on the PR.' },
+  { author: 'Casey Chen', comment: 'Need help with the testing strategy here. Can we pair on this tomorrow?' },
+  { author: 'Taylor Reed', comment: 'All tests are passing now in the CI pipeline. Ready for review.' },
+  { author: 'Morgan Lee', comment: 'Looks good! I had one concern about error handling, but overall impressed with the implementation.' },
+  { author: 'Alex Rivera', comment: 'Merged to main. Let\'s monitor performance metrics in production.' },
+  { author: 'Jordan Smith', comment: 'Users are reporting positive feedback on the new UI. Great job team!' },
+  { author: 'Casey Chen', comment: 'Just deployed the latest version. No issues in beta testing.' },
+];
 
 const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   const id = i + 101;
@@ -43,18 +64,33 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   const numAssignees = (i % 2) + 1;
   const assignees = assigneePool.slice(i % 4, (i % 4) + numAssignees);
 
+  const titles = [
+    'Implement UI Component',
+    'Fix Performance Issue',
+    'Update Documentation',
+    'Optimize Database Query',
+    'Refactor API Auth',
+    'Add Unit Tests',
+    'Design New Feature',
+    'Deploy to Production'
+  ];
+
+  // Generate comments - at least 1, up to 3 per task
+  const numComments = (i % 3) + 1;
+  const comments: TaskComment[] = Array.from({ length: numComments }, (_, j) => {
+    const commentTemplate = commentTemplates[(i + j) % commentTemplates.length];
+    const commentAuthor = assigneePool[(i + j) % assigneePool.length];
+    return {
+      id: `comment-${id}-${j}`,
+      author: commentAuthor,
+      body: commentTemplate.comment,
+      createdAt: new Date(Date.now() - (numComments - j) * 86400000).toISOString(),
+    };
+  });
+
   return {
     id: `#${id}`,
-    title: `Task ${id}: ${[
-      'Implement UI Component',
-      'Fix Performance Issue',
-      'Update Documentation',
-      'Optimize Database Query',
-      'Refactor API Auth',
-      'Add Unit Tests',
-      'Design New Feature',
-      'Deploy to Production'
-    ][i % 8]}`,
+    title: `Task ${id}: ${titles[i % titles.length]}`,
     startDate,
     endDate,
     status,
@@ -62,6 +98,8 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
     progress: status === 'Done' ? 100 : (status === 'In Progress' ? 50 : 0),
     itemId: `item-${id}`,
     contentId: `content-${id}`,
+    body: taskDescriptions[i % taskDescriptions.length],
+    comments,
   };
 });
 
@@ -76,6 +114,21 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     progress: 50,
     itemId: 'item-pat-support',
     contentId: 'content-pat-support',
+    body: 'Add support for users to authenticate using their own GitHub Personal Access Tokens. This will allow better privacy and control over permissions.',
+    comments: [
+      {
+        id: 'comment-101-1',
+        author: { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
+        body: 'Working on the token validation flow. Need to ensure we handle rate limiting properly.',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+      },
+      {
+        id: 'comment-101-2',
+        author: { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
+        body: 'Good idea. Also make sure we securely store the tokens in the database. Consider encryption.',
+        createdAt: new Date(Date.now() - 43200000).toISOString(),
+      },
+    ],
   },
   {
     id: '#102',
@@ -87,6 +140,27 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     progress: 100,
     itemId: 'item-z-index-fix',
     contentId: 'content-z-index-fix',
+    body: 'Multiple modals were appearing behind each other. Updated z-index values to ensure proper stacking order: base modal 40, overlay 50, top modal 60.',
+    comments: [
+      {
+        id: 'comment-102-1',
+        author: { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
+        body: 'Fixed the issue. Tested with all modal combinations.',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+      },
+      {
+        id: 'comment-102-2',
+        author: { id: 'u3', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
+        body: 'Verified in production. No more modal overlap issues!',
+        createdAt: new Date(Date.now() - 43200000).toISOString(),
+      },
+      {
+        id: 'comment-102-3',
+        author: { id: 'u5', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
+        body: 'Great catch! This was blocking several features.',
+        createdAt: new Date(Date.now() - 21600000).toISOString(),
+      },
+    ],
   },
   {
     id: '#103',
@@ -98,10 +172,23 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     progress: 100,
     itemId: 'item-mock-data',
     contentId: 'content-mock-data',
+    body: 'Created a new mock project that simulates real GitHub task data. This helps with testing the connected GitHub tasks workflow.',
+    comments: [
+      {
+        id: 'comment-103-1',
+        author: { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
+        body: 'Added realistic task data with comments and history.',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+      },
+      {
+        id: 'comment-103-2',
+        author: { id: 'u4', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
+        body: 'Perfect! This makes it much easier to test the sync workflow.',
+        createdAt: new Date(Date.now() - 43200000).toISOString(),
+      },
+    ],
   }
 ];
-
-import type { TaskStatus } from '../types';
 
 // Helper to map tasks back to GitHub GraphQL nodes
 function mapTaskToGraphQLNode(task: Task) {
@@ -125,12 +212,25 @@ function mapTaskToGraphQLNode(task: Task) {
       title: task.title,
       number: parseInt(task.id.replace('#', '')),
       state: task.status === 'Done' ? 'CLOSED' : 'OPEN',
+      body: task.body || '',
       repository: { nameWithOwner: 'glidepace/glidelines' },
       assignees: {
         nodes: task.assignees.map(a => ({
           login: a.id,
           name: a.name,
           avatarUrl: a.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random`
+        }))
+      },
+      comments: {
+        nodes: (task.comments || []).map(c => ({
+          id: c.id,
+          body: c.body,
+          createdAt: c.createdAt,
+          author: {
+            login: c.author.id,
+            name: c.author.name,
+            avatarUrl: c.author.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author.name)}&background=random`
+          }
         }))
       }
     },

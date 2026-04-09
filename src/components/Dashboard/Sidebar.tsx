@@ -6,7 +6,7 @@ import { useState } from 'react';
 
 export function Sidebar() {
   const { t } = useTranslation();
-  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery } = useDashboard();
+  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId } = useDashboard();
   const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
 
   return (
@@ -48,7 +48,15 @@ export function Sidebar() {
               </tr>
             ) : (
               filteredTasks.map(task => (
-                <tr key={task.id} className="h-[50px] hover:bg-slate-50/80 transition-colors cursor-pointer group bg-white relative" tabIndex={0} aria-label={`${task.title} - ${t('table.status')} ${task.status}`}>
+                <tr 
+                  key={task.id} 
+                  className={`h-[50px] hover:bg-slate-50/80 transition-colors cursor-pointer group bg-white relative ${
+                    selectedTaskId === task.id ? 'bg-primary/5 border-l-2 border-primary' : ''
+                  }`} 
+                  tabIndex={0} 
+                  aria-label={`${task.title} - ${t('table.status')} ${task.status}`}
+                  onClick={() => setSelectedTaskId(task.id)}
+                >
                   <td className="px-4 py-0 text-xs text-slate-400 font-mono align-middle relative">
                     {task.status === 'In Progress' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-inprogress-highlight" aria-hidden="true"></div>}
                     {task.status === 'Done' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-done-highlight" aria-hidden="true"></div>}
