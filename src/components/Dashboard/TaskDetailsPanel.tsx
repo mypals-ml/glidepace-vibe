@@ -150,14 +150,6 @@ function TaskContent({ task, getStatusColor, getStatusIcon, t }: { task: Task; g
         </div>
       </div>
 
-      {/* Task Description */}
-      {task.body && (
-        <div className="border-t border-slate-200/60 pt-4">
-          <label className="text-xs font-medium text-slate-600 block mb-2">Description</label>
-          <p className="text-sm text-slate-700 leading-relaxed">{task.body}</p>
-        </div>
-      )}
-
       {/* Assignees */}
       {task.assignees && task.assignees.length > 0 && (
         <div className="border-t border-slate-200/60 pt-4">
@@ -219,6 +211,14 @@ function TaskContent({ task, getStatusColor, getStatusIcon, t }: { task: Task; g
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Task Description */}
+      {task.body && (
+        <div className="border-t border-slate-200/60 pt-4">
+          <label className="text-xs font-medium text-slate-600 block mb-2">Description</label>
+          <p className="text-sm text-slate-700 leading-relaxed">{task.body}</p>
         </div>
       )}
     </>
