@@ -70,7 +70,7 @@ export function OpenProjectModal() {
             setMobileView={setMobileView}
           />
           
-          <div className={`${mobileView === 'projects' ? 'flex' : 'hidden md:flex'} w-full md:w-[68%] p-6 md:p-8 bg-white/50 flex-col overflow-y-auto`}>
+          <div className={`${mobileView === 'projects' ? 'flex' : 'hidden md:flex'} flex-1 w-full md:w-[68%] p-6 md:p-8 bg-white/50 flex-col overflow-y-auto`}>
             <ProjectListContent 
               selectedAccountId={selectedAccountId}
               appInstallUrl={appInstallUrl}
