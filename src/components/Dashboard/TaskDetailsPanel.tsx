@@ -151,9 +151,17 @@ function TaskContent({ task, getStatusColor, getStatusIcon, t }: { task: Task; g
         </div>
       </div>
 
+      {/* Task Description */}
+      {task.body && (
+        <div className="border-t border-slate-200/60 pt-4">
+          <label className="text-xs font-medium text-slate-600 block mb-2">Description</label>
+          <p className="text-sm text-slate-700 leading-relaxed">{task.body}</p>
+        </div>
+      )}
+
       {/* Assignees */}
       {task.assignees && task.assignees.length > 0 && (
-        <div>
+        <div className="border-t border-slate-200/60 pt-4">
           <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.assignees')}</label>
           <div className="flex flex-wrap gap-2">
             {task.assignees.map(user => (
@@ -171,6 +179,44 @@ function TaskContent({ task, getStatusColor, getStatusIcon, t }: { task: Task; g
                   <span className="text-xs font-bold">{user.initials}</span>
                 )}
                 <span className="text-sm font-medium">{user.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Comments Section */}
+      {task.comments && task.comments.length > 0 && (
+        <div className="border-t border-slate-200/60 pt-4">
+          <label className="text-xs font-medium text-slate-600 block mb-3">
+            Comments ({task.comments.length})
+          </label>
+          <div className="space-y-3">
+            {task.comments.map((comment, idx) => (
+              <div key={comment.id} className="bg-slate-50/50 rounded-lg p-3 border border-slate-200/40">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${comment.author.avatarColor}`}>
+                    {comment.author.avatarUrl ? (
+                      <img
+                        src={comment.author.avatarUrl}
+                        alt={comment.author.name}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      comment.author.initials
+                    )}
+                  </div>
+                  <span className="text-xs font-medium text-slate-700">{comment.author.name}</span>
+                  <span className="text-xs text-slate-500">
+                    {new Date(comment.createdAt).toLocaleDateString(undefined, { 
+                      month: 'short', 
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-700 leading-relaxed">{comment.body}</p>
               </div>
             ))}
           </div>
