@@ -27,9 +27,18 @@ const PROJECT_ITEM_FRAGMENT = `
       title
       number
       state
+      body
       repository { nameWithOwner }
       assignees(first: 5) {
         nodes { login name avatarUrl }
+      }
+      comments(first: 10) {
+        nodes {
+          id
+          body
+          createdAt
+          author { login name avatarUrl }
+        }
       }
     }
     ... on PullRequest {
@@ -37,9 +46,18 @@ const PROJECT_ITEM_FRAGMENT = `
       title
       number
       state
+      body
       repository { nameWithOwner }
       assignees(first: 5) {
         nodes { login name avatarUrl }
+      }
+      comments(first: 10) {
+        nodes {
+          id
+          body
+          createdAt
+          author { login name avatarUrl }
+        }
       }
     }
   }
@@ -82,6 +100,19 @@ function mapProjectItemToTask(item: any): Task {
     avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
   }));
 
+  const comments = (content?.comments?.nodes || []).map((comment: any) => ({
+    id: comment.id,
+    body: comment.body,
+    createdAt: comment.createdAt,
+    author: {
+      id: comment.author?.login || 'unknown',
+      name: comment.author?.name || comment.author?.login || 'Unknown',
+      avatarUrl: comment.author?.avatarUrl,
+      initials: (comment.author?.name || comment.author?.login || 'UK').substring(0, 2).toUpperCase(),
+      avatarColor: 'bg-slate-100 text-slate-500',
+    },
+  }));
+
   return {
     id: content?.number ? `#${content.number}` : item.id.slice(-6),
     title: content?.title || 'No Title',
@@ -93,6 +124,8 @@ function mapProjectItemToTask(item: any): Task {
     assignees: assignees.length > 0 ? assignees : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }],
     progress: status === 'Done' ? 100 : (status === 'In Progress' ? 50 : 0),
     repository: content?.repository?.nameWithOwner,
+    body: content?.body || '',
+    comments: comments.length > 0 ? comments : undefined,
     itemId: item.id,
     contentId: content?.id,
   };
