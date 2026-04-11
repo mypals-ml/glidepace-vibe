@@ -46,3 +46,6 @@ This document outlines the core principles and guidelines for developing within 
     *   **Google Jules Branches:** If Jules needs to create a branch, always create it under `/jules/`.
     *   **Google Jules Branch Naming:** If the branch has a connecting task or issue, the branch name should start with `task#{task/issue number}`.
 
+## 7. Environment & Troubleshooting
+*   **Command PATH**: The assistant's tool environment may have a restricted `PATH`. If `npm`, `npx`, or `node` are not found, search in common macOS paths like `/opt/homebrew/bin/` and use the full path or update the command's `PATH` (e.g., `PATH=$PATH:/opt/homebrew/bin`).
+

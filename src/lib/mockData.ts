@@ -15,12 +15,12 @@ export const MOCK_PROJECTS: ProjectOwnerInfo[] = [
     login: 'octocat',
     isOrg: false,
     projects: [
-      { id: 'PVT_1', title: 'Alpha Release Tracker' },
-      { id: 'PVT_2', title: 'Design System Overhaul' },
-      { id: 'PVT_3', title: 'Backend Microservices' },
-      { id: 'PVT_4', title: 'Mobile App Redesign' },
-      { id: 'PVT_5', title: 'Zephyr Cloud Migration' },
-      { id: 'PVT_6', title: 'Customer Feedback Board' },
+      { id: 'PVT_1', title: 'Alpha Release Tracker', public: true },
+      { id: 'PVT_2', title: 'Design System Overhaul', public: false },
+      { id: 'PVT_3', title: 'Backend Microservices', public: true },
+      { id: 'PVT_4', title: 'Mobile App Redesign', public: false },
+      { id: 'PVT_5', title: 'Zephyr Cloud Migration', public: true },
+      { id: 'PVT_6', title: 'Customer Feedback Board', public: false },
     ],
   },
 ];
