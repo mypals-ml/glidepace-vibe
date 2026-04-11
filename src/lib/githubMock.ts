@@ -30,9 +30,9 @@ export const MOCK_PROJECTS_DATA: ProjectOwnerInfo[] = [
     login: 'glidelines-demo',
     isOrg: false,
     projects: [
-      { id: DUMMY_PROJECT_ID, title: 'Demo: Product Roadmap 2024' },
-      { id: 'PVT_2', title: 'Demo: Bug Tracker' },
-      { id: 'PVT_3', title: 'Connected GitHub Tasks' },
+      { id: DUMMY_PROJECT_ID, title: 'Demo: Product Roadmap 2024', public: true },
+      { id: 'PVT_2', title: 'Demo: Bug Tracker', public: false },
+      { id: 'PVT_3', title: 'Connected GitHub Tasks', public: true },
     ],
   },
 ];
@@ -345,6 +345,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     return {
       data: {
         node: {
+          public: variables.projectId === 'PVT_2' ? false : true,
           fields: {
             nodes: [
               {

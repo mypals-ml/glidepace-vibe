@@ -52,7 +52,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // ---- Project state ----
   const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
   const [activeTabLogin, setActiveTabLogin] = useState<string>(USE_MOCK_DATA ? MOCK_ACCOUNTS[0].login : '');
-  const [selectedProject, setSelectedProject] = useState<{ id: string; title: string } | null>(() => {
+  const [selectedProject, setSelectedProject] = useState<{ id: string; title: string; public: boolean } | null>(() => {
     try {
       const saved = localStorage.getItem('selected_project');
       return saved ? JSON.parse(saved) : null;
@@ -221,6 +221,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         query($projectId: ID!) {
           node(id: $projectId) {
             ... on ProjectV2 {
+              public
               fields(first: 20) {
                 nodes {
                   ... on ProjectV2SingleSelectField {
@@ -287,14 +288,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             login
             databaseId
             projectsV2(first: 20) {
-              nodes { id title }
+              nodes { id title public }
             }
             organizations(first: 10) {
               nodes {
                 login
                 databaseId
                 projectsV2(first: 20) {
-                  nodes { id title }
+                  nodes { id title public }
                 }
               }
             }
@@ -600,9 +601,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [githubAccounts, activeAccountId]);
 
-  const handleSelectRealProject = useCallback((id: string, title: string) => {
+  const handleSelectRealProject = useCallback((id: string, title: string, isPublic?: boolean) => {
     setIsProjectModalOpen(false);
-    const project = { id, title };
+    
+    // Fallback logic: if isPublic is undefined (e.g. from history), check if we can find it in projectsData
+    let finalPublic = isPublic;
+    if (finalPublic === undefined) {
+      const found = projectsData.flatMap(o => o.projects).find(p => p.id === id);
+      finalPublic = found ? found.public : false; // Default to private for safety
+    }
+
+    const project = { id, title, public: finalPublic };
     setSelectedProject(project);
     setHasProject(true);
     localStorage.setItem('selected_project', JSON.stringify(project));
@@ -613,14 +622,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       updateSyncTime();
     }
 
-    const newItem: ProjectHistoryItem = { id, title, lastOpened: Date.now() };
+    const newItem: ProjectHistoryItem = { id, title, public: finalPublic, lastOpened: Date.now() };
     setProjectHistory(prev => {
       const filtered = prev.filter(item => item.id !== id);
       const nextHistory = [newItem, ...filtered].slice(0, 20);
       localStorage.setItem('project_history', JSON.stringify(nextHistory));
       return nextHistory;
     });
-  }, [githubToken, fetchProjectTasks, updateSyncTime]);
+  }, [githubToken, fetchProjectTasks, updateSyncTime, projectsData]);
 
   const handleRemoveFromHistory = useCallback((id: string) => {
     setProjectHistory(prev => {
@@ -641,10 +650,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       if (currentOwner?.isOrg) {
         searchQuery = `org:${currentOwner.login} ${searchTerm}`;
       } else if (currentOwner) {
-        // For personal projects, we'll search globally but we could potentially boost "following"
-        // The user suggested limiting to following if possible.
-        // We can do that with 'following:user' in search but GitHub search limits this.
-        // A better way is to just search and let the API return relevant results.
+        // Discovery logic requested by user:
+        // Only allow global search discovery for personal projects if the project is PUBLIC.
+        if (!selectedProject?.public) {
+          // If private personal project, we skip global discovery and return empty for this step.
+          // The UI will still show "Project Mates" from availableUsers.
+          return [];
+        }
         searchQuery = `${searchTerm}`;
       }
 

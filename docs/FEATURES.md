@@ -13,7 +13,7 @@
 *   **Assignee Search Strategy:** 
     *   **Contextual Priority:** The search interface automatically prioritizes "Project Mates" — users already assigned to at least one task in the current project for quick access.
     *   **Smart Scoping:** For projects owned by an Organization, the system automatically scopes the GitHub user search to that organization (`org:LOGIN`) to find relevant teammates quickly.
-    *   **Global Discovery:** For personal projects or when teammates aren't found, the system performs a global GitHub user search using the GraphQL `search(type: USER)` API.
+    *   **Global Discovery:** For personal projects that are **public**, the system performs a global GitHub user search using the GraphQL `search(type: USER)` API. For private personal projects, search is restricted to project mates for security.
     *   **Real-time Debounce:** User search occurs dynamically as you type with a 500ms debounce to optimize API calls while providing a responsive "instant search" feel.
 
 ## Roadmap & Upcoming Features

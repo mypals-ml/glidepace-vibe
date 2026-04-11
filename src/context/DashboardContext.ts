@@ -17,11 +17,11 @@ export interface DashboardContextValue {
   projectsData: ProjectOwnerInfo[];
   activeTabLogin: string;
   setActiveTabLogin: (login: string) => void;
-  selectedProject: { id: string; title: string } | null;
+  selectedProject: { id: string; title: string; public: boolean } | null;
   hasProject: boolean;
   projectHistory: ProjectHistoryItem[];
   fetchProjects: (token: string, accountId: string, forceModal?: boolean) => Promise<void>;
-  handleSelectRealProject: (id: string, title: string) => void;
+  handleSelectRealProject: (id: string, title: string, isPublic?: boolean) => void;
   handleRemoveFromHistory: (id: string) => void;
   handleOpenProjectClick: () => void;
   sortMethod: SortMethod;
@@ -69,7 +69,7 @@ export interface DashboardContextValue {
 
   // Demo environment helpers
   setHasProject: (val: boolean) => void;
-  setSelectedProject: (val: { id: string; title: string } | null) => void;
+  setSelectedProject: (val: { id: string; title: string; public: boolean } | null) => void;
   setTasks: (tasks: Task[]) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;

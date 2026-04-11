@@ -49,6 +49,7 @@ export type SortMethod = 'recent' | 'oldest' | 'nameAZ' | 'nameZA';
 export interface GitHubProject {
   id: string;
   title: string;
+  public: boolean;
 }
 
 export interface ProjectOwnerInfo {
@@ -62,6 +63,7 @@ export interface ProjectHistoryItem {
   id: string;
   title: string;
   lastOpened: number;
+  public?: boolean;
 }
 
 export interface GithubAccount {
@@ -157,6 +159,7 @@ export interface GitHubProjectV2Field {
 export interface GitHubProjectV2 {
   id: string;
   title: string;
+  public: boolean;
   fields: {
     nodes: GitHubProjectV2Field[];
   };
