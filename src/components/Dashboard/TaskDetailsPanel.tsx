@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { AssigneeSelector } from './AssigneeSelector';
+import { StatusSelector } from './StatusSelector';
+import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { Task, TaskStatus } from '../../types';
 
 interface TaskDetailsPanelProps {
@@ -56,16 +58,6 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
 
   if (!task) return null;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Done':
-        return 'bg-status-done-bg text-status-done-text border border-status-done-border';
-      case 'In Progress':
-        return 'bg-status-inprogress-bg text-status-inprogress-text border border-status-inprogress-border';
-      default:
-        return 'bg-status-todo-bg text-status-todo-text border border-status-todo-border';
-    }
-  };
 
 
   return (
@@ -81,7 +73,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4 space-y-6">
-            <TaskContent task={task} getStatusColor={getStatusColor} t={t} />
+            <TaskContent task={task} t={t} />
           </div>
         </div>
 
@@ -94,7 +86,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5">
-            <TaskContent task={task} getStatusColor={getStatusColor} t={t} />
+            <TaskContent task={task} t={t} />
           </div>
         </div>
       </div>
@@ -102,7 +94,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
   );
 }
 
-function TaskContent({ task, getStatusColor, t }: { task: Task; getStatusColor: (s: string) => string; t: any }) {
+function TaskContent({ task, t }: { task: Task; t: any }) {
   const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskStatus, updateTaskDates } = useDashboard();
   
   const [editingTitle, setEditingTitle] = useState(false);
@@ -115,6 +107,7 @@ function TaskContent({ task, getStatusColor, t }: { task: Task; getStatusColor: 
   const [draftComment, setDraftComment] = useState('');
 
   const [isAssigneeSelectorOpen, setIsAssigneeSelectorOpen] = useState(false);
+  const [isStatusSelectorOpen, setIsStatusSelectorOpen] = useState(false);
 
   // Sync state if task changes
   useEffect(() => {
@@ -175,22 +168,23 @@ function TaskContent({ task, getStatusColor, t }: { task: Task; getStatusColor: 
       </div>
 
       {/* Status */}
-      <div>
-        <label className="text-xs font-medium text-slate-600 block mb-2">{t('table.status')}</label>
-        <div className="relative inline-block group">
-          <select 
-            className={`appearance-none cursor-pointer inline-flex items-center gap-2 pr-8 pl-3 py-2 rounded-lg font-medium text-sm outline-none ${getStatusColor(task.status)}`}
-            value={task.status}
-            onChange={(e) => updateTaskStatus(task, e.target.value as TaskStatus)}
-          >
-            <option value="Todo">{t('taskStatuses.todo', 'Todo')}</option>
-            <option value="In Progress">{t('taskStatuses.inProgress', 'In Progress')}</option>
-            <option value="Done">{t('taskStatuses.done', 'Done')}</option>
-          </select>
-          <span className={`material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-sm pointer-events-none ${getStatusColor(task.status).split(' ')[1]}`}>
-            expand_more
-          </span>
+      <div className="relative">
+        <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.status')}</label>
+        <div 
+          className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
+          onClick={() => setIsStatusSelectorOpen(true)}
+        >
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${getStatusColor(task.status)}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(task.status)}`}></span>
+            <span className="text-sm font-medium">{t(`taskStatuses.${task.status === 'In Progress' ? 'inProgress' : task.status.toLowerCase()}`, task.status)}</span>
+          </div>
         </div>
+        {isStatusSelectorOpen && (
+          <StatusSelector 
+            task={task} 
+            onClose={() => setIsStatusSelectorOpen(false)} 
+          />
+        )}
       </div>
 
       {/* Repository */}

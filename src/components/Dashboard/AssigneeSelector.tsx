@@ -35,15 +35,15 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:p-0">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:left-0 sm:right-0 sm:top-full sm:mt-2 sm:p-0">
       {/* Backdrop for mobile */}
       <div 
         className="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] sm:hidden" 
-        onClick={onClose}
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
       
       {/* Selector Panel */}
-      <div className="glass-panel w-full max-w-[280px] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-right">
+      <div className="glass-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-right">
         {/* Search Header */}
         <div className="p-3 border-b border-slate-200/60 bg-white/50">
           <div className="relative">
@@ -107,7 +107,7 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
       {/* Invisible overlay for desktop click-outside */}
       <div 
         className="fixed inset-0 z-[-1] hidden sm:block" 
-        onClick={onClose}
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
     </div>
   );

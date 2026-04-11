@@ -65,32 +65,31 @@ export function Timeline({ className = '' }: { className?: string }) {
                   <div key={task.id} className="relative h-[50px] w-full flex items-center group z-10 px-2">
                     <div
                       className={`absolute h-8 rounded-md border flex items-center px-3 cursor-pointer transition-all shadow-sm ${task.status === 'Done'
-                          ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100/50'
+                          ? 'bg-status-done-bg border-status-done-border hover:opacity-80'
                           : task.status === 'In Progress'
-                            ? 'bg-primary border-primary-hover shadow-glow hover:bg-primary-hover'
-                            : 'bg-white border-slate-300 hover:bg-slate-50'
+                            ? 'bg-status-inprogress-bg border-status-inprogress-border hover:opacity-80'
+                            : 'bg-status-todo-bg border-status-todo-border hover:opacity-80'
                         }`}
                       style={{
                         left: `${leftPos}%`,
                         width: `${width}%`,
                       }}
                     >
-                      {task.status === 'In Progress' && <div className="w-1 h-5 bg-white/40 rounded-full mr-2"></div>}
-                      <span className={`text-xs font-medium truncate ${task.status === 'Done' ? 'text-emerald-700 opacity-70 line-through' : task.status === 'In Progress' ? 'text-white font-bold' : 'text-slate-600'
+                      <span className={`text-xs font-medium truncate ${task.status === 'Done' ? 'text-status-done-text opacity-70 line-through' : task.status === 'In Progress' ? 'text-status-inprogress-text font-bold' : 'text-status-todo-text'
                         }`}>
                         {task.id} {task.title}
                       </span>
                       {task.status === 'Done' && (
                         <div className="ml-auto flex items-center">
-                          <span className="material-symbols-outlined text-[14px] text-emerald-500">check_circle</span>
+                          <span className="material-symbols-outlined text-[14px] text-status-done-highlight">check_circle</span>
                         </div>
                       )}
                       {task.status === 'In Progress' && (
                         <div className="ml-auto flex items-center gap-2">
-                          <div className="w-12 h-1 bg-white/20 rounded-full overflow-hidden hidden sm:block">
-                            <div className="h-full bg-white opacity-80" style={{ width: `${task.progress}%` }}></div>
+                          <div className="w-12 h-1 bg-status-inprogress-highlight/20 rounded-full overflow-hidden hidden sm:block">
+                            <div className="h-full bg-status-inprogress-highlight opacity-80" style={{ width: `${task.progress}%` }}></div>
                           </div>
-                          <span className="text-[9px] font-bold text-white/90">{task.progress}%</span>
+                          <span className="text-[9px] font-bold text-status-inprogress-text/90">{task.progress}%</span>
                         </div>
                       )}
                     </div>
