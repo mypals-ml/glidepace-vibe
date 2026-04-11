@@ -39,6 +39,7 @@ export interface Task {
   comments?: TaskComment[];
   projectFieldIds?: Record<string, string>;
   statusOptions?: Record<string, string>;
+  statusColorMap?: Record<string, string>;
 }
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---
@@ -69,4 +70,96 @@ export interface GithubAccount {
   name?: string;
   avatarUrl: string;
   token: string;
+}
+
+// --- GitHub GraphQL types ---
+
+export interface GitHubAuthor {
+  login: string;
+  avatarUrl: string;
+  name?: string;
+  __typename?: string;
+}
+
+export interface GitHubComment {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: GitHubAuthor;
+}
+
+export interface GitHubAssignee {
+  login: string;
+  name?: string;
+  avatarUrl: string;
+}
+
+export interface GitHubRepository {
+  nameWithOwner: string;
+}
+
+export interface GitHubProjectContent {
+  id: string;
+  title: string;
+  number?: number;
+  state?: string;
+  body?: string;
+  repository?: GitHubRepository;
+  assignees?: {
+    nodes: GitHubAssignee[];
+  };
+  comments?: {
+    nodes: GitHubComment[];
+  };
+}
+
+export interface GitHubFieldValue {
+  __typename: string;
+  id: string;
+  name?: string;
+  text?: string;
+  number?: number;
+  date?: string;
+  title?: string;
+  startDate?: string;
+  duration?: number;
+  field?: {
+    id: string;
+    name: string;
+    options?: Array<{
+      id: string;
+      name: string;
+      color?: string;
+    }>;
+  };
+  optionId?: string;
+}
+
+export interface GitHubProjectItem {
+  id: string;
+  content: GitHubProjectContent;
+  fieldValues: {
+    nodes: GitHubFieldValue[];
+  };
+}
+
+export interface GitHubProjectV2Field {
+  id: string;
+  name: string;
+  options?: Array<{
+    id: string;
+    name: string;
+    color?: string;
+  }>;
+}
+
+export interface GitHubProjectV2 {
+  id: string;
+  title: string;
+  fields: {
+    nodes: GitHubProjectV2Field[];
+  };
+  items: {
+    nodes: GitHubProjectItem[];
+  };
 }

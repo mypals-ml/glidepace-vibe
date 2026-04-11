@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 
@@ -13,11 +13,20 @@ export function SyncStatusIndicator() {
     fetchProjects,
     activeAccountId,
   } = useDashboard();
+  const [isStale, setIsStale] = useState(false);
   const [isHoveringSync, setIsHoveringSync] = useState(false);
 
-  if (!githubToken) return null;
-
-  const isStale = lastSyncedTime && (Date.now() - lastSyncedTime) > 60000;
+  useEffect(() => {
+    const checkStaleness = () => {
+      if (lastSyncedTime) {
+        setIsStale((Date.now() - lastSyncedTime) > 60000);
+      }
+    };
+    
+    checkStaleness();
+    const interval = setInterval(checkStaleness, 10000);
+    return () => clearInterval(interval);
+  }, [lastSyncedTime]);
 
   return (
     <div

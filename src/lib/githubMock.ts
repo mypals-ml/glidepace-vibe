@@ -272,7 +272,25 @@ function mapTaskToGraphQLNode(task: Task) {
   };
 }
 
-export async function handleMockGraphQL(query: string, variables: any) {
+interface MockVariables {
+  projectId?: string;
+  itemId?: string;
+  issueId?: string;
+  fieldId?: string;
+  input?: {
+    id?: string;
+    itemId?: string;
+    fieldId?: string;
+    title?: string;
+    body?: string;
+    value?: {
+      singleSelectOptionId?: string;
+      date?: string;
+    };
+  };
+}
+
+export async function handleMockGraphQL(query: string, variables: MockVariables) {
   console.log('[MockAPI] Handling GraphQL query:', { query: query.substring(0, 100) + '...', variables });
 
   // Simulate network delay
@@ -351,7 +369,7 @@ export async function handleMockGraphQL(query: string, variables: any) {
     const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
     for (const task of allTasks) {
       const comment = task.comments?.find(c => c.id === commentId);
-      if (comment) {
+      if (comment && body !== undefined) {
         comment.body = body;
         return { data: { updateIssueComment: { issueComment: { id: commentId } } } };
       }

@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { AssigneeSelector } from './AssigneeSelector';
 import { StatusSelector } from './StatusSelector';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
-import type { Task, TaskStatus } from '../../types';
+import type { Task } from '../../types';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -73,7 +74,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4 space-y-6">
-            <TaskContent task={task} t={t} />
+            <TaskContent key={task.id} task={task} t={t} />
           </div>
         </div>
 
@@ -86,7 +87,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5">
-            <TaskContent task={task} t={t} />
+            <TaskContent key={task.id} task={task} t={t} />
           </div>
         </div>
       </div>
@@ -94,8 +95,8 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
   );
 }
 
-function TaskContent({ task, t }: { task: Task; t: any }) {
-  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskStatus, updateTaskDates } = useDashboard();
+function TaskContent({ task, t }: { task: Task; t: TFunction }) {
+  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates } = useDashboard();
   
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(task.title);
@@ -109,11 +110,6 @@ function TaskContent({ task, t }: { task: Task; t: any }) {
   const [isAssigneeSelectorOpen, setIsAssigneeSelectorOpen] = useState(false);
   const [isStatusSelectorOpen, setIsStatusSelectorOpen] = useState(false);
 
-  // Sync state if task changes
-  useEffect(() => {
-    setDraftTitle(task.title);
-    setDraftDesc(task.body || '');
-  }, [task]);
 
   const handleSaveTitle = async () => {
     await updateTaskTitle(task, draftTitle);

@@ -1,6 +1,6 @@
 import { useDashboard } from '../../context/DashboardContext';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
-import type { Task } from '../../types';
+import type { Task, TaskStatus } from '../../types';
 
 /** Fallback used before a project is loaded (demo without mock response yet, etc.) */
 const DEFAULT_STATUSES = ['Todo', 'In Progress', 'Done'];
@@ -17,7 +17,7 @@ export function StatusSelector({ task, onClose }: StatusSelectorProps) {
   const statuses = projectStatusOptions.length > 0 ? projectStatusOptions : DEFAULT_STATUSES;
 
   const handleSelectStatus = async (status: string) => {
-    await updateTaskStatus(task, status as any);
+    await updateTaskStatus(task, status as TaskStatus);
     onClose();
   };
 

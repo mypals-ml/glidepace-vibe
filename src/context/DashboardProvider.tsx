@@ -1,285 +1,23 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
-import i18n from '../i18n';
 import { DUMMY_TASKS } from '../lib/dummyData';
 import { GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
 import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
 import { fetchGitHubGraphQL } from '../lib/githubService';
 import { DUMMY_PROJECT_ID, MOCK_ACCOUNTS_DATA, MOCK_TOKEN } from '../lib/githubMock';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2, GitHubProjectItem, GitHubProjectV2Field } from '../types';
 import { registerStatuses } from '../utils/statusColors';
+import { mapProjectItemToTask, PROJECT_ITEM_FRAGMENT } from '../lib/githubTaskMapper';
+import { DashboardContext } from './DashboardContext';
+import type { DashboardContextValue } from './DashboardContext';
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
-
-// ========================================
-// Helper: Map GitHub Project Item to Task
-// ========================================
-
-const PROJECT_ITEM_FRAGMENT = `
-  id
-  content {
-    ... on DraftIssue { id title body }
-    ... on Issue {
-      id
-      title
-      number
-      state
-      body
-      repository { nameWithOwner }
-      assignees(first: 5) {
-        nodes { login name avatarUrl }
-      }
-      comments(first: 10) {
-        nodes {
-          id
-          body
-          createdAt
-          author {
-            login
-            avatarUrl
-            ... on User { name }
-            ... on Organization { name }
-          }
-        }
-      }
-    }
-    ... on PullRequest {
-      id
-      title
-      number
-      state
-      body
-      repository { nameWithOwner }
-      assignees(first: 5) {
-        nodes { login name avatarUrl }
-      }
-      comments(first: 10) {
-        nodes {
-          id
-          body
-          createdAt
-          author {
-            login
-            avatarUrl
-            ... on User { name }
-            ... on Organization { name }
-          }
-        }
-      }
-    }
-  }
-  fieldValues(first: 20) {
-    nodes {
-      ... on ProjectV2ItemFieldSingleSelectValue {
-        id
-        name
-        field { ... on ProjectV2SingleSelectField { id name options { id name color } } }
-        optionId
-      }
-      ... on ProjectV2ItemFieldIterationValue {
-        id
-        title
-        startDate
-        duration
-        field { ... on ProjectV2IterationField { id name } }
-      }
-      ... on ProjectV2ItemFieldDateValue {
-        id
-        date
-        field { ... on ProjectV2Field { id name } }
-      }
-      ... on ProjectV2ItemFieldTextValue {
-        id
-        text
-        field { ... on ProjectV2Field { id name } }
-      }
-      ... on ProjectV2ItemFieldNumberValue {
-        id
-        number
-        field { ... on ProjectV2Field { id name } }
-      }
-    }
-  }
-`;
-
-function mapProjectItemToTask(item: any): Task {
-  if (!item) return { id: 'error', title: i18n.t('dashboard.invalidItem'), startDate: '', endDate: '', status: 'Todo', assignees: [], progress: 0 };
-  
-  const content = item.content;
-  const fieldValues = item.fieldValues?.nodes || [];
-
-  const statusField = fieldValues.find((f: any) => 
-    f.field?.name?.toLowerCase() === 'status' || 
-    f.__typename === 'ProjectV2ItemFieldSingleSelectValue' && f.field?.name?.toLowerCase() === 'status'
-  );
-  const status = statusField?.name || 'Todo';
-
-  const startDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('start'));
-  const endDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('end'));
-  
-  // Also check Iteration fields if start/end dates are missing
-  const iterationField = fieldValues.find((f: any) => f.__typename === 'ProjectV2ItemFieldIterationValue');
-
-  let startDate = startDateField?.date || iterationField?.startDate || new Date().toISOString().split('T')[0];
-  let endDate = endDateField?.date || (iterationField ? new Date(new Date(iterationField.startDate).getTime() + iterationField.duration * 86400000).toISOString().split('T')[0] : startDate);
-
-  const assignees = (content?.assignees?.nodes || []).map((a: any, idx: number) => ({
-    id: a.login || 'unknown',
-    name: a.name || a.login || 'Unknown',
-    avatarUrl: a.avatarUrl,
-    initials: (a.name || a.login || '??').substring(0, 2).toUpperCase(),
-    avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
-  }));
-
-  const comments = (content?.comments?.nodes || []).map((comment: any) => ({
-    id: comment.id,
-    body: comment.body,
-    createdAt: comment.createdAt,
-    author: {
-      id: comment.author?.login || 'unknown',
-      name: comment.author?.name || comment.author?.login || 'Unknown',
-      avatarUrl: comment.author?.avatarUrl,
-      initials: (comment.author?.name || comment.author?.login || 'UK').substring(0, 2).toUpperCase(),
-      avatarColor: 'bg-slate-100 text-slate-500',
-    },
-  }));
-
-  // Extract Field IDs for mutations
-  const projectFieldIds: Record<string, string> = {};
-  const statusOptions: Record<string, string> = {};
-  const statusColorMap: Record<string, string> = {};
-  
-  if (statusField?.field?.id) projectFieldIds.status = statusField.field.id;
-  if (startDateField?.field?.id) projectFieldIds.startDate = startDateField.field.id;
-  if (endDateField?.field?.id) projectFieldIds.endDate = endDateField.field.id;
-  
-  if (statusField?.field?.options) {
-    statusField.field.options.forEach((opt: any) => {
-      statusOptions[opt.name] = opt.id;
-      if (opt.color) statusColorMap[opt.name] = opt.color;
-    });
-  }
-
-  // Clean IDs
-  const displayId = content?.number ? `#${content.number}` : (item.id ? item.id.slice(-6) : Math.random().toString(36).slice(-6));
-
-  return {
-    id: displayId,
-    title: content?.title || i18n.t('dashboard.noTitle'),
-    startDate: new Date(startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    endDate: new Date(endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    fullStartDate: startDate,
-    fullEndDate: endDate,
-    status: status || 'Todo',
-    assignees: assignees.length > 0 ? assignees : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }],
-    progress: /^(done|closed|completed|merged)$/i.test(status) ? 100 : /^(todo|backlog|open|not started)$/i.test(status) ? 0 : 50,
-    repository: content?.repository?.nameWithOwner,
-    body: content?.body || '',
-    comments: comments.length > 0 ? comments : undefined,
-    itemId: item.id,
-    contentId: content?.id,
-    projectFieldIds,
-    statusOptions,
-    statusColorMap,
-  };
-}
-
-// ========================================
-// Context value shape
-// ========================================
-
-interface DashboardContextValue {
-  // Auth
-  githubAccounts: GithubAccount[];
-  activeAccountId: string;
-  setActiveAccountId: (id: string) => void;
-  githubToken: string;
-  isLoadingAuth: boolean;
-  isAppInstalled: Record<string, boolean>;
-  isRefreshing: Record<string, boolean>;
-  handleOpenAuth: () => void;
-  handleDisconnect: (accountId: string) => void;
-
-  // Projects
-  projectsData: ProjectOwnerInfo[];
-  activeTabLogin: string;
-  setActiveTabLogin: (login: string) => void;
-  selectedProject: { id: string; title: string } | null;
-  hasProject: boolean;
-  projectHistory: ProjectHistoryItem[];
-  fetchProjects: (token: string, accountId: string, forceModal?: boolean) => Promise<void>;
-  handleSelectRealProject: (id: string, title: string) => void;
-  handleRemoveFromHistory: (id: string) => void;
-  handleOpenProjectClick: () => void;
-  sortMethod: SortMethod;
-  setSortMethod: (method: SortMethod) => void;
-  sortProjects: (projects: GitHubProject[]) => GitHubProject[];
-  groupHistoryByDate: () => Record<string, ProjectHistoryItem[]>;
-  apiError: string | null;
-
-  // Tasks
-  tasks: Task[];
-  isLoadingTasks: boolean;
-  fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
-  handleCreateTask: (title: string) => Promise<boolean>;
-
-  updateTaskTitle: (task: Task, title: string) => Promise<boolean>;
-  updateTaskDescription: (task: Task, description: string) => Promise<boolean>;
-  updateTaskComment: (task: Task, commentId: string, body: string) => Promise<boolean>;
-  deleteTaskComment: (task: Task, commentId: string) => Promise<boolean>;
-  updateTaskStatus: (task: Task, status: TaskStatus) => Promise<boolean>;
-  updateTaskDates: (task: Task, startDate?: string, endDate?: string) => Promise<boolean>;
-
-  // Sync
-  lastSyncedTime: number;
-  getSyncedTimeText: (time: number) => string;
-
-  // Modal state
-  isProjectModalOpen: boolean;
-  setIsProjectModalOpen: (open: boolean) => void;
-  isAccountModalOpen: boolean;
-  setIsAccountModalOpen: (open: boolean) => void;
-  isPatModalOpen: boolean;
-  setIsPatModalOpen: (open: boolean) => void;
-  isCreateTaskModalOpen: boolean;
-  setIsCreateTaskModalOpen: (open: boolean) => void;
-  handleAddAccountByToken: (token: string) => Promise<{ success: boolean; error?: string }>;
-
-  // UI state
-  isChartVisible: boolean;
-  setIsChartVisible: (visible: boolean) => void;
-  selectedTaskId: string | null;
-  setSelectedTaskId: (id: string | null) => void;
-
-  // Status
-  projectStatusOptions: string[];
-
-  // Demo environment helpers
-  setHasProject: (val: boolean) => void;
-  setSelectedProject: (val: { id: string; title: string } | null) => void;
-  setTasks: (tasks: Task[]) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  filteredTasks: Task[];
-  availableUsers: User[];
-  updateTaskAssignees: (taskId: string, userIds: string[]) => void;
-  handleOpenDummyProject: () => void;
-}
-
-const DashboardContext = createContext<DashboardContextValue | null>(null);
-
-export function useDashboard(): DashboardContextValue {
-  const ctx = useContext(DashboardContext);
-  if (!ctx) {
-    throw new Error('useDashboard must be used within a <DashboardProvider>');
-  }
-  return ctx;
-}
 
 // ========================================
 // Provider
@@ -459,7 +197,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }
       `;
       const json = await fetchGitHubGraphQL(query, { itemId }, token);
-      const itemData = json.data?.node;
+      const itemData = json.data?.node as GitHubProjectItem;
 
       if (itemData) {
         const updatedTask = mapProjectItemToTask(itemData);
@@ -502,13 +240,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       
       if (json.errors) {
         console.error('GraphQL Errors fetching items:', json.errors);
-        setApiError(json.errors.map((e: any) => e.message).join(', '));
+        setApiError(json.errors.map((e: { message: string }) => e.message).join(', '));
         setTasks([]); // Clear tasks on error to avoid showing stale data from previous project
         return;
       }
 
       setApiError(null);
-      const projectNode = json.data?.node;
+      const projectNode = json.data?.node as GitHubProjectV2;
       const items = projectNode?.items?.nodes || [];
       const fields = projectNode?.fields?.nodes || [];
 
@@ -516,23 +254,24 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
       // Extract all possible statuses and their colors from the project field definition.
       // This is the source of truth for the project's color configuration.
-      const statusField = fields.find((f: any) => f.name?.toLowerCase() === 'status');
+      const statusField = fields.find((f: GitHubProjectV2Field) => f.name?.toLowerCase() === 'status');
       const statusOptions = (statusField?.options || []) as Array<{ name: string, color?: string }>;
       
       if (statusOptions.length > 0) {
-        registerStatuses(statusOptions);
+        registerStatuses(statusOptions as Array<{ name: string, color?: string }>);
         setProjectStatusOptions(statusOptions.map(o => o.name));
       }
 
       setTasks(mappedTasks);
       updateSyncTime();
-    } catch (e: any) {
-      console.error('Failed to fetch project tasks:', e);
-      setApiError(e.message || t('dashboard.unknownError'));
+    } catch (err) {
+      const error = err as Error;
+      console.error('Failed to fetch project tasks:', error);
+      setApiError(error.message || t('dashboard.unknownError'));
     } finally {
       setIsLoadingTasks(false);
     }
-  }, [updateSyncTime]);
+  }, [updateSyncTime, t]);
 
   // ---- API: fetch projects ----
 
@@ -563,7 +302,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
       if (json.errors) {
         console.error('GraphQL Errors:', json.errors);
-        setApiError(json.errors.map((e: any) => e.message).join(', '));
+        setApiError(json.errors.map((e: { message: string }) => e.message).join(', '));
       } else {
         setApiError(null);
       }
@@ -718,9 +457,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       }
 
       return { success: true };
-    } catch (e: any) {
-      console.error('Failed to add account by token:', e);
-      return { success: false, error: e.message || 'An unexpected error occurred' };
+    } catch (e: unknown) {
+      const error = e as Error;
+      console.error('Failed to add account by token:', error);
+      return { success: false, error: error.message || 'An unexpected error occurred' };
     } finally {
       setIsLoadingAuth(false);
     }
@@ -785,29 +525,30 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           const { itemId, contentId } = payload.payload || {};
           console.log(`[DashboardSync] Targeted Refresh RECEIVED on ${label}:`, { itemId, contentId });
 
-          if (githubToken && itemId) {
-            fetchSingleProjectItem(itemId, githubToken);
-          } else if (githubToken && contentId) {
-            // Find the itemId for this contentId from our local state
-            const task = tasks.find(t => t.contentId === contentId);
-            if (task && task.itemId) {
-              fetchSingleProjectItem(task.itemId, githubToken);
-            } else if (selectedProject?.id) {
-              // Not found locally? Maybe it's a new task we don't have yet.
-              fetchProjectTasks(selectedProject.id, githubToken);
-            }
-          } else if (githubToken && selectedProject?.id) {
-            fetchProjectTasks(selectedProject.id, githubToken);
-          }
-        })
-        .subscribe();
-      return channel;
-    });
-
-    return () => {
-      activeChannels.forEach(channel => supabase.removeChannel(channel));
-    };
-  }, [selectedProject?.id, githubToken, fetchProjectTasks, tasks]);
+              if (githubToken && itemId) {
+                fetchSingleProjectItem(itemId, githubToken);
+              } else if (githubToken && contentId) {
+                // Find the itemId for this contentId from our local state
+                const task = tasks.find(t => t.contentId === contentId);
+                if (task && task.itemId) {
+                  fetchSingleProjectItem(task.itemId, githubToken);
+                } else if (selectedProject?.id) {
+                  // Not found locally? Maybe it's a new task we don't have yet.
+                  fetchProjectTasks(selectedProject.id, githubToken);
+                }
+              } else if (githubToken && selectedProject?.id) {
+                fetchProjectTasks(selectedProject.id, githubToken);
+              }
+            })
+            .subscribe();
+          return channel;
+        });
+    
+        return () => {
+          activeChannels.forEach(channel => supabase.removeChannel(channel));
+        };
+      }, [selectedProject?.id, githubToken, fetchProjectTasks, tasks, fetchSingleProjectItem]);
+    
 
   // ---- Action handlers ----
 

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { DashboardProvider, useDashboard } from '../context/DashboardContext';
+import { useDashboard } from '../context/DashboardContext';
+import { DashboardProvider } from '../context/DashboardProvider';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { Header } from './Header/Header';
 import { ConnectedAccountsModal } from './Modals/ConnectedAccountsModal';

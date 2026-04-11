@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // If it doesn't look like a PEM key, assume it's Base64
       try {
         formattedPrivateKey = Buffer.from(formattedPrivateKey, 'base64').toString('utf8');
-      } catch (e) {
+      } catch {
         // Fallback to raw if decoding fails
         formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
       }
@@ -83,7 +83,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('GitHub API check failed', githubRes.status, errorText);
     return res.status(githubRes.status).json({ error: 'Failed to verify installation' });
 
-  } catch (error: any) {
+  } catch (err) {
+    const error = err as Error;
     console.error('Check App Installation Error:', error);
     return res.status(500).json({ error: 'Internal server error', details: error.message });
   }

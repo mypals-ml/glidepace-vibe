@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
-import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
+import { getStatusColor } from '../../utils/statusColors';
 
 export function Timeline({ className = '' }: { className?: string }) {
   const { t } = useTranslation();

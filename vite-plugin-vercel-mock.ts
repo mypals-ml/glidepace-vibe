@@ -1,29 +1,33 @@
+import { IncomingMessage, ServerResponse } from 'http';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { loadEnv } from 'vite';
-// @ts-ignore - Ignore TS complaining about importing a file outside of root if applicable
 import callbackHandler from './api/github-oauth-callback';
-// @ts-ignore - Ignore TS complaining about importing a file outside of root if applicable
 import checkAppInstallationHandler from './api/check-github-app-installation';
-// @ts-ignore - Ignore TS complaining about importing a file outside of root if applicable
 import webhookHandler from './api/github-webhook';
 
 export default function vitePluginVercelMock() {
   return {
     name: 'vite-plugin-vercel-mock',
-    configureServer(server: any) {
-      server.middlewares.use(async (req: any, res: any, next: any) => {
-        console.log(`[ViteMock] Incoming request: ${req.method} ${req.url}`);
+    configureServer(server: { middlewares: { use: (fn: (req: IncomingMessage, res: ServerResponse, next: () => void) => void) => void } }) {
+      server.middlewares.use(async (req, res, next) => {
+        const reqUrl = req.url || '';
+        const augmentedReq = req as IncomingMessage & { query: Record<string, string>, body: Record<string, unknown> | string, cookies: Record<string, string>, rawBody?: string };
+        const augmentedRes = res as ServerResponse & { status: (c: number) => ServerResponse, json: (d: unknown) => void };
+
+        console.log(`[ViteMock] Incoming request: ${req.method} ${reqUrl}`);
         const handledRoutes = [
           '/api/github-oauth-callback',
           '/api/check-github-app-installation',
           '/api/github-webhook'
         ];
 
-        if (handledRoutes.some(route => req.url?.startsWith(route))) {
+        if (handledRoutes.some(route => reqUrl.startsWith(route))) {
           try {
-            const url = new URL(req.url, `http://${req.headers.host}`);
+            const url = new URL(reqUrl, `http://${req.headers.host || 'localhost'}`);
 
             // 1. Polyfill req.query (Vercel provides this natively)
-            req.query = Object.fromEntries(url.searchParams);
+            augmentedReq.query = Object.fromEntries(url.searchParams);
+            augmentedReq.cookies = {}; // Mock cookies
 
             // 2. Polyfill req.body for POST requests (Vercel provides this natively as JSON)
             if (req.method === 'POST') {
@@ -32,22 +36,22 @@ export default function vitePluginVercelMock() {
                 buffers.push(chunk);
               }
               const rawBody = Buffer.concat(buffers).toString();
-              (req as any).rawBody = rawBody; // Store raw body for signature verification
+              augmentedReq.rawBody = rawBody; // Store raw body for signature verification
               try {
-                req.body = JSON.parse(rawBody);
-              } catch (e) {
-                req.body = rawBody; // Fallback to string if not JSON
+                augmentedReq.body = JSON.parse(rawBody);
+              } catch {
+                augmentedReq.body = rawBody; // Fallback to string if not JSON
               }
             }
 
             // 3. Polyfill res.status and res.json (Vercel provides these natively)
-            res.status = (code: number) => {
-              res.statusCode = code;
-              return res;
+            augmentedRes.status = (code: number) => {
+              augmentedRes.statusCode = code;
+              return augmentedRes;
             };
-            res.json = (data: any) => {
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify(data));
+            augmentedRes.json = (data: unknown) => {
+              augmentedRes.setHeader('Content-Type', 'application/json');
+              augmentedRes.end(JSON.stringify(data));
             };
 
             // 4. Ensure process.env secrets are loaded for the external handler
@@ -61,12 +65,12 @@ export default function vitePluginVercelMock() {
             process.env.SUPABASE_SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
 
             // 5. Delegate completely to the real Vercel API route handler!
-            if (req.url?.startsWith('/api/github-oauth-callback')) {
-              return await callbackHandler(req, res);
-            } else if (req.url?.startsWith('/api/check-github-app-installation')) {
-              return await checkAppInstallationHandler(req, res);
-            } else if (req.url?.startsWith('/api/github-webhook')) {
-              return await webhookHandler(req, res);
+            if (reqUrl.startsWith('/api/github-oauth-callback')) {
+              return await callbackHandler(augmentedReq as unknown as VercelRequest, augmentedRes as unknown as VercelResponse);
+            } else if (reqUrl.startsWith('/api/check-github-app-installation')) {
+              return await checkAppInstallationHandler(augmentedReq as unknown as VercelRequest, augmentedRes as unknown as VercelResponse);
+            } else if (reqUrl.startsWith('/api/github-webhook')) {
+              return await webhookHandler(augmentedReq as unknown as VercelRequest, augmentedRes as unknown as VercelResponse);
             }
 
           } catch (err) {

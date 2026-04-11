@@ -50,8 +50,8 @@ export function ProjectListContent({
   const activeOwner = projectsData.find(o => o.login === activeTabLogin);
   const list = sortProjects(activeOwner?.projects || []);
 
-  const getTargetUrlForOwner = (owner: any) => {
-    let url = appInstallUrl;
+  const getTargetUrlForOwner = (owner: { databaseId?: number } | undefined) => {
+    const url = appInstallUrl;
     if (owner?.databaseId && url !== '#') {
       const connector = url.includes('?') ? '&' : '?';
       return `${url}${connector}target_id=${owner.databaseId}&suggested_target_id=${owner.databaseId}`;

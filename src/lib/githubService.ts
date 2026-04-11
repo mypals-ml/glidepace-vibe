@@ -1,7 +1,7 @@
 import { GITHUB_GRAPHQL_API_URL } from './constants';
 import { handleMockGraphQL, MOCK_TOKEN } from './githubMock';
 
-export async function fetchGitHubGraphQL(query: string, variables: any = {}, token: string) {
+export async function fetchGitHubGraphQL(query: string, variables: Record<string, unknown> = {}, token: string) {
   // Check if we should use mock data
   if (token === MOCK_TOKEN) {
     return handleMockGraphQL(query, variables);

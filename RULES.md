@@ -20,7 +20,7 @@ This document outlines the core principles and guidelines for developing within 
 *   **Incremental Progress:** Make small, atomic, and verifiable changes.
 *   **Test-Supported:** Add unit tests for core logical algorithms (specifically the date cascading/math logic) before wiring them up to external UI or APIs.
 *   **Documentation Maintenance:** Whenever a new feature is added, modified, or removed, you must update `docs/FEATURES.md` to reflect the latest capabilities.
-*   **Post-Task Verification:** Run `npm run type-check` and `npm run build` locally to verify changes before finalizing.
+*   **Post-Task Verification:** You MUST run `npm run type-check` and `npm run build` locally to verify changes before finalizing and pushing. This is a mandatory standard rule to prevent build failures in production.
 
 ## 4. Version Control & Deployment
 *   **Git Branch Flow Constraint:** We NEVER commit and push changes directly to the `release` branch. ALL modifications reaching `release` must originate from a Pull Request generated from the `develop` branch.
