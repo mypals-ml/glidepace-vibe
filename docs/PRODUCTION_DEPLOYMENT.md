@@ -1,10 +1,8 @@
 # Glidelines Production Deployment Guide
 
-Welcome to the Glidelines live deployment map! 🚀
+To successfully push your code to production on Vercel, you must configure the multi-app architecture (Production OAuth and GitHub Apps), set up Supabase Real-time, and populate your environment variables in the Vercel Dashboard.
 
-To successfully push your code to the public internet on Vercel, you need to configure a dual-app architecture (using Production GitHub apps to protect your local test environments), link a real-time database, and properly populate your serverless Vercel Dashboard secrets.
-
-Please complete the following documentation steps sequentially, focusing *strictly* on their **Production Environment** sections, to guarantee a working live deployment:
+Follow these steps sequentially to guarantee a working live deployment:
 
 ## 1. Supabase Database Configuration
 Glidelines uses the same Supabase project for both local development and production — Realtime Broadcast channels are ephemeral and don't store persistent data.

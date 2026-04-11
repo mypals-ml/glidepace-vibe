@@ -8,9 +8,9 @@ Glidelines uses a **Dual Architecture** to handle data efficiently and safely:
 2. **GitHub App:** Exists **strictly** for webhooks to power this automatic sync feature in the background.
 
 ## How it Works
-1.  **GitHub Event**: When an issue or project item is updated on GitHub, your installed GitHub App sends a webhook to `/api/github-webhook`.
-2.  **Webhook Handler**: The Vercel serverless function receives the event and triggers a Supabase Realtime broadcast.
-3.  **Real-time Update**: The frontend listens for the broadcast event and automatically calls `fetchProjectTasks` to update the dashboard.
+1.  **GitHub Event**: When an issue or project item is updated on GitHub, your installed GitHub App (or Repository) sends a webhook to `/api/github-webhook`.
+2.  **Webhook Handler**: The Vercel serverless function receives the event, verifies the payload signature, and triggers a Supabase Realtime broadcast.
+3.  **Real-time Update**: The frontend listens for the broadcast event on specific project/repo channels and automatically refreshes the relevant task data or performs a full project sync.
 
 ## Setup Instructions
 

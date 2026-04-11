@@ -1,10 +1,8 @@
 # Glidelines Local Development Environment Guide
 
-Welcome to the Glidelines developer onboarding map! 🗺️
+To get your local development environment operational, you need to configure the multi-account architecture, link Supabase for real-time updates, and set up a webhook proxy (Smee.io).
 
-To get your local environment fully operational, you need to configure a dual-app architecture (for both login and background syncing), link a real-time database, and set up a webhook proxy.
-
-Please complete the following documentation steps sequentially to guarantee a working `localhost` setup:
+Follow these steps sequentially to guarantee a working `localhost` setup:
 
 ## 1. Supabase Database Configuration
 Because Gantt charts rely on real-time broadcast channels for webhook updates, you need to configure a Supabase project first to acquire your API keys and Service Roles.
