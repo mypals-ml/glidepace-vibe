@@ -73,7 +73,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
               <span className="material-symbols-outlined text-xl text-slate-600">close</span>
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4 space-y-6">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-0 space-y-6">
             <TaskContent key={task.id} task={task} t={t} />
           </div>
         </div>
@@ -86,7 +86,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
               <span className="material-symbols-outlined text-lg text-slate-600">close</span>
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 pt-0 space-y-4">
             <TaskContent key={task.id} task={task} t={t} />
           </div>
         </div>
@@ -135,32 +135,35 @@ function TaskContent({ task, t }: { task: Task; t: TFunction }) {
   return (
     <>
       {/* Title */}
-      <div>
-        {editingTitle ? (
-          <div className="space-y-2">
-            <input
-              type="text"
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
-              className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button onClick={handleSaveTitle} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
-              <button onClick={() => { setEditingTitle(false); setDraftTitle(task.title); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-start gap-3 group">
-            <div className="flex-1">
-              <span className="text-xs font-mono text-slate-500 mt-1 flex-shrink-0 mb-1 block">{task.id}</span>
-              <h3 className="text-base md:text-sm font-bold text-slate-900 pr-5">{task.title}</h3>
-            </div>
+      <div className="border border-slate-200/60 border-t-0 rounded-b-xl bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
+        <div className="flex items-center justify-between bg-slate-50 p-2.5 border-b border-slate-200/60 mb-0">
+          <span className="text-xs font-mono text-slate-500">{task.id}</span>
+          {!editingTitle && (
             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
               <ActionMenu onEdit={() => setEditingTitle(true)} />
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        <div className="px-3 pt-3">
+          {editingTitle ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button onClick={handleSaveTitle} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
+                <button onClick={() => { setEditingTitle(false); setDraftTitle(task.title); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
+              </div>
+            </div>
+          ) : (
+            <h3 className="text-base md:text-sm font-bold text-slate-900 leading-tight">{task.title}</h3>
+          )}
+        </div>
       </div>
 
       {/* Status */}
@@ -258,7 +261,7 @@ function TaskContent({ task, t }: { task: Task; t: TFunction }) {
       </div>
 
       {/* Task Description */}
-      <div className="border-t border-slate-200/60 pt-3 border border-slate-200/60 rounded-xl bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
+      <div className="border border-slate-200/60 rounded-xl bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
         <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-t-xl border-b border-slate-200/60 mb-0">
           <label className="text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
           {!editingDesc && (
