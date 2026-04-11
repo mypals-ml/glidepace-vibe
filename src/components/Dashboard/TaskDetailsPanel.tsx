@@ -135,8 +135,8 @@ function TaskContent({ task, t }: { task: Task; t: TFunction }) {
   return (
     <>
       {/* Title */}
-      <div className="border border-slate-200/60 border-t-0 rounded-b-xl bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
-        <div className="flex items-center justify-between bg-slate-50 p-2.5 border-b border-slate-200/60 mb-0">
+      <div className="border border-slate-200/60 border-t-0 rounded-b-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
+        <div className="flex items-center justify-between bg-slate-50 px-3 h-11 border-b border-slate-200/60 mb-0">
           <span className="text-xs font-mono text-slate-500">{task.id}</span>
           {!editingTitle && (
             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -261,8 +261,8 @@ function TaskContent({ task, t }: { task: Task; t: TFunction }) {
       </div>
 
       {/* Task Description */}
-      <div className="border border-slate-200/60 rounded-xl bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
-        <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-t-xl border-b border-slate-200/60 mb-0">
+      <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
+        <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
           <label className="text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
           {!editingDesc && (
             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -298,8 +298,8 @@ function TaskContent({ task, t }: { task: Task; t: TFunction }) {
         </label>
         <div className="space-y-2.5">
           {(task.comments || []).map((comment) => (
-            <div key={comment.id} className="border border-slate-200/60 rounded-xl bg-white/95 pt-0 px-0 pb-3 shadow-sm group relative">
-              <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-t-xl border-b border-slate-200/60 mb-0">
+            <div key={comment.id} className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group relative">
+              <div className="flex items-center gap-2 bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${comment.author.avatarColor}`}>
                   {comment.author.avatarUrl ? (
                     <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-full h-full rounded-full object-cover" />
