@@ -6,7 +6,7 @@ import { useState } from 'react';
 
 export function Sidebar() {
   const { t } = useTranslation();
-  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId } = useDashboard();
+  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId, setIsCreateTaskModalOpen } = useDashboard();
   const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
 
   return (
@@ -121,18 +121,28 @@ export function Sidebar() {
         </table>
       </div>
 
-      {/* Bottom Search Box */}
+      {/* Bottom Search Box with Add Task Button */}
       <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md mt-auto">
-        <div className="relative">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]" aria-hidden="true">search</span>
-          <input
-            className="w-full bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
-            placeholder={t('dashboard.filterPlaceholder')}
-            aria-label={t('dashboard.filterPlaceholder')}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="flex gap-2 items-center">
+          <div className="relative flex-1">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]" aria-hidden="true">search</span>
+            <input
+              className="w-full bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+              placeholder={t('dashboard.filterPlaceholder')}
+              aria-label={t('dashboard.filterPlaceholder')}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={() => setIsCreateTaskModalOpen(true)}
+            className="p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md shadow-sm transition-colors flex items-center justify-center"
+            title={t('createTask.addButton') || 'Add new task'}
+            aria-label={t('createTask.addButton') || 'Add new task'}
+          >
+            <span className="material-symbols-outlined text-[20px]">add</span>
+          </button>
         </div>
       </div>
     </>
