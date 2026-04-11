@@ -38,7 +38,12 @@ const PROJECT_ITEM_FRAGMENT = `
           id
           body
           createdAt
-          author { login name avatarUrl }
+          author {
+            login
+            avatarUrl
+            ... on User { name }
+            ... on Organization { name }
+          }
         }
       }
     }
@@ -57,7 +62,12 @@ const PROJECT_ITEM_FRAGMENT = `
           id
           body
           createdAt
-          author { login name avatarUrl }
+          author {
+            login
+            avatarUrl
+            ... on User { name }
+            ... on Organization { name }
+          }
         }
       }
     }

@@ -216,6 +216,7 @@ function mapTaskToGraphQLNode(task: Task) {
       repository: { nameWithOwner: 'glidepace/glidelines' },
       assignees: {
         nodes: task.assignees.map(a => ({
+          __typename: 'User',
           login: a.id,
           name: a.name,
           avatarUrl: a.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random`
@@ -227,6 +228,7 @@ function mapTaskToGraphQLNode(task: Task) {
           body: c.body,
           createdAt: c.createdAt,
           author: {
+            __typename: 'User',
             login: c.author.id,
             name: c.author.name,
             avatarUrl: c.author.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author.name)}&background=random`
