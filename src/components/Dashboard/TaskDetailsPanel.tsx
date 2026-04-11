@@ -67,16 +67,6 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Done':
-        return 'check_circle';
-      case 'In Progress':
-        return 'progress_activity';
-      default:
-        return 'radio_button_unchecked';
-    }
-  };
 
   return (
     <>
@@ -91,7 +81,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4 space-y-6">
-            <TaskContent task={task} getStatusColor={getStatusColor} getStatusIcon={getStatusIcon} t={t} />
+            <TaskContent task={task} getStatusColor={getStatusColor} t={t} />
           </div>
         </div>
 
@@ -104,7 +94,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5">
-            <TaskContent task={task} getStatusColor={getStatusColor} getStatusIcon={getStatusIcon} t={t} />
+            <TaskContent task={task} getStatusColor={getStatusColor} t={t} />
           </div>
         </div>
       </div>
@@ -112,7 +102,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
   );
 }
 
-function TaskContent({ task, getStatusColor, getStatusIcon, t }: { task: Task; getStatusColor: (s: string) => string; getStatusIcon: (s: string) => string; t: any }) {
+function TaskContent({ task, getStatusColor, t }: { task: Task; getStatusColor: (s: string) => string; t: any }) {
   const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskStatus, updateTaskDates } = useDashboard();
   
   const [editingTitle, setEditingTitle] = useState(false);
