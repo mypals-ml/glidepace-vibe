@@ -293,5 +293,72 @@ export async function handleMockGraphQL(query: string, variables: any) {
     };
   }
 
+  if (query.includes('updateIssue(')) {
+    const issueId = variables.input?.id || variables.issueId;
+    const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
+    const task = allTasks.find(t => t.contentId === issueId);
+    if (!task) return { errors: [{ message: 'Issue not found' }] };
+    
+    if (variables.input?.title !== undefined) task.title = variables.input.title;
+    if (variables.input?.body !== undefined) task.body = variables.input.body;
+    
+    return { data: { updateIssue: { issue: { id: task.contentId } } } };
+  }
+
+  if (query.includes('updateIssueComment(')) {
+    const commentId = variables.input?.id;
+    const body = variables.input?.body;
+    const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
+    for (const task of allTasks) {
+      const comment = task.comments?.find(c => c.id === commentId);
+      if (comment) {
+        comment.body = body;
+        return { data: { updateIssueComment: { issueComment: { id: commentId } } } };
+      }
+    }
+    return { errors: [{ message: 'Comment not found' }] };
+  }
+
+  if (query.includes('deleteIssueComment(')) {
+    const commentId = variables.input?.id;
+    const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
+    for (const task of allTasks) {
+      if (task.comments) {
+        const commentIndex = task.comments.findIndex(c => c.id === commentId);
+        if (commentIndex !== -1) {
+          task.comments.splice(commentIndex, 1);
+          return { data: { deleteIssueComment: { clientMutationId: null } } };
+        }
+      }
+    }
+    return { errors: [{ message: 'Comment not found' }] };
+  }
+
+  if (query.includes('updateProjectV2ItemFieldValue(')) {
+    const itemId = variables.input?.itemId;
+    const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
+    const task = allTasks.find(t => t.itemId === itemId);
+    if (!task) return { errors: [{ message: 'Item not found' }] };
+
+    if (variables.input?.value?.singleSelectOptionId) {
+      const optionId = variables.input.value.singleSelectOptionId;
+      if (['Todo', 'In Progress', 'Done'].includes(optionId)) {
+        task.status = optionId as TaskStatus;
+        task.progress = task.status === 'Done' ? 100 : (task.status === 'In Progress' ? 50 : 0);
+      }
+    }
+    if (variables.input?.value?.date) {
+      if (variables.input.fieldId === 'mock-start-date-id') {
+        task.fullStartDate = variables.input.value.date;
+        task.startDate = new Date(variables.input.value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      } else if (variables.input.fieldId === 'mock-end-date-id') {
+        task.fullEndDate = variables.input.value.date;
+        task.endDate = new Date(variables.input.value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      }
+    }
+    
+    return { data: { updateProjectV2ItemFieldValue: { projectV2Item: { id: task.itemId } } } };
+  }
+
   return { errors: [{ message: 'Mock query not implemented' }] };
 }

@@ -75,26 +75,32 @@ const PROJECT_ITEM_FRAGMENT = `
   fieldValues(first: 20) {
     nodes {
       ... on ProjectV2ItemFieldSingleSelectValue {
+        id
         name
-        field { ... on ProjectV2SingleSelectField { name } }
+        field { ... on ProjectV2SingleSelectField { id name options { id name } } }
+        optionId
       }
       ... on ProjectV2ItemFieldIterationValue {
+        id
         title
         startDate
         duration
-        field { ... on ProjectV2IterationField { name } }
+        field { ... on ProjectV2IterationField { id name } }
       }
       ... on ProjectV2ItemFieldDateValue {
+        id
         date
-        field { ... on ProjectV2Field { name } }
+        field { ... on ProjectV2Field { id name } }
       }
       ... on ProjectV2ItemFieldTextValue {
+        id
         text
-        field { ... on ProjectV2Field { name } }
+        field { ... on ProjectV2Field { id name } }
       }
       ... on ProjectV2ItemFieldNumberValue {
+        id
         number
-        field { ... on ProjectV2Field { name } }
+        field { ... on ProjectV2Field { id name } }
       }
     }
   }
@@ -142,6 +148,20 @@ function mapProjectItemToTask(item: any): Task {
     },
   }));
 
+  // Extract Field IDs for mutations
+  const projectFieldIds: Record<string, string> = {};
+  const statusOptions: Record<string, string> = {};
+  
+  if (statusField?.field?.id) projectFieldIds.status = statusField.field.id;
+  if (startDateField?.field?.id) projectFieldIds.startDate = startDateField.field.id;
+  if (endDateField?.field?.id) projectFieldIds.endDate = endDateField.field.id;
+  
+  if (statusField?.field?.options) {
+    statusField.field.options.forEach((opt: any) => {
+      statusOptions[opt.name] = opt.id;
+    });
+  }
+
   // Clean IDs
   const displayId = content?.number ? `#${content.number}` : (item.id ? item.id.slice(-6) : Math.random().toString(36).slice(-6));
 
@@ -160,6 +180,8 @@ function mapProjectItemToTask(item: any): Task {
     comments: comments.length > 0 ? comments : undefined,
     itemId: item.id,
     contentId: content?.id,
+    projectFieldIds,
+    statusOptions,
   };
 }
 
@@ -201,6 +223,13 @@ interface DashboardContextValue {
   isLoadingTasks: boolean;
   fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
   handleCreateTask: (title: string) => Promise<boolean>;
+
+  updateTaskTitle: (task: Task, title: string) => Promise<boolean>;
+  updateTaskDescription: (task: Task, description: string) => Promise<boolean>;
+  updateTaskComment: (task: Task, commentId: string, body: string) => Promise<boolean>;
+  deleteTaskComment: (task: Task, commentId: string) => Promise<boolean>;
+  updateTaskStatus: (task: Task, status: TaskStatus) => Promise<boolean>;
+  updateTaskDates: (task: Task, startDate?: string, endDate?: string) => Promise<boolean>;
 
   // Sync
   lastSyncedTime: number;
@@ -940,6 +969,104 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedProject?.id, githubToken, tasks, fetchProjectTasks, updateSyncTime]);
 
+  const updateTaskTitle = useCallback(async (task: Task, title: string): Promise<boolean> => {
+    if (!task.contentId || !githubToken) return false;
+    try {
+      const query = `mutation UpdateIssue($id: ID!, $title: String!) { updateIssue(input: { id: $id, title: $title }) { issue { id } } }`;
+      const res = await fetchGitHubGraphQL(query, { id: task.contentId, title }, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [githubToken, fetchSingleProjectItem]);
+
+  const updateTaskDescription = useCallback(async (task: Task, description: string): Promise<boolean> => {
+    if (!task.contentId || !githubToken) return false;
+    try {
+      const query = `mutation UpdateIssue($id: ID!, $body: String!) { updateIssue(input: { id: $id, body: $body }) { issue { id } } }`;
+      const res = await fetchGitHubGraphQL(query, { id: task.contentId, body: description }, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [githubToken, fetchSingleProjectItem]);
+
+  const updateTaskComment = useCallback(async (task: Task, commentId: string, body: string): Promise<boolean> => {
+    if (!githubToken) return false;
+    try {
+      const query = `mutation UpdateIssueComment($id: ID!, $body: String!) { updateIssueComment(input: { id: $id, body: $body }) { issueComment { id } } }`;
+      const res = await fetchGitHubGraphQL(query, { id: commentId, body }, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [githubToken, fetchSingleProjectItem]);
+
+  const deleteTaskComment = useCallback(async (task: Task, commentId: string): Promise<boolean> => {
+    if (!githubToken) return false;
+    try {
+      const query = `mutation DeleteIssueComment($id: ID!) { deleteIssueComment(input: { id: $id }) { clientMutationId } }`;
+      const res = await fetchGitHubGraphQL(query, { id: commentId }, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [githubToken, fetchSingleProjectItem]);
+
+  const updateTaskStatus = useCallback(async (task: Task, status: TaskStatus): Promise<boolean> => {
+    if (!selectedProject?.id || !task.itemId || !task.projectFieldIds?.status || !task.statusOptions || !githubToken) return false;
+    try {
+      const optionId = task.statusOptions[status === 'Todo' ? 'Todo' : (status === 'In Progress' ? 'In Progress' : 'Done')];
+      if (!optionId) return false;
+      const query = `mutation UpdateProjectV2ItemFieldValue($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value }) { projectV2Item { id } } }`;
+      const vars = { projectId: selectedProject.id, itemId: task.itemId, fieldId: task.projectFieldIds.status, value: { singleSelectOptionId: optionId } };
+      const res = await fetchGitHubGraphQL(query, vars, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+      fetchSingleProjectItem(task.itemId, githubToken);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [selectedProject?.id, githubToken, fetchSingleProjectItem]);
+
+  const updateTaskDates = useCallback(async (task: Task, startDate?: string, endDate?: string): Promise<boolean> => {
+    if (!selectedProject?.id || !task.itemId || !githubToken) return false;
+    let anySuccess = false;
+    try {
+      const query = `mutation UpdateProjectV2ItemFieldValue($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value }) { projectV2Item { id } } }`;
+      
+      const updateField = async (fieldId: string | undefined, dateVal: string) => {
+        if (!fieldId) return;
+        const vars = { projectId: selectedProject.id, itemId: task.itemId, fieldId, value: { date: new Date(dateVal).toISOString() } };
+        const res = await fetchGitHubGraphQL(query, vars, githubToken);
+        if (res.errors) throw new Error(res.errors[0]?.message);
+        anySuccess = true;
+      };
+
+      if (startDate) await updateField(task.projectFieldIds?.startDate, startDate);
+      if (endDate) await updateField(task.projectFieldIds?.endDate, endDate);
+      
+      if (anySuccess) fetchSingleProjectItem(task.itemId, githubToken);
+      return anySuccess;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [selectedProject?.id, githubToken, fetchSingleProjectItem]);
+
   // ---- Context value ----
 
   const value: DashboardContextValue = {
@@ -973,6 +1100,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     isLoadingTasks,
     fetchProjectTasks,
     handleCreateTask,
+
+    updateTaskTitle,
+    updateTaskDescription,
+    updateTaskComment,
+    deleteTaskComment,
+    updateTaskStatus,
+    updateTaskDates,
 
     lastSyncedTime,
     getSyncedTimeText,

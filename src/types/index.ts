@@ -37,6 +37,8 @@ export interface Task {
   contentId?: string;
   body?: string;
   comments?: TaskComment[];
+  projectFieldIds?: Record<string, string>;
+  statusOptions?: Record<string, string>;
 }
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---
