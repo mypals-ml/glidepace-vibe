@@ -80,8 +80,8 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   const startDate = `Apr ${startDay.toString().padStart(2, '0')}`;
   const endDate = `Apr ${endDay.toString().padStart(2, '0')}`;
 
-  const numAssignees = (i % 2) + 1;
-  const assignees = MOCK_USER_POOL.slice(i % 4, (i % 4) + numAssignees);
+  const numAssignees = i % 5;
+  const assignees = MOCK_USER_POOL.slice(0, numAssignees);
 
   const titles = [
     'Implement UI Component',

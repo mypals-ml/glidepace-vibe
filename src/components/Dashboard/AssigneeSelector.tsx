@@ -88,7 +88,7 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:left-0 sm:right-0 sm:top-full sm:mt-2 sm:p-0">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:right-0 sm:left-auto sm:top-full sm:mt-2 sm:p-0">
       {/* Backdrop for mobile */}
       <div 
         className="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] sm:hidden" 
