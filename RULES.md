@@ -28,14 +28,21 @@ This document outlines the core principles and guidelines for developing within 
 *   **Vercel Optimization:** APIs must reside in the `api/` folder for Vercel Serverless Function deployment.
 
 ## 5. Testing & Mocks
+*   **Mock Data via Environment Variables:** Mock data is defined in `src/lib/mockData.ts` and controlled by the `VITE_USE_MOCK_DATA` environment variable. Never hardcode `USE_MOCK_DATA = true` in source files.
+*   **Test Mode:** Run `npm run dev:test` to start the dev server with mock data enabled. This loads `.env.test` (which sets `VITE_USE_MOCK_DATA=true`) via Vite's `--mode test` flag.
+*   **Normal Mode:** Run `npm run dev` for normal development with real GitHub OAuth. `USE_MOCK_DATA` defaults to `false` when the env variable is absent.
 *   **Logic Tests:** Use Vitest for core date math and dependency calculations (`src/lib/dateUtils.ts`).
 *   **Test Documentation:** Save manual test plans and behavior descriptions in the `test/` directory using Markdown files (e.g., `test/SORT_DROPDOWN.md`).
 *   **Adding Mock Data:** When new features require authenticated data for testing, add mock fixtures to `src/lib/mockData.ts` and gate them behind the `USE_MOCK_DATA` flag.
 *   **Real-time Debugging:** Use Smee.io to test webhook payloads locally via the Vite API middleware.
 
-## 6. AI Assistant Preferences (Google Jules)
-*   **Voice Input Confirmation:** If the input is a voice recording, print the command text to the chat interface before proceeding with the command.
-*   **Creating Tasks:** Whenever the user asks to "Add a task in the github task project" or similar phrasing, it strictly means to *both* add the task to the project mentioned in the file `docs/PROJECT_INFO.md` *and* convert it into an issue.
-*   **Jules Label:** Do not apply the `JULES` label to issues without explicit user confirmation.
-*   **Jules Branches:** Always create Jules-specific branches under `/jules/`. Use `task#{number}` as the prefix if connected to an issue.
+## 6. AI Assistant Preferences
+*   **All Assistants Protocol:**
+    *   **Creating Tasks:** Whenever the user asks to "Add a task in the github task project" or similar phrasing, it strictly means to *both* add the task to the project mentioned in the file `docs/PROJECT_INFO.md` *and* convert it into an issue.
+*   **Google Antigravity Protocol:**
+    *   **Voice Input Confirmation:** If the input is a voice recording, print the command text to the chat interface before proceeding with the command.
+*   **Google Jules Protocol:**
+    *   **Google Jules Label:** *DO NOT* add JULES label without user confirmation to any issue or task.
+    *   **Google Jules Branches:** If Jules needs to create a branch, always create it under `/jules/`.
+    *   **Google Jules Branch Naming:** If the branch has a connecting task or issue, the branch name should start with `task#{task/issue number}`.
 
