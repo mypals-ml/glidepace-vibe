@@ -17,6 +17,7 @@ export async function fetchGitHubGraphQL(query: string, variables: Record<string
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
+        'X-Github-Next-Global-ID': '1',
       },
       body: JSON.stringify({ query, variables }),
     });

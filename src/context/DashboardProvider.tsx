@@ -6,7 +6,7 @@ import { GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
 import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
 import { fetchGitHubGraphQL } from '../lib/githubService';
 import { DUMMY_PROJECT_ID, MOCK_ACCOUNTS_DATA, MOCK_TOKEN } from '../lib/githubMock';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2, GitHubProjectItem, GitHubProjectV2Field } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee } from '../types';
 import { registerStatuses } from '../utils/statusColors';
 import { mapProjectItemToTask, PROJECT_ITEM_FRAGMENT } from '../lib/githubTaskMapper';
 import { DashboardContext } from './DashboardContext';
@@ -638,7 +638,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('project_history', JSON.stringify(nextHistory));
       return nextHistory;
     });
-  }, [githubToken, fetchProjectTasks, updateSyncTime, projectsData]);
+  }, [githubToken, fetchProjectTasks, updateSyncTime, projectsData, activeAccountId]);
 
   const handleRemoveFromHistory = useCallback((id: string) => {
     setProjectHistory(prev => {
@@ -693,6 +693,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           const displayName = n.name || n.login || 'Unknown User';
           return {
             id: n.id!,
+            login: n.login,
             name: displayName,
             avatarUrl: n.avatarUrl || '',
             initials: displayName.substring(0, 2).toUpperCase(),
@@ -709,22 +710,70 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     const task = tasks.find(t => t.id === taskId);
     if (!task || !task.contentId || !githubToken) return false;
 
+    const currentIds = task.assignees.map(a => a.id).filter(id => id !== 'unassigned');
+    const addedIds = userIds.filter(id => !currentIds.includes(id));
+    const removedIds = currentIds.filter(id => !userIds.includes(id));
+
+    if (addedIds.length === 0 && removedIds.length === 0) return true;
+
     try {
-      const mutation = `
-        mutation($issueId: ID!, $assigneeIds: [ID!]!) {
-          updateIssue(input: { id: $issueId, assigneeIds: $assigneeIds }) {
-            issue {
-              id
-              assignees(first: 10) {
-                nodes { id login name avatarUrl }
+      let latestAssigneeNodes: GitHubAssignee[] | undefined;
+
+      if (addedIds.length > 0) {
+        const addMutation = `
+          mutation($issueId: ID!, $assigneeIds: [ID!]!) {
+            addAssigneesToAssignable(input: { assignableId: $issueId, assigneeIds: $assigneeIds }) {
+              assignable {
+                ... on Issue {
+                  id
+                  assignees(first: 10) {
+                    nodes { id login name avatarUrl }
+                  }
+                }
               }
             }
           }
-        }
-      `;
+        `;
+        const res = await fetchGitHubGraphQL(addMutation, { issueId: task.contentId, assigneeIds: addedIds }, githubToken);
+        if (res.errors) throw new Error(res.errors[0]?.message);
+        latestAssigneeNodes = res.data?.addAssigneesToAssignable?.assignable?.assignees?.nodes;
+      }
 
-      const res = await fetchGitHubGraphQL(mutation, { issueId: task.contentId, assigneeIds: userIds }, githubToken);
-      if (res.errors) throw new Error(res.errors[0]?.message);
+      if (removedIds.length > 0) {
+        const removeMutation = `
+          mutation($issueId: ID!, $assigneeIds: [ID!]!) {
+            removeAssigneesFromAssignable(input: { assignableId: $issueId, assigneeIds: $assigneeIds }) {
+              assignable {
+                ... on Issue {
+                  id
+                  assignees(first: 10) {
+                    nodes { id login name avatarUrl }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        const res = await fetchGitHubGraphQL(removeMutation, { issueId: task.contentId, assigneeIds: removedIds }, githubToken);
+        if (res.errors) throw new Error(res.errors[0]?.message);
+        latestAssigneeNodes = res.data?.removeAssigneesFromAssignable?.assignable?.assignees?.nodes;
+      }
+
+      if (latestAssigneeNodes) {
+        const updatedAssignees: User[] = latestAssigneeNodes.length > 0 
+          ? latestAssigneeNodes.map((a: GitHubAssignee, idx: number) => ({
+            id: a.id || a.login || 'unknown',
+            name: a.name || a.login || 'Unknown',
+            avatarUrl: a.avatarUrl,
+            initials: (a.name || a.login || '??').substring(0, 2).toUpperCase(),
+            avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
+          }))
+          : [{ id: 'unassigned', name: 'Unassigned', initials: '?', avatarColor: 'bg-slate-100 text-slate-400' }];
+
+        setTasks(prev => prev.map(t => 
+          (t.id === taskId || t.itemId === taskId) ? { ...t, assignees: updatedAssignees } : t
+        ));
+      }
 
       if (task.itemId) {
         await fetchSingleProjectItem(task.itemId, githubToken);

@@ -303,6 +303,7 @@ export interface MockVariables {
     id?: string;
     itemId?: string;
     fieldId?: string;
+    assignableId?: string;
     title?: string;
     body?: string;
     assigneeIds?: string[];
@@ -311,6 +312,8 @@ export interface MockVariables {
       date?: string;
     };
   };
+  assignableId?: string;
+  assigneeIds?: string[];
   query?: string;
   searchQuery?: string;
 }
@@ -413,6 +416,69 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     }
 
     return { data: { updateIssue: { issue: { id: task.contentId } } } };
+  }
+
+  if (query.includes('addAssigneesToAssignable(')) {
+    const issueId = variables.input?.assignableId || variables.assignableId;
+    const assigneeIds = variables.input?.assigneeIds || variables.assigneeIds || [];
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
+    const task = allTasks.find(t => t.contentId === issueId);
+    if (!task) return { errors: [{ message: 'Issue not found' }] };
+
+    const newAssignees = MOCK_USER_POOL.filter(u => assigneeIds.includes(u.id));
+    newAssignees.forEach(u => {
+      if (!task.assignees.some(a => a.id === u.id)) {
+        task.assignees.push(u);
+      }
+    });
+
+    return { 
+      data: { 
+        addAssigneesToAssignable: { 
+          assignable: { 
+            id: task.contentId,
+            assignees: {
+              nodes: task.assignees.map(a => ({
+                __typename: 'User',
+                id: a.id,
+                login: a.login || a.id,
+                name: a.name,
+                avatarUrl: a.avatarUrl
+              }))
+            }
+          } 
+        } 
+      } 
+    };
+  }
+
+  if (query.includes('removeAssigneesFromAssignable(')) {
+    const issueId = variables.input?.assignableId || variables.assignableId;
+    const assigneeIds = variables.input?.assigneeIds || variables.assigneeIds || [];
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
+    const task = allTasks.find(t => t.contentId === issueId);
+    if (!task) return { errors: [{ message: 'Issue not found' }] };
+
+    task.assignees = task.assignees.filter(a => !assigneeIds.includes(a.id));
+
+    return { 
+      data: { 
+        removeAssigneesFromAssignable: { 
+          assignable: { 
+            id: task.contentId,
+            assignees: {
+              nodes: task.assignees.map(a => ({
+                __typename: 'User',
+                id: a.id,
+                login: a.login || a.id,
+                name: a.name,
+                avatarUrl: a.avatarUrl
+              }))
+            }
+          } 
+        } 
+      } 
+    };
   }
 
   if (query.includes('updateIssueComment(')) {

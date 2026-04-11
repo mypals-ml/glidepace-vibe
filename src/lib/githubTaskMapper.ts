@@ -114,6 +114,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem): Task {
 
   const assignees = (content?.assignees?.nodes || []).map((a, idx: number) => ({
     id: a.id || a.login || 'unknown',
+    login: a.login,
     name: a.name || a.login || 'Unknown',
     avatarUrl: a.avatarUrl,
     initials: (a.name || a.login || '??').substring(0, 2).toUpperCase(),
@@ -126,6 +127,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem): Task {
     createdAt: comment.createdAt,
     author: {
       id: comment.author?.login || 'unknown',
+      login: comment.author?.login,
       name: comment.author?.name || comment.author?.login || 'Unknown',
       avatarUrl: comment.author?.avatarUrl,
       initials: (comment.author?.name || comment.author?.login || 'UK').substring(0, 2).toUpperCase(),

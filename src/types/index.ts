@@ -9,6 +9,7 @@ export type TaskStatus = string;
 
 export interface User {
   id: string;
+  login?: string;
   name: string;
   avatarColor: string;
   initials: string;
