@@ -122,6 +122,26 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   };
 });
 
+const MOCK_TASKS_BUG_TRACKER: Task[] = Array.from({ length: 15 }, (_, i) => {
+  const id = i + 201;
+  const status: TaskStatus = i % 2 === 0 ? 'In Progress' : 'Todo';
+  const assignees = [MOCK_USER_POOL[2], MOCK_USER_POOL[3], MOCK_USER_POOL[4]].slice(0, (i % 3) + 1);
+
+  return {
+    id: `#${id}`,
+    title: `Bug ${id}: ${['Memory leak in sidebar', 'Incorrect alignment', 'API timeout', 'Console warning'][i % 4]}`,
+    startDate: 'Apr 10',
+    endDate: 'Apr 12',
+    status,
+    assignees,
+    progress: status === 'In Progress' ? 30 : 0,
+    itemId: `item-bug-${id}`,
+    contentId: `content-bug-${id}`,
+    body: 'Investigation in progress. This bug affects the stability of the latest release candidate.',
+    comments: [],
+  };
+});
+
 const CONNECTED_TASKS_TASKS: Task[] = [
   {
     id: '#101',
@@ -129,7 +149,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     startDate: 'Apr 05',
     endDate: 'Apr 06',
     status: 'In Progress',
-    assignees: [{ id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' }],
+    assignees: [{ id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' }],
     progress: 50,
     itemId: 'item-pat-support',
     contentId: 'content-pat-support',
@@ -155,7 +175,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     startDate: 'Apr 05',
     endDate: 'Apr 05',
     status: 'Done',
-    assignees: [{ id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' }],
+    assignees: [{ id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' }],
     progress: 100,
     itemId: 'item-z-index-fix',
     contentId: 'content-z-index-fix',
@@ -187,7 +207,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     startDate: 'Apr 05',
     endDate: 'Apr 05',
     status: 'Done',
-    assignees: [{ id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' }],
+    assignees: [{ id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' }],
     progress: 100,
     itemId: 'item-mock-data',
     contentId: 'content-mock-data',
@@ -292,6 +312,7 @@ export interface MockVariables {
     };
   };
   query?: string;
+  searchQuery?: string;
 }
 
 export async function handleMockGraphQL(query: string, variables: MockVariables) {
@@ -319,7 +340,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   }
 
   if (query.includes('search(query:') && query.includes('type: USER')) {
-    const searchTerm = (variables.query || '').split(' ').pop() || '';
+    const searchTerm = (variables.searchQuery || variables.query || '').split(' ').pop() || '';
     const results = MOCK_USER_POOL.filter(u =>
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.login.toLowerCase().includes(searchTerm.toLowerCase())
@@ -357,7 +378,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
             ]
           },
           items: {
-            nodes: (variables.projectId === 'PVT_3' ? CONNECTED_TASKS_TASKS : MOCK_TASKS).map(mapTaskToGraphQLNode)
+            nodes: (variables.projectId === 'PVT_3' ? CONNECTED_TASKS_TASKS : (variables.projectId === 'PVT_2' ? MOCK_TASKS_BUG_TRACKER : MOCK_TASKS)).map(mapTaskToGraphQLNode)
           }
         }
       }
@@ -367,7 +388,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   if (query.includes('node(id: $itemId)')) {
     // Fetch single item
     const itemId = variables.itemId;
-    const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
     const task = allTasks.find(t => t.itemId === itemId);
     if (!task) return { errors: [{ message: 'Node not found' }] };
 
@@ -380,7 +401,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
 
   if (query.includes('updateIssue(')) {
     const issueId = variables.input?.id || variables.issueId;
-    const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
     const task = allTasks.find(t => t.contentId === issueId);
     if (!task) return { errors: [{ message: 'Issue not found' }] };
 
@@ -397,7 +418,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   if (query.includes('updateIssueComment(')) {
     const commentId = variables.input?.id;
     const body = variables.input?.body;
-    const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
     for (const task of allTasks) {
       const comment = task.comments?.find(c => c.id === commentId);
       if (comment && body !== undefined) {
@@ -410,7 +431,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
 
   if (query.includes('deleteIssueComment(')) {
     const commentId = variables.input?.id;
-    const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
     for (const task of allTasks) {
       if (task.comments) {
         const commentIndex = task.comments.findIndex(c => c.id === commentId);
@@ -425,7 +446,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
 
   if (query.includes('updateProjectV2ItemFieldValue(')) {
     const itemId = variables.input?.itemId;
-    const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
     const task = allTasks.find(t => t.itemId === itemId);
     if (!task) return { errors: [{ message: 'Item not found' }] };
 

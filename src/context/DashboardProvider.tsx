@@ -614,11 +614,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     const project = { id, title, public: finalPublic };
     setSelectedProject(project);
     setHasProject(true);
+    setTasks([]); // Clear tasks immediately to prevent stale data
+    setSelectedTaskId(null); // Clear selected task
+    setProjectStatusOptions([]); // Clear status options
+    
     localStorage.setItem('selected_project', JSON.stringify(project));
     localStorage.removeItem('selected_project_type');
 
-    // Use forced token, or MOCK_TOKEN for dummy projects, or the current githubToken
-    const tokenToUse = forceToken || (id === DUMMY_PROJECT_ID ? MOCK_TOKEN : githubToken);
+    // Use forced token, or MOCK_TOKEN for mock projects, or the current githubToken
+    const isMockAccount = activeAccountId === 'mock-1';
+    const isMockProject = id === DUMMY_PROJECT_ID || isMockAccount;
+    const tokenToUse = forceToken || (isMockProject ? MOCK_TOKEN : githubToken);
 
     if (tokenToUse) {
       fetchProjectTasks(id, tokenToUse);

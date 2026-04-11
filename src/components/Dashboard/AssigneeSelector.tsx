@@ -96,7 +96,10 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
       />
       
       {/* Selector Panel */}
-      <div className="glass-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-right min-w-[280px]">
+      <div 
+        className="glass-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-right min-w-[280px]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Search Header */}
         <div className="p-3 border-b border-slate-200/60 bg-white/50">
           <div className="relative">
@@ -110,6 +113,7 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
               placeholder={t('dashboard.searchPlaceholder', 'Search people...')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
             />
           </div>
         </div>
