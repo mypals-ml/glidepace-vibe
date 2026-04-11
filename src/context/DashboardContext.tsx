@@ -942,6 +942,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setIsAccountModalOpen,
     isPatModalOpen,
     setIsPatModalOpen,
+    isCreateTaskModalOpen,
+    setIsCreateTaskModalOpen,
     handleAddAccountByToken,
 
     isChartVisible,

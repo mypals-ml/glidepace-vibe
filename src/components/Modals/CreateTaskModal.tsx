@@ -10,7 +10,6 @@ export function CreateTaskModal() {
     setIsCreateTaskModalOpen,
     selectedProject,
     handleCreateTask,
-    isLoadingTasks,
   } = useDashboard();
 
   const [taskTitle, setTaskTitle] = useState('');
