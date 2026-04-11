@@ -89,6 +89,7 @@ export interface GitHubComment {
 }
 
 export interface GitHubAssignee {
+  id: string;
   login: string;
   name?: string;
   avatarUrl: string;

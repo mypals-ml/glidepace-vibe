@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
 import { DUMMY_TASKS } from '../lib/dummyData';
@@ -88,14 +88,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [projectStatusOptions, setProjectStatusOptions] = useState<string[]>([]);
-  const [availableUsers] = useState<User[]>([
-    { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
-    { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
-    { id: 'u3', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
-    { id: 'u4', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
-    { id: 'u5', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
-    { id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' },
-  ]);
+  const availableUsers = useMemo<User[]>(() => {
+    const userMap = new Map<string, User>();
+    tasks.forEach(task => {
+      task.assignees.forEach(user => {
+        if (user.id !== 'unassigned') {
+          userMap.set(user.id, user);
+        }
+      });
+    });
+    return Array.from(userMap.values());
+  }, [tasks]);
 
   // ---- Sync state ----
   const [lastSyncedTime, setLastSyncedTime] = useState<number>(() => {
@@ -627,12 +630,85 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const updateTaskAssignees = useCallback((taskId: string, userIds: string[]) => {
-    const selectedUsers = availableUsers.filter(u => userIds.includes(u.id));
-    setTasks(prevTasks => prevTasks.map(task =>
-      task.id === taskId ? { ...task, assignees: selectedUsers.length > 0 ? selectedUsers : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }] } : task
-    ));
-  }, [availableUsers]);
+  const fetchSearchUsers = useCallback(async (searchTerm: string): Promise<User[]> => {
+    if (!githubToken || !searchTerm || searchTerm.length < 2) return [];
+
+    try {
+      // Find the current owner login to scope the search if it's an org
+      const currentOwner = projectsData.find(o => o.projects.some(p => p.id === selectedProject?.id));
+      
+      let searchQuery = searchTerm;
+      if (currentOwner?.isOrg) {
+        searchQuery = `org:${currentOwner.login} ${searchTerm}`;
+      } else if (currentOwner) {
+        // For personal projects, we'll search globally but we could potentially boost "following"
+        // The user suggested limiting to following if possible.
+        // We can do that with 'following:user' in search but GitHub search limits this.
+        // A better way is to just search and let the API return relevant results.
+        searchQuery = `${searchTerm}`;
+      }
+
+      const query = `
+        query($searchQuery: String!) {
+          search(query: $searchQuery, type: USER, first: 10) {
+            nodes {
+              ... on User {
+                id
+                login
+                name
+                avatarUrl
+              }
+            }
+          }
+        }
+      `;
+
+      const json = await fetchGitHubGraphQL(query, { searchQuery }, githubToken);
+      const nodes = json.data?.search?.nodes || [];
+
+      return nodes.map((n: { id: string, login: string, name?: string, avatarUrl: string }, idx: number) => ({
+        id: n.id,
+        name: n.name || n.login,
+        avatarUrl: n.avatarUrl,
+        initials: (n.name || n.login).substring(0, 2).toUpperCase(),
+        avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][idx % 5],
+      }));
+    } catch (e) {
+      console.error('Search users failed:', e);
+      return [];
+    }
+  }, [githubToken, projectsData, selectedProject?.id]);
+
+  const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[]) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.contentId || !githubToken) return false;
+
+    try {
+      const mutation = `
+        mutation($issueId: ID!, $assigneeIds: [ID!]!) {
+          updateIssue(input: { id: $issueId, assigneeIds: $assigneeIds }) {
+            issue {
+              id
+              assignees(first: 10) {
+                nodes { id login name avatarUrl }
+              }
+            }
+          }
+        }
+      `;
+
+      const res = await fetchGitHubGraphQL(mutation, { issueId: task.contentId, assigneeIds: userIds }, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+
+      if (task.itemId) {
+        await fetchSingleProjectItem(task.itemId, githubToken);
+      }
+      return true;
+    } catch (e) {
+      console.error('Update task assignees failed:', e);
+      return false;
+    }
+  }, [tasks, githubToken, fetchSingleProjectItem]);
 
   const handleOpenDummyProject = useCallback(() => {
     // Add mock account if not present
@@ -904,6 +980,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setSearchQuery,
     filteredTasks,
     availableUsers,
+    fetchSearchUsers,
     updateTaskAssignees,
     handleOpenDummyProject,
     projectStatusOptions,

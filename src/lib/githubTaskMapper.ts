@@ -12,8 +12,8 @@ export const PROJECT_ITEM_FRAGMENT = `
       state
       body
       repository { nameWithOwner }
-      assignees(first: 5) {
-        nodes { login name avatarUrl }
+      assignees(first: 20) {
+        nodes { id login name avatarUrl }
       }
       comments(first: 10) {
         nodes {
@@ -36,8 +36,8 @@ export const PROJECT_ITEM_FRAGMENT = `
       state
       body
       repository { nameWithOwner }
-      assignees(first: 5) {
-        nodes { login name avatarUrl }
+      assignees(first: 20) {
+        nodes { id login name avatarUrl }
       }
       comments(first: 10) {
         nodes {
@@ -113,7 +113,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem): Task {
   const endDate = endDateField?.date || iterationEnd;
 
   const assignees = (content?.assignees?.nodes || []).map((a, idx: number) => ({
-    id: a.login || 'unknown',
+    id: a.id || a.login || 'unknown',
     name: a.name || a.login || 'Unknown',
     avatarUrl: a.avatarUrl,
     initials: (a.name || a.login || '??').substring(0, 2).toUpperCase(),

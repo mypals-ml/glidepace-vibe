@@ -60,6 +60,15 @@ const commentTemplates = [
   { author: 'Casey Chen', comment: 'Just deployed the latest version. No issues in beta testing.' },
 ];
 
+export const MOCK_USER_POOL = [
+  { id: 'u1', login: 'arivera', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
+  { id: 'u2', login: 'jsmith',  name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
+  { id: 'u3', login: 'cchen',   name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
+  { id: 'u4', login: 'treed',   name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
+  { id: 'u5', login: 'mlee',    name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
+  { id: 'u6', login: 'jvarga',  name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' },
+];
+
 const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   const id = i + 101;
   const statuses: TaskStatus[] = ['Todo', 'In Progress', 'Done'];
@@ -71,16 +80,8 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   const startDate = `Apr ${startDay.toString().padStart(2, '0')}`;
   const endDate = `Apr ${endDay.toString().padStart(2, '0')}`;
 
-  const assigneePool = [
-    { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
-    { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
-    { id: 'u3', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
-    { id: 'u4', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
-    { id: 'u5', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
-  ];
-
   const numAssignees = (i % 2) + 1;
-  const assignees = assigneePool.slice(i % 4, (i % 4) + numAssignees);
+  const assignees = MOCK_USER_POOL.slice(i % 4, (i % 4) + numAssignees);
 
   const titles = [
     'Implement UI Component',
@@ -97,7 +98,7 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   const numComments = (i % 3) + 1;
   const comments: TaskComment[] = Array.from({ length: numComments }, (_, j) => {
     const commentTemplate = commentTemplates[(i + j) % commentTemplates.length];
-    const commentAuthor = assigneePool[(i + j) % assigneePool.length];
+    const commentAuthor = MOCK_USER_POOL[(i + j) % MOCK_USER_POOL.length];
     return {
       id: `comment-${id}-${j}`,
       author: commentAuthor,
@@ -247,7 +248,8 @@ function mapTaskToGraphQLNode(task: Task) {
       assignees: {
         nodes: task.assignees.map(a => ({
           __typename: 'User',
-          login: a.id,
+          id: a.id,
+          login: a.id === 'u1' ? 'arivera' : (a.id === 'u2' ? 'jsmith' : (a.id === 'u3' ? 'cchen' : (a.id === 'u4' ? 'treed' : (a.id === 'u5' ? 'mlee' : 'unknown')))),
           name: a.name,
           avatarUrl: a.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random`
         }))
@@ -283,11 +285,13 @@ interface MockVariables {
     fieldId?: string;
     title?: string;
     body?: string;
+    assigneeIds?: string[];
     value?: {
       singleSelectOptionId?: string;
       date?: string;
     };
   };
+  query?: string;
 }
 
 export async function handleMockGraphQL(query: string, variables: MockVariables) {
@@ -310,6 +314,28 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
         }
 
 
+      }
+    };
+  }
+
+  if (query.includes('search(query:') && query.includes('type: USER')) {
+    const searchTerm = (variables.query || '').split(' ').pop() || '';
+    const results = MOCK_USER_POOL.filter(u => 
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      u.login.toLowerCase().includes(searchTerm.toLowerCase())
+    ).map(u => ({
+      __typename: 'User',
+      id: u.id,
+      login: u.login,
+      name: u.name,
+      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`
+    }));
+
+    return {
+      data: {
+        search: {
+          nodes: results
+        }
       }
     };
   }
@@ -359,6 +385,10 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     
     if (variables.input?.title !== undefined) task.title = variables.input.title;
     if (variables.input?.body !== undefined) task.body = variables.input.body;
+    if (variables.input?.assigneeIds !== undefined) {
+      const selectedIds = variables.input.assigneeIds;
+      task.assignees = MOCK_USER_POOL.filter(u => selectedIds.includes(u.id));
+    }
     
     return { data: { updateIssue: { issue: { id: task.contentId } } } };
   }
