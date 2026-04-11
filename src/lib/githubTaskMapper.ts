@@ -79,11 +79,6 @@ export const PROJECT_ITEM_FRAGMENT = `
         text
         field { ... on ProjectV2Field { id name } }
       }
-      ... on ProjectV2ItemFieldWeightValue {
-        id
-        number
-        field { ... on ProjectV2Field { id name } }
-      }
       ... on ProjectV2ItemFieldNumberValue {
         id
         number
