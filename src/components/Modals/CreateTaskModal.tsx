@@ -70,72 +70,80 @@ export function CreateTaskModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" role="dialog" aria-modal="true" aria-labelledby="create-task-modal-title">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300" role="dialog" aria-modal="true" aria-labelledby="create-task-modal-title">
       <div 
         ref={modalRef}
-        className="w-full max-w-md bg-white/80 backdrop-blur-2xl border border-white/50 rounded-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.15)] overflow-hidden animate-in zoom-in slide-in-from-bottom-8 duration-500"
+        className="w-full max-w-md bg-white/95 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg overflow-hidden flex flex-col animate-in zoom-in slide-in-from-bottom-4 duration-300"
       >
-        {/* Subtle top organic shape blur */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-24 bg-emerald-500/10 blur-[60px] pointer-events-none rounded-full"></div>
-        
-        <div className="relative p-8 flex flex-col items-center text-center">
-          {/* Icon */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-200 mb-6">
-            <span className="material-symbols-outlined text-white text-3xl">add_task</span>
-          </div>
-
-          <h3 id="create-task-modal-title" className="text-2xl font-black tracking-tight text-slate-900 mb-2">
+        {/* Header - Matching TaskDetailsPanel */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-200/60">
+          <h2 id="create-task-modal-title" className="text-sm font-bold text-slate-900">
             {t('createTask.title') || 'Create New Task'}
-          </h3>
-          <p className="text-sm font-medium text-slate-500 max-w-[280px] leading-relaxed mb-8">
-            {t('createTask.description') || 'Add a new task to your project'}
-          </p>
-
-          <form onSubmit={handleCreate} className="w-full space-y-6">
-            <div className="relative group">
-              <input
-                ref={inputRef}
-                type="text"
-                value={taskTitle}
-                onChange={(e) => setTaskTitle(e.target.value)}
-                placeholder={t('createTask.titlePlaceholder') || 'Task title'}
-                disabled={isCreating}
-                maxLength={255}
-                className={`w-full px-5 py-4 bg-slate-100/50 border-2 rounded-xl text-sm font-bold transition-all outline-none 
-                  ${error ? 'border-rose-200 focus:border-rose-400 text-rose-900' : 'border-transparent focus:border-emerald-400 focus:bg-white text-slate-900'}
-                  group-hover:bg-slate-100 placeholder:text-slate-400 disabled:opacity-50`}
-              />
-              {error && (
-                <div className="mt-2 flex items-center gap-1.5 px-1 animate-in slide-in-from-top-1">
-                  <span className="material-symbols-outlined text-rose-500 text-sm">error</span>
-                  <span className="text-[11px] font-bold text-rose-500 uppercase tracking-wider">{error}</span>
-                </div>
-              )}
+          </h2>
+          <button
+            onClick={handleCancel}
+            disabled={isCreating}
+            className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+            aria-label={t('createTask.cancel') || 'Cancel'}
+          >
+            <span className="material-symbols-outlined text-lg text-slate-600">close</span>
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          <form onSubmit={handleCreate} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-slate-600 block">
+                {t('createTask.titlePlaceholder') || 'Task title'}
+              </label>
+              <div className="relative group">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  placeholder={t('createTask.titlePlaceholder') || 'Task title'}
+                  disabled={isCreating}
+                  maxLength={255}
+                  className={`w-full px-3 py-2 bg-white border rounded-lg text-sm transition-all outline-none 
+                    ${error ? 'border-red-200 focus:border-red-400 focus:ring-1 focus:ring-red-400' : 'border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary'}
+                    placeholder:text-slate-400 disabled:opacity-50`}
+                />
+                {error && (
+                  <div className="mt-1.5 flex items-center gap-1.5 px-0.5 animate-in slide-in-from-top-1">
+                    <span className="material-symbols-outlined text-red-500 text-xs">error</span>
+                    <span className="text-[11px] font-medium text-red-500">{error}</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                {t('createTask.description') || 'Add a new task to your project'}
+              </p>
             </div>
 
-            <div className="flex flex-col gap-3">
-              <button
-                type="submit"
-                disabled={isCreating || !taskTitle.trim()}
-                className="w-full py-4 px-6 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:hover:bg-slate-900 text-white rounded-xl font-bold transition-all shadow-lg shadow-slate-200 flex items-center justify-center gap-2 group active:scale-[0.98]"
-              >
-                {isCreating ? (
-                  <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
-                ) : (
-                  <>
-                    <span className="font-bold">{t('createTask.create') || 'Create'}</span>
-                    <span className="material-symbols-outlined text-[18px] transition-transform group-hover:translate-x-1">add_circle</span>
-                  </>
-                )}
-              </button>
-              
+            <div className="flex justify-end gap-3 pt-2 border-t border-slate-200/60">
               <button
                 type="button"
                 onClick={handleCancel}
                 disabled={isCreating}
-                className="w-full py-3 px-6 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-900 rounded-xl font-bold transition-all"
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 {t('createTask.cancel') || 'Cancel'}
+              </button>
+              <button
+                type="submit"
+                disabled={isCreating || !taskTitle.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {isCreating ? (
+                  <span className="material-symbols-outlined animate-spin text-[18px]">sync</span>
+                ) : (
+                  <>
+                    <span>{t('createTask.create') || 'Create'}</span>
+                    <span className="material-symbols-outlined text-[18px]">add</span>
+                  </>
+                )}
               </button>
             </div>
           </form>
