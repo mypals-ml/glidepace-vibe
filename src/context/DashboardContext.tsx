@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import { DUMMY_TASKS } from '../lib/dummyData';
 import { GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
 import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
@@ -90,7 +91,7 @@ const PROJECT_ITEM_FRAGMENT = `
 `;
 
 function mapProjectItemToTask(item: any): Task {
-  if (!item) return { id: 'error', title: 'Invalid Item', startDate: '', endDate: '', status: 'Todo', assignees: [], progress: 0 };
+  if (!item) return { id: 'error', title: i18n.t('dashboard.invalidItem'), startDate: '', endDate: '', status: 'Todo', assignees: [], progress: 0 };
   
   const content = item.content;
   const fieldValues = item.fieldValues?.nodes || [];
@@ -136,7 +137,7 @@ function mapProjectItemToTask(item: any): Task {
 
   return {
     id: displayId,
-    title: content?.title || 'No Title',
+    title: content?.title || i18n.t('dashboard.noTitle'),
     startDate: new Date(startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
     endDate: new Date(endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
     fullStartDate: startDate,
@@ -458,7 +459,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       updateSyncTime();
     } catch (e: any) {
       console.error('Failed to fetch project tasks:', e);
-      setApiError(e.message || 'Unknown error fetching tasks');
+      setApiError(e.message || t('dashboard.unknownError'));
     } finally {
       setIsLoadingTasks(false);
     }

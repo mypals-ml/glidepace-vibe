@@ -79,7 +79,10 @@ const resources = {
         enableAutoSyncDesc: "Get real-time task updates. Install our official GitHub App to safely enable background webhooks for these projects.",
         installAppAction: "Install App",
         githubApiErrorTitle: "GitHub API Error:",
-        githubApiErrorDesc: "This usually means the GitHub App is missing some permissions (like Projects or Members) or hasn't been updated. Check your browser console for more details."
+        githubApiErrorDesc: "This usually means the GitHub App is missing some permissions (like Projects or Members) or hasn't been updated. Check your browser console for more details.",
+        unknownError: "Unknown error fetching tasks",
+        invalidItem: "Invalid Item",
+        noTitle: "No Title"
       },
       table: {
         id: "ID",
@@ -198,7 +201,10 @@ const resources = {
         enableAutoSyncDesc: "リアルタイムでタスクの更新を取得します。公式のGitHubアプリをインストールして、これらのプロジェクトのバックグラウンドWebhookを安全に有効にします。",
         installAppAction: "アプリをインストール",
         githubApiErrorTitle: "GitHub APIエラー:",
-        githubApiErrorDesc: "通常、これはGitHubアプリに必要な権限（プロジェクトやメンバーなど）が不足しているか、更新されていないことを意味します。詳細はブラウザのコンソールを確認してください。"
+        githubApiErrorDesc: "通常、これはGitHubアプリに必要な権限（プロジェクトやメンバーなど）が不足しているか、更新されていないことを意味します。詳細はブラウザのコンソールを確認してください。",
+        unknownError: "タスクの取得中に不明なエラーが発生しました",
+        invalidItem: "無効なアイテム",
+        noTitle: "タイトルなし"
       },
       table: {
         id: "ID",
@@ -317,7 +323,10 @@ const resources = {
         enableAutoSyncDesc: "获取实时任务更新。安装我们的官方 GitHub 应用，为这些项目安全地启用后台 Webhooks。",
         installAppAction: "安装应用",
         githubApiErrorTitle: "GitHub API 错误：",
-        githubApiErrorDesc: "这通常意味着 GitHub 应用缺少某些权限（如项目或成员），或者尚未更新。请检查浏览器控制台了解更多详情。"
+        githubApiErrorDesc: "这通常意味着 GitHub 应用缺少某些权限（如项目或成员），或者尚未更新。请检查浏览器控制台了解更多详情。",
+        unknownError: "获取任务时发生未知错误",
+        invalidItem: "无效项目",
+        noTitle: "无标题"
       },
       table: {
         id: "ID",
