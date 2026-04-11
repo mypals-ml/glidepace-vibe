@@ -168,6 +168,7 @@ interface DashboardContextValue {
   tasks: Task[];
   isLoadingTasks: boolean;
   fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
+  handleCreateTask: (title: string) => Promise<boolean>;
 
   // Sync
   lastSyncedTime: number;
@@ -180,6 +181,8 @@ interface DashboardContextValue {
   setIsAccountModalOpen: (open: boolean) => void;
   isPatModalOpen: boolean;
   setIsPatModalOpen: (open: boolean) => void;
+  isCreateTaskModalOpen: boolean;
+  setIsCreateTaskModalOpen: (open: boolean) => void;
   handleAddAccountByToken: (token: string) => Promise<{ success: boolean; error?: string }>;
 
   // UI state
@@ -268,6 +271,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isPatModalOpen, setIsPatModalOpen] = useState(false);
+  const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
 
   // ---- UI state ----
   const [isChartVisible, setIsChartVisible] = useState(false);
@@ -806,6 +810,95 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     handleSelectRealProject(DUMMY_PROJECT_ID, 'Demo: Product Roadmap 2024');
   }, [handleSelectRealProject, setActiveAccountId]);
 
+  const handleCreateTask = useCallback(async (title: string): Promise<boolean> => {
+    if (!selectedProject?.id || !githubToken) {
+      console.error('No project selected or token available');
+      return false;
+    }
+
+    try {
+      // Get repository from existing tasks
+      let repoNameWithOwner = 'unknown/unknown';
+      if (tasks.length > 0 && tasks[0].repository) {
+        repoNameWithOwner = tasks[0].repository;
+      }
+
+      const [owner, repo] = repoNameWithOwner.split('/');
+
+      // Create the issue
+      const createIssueMutation = `
+        mutation CreateIssue($repositoryId: ID!, $title: String!) {
+          createIssue(input: {
+            repositoryId: $repositoryId
+            title: $title
+          }) {
+            issue {
+              id
+              number
+              title
+            }
+          }
+        }
+      `;
+
+      // First, we need to get the repository ID
+      const getRepoQuery = `
+        query GetRepository($owner: String!, $name: String!) {
+          repository(owner: $owner, name: $name) {
+            id
+          }
+        }
+      `;
+
+      const repoResult = await fetchGitHubGraphQL(getRepoQuery, { owner, name: repo }, githubToken);
+      const repositoryId = repoResult.data?.repository?.id;
+
+      if (!repositoryId) {
+        console.error('Failed to get repository ID');
+        return false;
+      }
+
+      // Create the issue
+      const issueResult = await fetchGitHubGraphQL(createIssueMutation, { repositoryId, title }, githubToken);
+      const issueId = issueResult.data?.createIssue?.issue?.id;
+
+      if (!issueId) {
+        console.error('Failed to create issue');
+        return false;
+      }
+
+      // Add the issue to the project
+      const addItemMutation = `
+        mutation AddProjectItem($projectId: ID!, $contentId: ID!) {
+          addProjectV2ItemById(input: {
+            projectId: $projectId
+            contentId: $contentId
+          }) {
+            item {
+              id
+            }
+          }
+        }
+      `;
+
+      const addResult = await fetchGitHubGraphQL(addItemMutation, { projectId: selectedProject.id, contentId: issueId }, githubToken);
+
+      if (!addResult.data?.addProjectV2ItemById?.item?.id) {
+        console.error('Failed to add issue to project');
+        return false;
+      }
+
+      // Fetch updated tasks
+      await fetchProjectTasks(selectedProject.id, githubToken);
+      updateSyncTime();
+
+      return true;
+    } catch (error) {
+      console.error('Error creating task:', error);
+      return false;
+    }
+  }, [selectedProject?.id, githubToken, tasks, fetchProjectTasks, updateSyncTime]);
+
   // ---- Context value ----
 
   const value: DashboardContextValue = {
@@ -838,6 +931,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     tasks,
     isLoadingTasks,
     fetchProjectTasks,
+    handleCreateTask,
 
     lastSyncedTime,
     getSyncedTimeText,

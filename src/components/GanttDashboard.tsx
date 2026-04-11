@@ -5,6 +5,7 @@ import { Header } from './Header/Header';
 import { ConnectedAccountsModal } from './Modals/ConnectedAccountsModal';
 import { OpenProjectModal } from './Modals/OpenProjectModal';
 import { PatAuthModal } from './Modals/PatAuthModal';
+import { CreateTaskModal } from './Modals/CreateTaskModal';
 import { Sidebar } from './Dashboard/Sidebar';
 import { Timeline } from './Dashboard/Timeline';
 import { EmptyState } from './Dashboard/EmptyState';
@@ -62,6 +63,7 @@ function DashboardLayout() {
       <OpenProjectModal />
       <ConnectedAccountsModal />
       <PatAuthModal />
+      <CreateTaskModal />
     </div>
   );
 }
