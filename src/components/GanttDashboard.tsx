@@ -16,7 +16,7 @@ function DashboardLayout() {
   const { t } = useTranslation();
   const { hasProject, isChartVisible, tasks, selectedTaskId, setSelectedTaskId } = useDashboard();
   const { width: sidebarWidth, onMouseDown } = useResizablePanel();
-  
+
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
 
   return (
@@ -28,14 +28,13 @@ function DashboardLayout() {
       <Header />
 
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden relative z-10 w-full p-0 md:p-4 gap-0 md:gap-4">
+      <div className="flex flex-1 overflow-hidden relative z-10 w-full p-0 gap-0">
         {hasProject ? (
           <>
             {/* Sidebar: Issues List */}
             <aside
-              className={`flex-shrink-0 lg:glass-panel md:rounded-xl flex flex-col z-10 h-full overflow-hidden bg-white/80 shadow-sm border-r md:border border-slate-200/60 transition-[width] duration-300 ${
-                isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-auto'
-              }`}
+              className={`flex-shrink-0 lg:glass-panel md:rounded-l-xl flex flex-col z-10 h-full overflow-hidden bg-white/80 shadow-sm border-r md:border-y md:border-l border-slate-200/60 transition-[width] duration-300 ${isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-auto'
+                }`}
               style={{ width: window.innerWidth >= 768 ? `${sidebarWidth}px` : (isChartVisible ? '0' : '100%') }}
               aria-label={t('dashboard.issuesList')}
             >
@@ -44,7 +43,7 @@ function DashboardLayout() {
 
             {/* Resizer Handle */}
             <div
-              className="w-2 hover:bg-slate-300/50 cursor-col-resize z-20 transition-colors -mx-1 hidden md:flex items-center justify-center group"
+              className="w-1 hover:bg-slate-300/50 cursor-col-resize z-20 transition-colors -mx-0.5 hidden md:flex items-center justify-center group"
               onMouseDown={onMouseDown}
               title="Drag to resize"
             >

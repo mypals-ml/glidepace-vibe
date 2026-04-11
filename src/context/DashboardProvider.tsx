@@ -241,7 +241,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }
       `;
       const json = await fetchGitHubGraphQL(query, { projectId }, token);
-      
+
       if (json.errors) {
         console.error('GraphQL Errors fetching items:', json.errors);
         setApiError(json.errors.map((e: { message: string }) => e.message).join(', '));
@@ -260,7 +260,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       // This is the source of truth for the project's color configuration.
       const statusField = fields.find((f: GitHubProjectV2Field) => f.name?.toLowerCase() === 'status');
       const statusOptions = (statusField?.options || []) as Array<{ name: string, color?: string }>;
-      
+
       if (statusOptions.length > 0) {
         registerStatuses(statusOptions as Array<{ name: string, color?: string }>);
         setProjectStatusOptions(statusOptions.map(o => o.name));
@@ -529,30 +529,30 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           const { itemId, contentId } = payload.payload || {};
           console.log(`[DashboardSync] Targeted Refresh RECEIVED on ${label}:`, { itemId, contentId });
 
-              if (githubToken && itemId) {
-                fetchSingleProjectItem(itemId, githubToken);
-              } else if (githubToken && contentId) {
-                // Find the itemId for this contentId from our local state
-                const task = tasks.find(t => t.contentId === contentId);
-                if (task && task.itemId) {
-                  fetchSingleProjectItem(task.itemId, githubToken);
-                } else if (selectedProject?.id) {
-                  // Not found locally? Maybe it's a new task we don't have yet.
-                  fetchProjectTasks(selectedProject.id, githubToken);
-                }
-              } else if (githubToken && selectedProject?.id) {
-                fetchProjectTasks(selectedProject.id, githubToken);
-              }
-            })
-            .subscribe();
-          return channel;
-        });
-    
-        return () => {
-          activeChannels.forEach(channel => supabase.removeChannel(channel));
-        };
-      }, [selectedProject?.id, githubToken, fetchProjectTasks, tasks, fetchSingleProjectItem]);
-    
+          if (githubToken && itemId) {
+            fetchSingleProjectItem(itemId, githubToken);
+          } else if (githubToken && contentId) {
+            // Find the itemId for this contentId from our local state
+            const task = tasks.find(t => t.contentId === contentId);
+            if (task && task.itemId) {
+              fetchSingleProjectItem(task.itemId, githubToken);
+            } else if (selectedProject?.id) {
+              // Not found locally? Maybe it's a new task we don't have yet.
+              fetchProjectTasks(selectedProject.id, githubToken);
+            }
+          } else if (githubToken && selectedProject?.id) {
+            fetchProjectTasks(selectedProject.id, githubToken);
+          }
+        })
+        .subscribe();
+      return channel;
+    });
+
+    return () => {
+      activeChannels.forEach(channel => supabase.removeChannel(channel));
+    };
+  }, [selectedProject?.id, githubToken, fetchProjectTasks, tasks, fetchSingleProjectItem]);
+
 
   // ---- Action handlers ----
 
@@ -601,9 +601,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [githubAccounts, activeAccountId]);
 
-  const handleSelectRealProject = useCallback((id: string, title: string, isPublic?: boolean) => {
+  const handleSelectRealProject = useCallback((id: string, title: string, isPublic?: boolean, forceToken?: string) => {
     setIsProjectModalOpen(false);
-    
+
     // Fallback logic: if isPublic is undefined (e.g. from history), check if we can find it in projectsData
     let finalPublic = isPublic;
     if (finalPublic === undefined) {
@@ -617,8 +617,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('selected_project', JSON.stringify(project));
     localStorage.removeItem('selected_project_type');
 
-    if (githubToken) {
-      fetchProjectTasks(id, githubToken);
+    // Use forced token, or MOCK_TOKEN for dummy projects, or the current githubToken
+    const tokenToUse = forceToken || (id === DUMMY_PROJECT_ID ? MOCK_TOKEN : githubToken);
+
+    if (tokenToUse) {
+      fetchProjectTasks(id, tokenToUse);
       updateSyncTime();
     }
 
@@ -645,7 +648,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     try {
       // Find the current owner login to scope the search if it's an org
       const currentOwner = projectsData.find(o => o.projects.some(p => p.id === selectedProject?.id));
-      
+
       let searchQuery = searchTerm;
       if (currentOwner?.isOrg) {
         searchQuery = `org:${currentOwner.login} ${searchTerm}`;
@@ -694,7 +697,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       console.error('Search users failed:', e);
       return [];
     }
-  }, [githubToken, projectsData, selectedProject?.id]);
+  }, [githubToken, projectsData, selectedProject]);
 
   const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[]) => {
     const task = tasks.find(t => t.id === taskId);
@@ -740,8 +743,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     // Set as active
     setActiveAccountId(mockAccount.id);
 
-    // Select dummy project
-    handleSelectRealProject(DUMMY_PROJECT_ID, 'Demo: Product Roadmap 2024');
+    // Select dummy project with the mock token explicitly to avoid stale token issues
+    handleSelectRealProject(DUMMY_PROJECT_ID, 'Demo: Product Roadmap 2024', true, mockAccount.token);
   }, [handleSelectRealProject, setActiveAccountId]);
 
   const handleCreateTask = useCallback(async (title: string): Promise<boolean> => {
@@ -911,7 +914,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     let anySuccess = false;
     try {
       const query = `mutation UpdateProjectV2ItemFieldValue($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value }) { projectV2Item { id } } }`;
-      
+
       const updateField = async (fieldId: string | undefined, dateVal: string) => {
         if (!fieldId) return;
         const vars = { projectId: selectedProject.id, itemId: task.itemId, fieldId, value: { date: new Date(dateVal).toISOString() } };
@@ -922,7 +925,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
       if (startDate) await updateField(task.projectFieldIds?.startDate, startDate);
       if (endDate) await updateField(task.projectFieldIds?.endDate, endDate);
-      
+
       if (anySuccess) fetchSingleProjectItem(task.itemId, githubToken);
       return anySuccess;
     } catch (e) {

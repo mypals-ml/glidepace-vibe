@@ -6,16 +6,16 @@ import type { ProjectOwnerInfo, Task, TaskComment, TaskStatus } from '../types';
 // them just like a real project.
 // ---------------------------------------------------------------------------
 export const MOCK_STATUS_OPTIONS: { id: string; name: string; color: string }[] = [
-  { id: 'opt-todo',       name: 'Todo',        color: 'GRAY' },
+  { id: 'opt-todo', name: 'Todo', color: 'GRAY' },
   { id: 'opt-inprogress', name: 'In Progress', color: 'YELLOW' },
-  { id: 'opt-done',       name: 'Done',        color: 'PURPLE' },
+  { id: 'opt-done', name: 'Done', color: 'PURPLE' },
 ];
 
 // Stable field IDs used by the mock so that projectFieldIds round-trips work.
 const MOCK_FIELD_IDS = {
-  status:    'mock-status-field-id',
+  status: 'mock-status-field-id',
   startDate: 'mock-start-date-id',
-  endDate:   'mock-end-date-id',
+  endDate: 'mock-end-date-id',
 };
 
 export const MOCK_TOKEN = 'mock-token-123';
@@ -62,11 +62,11 @@ const commentTemplates = [
 
 export const MOCK_USER_POOL = [
   { id: 'u1', login: 'arivera', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
-  { id: 'u2', login: 'jsmith',  name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
-  { id: 'u3', login: 'cchen',   name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
-  { id: 'u4', login: 'treed',   name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
-  { id: 'u5', login: 'mlee',    name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
-  { id: 'u6', login: 'jvarga',  name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' },
+  { id: 'u2', login: 'jsmith', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
+  { id: 'u3', login: 'cchen', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
+  { id: 'u4', login: 'treed', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
+  { id: 'u5', login: 'mlee', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
+  { id: 'u6', login: 'jvarga', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' },
 ];
 
 const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
@@ -274,7 +274,7 @@ function mapTaskToGraphQLNode(task: Task) {
   };
 }
 
-interface MockVariables {
+export interface MockVariables {
   projectId?: string;
   itemId?: string;
   issueId?: string;
@@ -320,8 +320,8 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
 
   if (query.includes('search(query:') && query.includes('type: USER')) {
     const searchTerm = (variables.query || '').split(' ').pop() || '';
-    const results = MOCK_USER_POOL.filter(u => 
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const results = MOCK_USER_POOL.filter(u =>
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.login.toLowerCase().includes(searchTerm.toLowerCase())
     ).map(u => ({
       __typename: 'User',
@@ -383,14 +383,14 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
     const task = allTasks.find(t => t.contentId === issueId);
     if (!task) return { errors: [{ message: 'Issue not found' }] };
-    
+
     if (variables.input?.title !== undefined) task.title = variables.input.title;
     if (variables.input?.body !== undefined) task.body = variables.input.body;
     if (variables.input?.assigneeIds !== undefined) {
       const selectedIds = variables.input.assigneeIds;
       task.assignees = MOCK_USER_POOL.filter(u => selectedIds.includes(u.id));
     }
-    
+
     return { data: { updateIssue: { issue: { id: task.contentId } } } };
   }
 

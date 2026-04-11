@@ -1,17 +1,20 @@
 import { GITHUB_GRAPHQL_API_URL } from './constants';
-import { handleMockGraphQL, MOCK_TOKEN } from './githubMock';
+import { handleMockGraphQL, MOCK_TOKEN, type MockVariables } from './githubMock';
 
 export async function fetchGitHubGraphQL(query: string, variables: Record<string, unknown> = {}, token: string) {
   // Check if we should use mock data
-  if (token === MOCK_TOKEN) {
-    return handleMockGraphQL(query, variables);
+  // Force mock if token is mock-token OR if the project ID is the dummy project ID
+  if (token === MOCK_TOKEN ||
+    (typeof variables.projectId === 'string' && variables.projectId === 'PVT_DUMMY_123') ||
+    (typeof variables.itemId === 'string' && variables.itemId.startsWith('item-'))) {
+    return handleMockGraphQL(query, variables as MockVariables);
   }
 
   // Real API call
   try {
     const res = await fetch(GITHUB_GRAPHQL_API_URL, {
       method: 'POST',
-      headers: { 
+      headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
@@ -24,7 +27,7 @@ export async function fetchGitHubGraphQL(query: string, variables: Record<string
     }
 
     return await res.json();
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Fetch GitHub GraphQL failed:', error);
     throw error;
   }
