@@ -6,7 +6,7 @@ import { useState } from 'react';
 
 export function Sidebar() {
   const { t } = useTranslation();
-  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId, setIsCreateTaskModalOpen } = useDashboard();
+  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId, setIsCreateTaskModalOpen, apiError } = useDashboard();
   const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
 
   return (
@@ -31,6 +31,16 @@ export function Sidebar() {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     <span>{t('dashboard.loadingTasks')}</span>
+                  </div>
+                </td>
+              </tr>
+            ) : (apiError) ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center">
+                  <div className="flex flex-col items-center gap-2 p-4 bg-red-50 border border-red-100 rounded-lg mx-4">
+                    <span className="material-symbols-outlined text-red-400">error</span>
+                    <p className="text-sm text-red-700 font-medium">{t('dashboard.githubApiErrorTitle')}</p>
+                    <p className="text-xs text-red-600 line-clamp-3 overflow-hidden text-ellipsis px-2">{apiError}</p>
                   </div>
                 </td>
               </tr>

@@ -67,6 +67,12 @@ const PROJECT_ITEM_FRAGMENT = `
         name
         field { ... on ProjectV2SingleSelectField { name } }
       }
+      ... on ProjectV2ItemFieldIterationValue {
+        title
+        startDate
+        duration
+        field { ... on ProjectV2IterationField { name } }
+      }
       ... on ProjectV2ItemFieldDateValue {
         date
         field { ... on ProjectV2Field { name } }
@@ -75,28 +81,40 @@ const PROJECT_ITEM_FRAGMENT = `
         text
         field { ... on ProjectV2Field { name } }
       }
+      ... on ProjectV2ItemFieldNumberValue {
+        number
+        field { ... on ProjectV2Field { name } }
+      }
     }
   }
 `;
 
 function mapProjectItemToTask(item: any): Task {
+  if (!item) return { id: 'error', title: 'Invalid Item', startDate: '', endDate: '', status: 'Todo', assignees: [], progress: 0 };
+  
   const content = item.content;
-  const fieldValues = item.fieldValues.nodes;
+  const fieldValues = item.fieldValues?.nodes || [];
 
-  const statusField = fieldValues.find((f: any) => f.field?.name === 'Status');
+  const statusField = fieldValues.find((f: any) => 
+    f.field?.name?.toLowerCase() === 'status' || 
+    f.__typename === 'ProjectV2ItemFieldSingleSelectValue' && f.field?.name?.toLowerCase() === 'status'
+  );
   const status = statusField?.name || 'Todo';
 
   const startDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('start'));
   const endDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('end'));
+  
+  // Also check Iteration fields if start/end dates are missing
+  const iterationField = fieldValues.find((f: any) => f.__typename === 'ProjectV2ItemFieldIterationValue');
 
-  const startDate = startDateField?.date || new Date().toISOString().split('T')[0];
-  const endDate = endDateField?.date || startDate;
+  let startDate = startDateField?.date || iterationField?.startDate || new Date().toISOString().split('T')[0];
+  let endDate = endDateField?.date || (iterationField ? new Date(new Date(iterationField.startDate).getTime() + iterationField.duration * 86400000).toISOString().split('T')[0] : startDate);
 
   const assignees = (content?.assignees?.nodes || []).map((a: any, idx: number) => ({
-    id: a.login,
-    name: a.name || a.login,
+    id: a.login || 'unknown',
+    name: a.name || a.login || 'Unknown',
     avatarUrl: a.avatarUrl,
-    initials: (a.name || a.login).substring(0, 2).toUpperCase(),
+    initials: (a.name || a.login || '??').substring(0, 2).toUpperCase(),
     avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
   }));
 
@@ -113,8 +131,11 @@ function mapProjectItemToTask(item: any): Task {
     },
   }));
 
+  // Clean IDs
+  const displayId = content?.number ? `#${content.number}` : (item.id ? item.id.slice(-6) : Math.random().toString(36).slice(-6));
+
   return {
-    id: content?.number ? `#${content.number}` : item.id.slice(-6),
+    id: displayId,
     title: content?.title || 'No Title',
     startDate: new Date(startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
     endDate: new Date(endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
@@ -421,14 +442,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }
       `;
       const json = await fetchGitHubGraphQL(query, { projectId }, token);
-      const items = json.data?.node?.items?.nodes || [];
+      
+      if (json.errors) {
+        console.error('GraphQL Errors fetching items:', json.errors);
+        setApiError(json.errors.map((e: any) => e.message).join(', '));
+        setTasks([]); // Clear tasks on error to avoid showing stale data from previous project
+        return;
+      }
 
+      setApiError(null);
+      const items = json.data?.node?.items?.nodes || [];
       const mappedTasks: Task[] = items.map(mapProjectItemToTask);
 
       setTasks(mappedTasks);
       updateSyncTime();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to fetch project tasks:', e);
+      setApiError(e.message || 'Unknown error fetching tasks');
     } finally {
       setIsLoadingTasks(false);
     }
