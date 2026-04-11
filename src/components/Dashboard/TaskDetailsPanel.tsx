@@ -73,7 +73,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
               <span className="material-symbols-outlined text-xl text-slate-600">close</span>
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-0 space-y-6">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-6 space-y-6">
             <TaskContent key={task.id} task={task} t={t} />
           </div>
         </div>
@@ -86,7 +86,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
               <span className="material-symbols-outlined text-lg text-slate-600">close</span>
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 pt-0 space-y-4">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 pt-4 space-y-4">
             <TaskContent key={task.id} task={task} t={t} />
           </div>
         </div>
@@ -135,8 +135,8 @@ function TaskContent({ task, t }: { task: Task; t: TFunction }) {
   return (
     <>
       {/* Title */}
-      <div className="border border-slate-200/60 border-t-0 rounded-b-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
-        <div className="flex items-center justify-between bg-slate-50 px-3 h-11 border-b border-slate-200/60 mb-0">
+      <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
+        <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
           <span className="text-xs font-mono text-slate-500">{task.id}</span>
           {!editingTitle && (
             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
