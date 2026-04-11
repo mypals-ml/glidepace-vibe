@@ -5,7 +5,7 @@
 
 // --- Task-related types (previously in dummyData.ts) ---
 
-export type TaskStatus = 'Todo' | 'In Progress' | 'Done';
+export type TaskStatus = string;
 
 export interface User {
   id: string;

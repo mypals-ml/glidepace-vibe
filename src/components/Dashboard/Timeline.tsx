@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
+import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 
 export function Timeline({ className = '' }: { className?: string }) {
   const { t } = useTranslation();
@@ -63,33 +64,27 @@ export function Timeline({ className = '' }: { className?: string }) {
 
                 return (
                   <div key={task.id} className="relative h-[50px] w-full flex items-center group z-10 px-2">
-                    <div
-                      className={`absolute h-8 rounded-md border flex items-center px-3 cursor-pointer transition-all shadow-sm ${task.status === 'Done'
-                          ? 'bg-status-done-bg border-status-done-border hover:opacity-80'
-                          : task.status === 'In Progress'
-                            ? 'bg-status-inprogress-bg border-status-inprogress-border hover:opacity-80'
-                            : 'bg-status-todo-bg border-status-todo-border hover:opacity-80'
-                        }`}
+                  <div
+                      className={`absolute h-8 rounded-md border flex items-center px-3 cursor-pointer transition-all shadow-sm hover:opacity-80 ${getStatusColor(task.status)}`}
                       style={{
                         left: `${leftPos}%`,
                         width: `${width}%`,
                       }}
                     >
-                      <span className={`text-xs font-medium truncate ${task.status === 'Done' ? 'text-status-done-text opacity-70 line-through' : task.status === 'In Progress' ? 'text-status-inprogress-text font-bold' : 'text-status-todo-text'
-                        }`}>
+                      <span className="text-xs font-medium truncate">
                         {task.id} {task.title}
                       </span>
-                      {task.status === 'Done' && (
+                      {task.progress === 100 && (
                         <div className="ml-auto flex items-center">
-                          <span className="material-symbols-outlined text-[14px] text-status-done-highlight">check_circle</span>
+                          <span className="material-symbols-outlined text-[14px] opacity-70">check_circle</span>
                         </div>
                       )}
-                      {task.status === 'In Progress' && (
+                      {task.progress > 0 && task.progress < 100 && (
                         <div className="ml-auto flex items-center gap-2">
-                          <div className="w-12 h-1 bg-status-inprogress-highlight/20 rounded-full overflow-hidden hidden sm:block">
-                            <div className="h-full bg-status-inprogress-highlight opacity-80" style={{ width: `${task.progress}%` }}></div>
+                          <div className="w-12 h-1 bg-black/10 rounded-full overflow-hidden hidden sm:block">
+                            <div className="h-full opacity-70" style={{ width: `${task.progress}%`, backgroundColor: 'currentColor' }}></div>
                           </div>
-                          <span className="text-[9px] font-bold text-status-inprogress-text/90">{task.progress}%</span>
+                          <span className="text-[9px] font-bold opacity-80">{task.progress}%</span>
                         </div>
                       )}
                     </div>

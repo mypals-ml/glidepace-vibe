@@ -8,6 +8,7 @@ import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
 import { fetchGitHubGraphQL } from '../lib/githubService';
 import { DUMMY_PROJECT_ID, MOCK_ACCOUNTS_DATA, MOCK_TOKEN } from '../lib/githubMock';
 import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
+import { registerStatuses } from '../utils/statusColors';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -77,7 +78,7 @@ const PROJECT_ITEM_FRAGMENT = `
       ... on ProjectV2ItemFieldSingleSelectValue {
         id
         name
-        field { ... on ProjectV2SingleSelectField { id name options { id name } } }
+        field { ... on ProjectV2SingleSelectField { id name options { id name color } } }
         optionId
       }
       ... on ProjectV2ItemFieldIterationValue {
@@ -151,6 +152,7 @@ function mapProjectItemToTask(item: any): Task {
   // Extract Field IDs for mutations
   const projectFieldIds: Record<string, string> = {};
   const statusOptions: Record<string, string> = {};
+  const statusColorMap: Record<string, string> = {};
   
   if (statusField?.field?.id) projectFieldIds.status = statusField.field.id;
   if (startDateField?.field?.id) projectFieldIds.startDate = startDateField.field.id;
@@ -159,6 +161,7 @@ function mapProjectItemToTask(item: any): Task {
   if (statusField?.field?.options) {
     statusField.field.options.forEach((opt: any) => {
       statusOptions[opt.name] = opt.id;
+      if (opt.color) statusColorMap[opt.name] = opt.color;
     });
   }
 
@@ -172,9 +175,9 @@ function mapProjectItemToTask(item: any): Task {
     endDate: new Date(endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
     fullStartDate: startDate,
     fullEndDate: endDate,
-    status: status === 'Done' ? 'Done' : (status === 'In Progress' ? 'In Progress' : 'Todo'),
+    status: status || 'Todo',
     assignees: assignees.length > 0 ? assignees : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }],
-    progress: status === 'Done' ? 100 : (status === 'In Progress' ? 50 : 0),
+    progress: /^(done|closed|completed|merged)$/i.test(status) ? 100 : /^(todo|backlog|open|not started)$/i.test(status) ? 0 : 50,
     repository: content?.repository?.nameWithOwner,
     body: content?.body || '',
     comments: comments.length > 0 ? comments : undefined,
@@ -182,6 +185,7 @@ function mapProjectItemToTask(item: any): Task {
     contentId: content?.id,
     projectFieldIds,
     statusOptions,
+    statusColorMap,
   };
 }
 
@@ -251,6 +255,9 @@ interface DashboardContextValue {
   setIsChartVisible: (visible: boolean) => void;
   selectedTaskId: string | null;
   setSelectedTaskId: (id: string | null) => void;
+
+  // Status
+  projectStatusOptions: string[];
 
   // Demo environment helpers
   setHasProject: (val: boolean) => void;
@@ -342,6 +349,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [projectStatusOptions, setProjectStatusOptions] = useState<string[]>([]);
   const [availableUsers] = useState<User[]>([
     { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
     { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
@@ -472,6 +480,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         query($projectId: ID!) {
           node(id: $projectId) {
             ... on ProjectV2 {
+              fields(first: 20) {
+                nodes {
+                  ... on ProjectV2SingleSelectField {
+                    id
+                    name
+                    options { id name color }
+                  }
+                }
+              }
               items(first: 50) {
                 nodes {
                   ${PROJECT_ITEM_FRAGMENT}
@@ -491,8 +508,21 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       }
 
       setApiError(null);
-      const items = json.data?.node?.items?.nodes || [];
+      const projectNode = json.data?.node;
+      const items = projectNode?.items?.nodes || [];
+      const fields = projectNode?.fields?.nodes || [];
+
       const mappedTasks: Task[] = items.map(mapProjectItemToTask);
+
+      // Extract all possible statuses and their colors from the project field definition.
+      // This is the source of truth for the project's color configuration.
+      const statusField = fields.find((f: any) => f.name?.toLowerCase() === 'status');
+      const statusOptions = (statusField?.options || []) as Array<{ name: string, color?: string }>;
+      
+      if (statusOptions.length > 0) {
+        registerStatuses(statusOptions);
+        setProjectStatusOptions(statusOptions.map(o => o.name));
+      }
 
       setTasks(mappedTasks);
       updateSyncTime();
@@ -1028,7 +1058,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const updateTaskStatus = useCallback(async (task: Task, status: TaskStatus): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !task.projectFieldIds?.status || !task.statusOptions || !githubToken) return false;
     try {
-      const optionId = task.statusOptions[status === 'Todo' ? 'Todo' : (status === 'In Progress' ? 'In Progress' : 'Done')];
+      const optionId = task.statusOptions[status];
       if (!optionId) return false;
       const query = `mutation UpdateProjectV2ItemFieldValue($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value }) { projectV2Item { id } } }`;
       const vars = { projectId: selectedProject.id, itemId: task.itemId, fieldId: task.projectFieldIds.status, value: { singleSelectOptionId: optionId } };
@@ -1135,6 +1165,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     availableUsers,
     updateTaskAssignees,
     handleOpenDummyProject,
+    projectStatusOptions,
   };
 
   return (

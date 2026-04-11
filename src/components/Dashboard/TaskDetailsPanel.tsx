@@ -176,7 +176,7 @@ function TaskContent({ task, t }: { task: Task; t: any }) {
         >
           <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${getStatusColor(task.status)}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(task.status)}`}></span>
-            <span className="text-sm font-medium">{t(`taskStatuses.${task.status === 'In Progress' ? 'inProgress' : task.status.toLowerCase()}`, task.status)}</span>
+            <span className="text-sm font-medium">{task.status}</span>
           </div>
         </div>
         {isStatusSelectorOpen && (

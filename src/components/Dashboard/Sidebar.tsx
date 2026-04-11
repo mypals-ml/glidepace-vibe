@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { AssigneeSelector } from './AssigneeSelector';
+import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { User } from '../../types';
 import { useState } from 'react';
 
@@ -68,31 +69,23 @@ export function Sidebar() {
                   onClick={() => setSelectedTaskId(task.id)}
                 >
                   <td className="px-4 py-0 text-xs text-slate-400 font-mono align-middle relative">
-                    {task.status === 'In Progress' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-inprogress-highlight" aria-hidden="true"></div>}
-                    {task.status === 'Done' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-done-highlight" aria-hidden="true"></div>}
-                    {task.status === 'Todo' && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-status-todo-highlight" aria-hidden="true"></div>}
-                    {task.id}
+                  {/* Left-border status indicator — dynamic dot color */}
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-0.5 ${getStatusDotColor(task.status).replace(' animate-pulse', '')}`}
+                    aria-hidden="true"
+                  />
+                  {task.id}
                   </td>
                   <td className="px-4 py-0 align-middle">
                     <span className={`text-sm font-medium transition-colors block leading-tight ${task.status === 'Done' ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>{task.title}</span>
                     <div className="text-[10px] text-slate-400 mt-0.5">{task.startDate} - {task.endDate}</div>
                   </td>
                   <td className="px-4 py-0 align-middle">
-                    {task.status === 'Done' && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-done-bg text-status-done-text border border-status-done-border">
-                        <span className="w-1.5 h-1.5 rounded-full bg-status-done-highlight mr-1.5"></span>{t('taskStatuses.done')}
-                      </span>
-                    )}
-                    {task.status === 'In Progress' && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-inprogress-bg text-status-inprogress-text border border-status-inprogress-border">
-                        <span className="w-1.5 h-1.5 rounded-full bg-status-inprogress-highlight mr-1.5 animate-pulse"></span>{t('taskStatuses.inProgress')}
-                      </span>
-                    )}
-                    {task.status === 'Todo' && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-status-todo-bg text-status-todo-text border border-status-todo-border">
-                        <span className="w-1.5 h-1.5 rounded-full bg-status-todo-highlight mr-1.5"></span>{t('taskStatuses.todo')}
-                      </span>
-                    )}
+                  {/* Status badge — fully dynamic via registry */}
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${getStatusColor(task.status)}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${getStatusDotColor(task.status)}`} />
+                    {task.status}
+                  </span>
                   </td>
                   <td className="px-4 py-3 align-top pt-3 group/assignee relative">
                     <div

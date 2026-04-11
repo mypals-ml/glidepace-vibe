@@ -1,5 +1,23 @@
 import type { ProjectOwnerInfo, Task, TaskComment, TaskStatus } from '../types';
 
+// ---------------------------------------------------------------------------
+// Mock status options — mirrors the `ProjectV2SingleSelectField.options` shape
+// from the real GitHub GraphQL API so that mapProjectItemToTask can extract
+// them just like a real project.
+// ---------------------------------------------------------------------------
+export const MOCK_STATUS_OPTIONS: { id: string; name: string; color: string }[] = [
+  { id: 'opt-todo',       name: 'Todo',        color: 'GRAY' },
+  { id: 'opt-inprogress', name: 'In Progress', color: 'YELLOW' },
+  { id: 'opt-done',       name: 'Done',        color: 'PURPLE' },
+];
+
+// Stable field IDs used by the mock so that projectFieldIds round-trips work.
+const MOCK_FIELD_IDS = {
+  status:    'mock-status-field-id',
+  startDate: 'mock-start-date-id',
+  endDate:   'mock-end-date-id',
+};
+
 export const MOCK_TOKEN = 'mock-token-123';
 export const DUMMY_PROJECT_ID = 'PVT_DUMMY_123';
 
@@ -192,17 +210,29 @@ const CONNECTED_TASKS_TASKS: Task[] = [
 
 // Helper to map tasks back to GitHub GraphQL nodes
 function mapTaskToGraphQLNode(task: Task) {
+  const matchedOption = MOCK_STATUS_OPTIONS.find(o => o.name === task.status)
+    ?? MOCK_STATUS_OPTIONS[0];
+
   const statusField = {
-    name: task.status,
-    field: { name: 'Status' }
+    __typename: 'ProjectV2ItemFieldSingleSelectValue',
+    name: matchedOption.name,
+    optionId: matchedOption.id,
+    field: {
+      __typename: 'ProjectV2SingleSelectField',
+      id: MOCK_FIELD_IDS.status,
+      name: 'Status',
+      options: MOCK_STATUS_OPTIONS,   // ← enables mapProjectItemToTask to read all options
+    },
   };
   const startDateField = {
+    __typename: 'ProjectV2ItemFieldDateValue',
     date: task.fullStartDate || new Date().toISOString(),
-    field: { name: 'Start Date' }
+    field: { __typename: 'ProjectV2Field', id: MOCK_FIELD_IDS.startDate, name: 'Start Date' },
   };
   const endDateField = {
+    __typename: 'ProjectV2ItemFieldDateValue',
     date: task.fullEndDate || new Date().toISOString(),
-    field: { name: 'End Date' }
+    field: { __typename: 'ProjectV2Field', id: MOCK_FIELD_IDS.endDate, name: 'End Date' },
   };
 
   return {
@@ -271,6 +301,16 @@ export async function handleMockGraphQL(query: string, variables: any) {
     return {
       data: {
         node: {
+          fields: {
+            nodes: [
+              {
+                __typename: 'ProjectV2SingleSelectField',
+                id: MOCK_FIELD_IDS.status,
+                name: 'Status',
+                options: MOCK_STATUS_OPTIONS
+              }
+            ]
+          },
           items: {
             nodes: (variables.projectId === 'PVT_3' ? CONNECTED_TASKS_TASKS : MOCK_TASKS).map(mapTaskToGraphQLNode)
           }
@@ -341,22 +381,25 @@ export async function handleMockGraphQL(query: string, variables: any) {
     if (!task) return { errors: [{ message: 'Item not found' }] };
 
     if (variables.input?.value?.singleSelectOptionId) {
+      // Resolve status by option ID (real IDs from MOCK_STATUS_OPTIONS)
       const optionId = variables.input.value.singleSelectOptionId;
-      if (['Todo', 'In Progress', 'Done'].includes(optionId)) {
-        task.status = optionId as TaskStatus;
+      const matched = MOCK_STATUS_OPTIONS.find(o => o.id === optionId);
+      if (matched) {
+        task.status = matched.name as TaskStatus;
         task.progress = task.status === 'Done' ? 100 : (task.status === 'In Progress' ? 50 : 0);
       }
     }
     if (variables.input?.value?.date) {
-      if (variables.input.fieldId === 'mock-start-date-id') {
+      const fieldId = variables.input?.fieldId ?? variables.fieldId;
+      if (fieldId === MOCK_FIELD_IDS.startDate) {
         task.fullStartDate = variables.input.value.date;
         task.startDate = new Date(variables.input.value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      } else if (variables.input.fieldId === 'mock-end-date-id') {
+      } else if (fieldId === MOCK_FIELD_IDS.endDate) {
         task.fullEndDate = variables.input.value.date;
         task.endDate = new Date(variables.input.value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       }
     }
-    
+
     return { data: { updateProjectV2ItemFieldValue: { projectV2Item: { id: task.itemId } } } };
   }
 
