@@ -131,7 +131,7 @@ function TaskContent({ task, t }: { task: Task; t: any }) {
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    if (window.confirm(t('common.confirmDelete', 'Are you sure you want to delete this comment?'))) {
+    if (window.confirm(t('common.confirmDelete'))) {
       await deleteTaskComment(task, commentId);
     }
   };
@@ -150,8 +150,8 @@ function TaskContent({ task, t }: { task: Task; t: any }) {
               autoFocus
             />
             <div className="flex gap-2">
-              <button onClick={handleSaveTitle} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">Save</button>
-              <button onClick={() => { setEditingTitle(false); setDraftTitle(task.title); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">Cancel</button>
+              <button onClick={handleSaveTitle} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
+              <button onClick={() => { setEditingTitle(false); setDraftTitle(task.title); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
             </div>
           </div>
         ) : (
@@ -250,7 +250,7 @@ function TaskContent({ task, t }: { task: Task; t: any }) {
               <span className="text-sm font-medium">{user.name}</span>
             </div>
           )) : (
-            <div className="text-sm text-slate-400 italic py-1.5 px-2">No assignees</div>
+            <div className="text-sm text-slate-400 italic py-1.5 px-2">{t('dashboard.noAssignees')}</div>
           )}
         </div>
         {isAssigneeSelectorOpen && (
@@ -265,7 +265,7 @@ function TaskContent({ task, t }: { task: Task; t: any }) {
       {/* Task Description */}
       <div className="border-t border-slate-200/60 pt-4 group">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-medium text-slate-600 block">Description</label>
+          <label className="text-xs font-medium text-slate-600 block">{t('dashboard.description')}</label>
           {!editingDesc && (
             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
               <ActionMenu onEdit={() => setEditingDesc(true)} />
@@ -282,13 +282,13 @@ function TaskContent({ task, t }: { task: Task; t: any }) {
               autoFocus
             />
             <div className="flex gap-2">
-              <button onClick={handleSaveDesc} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">Save</button>
-              <button onClick={() => { setEditingDesc(false); setDraftDesc(task.body || ''); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">Cancel</button>
+              <button onClick={handleSaveDesc} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
+              <button onClick={() => { setEditingDesc(false); setDraftDesc(task.body || ''); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
             </div>
           </div>
         ) : (
           <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap min-h-[2rem]">
-            {task.body || <span className="text-slate-400 italic">No description provided.</span>}
+            {task.body || <span className="text-slate-400 italic">{t('dashboard.noDescription')}</span>}
           </div>
         )}
       </div>
@@ -296,7 +296,7 @@ function TaskContent({ task, t }: { task: Task; t: any }) {
       {/* Comments Section */}
       <div className="border-t border-slate-200/60 pt-4">
         <label className="text-xs font-medium text-slate-600 block mb-3">
-          Comments ({(task.comments || []).length})
+          {t('dashboard.comments', { count: (task.comments || []).length })}
         </label>
         <div className="space-y-3">
           {(task.comments || []).map((comment) => (
@@ -322,8 +322,8 @@ function TaskContent({ task, t }: { task: Task; t: any }) {
                     autoFocus
                   />
                   <div className="flex gap-2">
-                    <button onClick={() => handleSaveComment(comment.id)} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">Save</button>
-                    <button onClick={() => setEditingCommentId(null)} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">Cancel</button>
+                    <button onClick={() => handleSaveComment(comment.id)} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
+                    <button onClick={() => setEditingCommentId(null)} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
                   </div>
                 </div>
               ) : (

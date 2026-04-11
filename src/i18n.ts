@@ -82,7 +82,23 @@ const resources = {
         githubApiErrorDesc: "This usually means the GitHub App is missing some permissions (like Projects or Members) or hasn't been updated. Check your browser console for more details.",
         unknownError: "Unknown error fetching tasks",
         invalidItem: "Invalid Item",
-        noTitle: "No Title"
+        noTitle: "No Title",
+        taskDetails: "Task Details",
+        repository: "Repository",
+        startDate: "Start Date",
+        endDate: "End Date",
+        progress: "Progress",
+        description: "Description",
+        comments: "Comments ({{count}})",
+        noDescription: "No description provided.",
+        noAssignees: "No assignees"
+      },
+      common: {
+        save: "Save",
+        cancel: "Cancel",
+        edit: "Edit",
+        delete: "Delete",
+        confirmDelete: "Are you sure you want to delete this item?"
       },
       table: {
         id: "ID",
@@ -204,7 +220,23 @@ const resources = {
         githubApiErrorDesc: "通常、これはGitHubアプリに必要な権限（プロジェクトやメンバーなど）が不足しているか、更新されていないことを意味します。詳細はブラウザのコンソールを確認してください。",
         unknownError: "タスクの取得中に不明なエラーが発生しました",
         invalidItem: "無効なアイテム",
-        noTitle: "タイトルなし"
+        noTitle: "タイトルなし",
+        taskDetails: "タスク詳細",
+        repository: "リポジトリ",
+        startDate: "開始日",
+        endDate: "終了日",
+        progress: "進捗",
+        description: "説明",
+        comments: "コメント ({{count}})",
+        noDescription: "説明はありません。",
+        noAssignees: "担当者なし"
+      },
+      common: {
+        save: "保存",
+        cancel: "キャンセル",
+        edit: "編集",
+        delete: "削除",
+        confirmDelete: "このアイテムを削除してもよろしいですか？"
       },
       table: {
         id: "ID",
@@ -326,7 +358,23 @@ const resources = {
         githubApiErrorDesc: "这通常意味着 GitHub 应用缺少某些权限（如项目或成员），或者尚未更新。请检查浏览器控制台了解更多详情。",
         unknownError: "获取任务时发生未知错误",
         invalidItem: "无效项目",
-        noTitle: "无标题"
+        noTitle: "无标题",
+        taskDetails: "任务详情",
+        repository: "仓库",
+        startDate: "开始日期",
+        endDate: "截止日期",
+        progress: "进度",
+        description: "描述",
+        comments: "评论 ({{count}})",
+        noDescription: "暂无描述。",
+        noAssignees: "无经办人"
+      },
+      common: {
+        save: "保存",
+        cancel: "取消",
+        edit: "编辑",
+        delete: "删除",
+        confirmDelete: "您确定要删除此项吗？"
       },
       table: {
         id: "ID",
