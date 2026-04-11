@@ -10,6 +10,11 @@
 *   **MS Project Style Layout:** The main dashboard uses a resizable split-pane layout: the left panel lists issues (with assignees and status), while the wide right panel displays a horizontal Gantt chart.
 *   **Sync Status & Manual Sync:** Automatically tracks the last synchronization time with GitHub and displays it in the header (e.g., "Synced 5 minutes ago"). Users can hover over the status to reveal a "Sync Now" button for manual synchronization.
 *   **Robust Demo Mode:** Full functionality available offline via mock services and dummy data for testing and demonstration purposes.
+*   **Assignee Search Strategy:** 
+    *   **Contextual Priority:** The search interface automatically prioritizes "Project Mates" — users already assigned to at least one task in the current project for quick access.
+    *   **Smart Scoping:** For projects owned by an Organization, the system automatically scopes the GitHub user search to that organization (`org:LOGIN`) to find relevant teammates quickly.
+    *   **Global Discovery:** For personal projects or when teammates aren't found, the system performs a global GitHub user search using the GraphQL `search(type: USER)` API.
+    *   **Real-time Debounce:** User search occurs dynamically as you type with a 500ms debounce to optimize API calls while providing a responsive "instant search" feel.
 
 ## Roadmap & Upcoming Features
 *   **Task Grouping:** Group tasks by adding a parent task to them.

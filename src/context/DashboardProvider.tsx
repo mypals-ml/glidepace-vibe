@@ -664,15 +664,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       `;
 
       const json = await fetchGitHubGraphQL(query, { searchQuery }, githubToken);
-      const nodes = json.data?.search?.nodes || [];
+      const nodes = (json.data?.search?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
 
-      return nodes.map((n: { id: string, login: string, name?: string, avatarUrl: string }, idx: number) => ({
-        id: n.id,
-        name: n.name || n.login,
-        avatarUrl: n.avatarUrl,
-        initials: (n.name || n.login).substring(0, 2).toUpperCase(),
-        avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][idx % 5],
-      }));
+      return nodes
+        .filter(n => n && n.id && (n.login || n.name))
+        .map((n, idx) => {
+          const displayName = n.name || n.login || 'Unknown User';
+          return {
+            id: n.id!,
+            name: displayName,
+            avatarUrl: n.avatarUrl || '',
+            initials: displayName.substring(0, 2).toUpperCase(),
+            avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][idx % 5],
+          };
+        });
     } catch (e) {
       console.error('Search users failed:', e);
       return [];
