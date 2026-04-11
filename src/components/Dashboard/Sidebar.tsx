@@ -11,117 +11,125 @@ export function Sidebar() {
   const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
 
   return (
-    <>
+    <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <table className="w-full text-left border-collapse" aria-label={t('dashboard.issuesList')}>
-          <thead className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <tr>
-              <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500 w-12">{t('table.id')}</th>
-              <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500">{t('table.title')}</th>
-              <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500 w-24">{t('table.status')}</th>
-              <th scope="col" className="px-4 py-2.5 text-xs font-medium text-slate-500 w-20 text-center">{t('table.assignees')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 relative z-0">
-            {isLoadingTasks ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                  <div className="flex flex-col items-center gap-2">
-                    <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>{t('dashboard.loadingTasks')}</span>
-                  </div>
-                </td>
-              </tr>
-            ) : (apiError) ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center">
-                  <div className="flex flex-col items-center gap-2 p-4 bg-red-50 border border-red-100 rounded-lg mx-4">
-                    <span className="material-symbols-outlined text-red-400">error</span>
-                    <p className="text-sm text-red-700 font-medium">{t('dashboard.githubApiErrorTitle')}</p>
-                    <p className="text-xs text-red-600 line-clamp-3 overflow-hidden text-ellipsis px-2">{apiError}</p>
-                  </div>
-                </td>
-              </tr>
-            ) : tasks.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-xs italic">
-                  {t('dashboard.noTasksInProject')}
-                </td>
-              </tr>
-            ) : filteredTasks.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-xs italic">
-                  {t('dashboard.noMatchingTasks')}
-                </td>
-              </tr>
-            ) : (
-              filteredTasks.map(task => (
-                <tr 
-                  key={task.id} 
-                  className={`h-[50px] hover:bg-slate-50/80 transition-colors cursor-pointer group bg-white relative ${
-                    selectedTaskId === task.id ? 'bg-primary/5 border-l-2 border-primary' : ''
-                  }`} 
-                  tabIndex={0} 
-                  aria-label={`${task.title} - ${t('table.status')} ${task.status}`}
-                  onClick={() => setSelectedTaskId(task.id)}
-                >
-                  <td className="px-4 py-0 text-xs text-slate-400 font-mono align-middle relative">
-                  {/* Left-border status indicator — dynamic dot color */}
+        {/* Header */}
+        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[48px_1fr_100px_80px] gap-2 px-4 py-3 items-center" aria-label={t('dashboard.issuesList')}>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.id')}</div>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.title')}</div>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">{t('table.assignees')}</div>
+        </div>
+
+        {/* Task List Container */}
+        <div className="p-2 flex flex-col gap-1 relative z-0">
+          {isLoadingTasks ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500">
+              <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="text-sm font-medium">{t('dashboard.loadingTasks')}</span>
+            </div>
+          ) : (apiError) ? (
+            <div className="p-4 bg-red-50 border border-red-100 rounded-lg mx-2 my-4">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <span className="material-symbols-outlined text-red-400">error</span>
+                <p className="text-sm text-red-700 font-medium">{t('dashboard.githubApiErrorTitle')}</p>
+                <p className="text-xs text-red-600 line-clamp-3 overflow-hidden text-ellipsis px-2">{apiError}</p>
+              </div>
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-xs italic">
+              {t('dashboard.noTasksInProject')}
+            </div>
+          ) : filteredTasks.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-xs italic">
+              {t('dashboard.noMatchingTasks')}
+            </div>
+          ) : (
+            filteredTasks.map(task => (
+              <div 
+                key={task.id} 
+                className={`grid grid-cols-[48px_1fr_100px_80px] gap-2 items-center min-h-[56px] px-2 rounded-lg cursor-pointer transition-all duration-200 relative group overflow-visible ${
+                  selectedTaskId === task.id ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
+                }`} 
+                onClick={() => setSelectedTaskId(task.id)}
+              >
+                {/* Selection Accent Bar */}
+                {selectedTaskId === task.id && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full z-10" />
+                )}
+
+                {/* ID Column */}
+                <div className="pl-3 text-xs text-slate-400 font-medium relative">
+                  {/* Status subtle indicator */}
                   <div
-                    className={`absolute left-0 top-0 bottom-0 w-0.5 ${getStatusDotColor(task.status).replace(' animate-pulse', '')}`}
+                    className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3 rounded-full ${getStatusDotColor(task.status).replace(' animate-pulse', '')}`}
                     aria-hidden="true"
                   />
                   {task.id}
-                  </td>
-                  <td className="px-4 py-0 align-middle">
-                    <span className={`text-sm font-medium transition-colors block leading-tight ${task.status === 'Done' ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>{task.title}</span>
-                    <div className="text-[10px] text-slate-400 mt-0.5">{task.startDate} - {task.endDate}</div>
-                  </td>
-                  <td className="px-4 py-0 align-middle">
-                  {/* Status badge — fully dynamic via registry */}
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${getStatusColor(task.status)}`}>
+                </div>
+
+                {/* Title Column */}
+                <div className="flex flex-col justify-center min-w-0 pr-2">
+                  <span className={`text-sm font-medium transition-colors block leading-tight truncate ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
+                    {task.title}
+                  </span>
+                  <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{task.startDate} - {task.endDate}</div>
+                </div>
+
+                {/* Status Column */}
+                <div className="flex items-center">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${getStatusColor(task.status)}`}>
                     <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${getStatusDotColor(task.status)}`} />
                     {task.status}
                   </span>
-                  </td>
-                  <td className="px-4 py-3 align-top pt-3 group/assignee relative">
-                    <div
-                      className="flex justify-center -space-x-1.5 cursor-pointer hover:scale-110 transition-transform"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenSelectorTaskId(openSelectorTaskId === task.id ? null : task.id);
-                      }}
-                      title="Update assignees"
-                    >
-                      {task.assignees.slice(0, 3).map((user: User, idx: number) => (
-                        <div key={user.id} className={`w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
-                          {user.avatarUrl ? (
-                            <img src={user.avatarUrl} alt={user.initials} className="w-full h-full rounded-full object-cover" />
-                          ) : user.initials}
-                        </div>
-                      ))}
-                      {task.assignees.length > 3 && (
-                        <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[8px] font-bold bg-slate-100 text-slate-500" style={{ zIndex: 0 }}>
-                          +{task.assignees.length - 3}
-                        </div>
-                      )}
-                    </div>
-                    {openSelectorTaskId === task.id && (
-                      <AssigneeSelector
-                        taskId={task.id}
-                        currentAssignees={task.assignees}
-                        onClose={() => setOpenSelectorTaskId(null)}
-                      />
+                </div>
+
+                {/* Assignees Column */}
+                <div className="group/assignee relative h-full flex items-center justify-center">
+                  <div
+                    className="flex -space-x-1.5 cursor-pointer hover:scale-110 transition-transform p-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenSelectorTaskId(openSelectorTaskId === task.id ? null : task.id);
+                    }}
+                    title="Update assignees"
+                  >
+                    {task.assignees.length > 0 ? (
+                      <>
+                        {task.assignees.slice(0, 3).map((user: User, idx: number) => (
+                          <div key={user.id} className={`w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
+                            {user.avatarUrl ? (
+                              <img src={user.avatarUrl} alt={user.initials} className="w-full h-full rounded-full object-cover" />
+                            ) : user.initials}
+                          </div>
+                        ))}
+                        {task.assignees.length > 3 && (
+                          <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[8px] font-bold bg-slate-100 text-slate-500" style={{ zIndex: 0 }}>
+                            +{task.assignees.length - 3}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="w-6 h-6 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300">
+                        <span className="material-symbols-outlined text-[14px]">person_add</span>
+                      </div>
                     )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                  {openSelectorTaskId === task.id && (
+                    <AssigneeSelector
+                      taskId={task.id}
+                      currentAssignees={task.assignees}
+                      onClose={() => setOpenSelectorTaskId(null)}
+                    />
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Bottom Search Box with Add Task Button */}
@@ -148,6 +156,6 @@ export function Sidebar() {
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
