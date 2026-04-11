@@ -1,26 +1,41 @@
 # Glidelines
 
-Glidelines is a modern, responsive Gantt Chart application for managing GitHub tasks and dependencies seamlessly. Built using **Vite, React, Tailwind CSS v4, and Capacitor** to ensure robust performance across web, iOS, and Android.
+A modern, high-performance **Reactive Gantt Chart** dashboard designed for seamlessly visualizing and managing GitHub tasks, dependencies, and project timelines.
 
-## Documentation
-
-For detailed information about the project's structure, rules, and backlog, please refer to the following documents:
-
-*   **[Project Info](docs/PROJECT_INFO.md):** Details including GitHub projects and Stitch UI project links.
-*   **[Architecture Overview](docs/ARCHITECTURE.md):** Information about the project's foundational directory structure and components.
-*   **[Feature Specifications](docs/FEATURES.md):** The complete breakdown of app capabilities (Themes, Draft Issues, MS Project Layout, OAuth).
-*   **[Debugging Guide](docs/DEBUGGING.md):** Step-by-step instructions on how to run, test, and debug the web server, Vitest, and Capacitor integrations.
+Glidelines bridges the gap between GitHub's robust task tracking and project management needs by providing a real-time, MS Project-style interface that works across **Web, iOS, and Android**.
 
 ---
 
-## Development Team
+## 🛠️ Technology Stack
+*   **Engine:** [Vite](https://vitejs.dev/) + [React](https://react.dev/)
+*   **Styling:** [Tailwind CSS v4](https://tailwindcss.com/) (Glassmorphism & Dynamic Themes)
+*   **Logic:** Typed [TypeScript](https://www.typescriptlang.org/)
+*   **Mobile:** [Capacitor](https://capacitorjs.com/) (Native Web Wrapper)
+*   **Real-time:** [Supabase](https://supabase.com/) (Live Webhook Relay)
+*   **Localization:** [i18next](https://www.i18next.com/) (EN, JA, ZH-CN)
 
+---
+
+## 📖 Essential Documentation
+
+### 🚀 Getting Started
+*   **[Local Development Guide](docs/LOCAL_DEVELOPMENT.md):** 🗺️ Your onboarding map to the `localhost` setup.
+*   **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md):** 🛰️ Steps to launch Glidelines on Vercel.
+
+### 🏗️ Architecture & Core Logic
+*   **[Architecture Overview](docs/ARCHITECTURE.md):** 🏛️ High-level technical design and module breakdown.
+*   **[Feature Specifications](docs/FEATURES.md):** 📋 Details on what's live vs. what's on the roadmap.
+*   **[Sync & Webhooks](docs/AUTOMATIC_SYNC.md):** 🔄 Deep dive into the GitHub -> Supabase -> UI relay.
+
+### ⚙️ Deep-Dive Setup
+*   **[GitHub OAuth Setup](docs/GITHUB_OAUTH_SETUP.md):** Secure user authentication.
+*   **[GitHub App & Webhooks](docs/GITHUB_APP_SETUP.md):** Background triggers and auto-sync.
+*   **[Supabase Configuration](docs/SUPABASE_SETUP.md):** Setting up the real-time broadcast layer.
+
+---
+
+## 👥 Development Team
 This project is a collaborative effort between human expertise and advanced AI intelligence.
 
-*   **Human Developers:**
-    *   [willwhui](https://github.com/willwhui)
-
-*   **AI Collaborators:**
-    *   Google Antigravity
-    *   Google Jules
-    *   GitHub Copilot
+*   **Lead Developers:** [willwhui](https://github.com/willwhui)
+*   **AI Collaborators:** [Google Deepmind Antigravity](https://deepmind.google/technologies/gemini/), Jules, and Copilot.
