@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import { useTranslation } from 'react-i18next';
 import type { User } from '../../types';
@@ -15,7 +15,13 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
   const [searchTerm, setSearchTerm] = useState('');
   const [searchedUsers, setSearchedUsers] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Local state for selections
+  const initialIds = useMemo(() => 
+    currentAssignees.map(u => u.id).filter(id => id !== 'unassigned'), 
+    [currentAssignees]
+  );
+  const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(initialIds);
 
   // Debounced search
   useEffect(() => {
@@ -37,11 +43,6 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
 
     return () => clearTimeout(timer);
   }, [searchTerm, fetchSearchUsers]);
-
-  const currentAssigneeIds = useMemo(() => 
-    currentAssignees.map(u => u.id).filter(id => id !== 'unassigned'), 
-    [currentAssignees]
-  );
 
   // Group users into "Project Mates" and "Search Results"
   const projectMates = useMemo(() => {
@@ -66,38 +67,49 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
     return results;
   }, [projectMates, searchedUsers]);
 
-  const handleToggleUser = async (userId: string) => {
-    if (isUpdating) return;
+  const handleApply = useCallback(() => {
+    // Diff check: check if sets of IDs are different
+    const isDifferent = localSelectedIds.length !== initialIds.length || 
+      localSelectedIds.some(id => !initialIds.includes(id)) ||
+      initialIds.some(id => !localSelectedIds.includes(id));
     
-    let nextIds: string[];
-    if (currentAssigneeIds.includes(userId)) {
-      nextIds = currentAssigneeIds.filter(id => id !== userId);
-    } else {
-      nextIds = [...currentAssigneeIds, userId];
+    if (isDifferent) {
+      // Apply changes silently in background as requested
+      updateTaskAssignees(taskId, localSelectedIds);
     }
-    
-    setIsUpdating(true);
-    try {
-      const success = await updateTaskAssignees(taskId, nextIds);
-      if (!success) {
-        // Option: show error toast here
+    onClose();
+  }, [taskId, localSelectedIds, initialIds, updateTaskAssignees, onClose]);
+
+  // Handle ESC key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleApply();
       }
-    } finally {
-      setIsUpdating(false);
-    }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleApply]);
+
+  const handleToggleUser = (userId: string) => {
+    setLocalSelectedIds(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId) 
+        : [...prev, userId]
+    );
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:right-0 sm:left-auto sm:top-full sm:mt-2 sm:p-0">
-      {/* Backdrop for mobile */}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:right-0 sm:left-auto sm:top-full sm:mt-2 sm:p-0 pointer-events-none">
+      {/* Universal backdrop for mobile and click-outside capture for desktop */}
       <div 
-        className="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] sm:hidden" 
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        className="fixed inset-0 z-[-1] bg-slate-900/20 backdrop-blur-[2px] sm:bg-transparent sm:backdrop-blur-none pointer-events-auto" 
+        onClick={(e) => { e.stopPropagation(); handleApply(); }}
       />
       
       {/* Selector Panel */}
       <div 
-        className="glass-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-right min-w-[280px]"
+        className="glass-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-right min-w-[280px] pointer-events-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Header */}
@@ -135,13 +147,12 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
               )}
               
               {projectMates.map(user => {
-                const isSelected = currentAssigneeIds.includes(user.id);
+                const isSelected = localSelectedIds.includes(user.id);
                 return (
                   <UserButton 
                     key={user.id} 
                     user={user} 
                     isSelected={isSelected} 
-                    isUpdating={isUpdating}
                     onClick={() => handleToggleUser(user.id)} 
                   />
                 );
@@ -154,13 +165,12 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
                     {t('dashboard.suggestions', 'Suggestions')}
                   </div>
                   {searchedUsers.filter(u => !projectMates.some(pm => pm.id === u.id)).map(user => {
-                    const isSelected = currentAssigneeIds.includes(user.id);
+                    const isSelected = localSelectedIds.includes(user.id);
                     return (
                       <UserButton 
                         key={user.id} 
                         user={user} 
                         isSelected={isSelected} 
-                        isUpdating={isUpdating}
                         onClick={() => handleToggleUser(user.id)} 
                       />
                     );
@@ -173,9 +183,9 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
 
         {/* Footer/Action */}
         <div className="p-2 border-t border-slate-200/60 bg-slate-50/80 flex justify-between items-center sm:hidden">
-          <span className="text-[10px] text-slate-400 ml-2">{currentAssigneeIds.length} selected</span>
+          <span className="text-[10px] text-slate-400 ml-2">{localSelectedIds.length} selected</span>
           <button 
-            onClick={onClose}
+            onClick={handleApply}
             className="px-4 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg shadow-glow hover:bg-primary-hover transition-all"
           >
             Done
@@ -186,18 +196,17 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
       {/* Invisible overlay for desktop click-outside */}
       <div 
         className="fixed inset-0 z-[-1] hidden sm:block" 
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        onClick={(e) => { e.stopPropagation(); handleApply(); }}
       />
     </div>
   );
 }
 
-function UserButton({ user, isSelected, isUpdating, onClick }: { user: User, isSelected: boolean, isUpdating: boolean, onClick: () => void }) {
+function UserButton({ user, isSelected, onClick }: { user: User, isSelected: boolean, onClick: () => void }) {
   return (
     <button
-      disabled={isUpdating}
       onClick={onClick}
-      className={`w-full px-3 py-2 flex items-center gap-3 hover:bg-primary/5 transition-colors group text-left ${isUpdating ? 'opacity-50 grayscale' : ''}`}
+      className={`w-full px-3 py-2 flex items-center gap-3 hover:bg-primary/5 transition-colors group text-left`}
     >
       <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm ${user.avatarColor} border-2 ${isSelected ? 'border-primary' : 'border-white'}`}>
         {user.avatarUrl ? (

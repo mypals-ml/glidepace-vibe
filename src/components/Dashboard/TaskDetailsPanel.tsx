@@ -340,6 +340,8 @@ function TaskContent({ task, t }: { task: Task; t: TFunction }) {
           ))}
         </div>
       </div>
+      {/* Bottom spacer to prevent dropdown clipping in scrollable area */}
+      <div className="h-40" />
     </>
   );
 }
