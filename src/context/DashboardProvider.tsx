@@ -648,58 +648,100 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const fetchSearchUsers = useCallback(async (searchTerm: string): Promise<User[]> => {
-    if (!githubToken || !searchTerm || searchTerm.length < 2) return [];
+  const fetchSearchUsers = useCallback(async (searchTerm: string, repository?: string): Promise<User[]> => {
+    if (!githubToken) return [];
 
     try {
-      // Find the current owner login to scope the search if it's an org
-      const currentOwner = projectsData.find(o => o.projects.some(p => p.id === selectedProject?.id));
+      let results: User[] = [];
 
-      let searchQuery = searchTerm;
-      if (currentOwner?.isOrg) {
-        searchQuery = `org:${currentOwner.login} ${searchTerm}`;
-      } else if (currentOwner) {
-        // Discovery logic requested by user:
-        // Only allow global search discovery for personal projects if the project is PUBLIC.
-        if (!selectedProject?.public) {
-          // If private personal project, we skip global discovery and return empty for this step.
-          // The UI will still show "Project Mates" from availableUsers.
-          return [];
-        }
-        searchQuery = `${searchTerm}`;
-      }
-
-      const query = `
-        query($searchQuery: String!) {
-          search(query: $searchQuery, type: USER, first: 10) {
-            nodes {
-              ... on User {
-                id
-                login
-                name
-                avatarUrl
+      // 1. Try to fetch assignable users from the repository if provided
+      // This is the source of truth for who can actually be assigned.
+      if (repository) {
+        const [owner, name] = repository.split('/');
+        if (owner && name) {
+          const assignableQuery = `
+            query($owner: String!, $name: String!, $query: String) {
+              repository(owner: $owner, name: $name) {
+                assignableUsers(first: 20, query: $query) {
+                  nodes {
+                    id
+                    login
+                    name
+                    avatarUrl
+                  }
+                }
               }
             }
-          }
+          `;
+          
+          const assignableJson = await fetchGitHubGraphQL(assignableQuery, { owner, name, query: searchTerm || undefined }, githubToken);
+          const assignableNodes = (assignableJson.data?.repository?.assignableUsers?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
+          
+          results = assignableNodes
+            .filter(n => n && n.id)
+            .map((n, idx) => ({
+              id: n.id!,
+              login: n.login,
+              name: n.name || n.login || 'Unknown User',
+              avatarUrl: n.avatarUrl || '',
+              initials: (n.name || n.login || '??').substring(0, 2).toUpperCase(),
+              avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][idx % 5],
+            }));
         }
-      `;
+      }
 
-      const json = await fetchGitHubGraphQL(query, { searchQuery }, githubToken);
-      const nodes = (json.data?.search?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
+      // 2. Fallback / Additional discovery for Orgs (if search term is provided)
+      // Only perform global user search if we have a search term and it's an org project or public project.
+      if (searchTerm && searchTerm.length >= 2) {
+        const currentOwner = projectsData.find(o => o.projects.some(p => p.id === selectedProject?.id));
+        
+        let shouldGlobalSearch = false;
+        let searchQuery = searchTerm;
 
-      return nodes
-        .filter(n => n && n.id && (n.login || n.name))
-        .map((n, idx) => {
-          const displayName = n.name || n.login || 'Unknown User';
-          return {
-            id: n.id!,
-            login: n.login,
-            name: displayName,
-            avatarUrl: n.avatarUrl || '',
-            initials: displayName.substring(0, 2).toUpperCase(),
-            avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][idx % 5],
-          };
-        });
+        if (currentOwner?.isOrg) {
+          shouldGlobalSearch = true;
+          searchQuery = `org:${currentOwner.login} ${searchTerm}`;
+        } else if (currentOwner && selectedProject?.public) {
+          shouldGlobalSearch = true;
+          searchQuery = `${searchTerm}`;
+        }
+
+        if (shouldGlobalSearch) {
+          const globalQuery = `
+            query($searchQuery: String!) {
+              search(query: $searchQuery, type: USER, first: 10) {
+                nodes {
+                  ... on User {
+                    id
+                    login
+                    name
+                    avatarUrl
+                  }
+                }
+              }
+            }
+          `;
+          const globalJson = await fetchGitHubGraphQL(globalQuery, { searchQuery }, githubToken);
+          const globalNodes = (globalJson.data?.search?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
+          
+          const existingIds = new Set(results.map(r => r.id));
+          globalNodes.forEach((n, idx) => {
+            if (n && n.id && !existingIds.has(n.id)) {
+              const displayName = n.name || n.login || 'Unknown User';
+              results.push({
+                id: n.id!,
+                login: n.login,
+                name: displayName,
+                avatarUrl: n.avatarUrl || '',
+                initials: displayName.substring(0, 2).toUpperCase(),
+                avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][(results.length + idx) % 5],
+              });
+            }
+          });
+        }
+      }
+
+      return results;
     } catch (e) {
       console.error('Search users failed:', e);
       return [];

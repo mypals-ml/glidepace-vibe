@@ -336,8 +336,30 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
           },
           organizations: { nodes: [] }
         }
+      }
+    };
+  }
 
+  if (query.includes('repository(') && query.includes('assignableUsers')) {
+    const searchTerm = variables.query || '';
+    const results = MOCK_USER_POOL.filter(u =>
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.login.toLowerCase().includes(searchTerm.toLowerCase())
+    ).map(u => ({
+      __typename: 'User',
+      id: u.id,
+      login: u.login,
+      name: u.name,
+      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`
+    }));
 
+    return {
+      data: {
+        repository: {
+          assignableUsers: {
+            nodes: results
+          }
+        }
       }
     };
   }

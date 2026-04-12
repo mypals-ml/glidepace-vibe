@@ -75,7 +75,7 @@ export interface DashboardContextValue {
   setSearchQuery: (query: string) => void;
   filteredTasks: Task[];
   availableUsers: User[];
-  fetchSearchUsers: (query: string) => Promise<User[]>;
+  fetchSearchUsers: (query: string, repository?: string) => Promise<User[]>;
   updateTaskAssignees: (taskId: string, userIds: string[]) => Promise<boolean>;
   handleOpenDummyProject: () => void;
 }

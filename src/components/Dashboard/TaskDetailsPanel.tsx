@@ -255,6 +255,7 @@ function TaskContent({ task, t }: { task: Task; t: TFunction }) {
           <AssigneeSelector
             taskId={task.id}
             currentAssignees={task.assignees}
+            repository={task.repository}
             onClose={() => setIsAssigneeSelectorOpen(false)}
           />
         )}

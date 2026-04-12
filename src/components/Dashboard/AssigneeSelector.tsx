@@ -6,16 +6,34 @@ import type { User } from '../../types';
 interface AssigneeSelectorProps {
   taskId: string;
   currentAssignees: User[];
+  repository?: string;
   onClose: () => void;
 }
 
-export function AssigneeSelector({ taskId, currentAssignees, onClose }: AssigneeSelectorProps) {
-  const { availableUsers, fetchSearchUsers, updateTaskAssignees } = useDashboard();
+export function AssigneeSelector({ taskId, currentAssignees, repository, onClose }: AssigneeSelectorProps) {
+  const { fetchSearchUsers, updateTaskAssignees } = useDashboard();
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchedUsers, setSearchedUsers] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   
+  // Initial assignable users from repo
+  const [assignableUsers, setAssignableUsers] = useState<User[]>([]);
+
+  // Fetch initial assignable users (those who CAN be assigned)
+  useEffect(() => {
+    const fetchInitial = async () => {
+      setIsSearching(true);
+      try {
+        const results = await fetchSearchUsers('', repository);
+        setAssignableUsers(results);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+    fetchInitial();
+  }, [repository, fetchSearchUsers]);
+
   // Local state for selections
   const initialIds = useMemo(() => 
     currentAssignees.map(u => u.id).filter(id => id !== 'unassigned'), 
@@ -23,18 +41,17 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
   );
   const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(initialIds);
 
-  // Debounced search
+  // Debounced search for discovery
   useEffect(() => {
     if (!searchTerm || searchTerm.length < 2) {
       setSearchedUsers([]);
-      setIsSearching(false);
       return;
     }
 
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const results = await fetchSearchUsers(searchTerm);
+        const results = await fetchSearchUsers(searchTerm, repository);
         setSearchedUsers(results);
       } finally {
         setIsSearching(false);
@@ -42,30 +59,33 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchTerm, fetchSearchUsers]);
+  }, [searchTerm, repository, fetchSearchUsers]);
 
-  // Group users into "Project Mates" and "Search Results"
-  const projectMates = useMemo(() => {
-    return availableUsers.filter(user => 
-      !searchTerm || 
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      user.id.toLowerCase().includes(searchTerm.toLowerCase())
+  // Assignable users filtered by search term
+  const filteredAssignable = useMemo(() => {
+    if (!searchTerm) return assignableUsers;
+    const lowerQuery = searchTerm.toLowerCase();
+    return assignableUsers.filter(user => 
+      user.name.toLowerCase().includes(lowerQuery) || 
+      user.login?.toLowerCase().includes(lowerQuery) ||
+      user.id.toLowerCase().includes(lowerQuery)
     );
-  }, [availableUsers, searchTerm]);
+  }, [assignableUsers, searchTerm]);
 
-  // Combine results, prioritizing project mates and adding searched users if not already present
+  // Combine results, prioritizing assignable users and adding searched users if not already present
   const combinedResults = useMemo(() => {
-    const results = [...projectMates];
-    const mateIds = new Set(results.map(u => u.id));
+    const results = [...filteredAssignable];
+    const seenIds = new Set(results.map(u => u.id));
     
     searchedUsers.forEach(user => {
-      if (!mateIds.has(user.id)) {
+      if (!seenIds.has(user.id)) {
         results.push(user);
+        seenIds.add(user.id);
       }
     });
     
     return results;
-  }, [projectMates, searchedUsers]);
+  }, [filteredAssignable, searchedUsers]);
 
   const handleApply = useCallback(() => {
     // Diff check: check if sets of IDs are different
@@ -74,7 +94,6 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
       initialIds.some(id => !localSelectedIds.includes(id));
     
     if (isDifferent) {
-      // Apply changes silently in background as requested
       updateTaskAssignees(taskId, localSelectedIds);
     }
     onClose();
@@ -132,21 +151,21 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
 
         {/* User List */}
         <div className="max-h-[300px] overflow-y-auto custom-scrollbar py-1 bg-white/30">
-          {combinedResults.length === 0 ? (
+          {combinedResults.length === 0 && !isSearching ? (
             <div className="px-4 py-8 text-center">
               <span className="material-symbols-outlined text-slate-300 text-3xl mb-2">person_search</span>
               <div className="text-slate-400 text-xs italic">{t('dashboard.noResults', 'No results found')}</div>
             </div>
           ) : (
             <div className="flex flex-col">
-              {/* Project Mates section if searching */}
-              {searchTerm && projectMates.length > 0 && (
+              {/* Assignable section */}
+              {filteredAssignable.length > 0 && (
                 <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                  {t('dashboard.projectMates', 'Project Mates')}
+                  {t('dashboard.assignable', 'Assignable')}
                 </div>
               )}
               
-              {projectMates.map(user => {
+              {filteredAssignable.map(user => {
                 const isSelected = localSelectedIds.includes(user.id);
                 return (
                   <UserButton 
@@ -159,12 +178,12 @@ export function AssigneeSelector({ taskId, currentAssignees, onClose }: Assignee
               })}
 
               {/* Suggestions from Search */}
-              {searchTerm && searchedUsers.filter(u => !projectMates.some(pm => pm.id === u.id)).length > 0 && (
+              {searchTerm && searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id)).length > 0 && (
                 <>
                   <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50 mt-1 border-t border-slate-100">
                     {t('dashboard.suggestions', 'Suggestions')}
                   </div>
-                  {searchedUsers.filter(u => !projectMates.some(pm => pm.id === u.id)).map(user => {
+                  {searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id)).map(user => {
                     const isSelected = localSelectedIds.includes(user.id);
                     return (
                       <UserButton 
@@ -210,7 +229,7 @@ function UserButton({ user, isSelected, onClick }: { user: User, isSelected: boo
     >
       <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm ${user.avatarColor} border-2 ${isSelected ? 'border-primary' : 'border-white'}`}>
         {user.avatarUrl ? (
-          <img src={user.avatarUrl} alt={user.initials} className="w-full h-full rounded-full object-cover" />
+          <img src={user.avatarUrl} alt={user.name} className="w-full h-full rounded-full object-cover" />
         ) : user.initials}
       </div>
       <div className="flex-1 overflow-hidden">

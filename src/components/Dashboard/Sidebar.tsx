@@ -122,6 +122,7 @@ export function Sidebar() {
                     <AssigneeSelector
                       taskId={task.id}
                       currentAssignees={task.assignees}
+                      repository={task.repository}
                       onClose={() => setOpenSelectorTaskId(null)}
                     />
                   )}
