@@ -57,7 +57,7 @@ export function ProjectSelectorDropdown() {
                     </span>
                   </div>
                   <div className="px-3 py-3">
-                    <div className="text-sm font-bold text-slate-800 line-clamp-2 leading-relaxed">
+                    <div className="text-sm font-bold text-slate-600 line-clamp-2 leading-relaxed">
                       {selectedProject.title}
                     </div>
                   </div>
@@ -128,7 +128,7 @@ export function ProjectSelectorDropdown() {
                       <div key={item.id} className="relative group">
                         <button
                           onClick={() => { handleSelectRealProject(item.id, item.title, item.public); setIsOpen(false); }}
-                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center ${selectedProject?.id === item.id ? 'text-primary font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
+                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center ${selectedProject?.id === item.id ? 'text-slate-600 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
                           role="option"
                           aria-selected={selectedProject?.id === item.id}
                         >
