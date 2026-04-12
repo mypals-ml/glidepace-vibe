@@ -16,7 +16,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
   const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden relative">
       {/* Header - Moved outside scroll container for alignment */}
       <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[48px_1fr_100px_80px] gap-2 px-4 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.id')}</div>
@@ -27,7 +27,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
 
       <div className="flex-1 overflow-y-auto custom-scrollbar" ref={scrollRef} onScroll={onScroll}>
         {/* Task List Container */}
-        <div className="flex flex-col relative z-0">
+        <div className="flex flex-col relative z-0 pb-[var(--search-bar-height)]">
           {isLoadingTasks ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500">
               <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -139,7 +139,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
       </div>
 
       {/* Bottom Search Box with Add Task Button */}
-      <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md mt-auto">
+      <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md absolute bottom-0 left-0 right-0 z-10">
         <div className="flex gap-2 items-center">
           <div className="relative flex-1">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]" aria-hidden="true">search</span>

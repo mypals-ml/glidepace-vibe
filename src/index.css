@@ -32,6 +32,7 @@
   --header-gap-md: 0.75rem;
   --header-gap-lg: 1rem;
   --dashboard-header-height: 1.8rem;
+  --search-bar-height: 61px;
 }
 
 @layer components {

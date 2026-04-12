@@ -31,18 +31,19 @@ export function Timeline({ className = '', scrollRef, onScroll }: TimelineProps)
       </div>
 
       <div className="flex-1 overflow-auto relative custom-scrollbar bg-white/40" ref={scrollRef} onScroll={onScroll}>
-        <div className="absolute inset-0 flex pointer-events-none">
-          <div className="flex-1 border-r border-slate-100"></div>
-          <div className="flex-1 border-r border-slate-100"></div>
-          <div className="flex-1 border-r border-indigo-100 bg-indigo-50/20"></div>
-          <div className="flex-1 border-r border-slate-100"></div>
-          <div className="flex-1 border-r border-slate-100"></div>
-          <div className="flex-1 border-r border-slate-100 bg-slate-50/30"></div>
-          <div className="flex-1 border-r border-slate-100 bg-slate-50/30"></div>
-        </div>
-        <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ backgroundImage: 'linear-gradient(to bottom, transparent 55px, rgba(226, 232, 240, 0.4) 56px)', backgroundSize: '100% 56px' }}></div>
+        <div className="relative w-full pb-[var(--search-bar-height)]">
+          {/* Background Grid - Moved inside relative container to ensure it expands and scrolls with content */}
+          <div className="absolute inset-0 flex pointer-events-none">
+            <div className="flex-1 border-r border-slate-100"></div>
+            <div className="flex-1 border-r border-slate-100"></div>
+            <div className="flex-1 border-r border-indigo-100 bg-indigo-50/20"></div>
+            <div className="flex-1 border-r border-slate-100"></div>
+            <div className="flex-1 border-r border-slate-100"></div>
+            <div className="flex-1 border-r border-slate-100 bg-slate-50/30"></div>
+            <div className="flex-1 border-r border-slate-100 bg-slate-50/30"></div>
+          </div>
+          <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ backgroundImage: 'linear-gradient(to bottom, transparent 55px, rgba(226, 232, 240, 0.4) 56px)', backgroundSize: '100% 56px' }}></div>
 
-        <div className="relative w-full h-full pb-10">
           {isLoadingTasks ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px] z-30">
               <div className="flex flex-col items-center gap-3">
