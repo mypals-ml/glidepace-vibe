@@ -67,8 +67,7 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
     const lowerQuery = searchTerm.toLowerCase();
     return assignableUsers.filter(user => 
       user.name.toLowerCase().includes(lowerQuery) || 
-      user.login?.toLowerCase().includes(lowerQuery) ||
-      user.id.toLowerCase().includes(lowerQuery)
+      user.login?.toLowerCase().includes(lowerQuery)
     );
   }, [assignableUsers, searchTerm]);
 
@@ -234,7 +233,7 @@ function UserButton({ user, isSelected, onClick }: { user: User, isSelected: boo
       </div>
       <div className="flex-1 overflow-hidden">
         <div className="text-xs font-medium text-slate-700 truncate">{user.name}</div>
-        <div className="text-[10px] text-slate-400 truncate">@{user.id.length > 20 ? user.id.slice(0, 8) + '...' : user.id}</div>
+        {user.login && <div className="text-[10px] text-slate-400 truncate">@{user.login}</div>}
       </div>
       {isSelected && (
         <span className="material-symbols-outlined text-primary text-lg">check_circle</span>
