@@ -45,8 +45,26 @@ export function ProjectSelectorDropdown() {
       </div>
 
       {isOpen && (
-        <div className="absolute left-0 top-full mt-2 w-64 glass-panel rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60" role="listbox">
+        <div className="absolute left-0 top-full mt-2 min-w-[280px] max-w-[440px] w-max bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60" role="listbox">
           <div className="p-2 space-y-1">
+            {/* Current Project Section */}
+            {hasProject && selectedProject && (
+              <div className="px-0 pt-1 mb-4">
+                <div className="border border-slate-200/60 rounded-lg bg-white shadow-sm overflow-hidden">
+                  <div className="flex items-center bg-slate-50/80 px-3 h-9 border-b border-slate-200/60">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      {t('dashboard.currentProject')}
+                    </span>
+                  </div>
+                  <div className="px-3 py-3">
+                    <div className="text-sm font-bold text-slate-600 line-clamp-2 leading-relaxed">
+                      {selectedProject.title}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Hide empty/dummy when a real project is selected */}
             {!(hasProject && selectedProject) && (
               <>
@@ -61,11 +79,11 @@ export function ProjectSelectorDropdown() {
                     localStorage.removeItem('selected_project');
                     localStorage.setItem('selected_project_type', 'none');
                   }}
-                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!selectedProject && localStorage.getItem('selected_project_type') === 'none' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!selectedProject && localStorage.getItem('selected_project_type') === 'none' ? 'text-primary font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
                   role="option"
                   aria-selected={!selectedProject && localStorage.getItem('selected_project_type') === 'none'}
                 >
-                  <span className="truncate">{t('app.emptyProjectOption')}</span>
+                  <span className="truncate pr-10">{t('app.emptyProjectOption')}</span>
                   {!selectedProject && localStorage.getItem('selected_project_type') === 'none' && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
                 </button>
                 <button
@@ -77,11 +95,11 @@ export function ProjectSelectorDropdown() {
                     localStorage.removeItem('selected_project');
                     localStorage.setItem('selected_project_type', 'dummy');
                   }}
-                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!selectedProject && localStorage.getItem('selected_project_type') === 'dummy' ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!selectedProject && localStorage.getItem('selected_project_type') === 'dummy' ? 'text-primary font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
                   role="option"
                   aria-selected={!selectedProject && localStorage.getItem('selected_project_type') === 'dummy'}
                 >
-                  <span className="truncate">{t('app.dummyProjectOption')}</span>
+                  <span className="truncate pr-10">{t('app.dummyProjectOption')}</span>
                   {!selectedProject && localStorage.getItem('selected_project_type') === 'dummy' && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
                 </button>
               </>
@@ -109,8 +127,8 @@ export function ProjectSelectorDropdown() {
                     {items.map(item => (
                       <div key={item.id} className="relative group">
                         <button
-                          onClick={() => { handleSelectRealProject(item.id, item.title); setIsOpen(false); }}
-                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center ${selectedProject?.id === item.id ? 'bg-primary/10 text-primary font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                          onClick={() => { handleSelectRealProject(item.id, item.title, item.public); setIsOpen(false); }}
+                          className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center ${selectedProject?.id === item.id ? 'text-slate-600 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
                           role="option"
                           aria-selected={selectedProject?.id === item.id}
                         >

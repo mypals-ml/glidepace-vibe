@@ -50,8 +50,8 @@ export function ProjectListContent({
   const activeOwner = projectsData.find(o => o.login === activeTabLogin);
   const list = sortProjects(activeOwner?.projects || []);
 
-  const getTargetUrlForOwner = (owner: any) => {
-    let url = appInstallUrl;
+  const getTargetUrlForOwner = (owner: { databaseId?: number } | undefined) => {
+    const url = appInstallUrl;
     if (owner?.databaseId && url !== '#') {
       const connector = url.includes('?') ? '&' : '?';
       return `${url}${connector}target_id=${owner.databaseId}&suggested_target_id=${owner.databaseId}`;
@@ -160,7 +160,7 @@ export function ProjectListContent({
           list.map(proj => (
             <div 
               key={proj.id} 
-              onClick={() => handleSelectRealProject(proj.id, proj.title)}
+              onClick={() => handleSelectRealProject(proj.id, proj.title, proj.public)}
               className="group flex items-center justify-between p-5 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all cursor-pointer"
             >
               <div className="flex items-center gap-5">
@@ -178,7 +178,7 @@ export function ProjectListContent({
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleSelectRealProject(proj.id, proj.title);
+                        handleSelectRealProject(proj.id, proj.title, proj.public);
                       }} 
                       className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors shadow-sm shadow-primary/20"
                     >

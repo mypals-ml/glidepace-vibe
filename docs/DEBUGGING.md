@@ -21,12 +21,18 @@ Reference: https://vercel.com/docs/deployments/environments#local-development-en
 - **Tailwind v4:** If styles aren't appearing correctly, ensure you are running through Vite. Tailwind v4 compiles entirely via the `@tailwindcss/vite` plugin and does not require a standalone watcher.
 
 ## 2. Testing Logic (Vitest)
-For complex business logic—specifically the strict cascading date math for the Gantt chart dependencies—we use Vitest.
+For complex business logic—specifically the core date math for the Gantt chart—we use Vitest.
 
 1. **Run Tests Once:** `npm run test` (or `npx vitest`)
 2. **Watch Mode:** `npm run test --watch` to continuously run tests in the background while you write pure functions.
 
-## 3. Mobile Device Debugging (Capacitor)
+## 3. API & Webhook Debugging (Vite Middleware)
+Since Glidelines implements a serverless architecture, we use a custom Vite plugin to simulate the production API environment locally.
+
+*   **Vite Plugin:** `vite-plugin-vercel-mock.ts` intercepts `/api/*` requests and routes them to your serverless functions in the `api/` directory.
+*   **Webhook Simulation:** Use Smee.io to forward real GitHub webhooks to `http://localhost:5173/api/github-webhook` while `npm run dev` is active.
+
+## 4. Mobile Device Debugging (Capacitor)
 Since this is a Capacitor project, the web app is instantly wrappable for native iOS/Android deployment.
 
 1. **Sync Web Build:** Run `npm run build && npx cap sync` to compile the TypeScript payload and hand it over to the native iOS/Android wrapper folders.

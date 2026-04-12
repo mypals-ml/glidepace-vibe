@@ -1,6 +1,6 @@
 # Webhook Setup Guide
 
-Glidelines uses GitHub webhooks to receive real-time notifications (issue changes, project updates) and broadcast them to connected browsers via Supabase Realtime. This guide explains how to prepare your webhook URL for both local development and production.
+Glidelines uses GitHub webhooks to receive real-time notifications (issue changes, project updates) and broadcast them to connected browsers via Supabase Real-time. This guide explains how to set up the webhook URL and proxy it for local development.
 
 > [!TIP]
 > Complete this step **before** creating your GitHub App ([GITHUB_APP_SETUP.md](./GITHUB_APP_SETUP.md)), since you'll need the webhook URL during app creation.

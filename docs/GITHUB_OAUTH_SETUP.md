@@ -2,7 +2,7 @@
 
 This document outlines the architecture and setup process for implementing a secure GitHub OAuth flow in Glidelines, utilizing Vercel's serverless functions. 
 
-Because we use a **Dual Architecture**, this Classic OAuth App is solely responsible for logging the user in and fetching their project lists natively without API blockers.
+Because we use a **Multi-Account Architecture**, this Classic OAuth App is responsible for user authentication and fetching the available projects for each connected account.
 
 ## Overview
 

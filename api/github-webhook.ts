@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (secret && signature) {
     const hmac = crypto.createHmac('sha256', secret);
     // Use rawBody if available (from mock server) to ensure signature matches
-    const bodyString = (req as any).rawBody || JSON.stringify(req.body);
+    const bodyString = (req as VercelRequest & { rawBody?: string }).rawBody || JSON.stringify(req.body);
     const digest = 'sha256=' + hmac.update(bodyString).digest('hex');
 
     if (signature !== digest) {

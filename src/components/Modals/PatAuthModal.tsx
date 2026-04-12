@@ -1,12 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
 export function PatAuthModal() {
+  const { isPatModalOpen } = useDashboard();
+  if (!isPatModalOpen) return null;
+  return <PatAuthModalContent />;
+}
+
+function PatAuthModalContent() {
   const { t } = useTranslation();
   const {
-    isPatModalOpen,
     setIsPatModalOpen,
     handleAddAccountByToken,
     isLoadingAuth,
@@ -16,16 +21,7 @@ export function PatAuthModal() {
   const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  useClickOutside(modalRef, () => !isLoadingAuth && setIsPatModalOpen(false), isPatModalOpen);
-
-  useEffect(() => {
-    if (isPatModalOpen) {
-      setToken('');
-      setError(null);
-    }
-  }, [isPatModalOpen]);
-
-  if (!isPatModalOpen) return null;
+  useClickOutside(modalRef, () => !isLoadingAuth && setIsPatModalOpen(false), true);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

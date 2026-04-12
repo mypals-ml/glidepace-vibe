@@ -1,5 +1,23 @@
 import type { ProjectOwnerInfo, Task, TaskComment, TaskStatus } from '../types';
 
+// ---------------------------------------------------------------------------
+// Mock status options — mirrors the `ProjectV2SingleSelectField.options` shape
+// from the real GitHub GraphQL API so that mapProjectItemToTask can extract
+// them just like a real project.
+// ---------------------------------------------------------------------------
+export const MOCK_STATUS_OPTIONS: { id: string; name: string; color: string }[] = [
+  { id: 'opt-todo', name: 'Todo', color: 'GRAY' },
+  { id: 'opt-inprogress', name: 'In Progress', color: 'YELLOW' },
+  { id: 'opt-done', name: 'Done', color: 'PURPLE' },
+];
+
+// Stable field IDs used by the mock so that projectFieldIds round-trips work.
+const MOCK_FIELD_IDS = {
+  status: 'mock-status-field-id',
+  startDate: 'mock-start-date-id',
+  endDate: 'mock-end-date-id',
+};
+
 export const MOCK_TOKEN = 'mock-token-123';
 export const DUMMY_PROJECT_ID = 'PVT_DUMMY_123';
 
@@ -12,9 +30,9 @@ export const MOCK_PROJECTS_DATA: ProjectOwnerInfo[] = [
     login: 'glidelines-demo',
     isOrg: false,
     projects: [
-      { id: DUMMY_PROJECT_ID, title: 'Demo: Product Roadmap 2024' },
-      { id: 'PVT_2', title: 'Demo: Bug Tracker' },
-      { id: 'PVT_3', title: 'Connected GitHub Tasks' },
+      { id: DUMMY_PROJECT_ID, title: 'Demo: Product Roadmap 2024', public: true },
+      { id: 'PVT_2', title: 'Demo: Bug Tracker', public: false },
+      { id: 'PVT_3', title: 'Connected GitHub Tasks', public: true },
     ],
   },
 ];
@@ -42,6 +60,15 @@ const commentTemplates = [
   { author: 'Casey Chen', comment: 'Just deployed the latest version. No issues in beta testing.' },
 ];
 
+export const MOCK_USER_POOL = [
+  { id: 'u1', login: 'arivera', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
+  { id: 'u2', login: 'jsmith', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
+  { id: 'u3', login: 'cchen', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
+  { id: 'u4', login: 'treed', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
+  { id: 'u5', login: 'mlee', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
+  { id: 'u6', login: 'jvarga', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' },
+];
+
 const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   const id = i + 101;
   const statuses: TaskStatus[] = ['Todo', 'In Progress', 'Done'];
@@ -53,16 +80,8 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   const startDate = `Apr ${startDay.toString().padStart(2, '0')}`;
   const endDate = `Apr ${endDay.toString().padStart(2, '0')}`;
 
-  const assigneePool = [
-    { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
-    { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
-    { id: 'u3', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
-    { id: 'u4', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
-    { id: 'u5', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
-  ];
-
-  const numAssignees = (i % 2) + 1;
-  const assignees = assigneePool.slice(i % 4, (i % 4) + numAssignees);
+  const numAssignees = i % 5;
+  const assignees = MOCK_USER_POOL.slice(0, numAssignees);
 
   const titles = [
     'Implement UI Component',
@@ -79,7 +98,7 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   const numComments = (i % 3) + 1;
   const comments: TaskComment[] = Array.from({ length: numComments }, (_, j) => {
     const commentTemplate = commentTemplates[(i + j) % commentTemplates.length];
-    const commentAuthor = assigneePool[(i + j) % assigneePool.length];
+    const commentAuthor = MOCK_USER_POOL[(i + j) % MOCK_USER_POOL.length];
     return {
       id: `comment-${id}-${j}`,
       author: commentAuthor,
@@ -103,6 +122,26 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   };
 });
 
+const MOCK_TASKS_BUG_TRACKER: Task[] = Array.from({ length: 15 }, (_, i) => {
+  const id = i + 201;
+  const status: TaskStatus = i % 2 === 0 ? 'In Progress' : 'Todo';
+  const assignees = [MOCK_USER_POOL[2], MOCK_USER_POOL[3], MOCK_USER_POOL[4]].slice(0, (i % 3) + 1);
+
+  return {
+    id: `#${id}`,
+    title: `Bug ${id}: ${['Memory leak in sidebar', 'Incorrect alignment', 'API timeout', 'Console warning'][i % 4]}`,
+    startDate: 'Apr 10',
+    endDate: 'Apr 12',
+    status,
+    assignees,
+    progress: status === 'In Progress' ? 30 : 0,
+    itemId: `item-bug-${id}`,
+    contentId: `content-bug-${id}`,
+    body: 'Investigation in progress. This bug affects the stability of the latest release candidate.',
+    comments: [],
+  };
+});
+
 const CONNECTED_TASKS_TASKS: Task[] = [
   {
     id: '#101',
@@ -110,7 +149,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     startDate: 'Apr 05',
     endDate: 'Apr 06',
     status: 'In Progress',
-    assignees: [{ id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' }],
+    assignees: [{ id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' }],
     progress: 50,
     itemId: 'item-pat-support',
     contentId: 'content-pat-support',
@@ -136,7 +175,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     startDate: 'Apr 05',
     endDate: 'Apr 05',
     status: 'Done',
-    assignees: [{ id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' }],
+    assignees: [{ id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' }],
     progress: 100,
     itemId: 'item-z-index-fix',
     contentId: 'content-z-index-fix',
@@ -168,7 +207,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     startDate: 'Apr 05',
     endDate: 'Apr 05',
     status: 'Done',
-    assignees: [{ id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' }],
+    assignees: [{ id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' }],
     progress: 100,
     itemId: 'item-mock-data',
     contentId: 'content-mock-data',
@@ -192,17 +231,29 @@ const CONNECTED_TASKS_TASKS: Task[] = [
 
 // Helper to map tasks back to GitHub GraphQL nodes
 function mapTaskToGraphQLNode(task: Task) {
+  const matchedOption = MOCK_STATUS_OPTIONS.find(o => o.name === task.status)
+    ?? MOCK_STATUS_OPTIONS[0];
+
   const statusField = {
-    name: task.status,
-    field: { name: 'Status' }
+    __typename: 'ProjectV2ItemFieldSingleSelectValue',
+    name: matchedOption.name,
+    optionId: matchedOption.id,
+    field: {
+      __typename: 'ProjectV2SingleSelectField',
+      id: MOCK_FIELD_IDS.status,
+      name: 'Status',
+      options: MOCK_STATUS_OPTIONS,   // ← enables mapProjectItemToTask to read all options
+    },
   };
   const startDateField = {
+    __typename: 'ProjectV2ItemFieldDateValue',
     date: task.fullStartDate || new Date().toISOString(),
-    field: { name: 'Start Date' }
+    field: { __typename: 'ProjectV2Field', id: MOCK_FIELD_IDS.startDate, name: 'Start Date' },
   };
   const endDateField = {
+    __typename: 'ProjectV2ItemFieldDateValue',
     date: task.fullEndDate || new Date().toISOString(),
-    field: { name: 'End Date' }
+    field: { __typename: 'ProjectV2Field', id: MOCK_FIELD_IDS.endDate, name: 'End Date' },
   };
 
   return {
@@ -216,7 +267,9 @@ function mapTaskToGraphQLNode(task: Task) {
       repository: { nameWithOwner: 'glidepace/glidelines' },
       assignees: {
         nodes: task.assignees.map(a => ({
-          login: a.id,
+          __typename: 'User',
+          id: a.id,
+          login: a.id === 'u1' ? 'arivera' : (a.id === 'u2' ? 'jsmith' : (a.id === 'u3' ? 'cchen' : (a.id === 'u4' ? 'treed' : (a.id === 'u5' ? 'mlee' : 'unknown')))),
           name: a.name,
           avatarUrl: a.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random`
         }))
@@ -227,6 +280,7 @@ function mapTaskToGraphQLNode(task: Task) {
           body: c.body,
           createdAt: c.createdAt,
           author: {
+            __typename: 'User',
             login: c.author.id,
             name: c.author.name,
             avatarUrl: c.author.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author.name)}&background=random`
@@ -240,7 +294,31 @@ function mapTaskToGraphQLNode(task: Task) {
   };
 }
 
-export async function handleMockGraphQL(query: string, variables: any) {
+export interface MockVariables {
+  projectId?: string;
+  itemId?: string;
+  issueId?: string;
+  fieldId?: string;
+  input?: {
+    id?: string;
+    itemId?: string;
+    fieldId?: string;
+    assignableId?: string;
+    title?: string;
+    body?: string;
+    assigneeIds?: string[];
+    value?: {
+      singleSelectOptionId?: string;
+      date?: string;
+    };
+  };
+  assignableId?: string;
+  assigneeIds?: string[];
+  query?: string;
+  searchQuery?: string;
+}
+
+export async function handleMockGraphQL(query: string, variables: MockVariables) {
   console.log('[MockAPI] Handling GraphQL query:', { query: query.substring(0, 100) + '...', variables });
 
   // Simulate network delay
@@ -258,8 +336,52 @@ export async function handleMockGraphQL(query: string, variables: any) {
           },
           organizations: { nodes: [] }
         }
+      }
+    };
+  }
 
+  if (query.includes('repository(') && query.includes('assignableUsers')) {
+    const searchTerm = variables.query || '';
+    const results = MOCK_USER_POOL.filter(u =>
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.login.toLowerCase().includes(searchTerm.toLowerCase())
+    ).map(u => ({
+      __typename: 'User',
+      id: u.id,
+      login: u.login,
+      name: u.name,
+      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`
+    }));
 
+    return {
+      data: {
+        repository: {
+          assignableUsers: {
+            nodes: results
+          }
+        }
+      }
+    };
+  }
+
+  if (query.includes('search(query:') && query.includes('type: USER')) {
+    const searchTerm = (variables.searchQuery || variables.query || '').split(' ').pop() || '';
+    const results = MOCK_USER_POOL.filter(u =>
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.login.toLowerCase().includes(searchTerm.toLowerCase())
+    ).map(u => ({
+      __typename: 'User',
+      id: u.id,
+      login: u.login,
+      name: u.name,
+      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`
+    }));
+
+    return {
+      data: {
+        search: {
+          nodes: results
+        }
       }
     };
   }
@@ -269,8 +391,19 @@ export async function handleMockGraphQL(query: string, variables: any) {
     return {
       data: {
         node: {
+          public: variables.projectId === 'PVT_2' ? false : true,
+          fields: {
+            nodes: [
+              {
+                __typename: 'ProjectV2SingleSelectField',
+                id: MOCK_FIELD_IDS.status,
+                name: 'Status',
+                options: MOCK_STATUS_OPTIONS
+              }
+            ]
+          },
           items: {
-            nodes: (variables.projectId === 'PVT_3' ? CONNECTED_TASKS_TASKS : MOCK_TASKS).map(mapTaskToGraphQLNode)
+            nodes: (variables.projectId === 'PVT_3' ? CONNECTED_TASKS_TASKS : (variables.projectId === 'PVT_2' ? MOCK_TASKS_BUG_TRACKER : MOCK_TASKS)).map(mapTaskToGraphQLNode)
           }
         }
       }
@@ -280,7 +413,7 @@ export async function handleMockGraphQL(query: string, variables: any) {
   if (query.includes('node(id: $itemId)')) {
     // Fetch single item
     const itemId = variables.itemId;
-    const allTasks = [...MOCK_TASKS, ...CONNECTED_TASKS_TASKS];
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
     const task = allTasks.find(t => t.itemId === itemId);
     if (!task) return { errors: [{ message: 'Node not found' }] };
 
@@ -289,6 +422,143 @@ export async function handleMockGraphQL(query: string, variables: any) {
         node: mapTaskToGraphQLNode(task)
       }
     };
+  }
+
+  if (query.includes('updateIssue(')) {
+    const issueId = variables.input?.id || variables.issueId;
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
+    const task = allTasks.find(t => t.contentId === issueId);
+    if (!task) return { errors: [{ message: 'Issue not found' }] };
+
+    if (variables.input?.title !== undefined) task.title = variables.input.title;
+    if (variables.input?.body !== undefined) task.body = variables.input.body;
+    if (variables.input?.assigneeIds !== undefined) {
+      const selectedIds = variables.input.assigneeIds;
+      task.assignees = MOCK_USER_POOL.filter(u => selectedIds.includes(u.id));
+    }
+
+    return { data: { updateIssue: { issue: { id: task.contentId } } } };
+  }
+
+  if (query.includes('addAssigneesToAssignable(')) {
+    const issueId = variables.input?.assignableId || variables.assignableId;
+    const assigneeIds = variables.input?.assigneeIds || variables.assigneeIds || [];
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
+    const task = allTasks.find(t => t.contentId === issueId);
+    if (!task) return { errors: [{ message: 'Issue not found' }] };
+
+    const newAssignees = MOCK_USER_POOL.filter(u => assigneeIds.includes(u.id));
+    newAssignees.forEach(u => {
+      if (!task.assignees.some(a => a.id === u.id)) {
+        task.assignees.push(u);
+      }
+    });
+
+    return { 
+      data: { 
+        addAssigneesToAssignable: { 
+          assignable: { 
+            id: task.contentId,
+            assignees: {
+              nodes: task.assignees.map(a => ({
+                __typename: 'User',
+                id: a.id,
+                login: a.login || a.id,
+                name: a.name,
+                avatarUrl: a.avatarUrl
+              }))
+            }
+          } 
+        } 
+      } 
+    };
+  }
+
+  if (query.includes('removeAssigneesFromAssignable(')) {
+    const issueId = variables.input?.assignableId || variables.assignableId;
+    const assigneeIds = variables.input?.assigneeIds || variables.assigneeIds || [];
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
+    const task = allTasks.find(t => t.contentId === issueId);
+    if (!task) return { errors: [{ message: 'Issue not found' }] };
+
+    task.assignees = task.assignees.filter(a => !assigneeIds.includes(a.id));
+
+    return { 
+      data: { 
+        removeAssigneesFromAssignable: { 
+          assignable: { 
+            id: task.contentId,
+            assignees: {
+              nodes: task.assignees.map(a => ({
+                __typename: 'User',
+                id: a.id,
+                login: a.login || a.id,
+                name: a.name,
+                avatarUrl: a.avatarUrl
+              }))
+            }
+          } 
+        } 
+      } 
+    };
+  }
+
+  if (query.includes('updateIssueComment(')) {
+    const commentId = variables.input?.id;
+    const body = variables.input?.body;
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
+    for (const task of allTasks) {
+      const comment = task.comments?.find(c => c.id === commentId);
+      if (comment && body !== undefined) {
+        comment.body = body;
+        return { data: { updateIssueComment: { issueComment: { id: commentId } } } };
+      }
+    }
+    return { errors: [{ message: 'Comment not found' }] };
+  }
+
+  if (query.includes('deleteIssueComment(')) {
+    const commentId = variables.input?.id;
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
+    for (const task of allTasks) {
+      if (task.comments) {
+        const commentIndex = task.comments.findIndex(c => c.id === commentId);
+        if (commentIndex !== -1) {
+          task.comments.splice(commentIndex, 1);
+          return { data: { deleteIssueComment: { clientMutationId: null } } };
+        }
+      }
+    }
+    return { errors: [{ message: 'Comment not found' }] };
+  }
+
+  if (query.includes('updateProjectV2ItemFieldValue(')) {
+    const itemId = variables.input?.itemId;
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
+    const task = allTasks.find(t => t.itemId === itemId);
+    if (!task) return { errors: [{ message: 'Item not found' }] };
+
+    if (variables.input?.value?.singleSelectOptionId) {
+      // Resolve status by option ID (real IDs from MOCK_STATUS_OPTIONS)
+      const optionId = variables.input.value.singleSelectOptionId;
+      const matched = MOCK_STATUS_OPTIONS.find(o => o.id === optionId);
+      if (matched) {
+        task.status = matched.name as TaskStatus;
+        task.progress = task.status === 'Done' ? 100 : (task.status === 'In Progress' ? 50 : 0);
+      }
+    }
+    if (variables.input?.value?.date) {
+      const fieldId = variables.input?.fieldId ?? variables.fieldId;
+      if (fieldId === MOCK_FIELD_IDS.startDate) {
+        task.fullStartDate = variables.input.value.date;
+        task.startDate = new Date(variables.input.value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      } else if (fieldId === MOCK_FIELD_IDS.endDate) {
+        task.fullEndDate = variables.input.value.date;
+        task.endDate = new Date(variables.input.value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      }
+    }
+
+    return { data: { updateProjectV2ItemFieldValue: { projectV2Item: { id: task.itemId } } } };
   }
 
   return { errors: [{ message: 'Mock query not implemented' }] };

@@ -1,6 +1,6 @@
 # Supabase Real-time Setup
 
-Glidelines uses Supabase primarily for its Real-time broadcasting capabilities to push webhook events from GitHub directly to the connected browser clients, ensuring Gantt charts update live without polling.
+Glidelines uses Supabase primarily for its **Real-time Broadcast** capabilities. It acts as a lightweight relay to push webhook events from GitHub directly to connected browser clients, ensuring Gantt charts update live without polling or manual refreshes.
 
 ## 1. Create a Supabase Project
 1. Log in to [Supabase](https://supabase.com/).

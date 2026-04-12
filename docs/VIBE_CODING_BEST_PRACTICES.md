@@ -27,7 +27,7 @@ If you spend 20 minutes trying to build a feature using *Library A*, and then de
 ---
 
 ### Pro-Tip for Starting a New Conversation:
-When you start a fresh chat, give Antigravity a strong **anchoring prompt**. Tell it exactly where you are and what the immediate goal is. 
+When you start a fresh chat, give Antigravity a strong **anchoring prompt**. Tell it exactly where the project stands and what the immediate goal is.
 
 **Example transition prompt for a new chat:**
-> *"I just finished implementing the GitHub OAuth backend. Everything is working. Now, I want to focus purely on the frontend UI for the login screen. Please review `src/components/Login.tsx` and let's add the new Stitch UI designs."*
+> *"I have just completed the backend webhook relay. The production environment variables are configured. Now, I want to refine the Gantt chart UI. Please review `src/components/Dashboard/Timeline.tsx` and help me implement the new glassmorphism styles."*

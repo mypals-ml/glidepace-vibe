@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useDashboard } from '../../context/DashboardContext';
@@ -6,27 +6,21 @@ import { AccountSidebar } from './OpenProjectModal/AccountSidebar';
 import { ProjectListContent } from './OpenProjectModal/ProjectListContent';
 
 export function OpenProjectModal() {
+  const { isProjectModalOpen } = useDashboard();
+  if (!isProjectModalOpen) return null;
+  return <OpenProjectModalContent />;
+}
+
+function OpenProjectModalContent() {
   const { t } = useTranslation();
-  const {
-    isProjectModalOpen,
-    setIsProjectModalOpen,
-  } = useDashboard();
+  const { setIsProjectModalOpen } = useDashboard();
 
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'accounts' | 'projects'>('accounts');
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (isProjectModalOpen) {
-      setSelectedAccountId(null);
-      setMobileView('accounts');
-    }
-  }, [isProjectModalOpen]);
-
   useClickOutside(sortDropdownRef, () => setIsSortDropdownOpen(false), isSortDropdownOpen);
-
-  if (!isProjectModalOpen) return null;
 
   const appInstallUrl = (() => {
     let url = import.meta.env.VITE_GITHUB_APP_INSTALL_URL || '#';

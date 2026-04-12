@@ -10,27 +10,31 @@
   --shadow-glow: 0 0 15px rgba(79, 70, 229, 0.3);
   --font-sans: 'Inter', sans-serif;
 
-  /* Status semantic colors */
-  --color-status-done-bg: #ecfdf5;
-  --color-status-done-text: #059669;
-  --color-status-done-border: #d1fae5;
-  --color-status-done-highlight: #10b981;
+  /* Status semantic colors - GitHub default */
+  --color-status-done-bg: #f3e8ff;
+  --color-status-done-text: #8250df;
+  --color-status-done-border: #e9d5ff;
+  --color-status-done-highlight: #a371f7;
 
-  --color-status-inprogress-bg: #eff6ff;
-  --color-status-inprogress-text: #2563eb;
-  --color-status-inprogress-border: #dbeafe;
-  --color-status-inprogress-highlight: #3b82f6;
+  --color-status-inprogress-bg: #fff8c5;
+  --color-status-inprogress-text: #9a6700;
+  --color-status-inprogress-border: #fef08a;
+  --color-status-inprogress-highlight: #bf8700;
 
   --color-status-todo-bg: #f1f5f9;
-  --color-status-todo-text: #475569;
+  --color-status-todo-text: #656d76;
   --color-status-todo-border: #e2e8f0;
-  --color-status-todo-highlight: #94a3b8;
+  --color-status-todo-highlight: #8b949e;
+
 
   --header-button-height: 2.25rem;
   --header-gap-sm: 0.5rem;
   --header-gap-md: 0.75rem;
   --header-gap-lg: 1rem;
+  --dashboard-header-height: 1.8rem;
+  --search-bar-height: 61px;
 }
+
 @layer components {
   .glass-panel {
     background: var(--color-surface);
@@ -39,17 +43,21 @@
     border: 1px solid var(--color-surface-border);
     box-shadow: var(--shadow-glass);
   }
+
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
+
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
+
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background-color: #cbd5e1;
     border-radius: 10px;
   }
+
   .animate-spin-slow {
     animation: spin 3s linear infinite;
   }
@@ -59,12 +67,15 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   margin: 0;
 }

@@ -1,8 +1,8 @@
 # Setting up the GitHub App (for Webhooks and Auto-Sync)
 
 Glidelines uses a **Dual Architecture**:
-1. **OAuth App:** Used for User Login and data fetching (See [GITHUB_OAUTH_SETUP.md](./GITHUB_OAUTH_SETUP.md)).
-2. **GitHub App:** Used *strictly* to provide zero-configuration webhooks. Once a user installs this app, background synchronization works automatically for all their projects.
+1. **OAuth App:** Used for User Login and data fetching for personal/organization projects.
+2. **GitHub App:** Exists to provide webhooks for automatic sync. Once a user installs this app on their repositories or organizations, real-time background synchronization is enabled.
 
 This guide explains how to set up the **GitHub App** layer explicitly to route background webhooks.
 

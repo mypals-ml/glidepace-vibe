@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
 import { DUMMY_TASKS } from '../lib/dummyData';
@@ -6,209 +6,18 @@ import { GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
 import { USE_MOCK_DATA, MOCK_ACCOUNTS, MOCK_PROJECTS } from '../lib/mockData';
 import { fetchGitHubGraphQL } from '../lib/githubService';
 import { DUMMY_PROJECT_ID, MOCK_ACCOUNTS_DATA, MOCK_TOKEN } from '../lib/githubMock';
-import type { Task, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee } from '../types';
+import { registerStatuses } from '../utils/statusColors';
+import { mapProjectItemToTask, PROJECT_ITEM_FRAGMENT } from '../lib/githubTaskMapper';
+import { DashboardContext } from './DashboardContext';
+import type { DashboardContextValue } from './DashboardContext';
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
-
-// ========================================
-// Helper: Map GitHub Project Item to Task
-// ========================================
-
-const PROJECT_ITEM_FRAGMENT = `
-  id
-  content {
-    ... on DraftIssue { id title body }
-    ... on Issue {
-      id
-      title
-      number
-      state
-      body
-      repository { nameWithOwner }
-      assignees(first: 5) {
-        nodes { login name avatarUrl }
-      }
-      comments(first: 10) {
-        nodes {
-          id
-          body
-          createdAt
-          author { login name avatarUrl }
-        }
-      }
-    }
-    ... on PullRequest {
-      id
-      title
-      number
-      state
-      body
-      repository { nameWithOwner }
-      assignees(first: 5) {
-        nodes { login name avatarUrl }
-      }
-      comments(first: 10) {
-        nodes {
-          id
-          body
-          createdAt
-          author { login name avatarUrl }
-        }
-      }
-    }
-  }
-  fieldValues(first: 20) {
-    nodes {
-      ... on ProjectV2ItemFieldSingleSelectValue {
-        name
-        field { ... on ProjectV2SingleSelectField { name } }
-      }
-      ... on ProjectV2ItemFieldDateValue {
-        date
-        field { ... on ProjectV2Field { name } }
-      }
-      ... on ProjectV2ItemFieldTextValue {
-        text
-        field { ... on ProjectV2Field { name } }
-      }
-    }
-  }
-`;
-
-function mapProjectItemToTask(item: any): Task {
-  const content = item.content;
-  const fieldValues = item.fieldValues.nodes;
-
-  const statusField = fieldValues.find((f: any) => f.field?.name === 'Status');
-  const status = statusField?.name || 'Todo';
-
-  const startDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('start'));
-  const endDateField = fieldValues.find((f: any) => f.field?.name?.toLowerCase().includes('end'));
-
-  const startDate = startDateField?.date || new Date().toISOString().split('T')[0];
-  const endDate = endDateField?.date || startDate;
-
-  const assignees = (content?.assignees?.nodes || []).map((a: any, idx: number) => ({
-    id: a.login,
-    name: a.name || a.login,
-    avatarUrl: a.avatarUrl,
-    initials: (a.name || a.login).substring(0, 2).toUpperCase(),
-    avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
-  }));
-
-  const comments = (content?.comments?.nodes || []).map((comment: any) => ({
-    id: comment.id,
-    body: comment.body,
-    createdAt: comment.createdAt,
-    author: {
-      id: comment.author?.login || 'unknown',
-      name: comment.author?.name || comment.author?.login || 'Unknown',
-      avatarUrl: comment.author?.avatarUrl,
-      initials: (comment.author?.name || comment.author?.login || 'UK').substring(0, 2).toUpperCase(),
-      avatarColor: 'bg-slate-100 text-slate-500',
-    },
-  }));
-
-  return {
-    id: content?.number ? `#${content.number}` : item.id.slice(-6),
-    title: content?.title || 'No Title',
-    startDate: new Date(startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    endDate: new Date(endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    fullStartDate: startDate,
-    fullEndDate: endDate,
-    status: status === 'Done' ? 'Done' : (status === 'In Progress' ? 'In Progress' : 'Todo'),
-    assignees: assignees.length > 0 ? assignees : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }],
-    progress: status === 'Done' ? 100 : (status === 'In Progress' ? 50 : 0),
-    repository: content?.repository?.nameWithOwner,
-    body: content?.body || '',
-    comments: comments.length > 0 ? comments : undefined,
-    itemId: item.id,
-    contentId: content?.id,
-  };
-}
-
-// ========================================
-// Context value shape
-// ========================================
-
-interface DashboardContextValue {
-  // Auth
-  githubAccounts: GithubAccount[];
-  activeAccountId: string;
-  setActiveAccountId: (id: string) => void;
-  githubToken: string;
-  isLoadingAuth: boolean;
-  isAppInstalled: Record<string, boolean>;
-  isRefreshing: Record<string, boolean>;
-  handleOpenAuth: () => void;
-  handleDisconnect: (accountId: string) => void;
-
-  // Projects
-  projectsData: ProjectOwnerInfo[];
-  activeTabLogin: string;
-  setActiveTabLogin: (login: string) => void;
-  selectedProject: { id: string; title: string } | null;
-  hasProject: boolean;
-  projectHistory: ProjectHistoryItem[];
-  fetchProjects: (token: string, accountId: string, forceModal?: boolean) => Promise<void>;
-  handleSelectRealProject: (id: string, title: string) => void;
-  handleRemoveFromHistory: (id: string) => void;
-  handleOpenProjectClick: () => void;
-  sortMethod: SortMethod;
-  setSortMethod: (method: SortMethod) => void;
-  sortProjects: (projects: GitHubProject[]) => GitHubProject[];
-  groupHistoryByDate: () => Record<string, ProjectHistoryItem[]>;
-  apiError: string | null;
-
-  // Tasks
-  tasks: Task[];
-  isLoadingTasks: boolean;
-  fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
-
-  // Sync
-  lastSyncedTime: number;
-  getSyncedTimeText: (time: number) => string;
-
-  // Modal state
-  isProjectModalOpen: boolean;
-  setIsProjectModalOpen: (open: boolean) => void;
-  isAccountModalOpen: boolean;
-  setIsAccountModalOpen: (open: boolean) => void;
-  isPatModalOpen: boolean;
-  setIsPatModalOpen: (open: boolean) => void;
-  handleAddAccountByToken: (token: string) => Promise<{ success: boolean; error?: string }>;
-
-  // UI state
-  isChartVisible: boolean;
-  setIsChartVisible: (visible: boolean) => void;
-  selectedTaskId: string | null;
-  setSelectedTaskId: (id: string | null) => void;
-
-  // Demo environment helpers
-  setHasProject: (val: boolean) => void;
-  setSelectedProject: (val: { id: string; title: string } | null) => void;
-  setTasks: (tasks: Task[]) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  filteredTasks: Task[];
-  availableUsers: User[];
-  updateTaskAssignees: (taskId: string, userIds: string[]) => void;
-  handleOpenDummyProject: () => void;
-}
-
-const DashboardContext = createContext<DashboardContextValue | null>(null);
-
-export function useDashboard(): DashboardContextValue {
-  const ctx = useContext(DashboardContext);
-  if (!ctx) {
-    throw new Error('useDashboard must be used within a <DashboardProvider>');
-  }
-  return ctx;
-}
 
 // ========================================
 // Provider
@@ -243,7 +52,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // ---- Project state ----
   const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
   const [activeTabLogin, setActiveTabLogin] = useState<string>(USE_MOCK_DATA ? MOCK_ACCOUNTS[0].login : '');
-  const [selectedProject, setSelectedProject] = useState<{ id: string; title: string } | null>(() => {
+  const [selectedProject, setSelectedProject] = useState<{ id: string; title: string; public: boolean } | null>(() => {
     try {
       const saved = localStorage.getItem('selected_project');
       return saved ? JSON.parse(saved) : null;
@@ -268,6 +77,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isPatModalOpen, setIsPatModalOpen] = useState(false);
+  const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
 
   // ---- UI state ----
   const [isChartVisible, setIsChartVisible] = useState(false);
@@ -277,14 +87,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [availableUsers] = useState<User[]>([
-    { id: 'u1', name: 'Alex Rivera', initials: 'AR', avatarColor: 'bg-amber-100 text-amber-700' },
-    { id: 'u2', name: 'Jordan Smith', initials: 'JS', avatarColor: 'bg-indigo-100 text-indigo-700' },
-    { id: 'u3', name: 'Casey Chen', initials: 'CC', avatarColor: 'bg-emerald-100 text-emerald-700' },
-    { id: 'u4', name: 'Taylor Reed', initials: 'TR', avatarColor: 'bg-rose-100 text-rose-700' },
-    { id: 'u5', name: 'Morgan Lee', initials: 'ML', avatarColor: 'bg-purple-100 text-purple-700' },
-    { id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' },
-  ]);
+  const [projectStatusOptions, setProjectStatusOptions] = useState<string[]>([]);
+  const availableUsers = useMemo<User[]>(() => {
+    const userMap = new Map<string, User>();
+    tasks.forEach(task => {
+      task.assignees.forEach(user => {
+        if (user.id !== 'unassigned') {
+          userMap.set(user.id, user);
+        }
+      });
+    });
+    return Array.from(userMap.values());
+  }, [tasks]);
 
   // ---- Sync state ----
   const [lastSyncedTime, setLastSyncedTime] = useState<number>(() => {
@@ -386,7 +200,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }
       `;
       const json = await fetchGitHubGraphQL(query, { itemId }, token);
-      const itemData = json.data?.node;
+      const itemData = json.data?.node as GitHubProjectItem;
 
       if (itemData) {
         const updatedTask = mapProjectItemToTask(itemData);
@@ -407,6 +221,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         query($projectId: ID!) {
           node(id: $projectId) {
             ... on ProjectV2 {
+              public
+              fields(first: 20) {
+                nodes {
+                  ... on ProjectV2SingleSelectField {
+                    id
+                    name
+                    options { id name color }
+                  }
+                }
+              }
               items(first: 50) {
                 nodes {
                   ${PROJECT_ITEM_FRAGMENT}
@@ -417,18 +241,41 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }
       `;
       const json = await fetchGitHubGraphQL(query, { projectId }, token);
-      const items = json.data?.node?.items?.nodes || [];
+
+      if (json.errors) {
+        console.error('GraphQL Errors fetching items:', json.errors);
+        setApiError(json.errors.map((e: { message: string }) => e.message).join(', '));
+        setTasks([]); // Clear tasks on error to avoid showing stale data from previous project
+        return;
+      }
+
+      setApiError(null);
+      const projectNode = json.data?.node as GitHubProjectV2;
+      const items = projectNode?.items?.nodes || [];
+      const fields = projectNode?.fields?.nodes || [];
 
       const mappedTasks: Task[] = items.map(mapProjectItemToTask);
 
+      // Extract all possible statuses and their colors from the project field definition.
+      // This is the source of truth for the project's color configuration.
+      const statusField = fields.find((f: GitHubProjectV2Field) => f.name?.toLowerCase() === 'status');
+      const statusOptions = (statusField?.options || []) as Array<{ name: string, color?: string }>;
+
+      if (statusOptions.length > 0) {
+        registerStatuses(statusOptions as Array<{ name: string, color?: string }>);
+        setProjectStatusOptions(statusOptions.map(o => o.name));
+      }
+
       setTasks(mappedTasks);
       updateSyncTime();
-    } catch (e) {
-      console.error('Failed to fetch project tasks:', e);
+    } catch (err) {
+      const error = err as Error;
+      console.error('Failed to fetch project tasks:', error);
+      setApiError(error.message || t('dashboard.unknownError'));
     } finally {
       setIsLoadingTasks(false);
     }
-  }, [updateSyncTime]);
+  }, [updateSyncTime, t]);
 
   // ---- API: fetch projects ----
 
@@ -441,14 +288,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             login
             databaseId
             projectsV2(first: 20) {
-              nodes { id title }
+              nodes { id title public }
             }
             organizations(first: 10) {
               nodes {
                 login
                 databaseId
                 projectsV2(first: 20) {
-                  nodes { id title }
+                  nodes { id title public }
                 }
               }
             }
@@ -459,7 +306,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
       if (json.errors) {
         console.error('GraphQL Errors:', json.errors);
-        setApiError(json.errors.map((e: any) => e.message).join(', '));
+        setApiError(json.errors.map((e: { message: string }) => e.message).join(', '));
       } else {
         setApiError(null);
       }
@@ -614,9 +461,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       }
 
       return { success: true };
-    } catch (e: any) {
-      console.error('Failed to add account by token:', e);
-      return { success: false, error: e.message || 'An unexpected error occurred' };
+    } catch (e: unknown) {
+      const error = e as Error;
+      console.error('Failed to add account by token:', error);
+      return { success: false, error: error.message || 'An unexpected error occurred' };
     } finally {
       setIsLoadingAuth(false);
     }
@@ -703,7 +551,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     return () => {
       activeChannels.forEach(channel => supabase.removeChannel(channel));
     };
-  }, [selectedProject?.id, githubToken, fetchProjectTasks, tasks]);
+  }, [selectedProject?.id, githubToken, fetchProjectTasks, tasks, fetchSingleProjectItem]);
+
 
   // ---- Action handlers ----
 
@@ -752,27 +601,44 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [githubAccounts, activeAccountId]);
 
-  const handleSelectRealProject = useCallback((id: string, title: string) => {
+  const handleSelectRealProject = useCallback((id: string, title: string, isPublic?: boolean, forceToken?: string) => {
     setIsProjectModalOpen(false);
-    const project = { id, title };
+
+    // Fallback logic: if isPublic is undefined (e.g. from history), check if we can find it in projectsData
+    let finalPublic = isPublic;
+    if (finalPublic === undefined) {
+      const found = projectsData.flatMap(o => o.projects).find(p => p.id === id);
+      finalPublic = found ? found.public : false; // Default to private for safety
+    }
+
+    const project = { id, title, public: finalPublic };
     setSelectedProject(project);
     setHasProject(true);
+    setTasks([]); // Clear tasks immediately to prevent stale data
+    setSelectedTaskId(null); // Clear selected task
+    setProjectStatusOptions([]); // Clear status options
+    
     localStorage.setItem('selected_project', JSON.stringify(project));
     localStorage.removeItem('selected_project_type');
 
-    if (githubToken) {
-      fetchProjectTasks(id, githubToken);
+    // Use forced token, or MOCK_TOKEN for mock projects, or the current githubToken
+    const isMockAccount = activeAccountId === 'mock-1';
+    const isMockProject = id === DUMMY_PROJECT_ID || isMockAccount;
+    const tokenToUse = forceToken || (isMockProject ? MOCK_TOKEN : githubToken);
+
+    if (tokenToUse) {
+      fetchProjectTasks(id, tokenToUse);
       updateSyncTime();
     }
 
-    const newItem: ProjectHistoryItem = { id, title, lastOpened: Date.now() };
+    const newItem: ProjectHistoryItem = { id, title, public: finalPublic, lastOpened: Date.now() };
     setProjectHistory(prev => {
       const filtered = prev.filter(item => item.id !== id);
       const nextHistory = [newItem, ...filtered].slice(0, 20);
       localStorage.setItem('project_history', JSON.stringify(nextHistory));
       return nextHistory;
     });
-  }, [githubToken, fetchProjectTasks, updateSyncTime]);
+  }, [githubToken, fetchProjectTasks, updateSyncTime, projectsData, activeAccountId]);
 
   const handleRemoveFromHistory = useCallback((id: string) => {
     setProjectHistory(prev => {
@@ -782,12 +648,184 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const updateTaskAssignees = useCallback((taskId: string, userIds: string[]) => {
-    const selectedUsers = availableUsers.filter(u => userIds.includes(u.id));
-    setTasks(prevTasks => prevTasks.map(task =>
-      task.id === taskId ? { ...task, assignees: selectedUsers.length > 0 ? selectedUsers : [{ id: 'unassigned', name: 'Unassigned', initials: '??', avatarColor: 'bg-slate-100 text-slate-400' }] } : task
-    ));
-  }, [availableUsers]);
+  const fetchSearchUsers = useCallback(async (searchTerm: string, repository?: string): Promise<User[]> => {
+    if (!githubToken) return [];
+
+    try {
+      let results: User[] = [];
+
+      // 1. Try to fetch assignable users from the repository if provided
+      // This is the source of truth for who can actually be assigned.
+      if (repository) {
+        const [owner, name] = repository.split('/');
+        if (owner && name) {
+          const assignableQuery = `
+            query($owner: String!, $name: String!, $query: String) {
+              repository(owner: $owner, name: $name) {
+                assignableUsers(first: 20, query: $query) {
+                  nodes {
+                    id
+                    login
+                    name
+                    avatarUrl
+                  }
+                }
+              }
+            }
+          `;
+          
+          const assignableJson = await fetchGitHubGraphQL(assignableQuery, { owner, name, query: searchTerm || undefined }, githubToken);
+          const assignableNodes = (assignableJson.data?.repository?.assignableUsers?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
+          
+          results = assignableNodes
+            .filter(n => n && n.id)
+            .map((n, idx) => ({
+              id: n.id!,
+              login: n.login,
+              name: n.name || n.login || 'Unknown User',
+              avatarUrl: n.avatarUrl || '',
+              initials: (n.name || n.login || '??').substring(0, 2).toUpperCase(),
+              avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][idx % 5],
+            }));
+        }
+      }
+
+      // 2. Fallback / Additional discovery for Orgs (if search term is provided)
+      // Only perform global user search if we have a search term and it's an org project or public project.
+      if (searchTerm && searchTerm.length >= 2) {
+        const currentOwner = projectsData.find(o => o.projects.some(p => p.id === selectedProject?.id));
+        
+        let shouldGlobalSearch = false;
+        let searchQuery = searchTerm;
+
+        if (currentOwner?.isOrg) {
+          shouldGlobalSearch = true;
+          searchQuery = `org:${currentOwner.login} ${searchTerm}`;
+        } else if (currentOwner && selectedProject?.public) {
+          shouldGlobalSearch = true;
+          searchQuery = `${searchTerm}`;
+        }
+
+        if (shouldGlobalSearch) {
+          const globalQuery = `
+            query($searchQuery: String!) {
+              search(query: $searchQuery, type: USER, first: 10) {
+                nodes {
+                  ... on User {
+                    id
+                    login
+                    name
+                    avatarUrl
+                  }
+                }
+              }
+            }
+          `;
+          const globalJson = await fetchGitHubGraphQL(globalQuery, { searchQuery }, githubToken);
+          const globalNodes = (globalJson.data?.search?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
+          
+          const existingIds = new Set(results.map(r => r.id));
+          globalNodes.forEach((n, idx) => {
+            if (n && n.id && !existingIds.has(n.id)) {
+              const displayName = n.name || n.login || 'Unknown User';
+              results.push({
+                id: n.id!,
+                login: n.login,
+                name: displayName,
+                avatarUrl: n.avatarUrl || '',
+                initials: displayName.substring(0, 2).toUpperCase(),
+                avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][(results.length + idx) % 5],
+              });
+            }
+          });
+        }
+      }
+
+      return results;
+    } catch (e) {
+      console.error('Search users failed:', e);
+      return [];
+    }
+  }, [githubToken, projectsData, selectedProject]);
+
+  const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[]) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.contentId || !githubToken) return false;
+
+    const currentIds = task.assignees.map(a => a.id).filter(id => id !== 'unassigned');
+    const addedIds = userIds.filter(id => !currentIds.includes(id));
+    const removedIds = currentIds.filter(id => !userIds.includes(id));
+
+    if (addedIds.length === 0 && removedIds.length === 0) return true;
+
+    try {
+      let latestAssigneeNodes: GitHubAssignee[] | undefined;
+
+      if (addedIds.length > 0) {
+        const addMutation = `
+          mutation($issueId: ID!, $assigneeIds: [ID!]!) {
+            addAssigneesToAssignable(input: { assignableId: $issueId, assigneeIds: $assigneeIds }) {
+              assignable {
+                ... on Issue {
+                  id
+                  assignees(first: 10) {
+                    nodes { id login name avatarUrl }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        const res = await fetchGitHubGraphQL(addMutation, { issueId: task.contentId, assigneeIds: addedIds }, githubToken);
+        if (res.errors) throw new Error(res.errors[0]?.message);
+        latestAssigneeNodes = res.data?.addAssigneesToAssignable?.assignable?.assignees?.nodes;
+      }
+
+      if (removedIds.length > 0) {
+        const removeMutation = `
+          mutation($issueId: ID!, $assigneeIds: [ID!]!) {
+            removeAssigneesFromAssignable(input: { assignableId: $issueId, assigneeIds: $assigneeIds }) {
+              assignable {
+                ... on Issue {
+                  id
+                  assignees(first: 10) {
+                    nodes { id login name avatarUrl }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        const res = await fetchGitHubGraphQL(removeMutation, { issueId: task.contentId, assigneeIds: removedIds }, githubToken);
+        if (res.errors) throw new Error(res.errors[0]?.message);
+        latestAssigneeNodes = res.data?.removeAssigneesFromAssignable?.assignable?.assignees?.nodes;
+      }
+
+      if (latestAssigneeNodes) {
+        const updatedAssignees: User[] = latestAssigneeNodes.length > 0 
+          ? latestAssigneeNodes.map((a: GitHubAssignee, idx: number) => ({
+            id: a.id || a.login || 'unknown',
+            name: a.name || a.login || 'Unknown',
+            avatarUrl: a.avatarUrl,
+            initials: (a.name || a.login || '??').substring(0, 2).toUpperCase(),
+            avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
+          }))
+          : [{ id: 'unassigned', name: 'Unassigned', initials: '?', avatarColor: 'bg-slate-100 text-slate-400' }];
+
+        setTasks(prev => prev.map(t => 
+          (t.id === taskId || t.itemId === taskId) ? { ...t, assignees: updatedAssignees } : t
+        ));
+      }
+
+      if (task.itemId) {
+        await fetchSingleProjectItem(task.itemId, githubToken);
+      }
+      return true;
+    } catch (e) {
+      console.error('Update task assignees failed:', e);
+      return false;
+    }
+  }, [tasks, githubToken, fetchSingleProjectItem]);
 
   const handleOpenDummyProject = useCallback(() => {
     // Add mock account if not present
@@ -802,9 +840,196 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     // Set as active
     setActiveAccountId(mockAccount.id);
 
-    // Select dummy project
-    handleSelectRealProject(DUMMY_PROJECT_ID, 'Demo: Product Roadmap 2024');
+    // Select dummy project with the mock token explicitly to avoid stale token issues
+    handleSelectRealProject(DUMMY_PROJECT_ID, 'Demo: Product Roadmap 2024', true, mockAccount.token);
   }, [handleSelectRealProject, setActiveAccountId]);
+
+  const handleCreateTask = useCallback(async (title: string): Promise<boolean> => {
+    if (!selectedProject?.id || !githubToken) {
+      console.error('No project selected or token available');
+      return false;
+    }
+
+    try {
+      // Get repository from existing tasks
+      let repoNameWithOwner = 'unknown/unknown';
+      if (tasks.length > 0 && tasks[0].repository) {
+        repoNameWithOwner = tasks[0].repository;
+      }
+
+      const [owner, repo] = repoNameWithOwner.split('/');
+
+      // Create the issue
+      const createIssueMutation = `
+        mutation CreateIssue($repositoryId: ID!, $title: String!) {
+          createIssue(input: {
+            repositoryId: $repositoryId
+            title: $title
+          }) {
+            issue {
+              id
+              number
+              title
+            }
+          }
+        }
+      `;
+
+      // First, we need to get the repository ID
+      const getRepoQuery = `
+        query GetRepository($owner: String!, $name: String!) {
+          repository(owner: $owner, name: $name) {
+            id
+          }
+        }
+      `;
+
+      const repoResult = await fetchGitHubGraphQL(getRepoQuery, { owner, name: repo }, githubToken);
+      const repositoryId = repoResult.data?.repository?.id;
+
+      if (!repositoryId) {
+        console.error('Failed to get repository ID');
+        return false;
+      }
+
+      // Create the issue
+      const issueResult = await fetchGitHubGraphQL(createIssueMutation, { repositoryId, title }, githubToken);
+      const issueId = issueResult.data?.createIssue?.issue?.id;
+
+      if (!issueId) {
+        console.error('Failed to create issue');
+        return false;
+      }
+
+      // Add the issue to the project
+      const addItemMutation = `
+        mutation AddProjectItem($projectId: ID!, $contentId: ID!) {
+          addProjectV2ItemById(input: {
+            projectId: $projectId
+            contentId: $contentId
+          }) {
+            item {
+              id
+            }
+          }
+        }
+      `;
+
+      const addResult = await fetchGitHubGraphQL(addItemMutation, { projectId: selectedProject.id, contentId: issueId }, githubToken);
+
+      if (!addResult.data?.addProjectV2ItemById?.item?.id) {
+        console.error('Failed to add issue to project');
+        return false;
+      }
+
+      // Fetch updated tasks
+      await fetchProjectTasks(selectedProject.id, githubToken);
+      updateSyncTime();
+
+      return true;
+    } catch (error) {
+      console.error('Error creating task:', error);
+      return false;
+    }
+  }, [selectedProject?.id, githubToken, tasks, fetchProjectTasks, updateSyncTime]);
+
+  const updateTaskTitle = useCallback(async (task: Task, title: string): Promise<boolean> => {
+    if (!task.contentId || !githubToken) return false;
+    try {
+      const query = `mutation UpdateIssue($id: ID!, $title: String!) { updateIssue(input: { id: $id, title: $title }) { issue { id } } }`;
+      const res = await fetchGitHubGraphQL(query, { id: task.contentId, title }, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [githubToken, fetchSingleProjectItem]);
+
+  const updateTaskDescription = useCallback(async (task: Task, description: string): Promise<boolean> => {
+    if (!task.contentId || !githubToken) return false;
+    try {
+      const query = `mutation UpdateIssue($id: ID!, $body: String!) { updateIssue(input: { id: $id, body: $body }) { issue { id } } }`;
+      const res = await fetchGitHubGraphQL(query, { id: task.contentId, body: description }, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [githubToken, fetchSingleProjectItem]);
+
+  const updateTaskComment = useCallback(async (task: Task, commentId: string, body: string): Promise<boolean> => {
+    if (!githubToken) return false;
+    try {
+      const query = `mutation UpdateIssueComment($id: ID!, $body: String!) { updateIssueComment(input: { id: $id, body: $body }) { issueComment { id } } }`;
+      const res = await fetchGitHubGraphQL(query, { id: commentId, body }, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [githubToken, fetchSingleProjectItem]);
+
+  const deleteTaskComment = useCallback(async (task: Task, commentId: string): Promise<boolean> => {
+    if (!githubToken) return false;
+    try {
+      const query = `mutation DeleteIssueComment($id: ID!) { deleteIssueComment(input: { id: $id }) { clientMutationId } }`;
+      const res = await fetchGitHubGraphQL(query, { id: commentId }, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [githubToken, fetchSingleProjectItem]);
+
+  const updateTaskStatus = useCallback(async (task: Task, status: TaskStatus): Promise<boolean> => {
+    if (!selectedProject?.id || !task.itemId || !task.projectFieldIds?.status || !task.statusOptions || !githubToken) return false;
+    try {
+      const optionId = task.statusOptions[status];
+      if (!optionId) return false;
+      const query = `mutation UpdateProjectV2ItemFieldValue($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value }) { projectV2Item { id } } }`;
+      const vars = { projectId: selectedProject.id, itemId: task.itemId, fieldId: task.projectFieldIds.status, value: { singleSelectOptionId: optionId } };
+      const res = await fetchGitHubGraphQL(query, vars, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+      fetchSingleProjectItem(task.itemId, githubToken);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [selectedProject?.id, githubToken, fetchSingleProjectItem]);
+
+  const updateTaskDates = useCallback(async (task: Task, startDate?: string, endDate?: string): Promise<boolean> => {
+    if (!selectedProject?.id || !task.itemId || !githubToken) return false;
+    let anySuccess = false;
+    try {
+      const query = `mutation UpdateProjectV2ItemFieldValue($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value }) { projectV2Item { id } } }`;
+
+      const updateField = async (fieldId: string | undefined, dateVal: string) => {
+        if (!fieldId) return;
+        const vars = { projectId: selectedProject.id, itemId: task.itemId, fieldId, value: { date: new Date(dateVal).toISOString() } };
+        const res = await fetchGitHubGraphQL(query, vars, githubToken);
+        if (res.errors) throw new Error(res.errors[0]?.message);
+        anySuccess = true;
+      };
+
+      if (startDate) await updateField(task.projectFieldIds?.startDate, startDate);
+      if (endDate) await updateField(task.projectFieldIds?.endDate, endDate);
+
+      if (anySuccess) fetchSingleProjectItem(task.itemId, githubToken);
+      return anySuccess;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [selectedProject?.id, githubToken, fetchSingleProjectItem]);
 
   // ---- Context value ----
 
@@ -838,6 +1063,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     tasks,
     isLoadingTasks,
     fetchProjectTasks,
+    handleCreateTask,
+
+    updateTaskTitle,
+    updateTaskDescription,
+    updateTaskComment,
+    deleteTaskComment,
+    updateTaskStatus,
+    updateTaskDates,
 
     lastSyncedTime,
     getSyncedTimeText,
@@ -848,6 +1081,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setIsAccountModalOpen,
     isPatModalOpen,
     setIsPatModalOpen,
+    isCreateTaskModalOpen,
+    setIsCreateTaskModalOpen,
     handleAddAccountByToken,
 
     isChartVisible,
@@ -862,8 +1097,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setSearchQuery,
     filteredTasks,
     availableUsers,
+    fetchSearchUsers,
     updateTaskAssignees,
     handleOpenDummyProject,
+    projectStatusOptions,
   };
 
   return (
