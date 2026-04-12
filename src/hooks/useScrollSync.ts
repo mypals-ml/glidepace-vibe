@@ -7,30 +7,27 @@ import { useRef, useCallback } from 'react';
 export function useScrollSync() {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
-  const isSyncing = useRef(false);
 
   const onSidebarScroll = useCallback(() => {
-    if (isSyncing.current || !sidebarRef.current || !timelineRef.current) return;
-    isSyncing.current = true;
-    const top = sidebarRef.current.scrollTop;
-    requestAnimationFrame(() => {
-      if (timelineRef.current) {
-        timelineRef.current.scrollTop = top;
-      }
-      isSyncing.current = false;
-    });
+    const source = sidebarRef.current;
+    const target = timelineRef.current;
+    if (!source || !target) return;
+
+    // Direct synchronization using an equality check to prevent infinite loops.
+    // This is faster and more responsive than requestAnimationFrame for two-way sync.
+    if (Math.abs(target.scrollTop - source.scrollTop) > 0.5) {
+      target.scrollTop = source.scrollTop;
+    }
   }, []);
 
   const onTimelineScroll = useCallback(() => {
-    if (isSyncing.current || !timelineRef.current || !sidebarRef.current) return;
-    isSyncing.current = true;
-    const top = timelineRef.current.scrollTop;
-    requestAnimationFrame(() => {
-      if (sidebarRef.current) {
-        sidebarRef.current.scrollTop = top;
-      }
-      isSyncing.current = false;
-    });
+    const source = timelineRef.current;
+    const target = sidebarRef.current;
+    if (!source || !target) return;
+
+    if (Math.abs(target.scrollTop - source.scrollTop) > 0.5) {
+      target.scrollTop = source.scrollTop;
+    }
   }, []);
 
   return { sidebarRef, timelineRef, onSidebarScroll, onTimelineScroll };
