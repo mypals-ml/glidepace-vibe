@@ -91,7 +91,8 @@ const resources = {
         description: "Description",
         comments: "Comments ({{count}})",
         noDescription: "No description provided.",
-        noAssignees: "No assignees"
+        noAssignees: "No assignees",
+        currentProject: "Current Project"
       },
       common: {
         save: "Save",
@@ -229,7 +230,8 @@ const resources = {
         description: "説明",
         comments: "コメント ({{count}})",
         noDescription: "説明はありません。",
-        noAssignees: "担当者なし"
+        noAssignees: "担当者なし",
+        currentProject: "現在のプロジェクト"
       },
       common: {
         save: "保存",
@@ -367,7 +369,8 @@ const resources = {
         description: "描述",
         comments: "评论 ({{count}})",
         noDescription: "暂无描述。",
-        noAssignees: "无经办人"
+        noAssignees: "无经办人",
+        currentProject: "当前项目"
       },
       common: {
         save: "保存",
