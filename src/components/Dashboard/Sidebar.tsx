@@ -5,24 +5,29 @@ import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { User } from '../../types';
 import { useState } from 'react';
 
-export function Sidebar() {
+export interface SidebarProps {
+  scrollRef?: React.RefObject<HTMLDivElement | null>;
+  onScroll?: React.UIEventHandler<HTMLDivElement>;
+}
+
+export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
   const { t } = useTranslation();
   const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId, setIsCreateTaskModalOpen, apiError } = useDashboard();
   const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {/* Header */}
-        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[48px_1fr_100px_80px] gap-2 px-4 h-[var(--dashboard-header-height)] items-center" aria-label={t('dashboard.issuesList')}>
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.id')}</div>
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.title')}</div>
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">{t('table.assignees')}</div>
-        </div>
+      {/* Header - Moved outside scroll container for alignment */}
+      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[48px_1fr_100px_80px] gap-2 px-4 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
+        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.id')}</div>
+        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.title')}</div>
+        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
+        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">{t('table.assignees')}</div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto custom-scrollbar" ref={scrollRef} onScroll={onScroll}>
         {/* Task List Container */}
-        <div className="p-2 flex flex-col gap-1 relative z-0">
+        <div className="flex flex-col relative z-0">
           {isLoadingTasks ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500">
               <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -51,7 +56,7 @@ export function Sidebar() {
             filteredTasks.map(task => (
               <div 
                 key={task.id} 
-                className={`grid grid-cols-[48px_1fr_100px_80px] gap-2 items-center min-h-[56px] px-2 rounded-lg cursor-pointer transition-all duration-200 relative group overflow-visible ${
+                className={`grid grid-cols-[48px_1fr_100px_80px] gap-2 items-center h-[56px] px-4 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
                   selectedTaskId === task.id ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
                 }`} 
                 onClick={() => setSelectedTaskId(task.id)}

@@ -11,11 +11,13 @@ import { Sidebar } from './Dashboard/Sidebar';
 import { Timeline } from './Dashboard/Timeline';
 import { EmptyState } from './Dashboard/EmptyState';
 import { TaskDetailsPanel } from './Dashboard/TaskDetailsPanel';
+import { useScrollSync } from '../hooks/useScrollSync';
 
 function DashboardLayout() {
   const { t } = useTranslation();
   const { hasProject, isChartVisible, tasks, selectedTaskId, setSelectedTaskId } = useDashboard();
   const { width: sidebarWidth, onMouseDown } = useResizablePanel();
+  const { sidebarRef, timelineRef, onSidebarScroll, onTimelineScroll } = useScrollSync();
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
 
@@ -38,7 +40,7 @@ function DashboardLayout() {
               style={{ width: window.innerWidth >= 768 ? `${sidebarWidth}px` : (isChartVisible ? '0' : '100%') }}
               aria-label={t('dashboard.issuesList')}
             >
-              <Sidebar />
+              <Sidebar scrollRef={sidebarRef} onScroll={onSidebarScroll} />
             </aside>
 
             {/* Resizer Handle */}
@@ -51,7 +53,11 @@ function DashboardLayout() {
             </div>
 
             {/* Timeline Region */}
-            <Timeline className={isChartVisible ? 'flex' : 'hidden md:flex'} />
+            <Timeline 
+              className={isChartVisible ? 'flex' : 'hidden md:flex'} 
+              scrollRef={timelineRef} 
+              onScroll={onTimelineScroll} 
+            />
           </>
         ) : (
           <EmptyState />

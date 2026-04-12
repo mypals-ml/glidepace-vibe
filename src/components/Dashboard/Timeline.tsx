@@ -2,7 +2,13 @@ import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { getStatusColor } from '../../utils/statusColors';
 
-export function Timeline({ className = '' }: { className?: string }) {
+export interface TimelineProps {
+  className?: string;
+  scrollRef?: React.RefObject<HTMLDivElement | null>;
+  onScroll?: React.UIEventHandler<HTMLDivElement>;
+}
+
+export function Timeline({ className = '', scrollRef, onScroll }: TimelineProps) {
   const { t } = useTranslation();
   const { filteredTasks, isLoadingTasks } = useDashboard();
 
@@ -24,7 +30,7 @@ export function Timeline({ className = '' }: { className?: string }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto relative custom-scrollbar bg-white/40">
+      <div className="flex-1 overflow-auto relative custom-scrollbar bg-white/40" ref={scrollRef} onScroll={onScroll}>
         <div className="absolute inset-0 flex pointer-events-none">
           <div className="flex-1 border-r border-slate-100"></div>
           <div className="flex-1 border-r border-slate-100"></div>
@@ -34,9 +40,9 @@ export function Timeline({ className = '' }: { className?: string }) {
           <div className="flex-1 border-r border-slate-100 bg-slate-50/30"></div>
           <div className="flex-1 border-r border-slate-100 bg-slate-50/30"></div>
         </div>
-        <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ backgroundImage: 'linear-gradient(to bottom, transparent 49px, rgba(226, 232, 240, 0.4) 50px)', backgroundSize: '100% 50px' }}></div>
+        <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ backgroundImage: 'linear-gradient(to bottom, transparent 55px, rgba(226, 232, 240, 0.4) 56px)', backgroundSize: '100% 56px' }}></div>
 
-        <div className="relative w-full h-full pt-[5px] pb-10">
+        <div className="relative w-full h-full pb-10">
           {isLoadingTasks ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px] z-30">
               <div className="flex flex-col items-center gap-3">
@@ -63,7 +69,7 @@ export function Timeline({ className = '' }: { className?: string }) {
                 const width = 20 + (idx * 10) % 40;
 
                 return (
-                  <div key={task.id} className="relative h-[50px] w-full flex items-center group z-10 px-2">
+                  <div key={task.id} className="relative h-[56px] w-full flex items-center group z-10 px-2">
                   <div
                       className={`absolute h-8 rounded-md border flex items-center px-3 cursor-pointer transition-all shadow-sm hover:opacity-80 ${getStatusColor(task.status)}`}
                       style={{
