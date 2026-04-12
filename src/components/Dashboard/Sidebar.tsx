@@ -14,7 +14,7 @@ export function Sidebar() {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* Header */}
-        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[48px_1fr_100px_80px] gap-2 px-4 py-3 items-center" aria-label={t('dashboard.issuesList')}>
+        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[48px_1fr_100px_80px] gap-2 px-4 h-[var(--dashboard-header-height)] items-center" aria-label={t('dashboard.issuesList')}>
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.id')}</div>
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.title')}</div>
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
@@ -73,7 +73,7 @@ export function Sidebar() {
 
                 {/* Title Column */}
                 <div className="flex flex-col justify-center min-w-0 pr-2">
-                  <span className={`text-sm font-medium transition-colors block leading-tight truncate ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
+                  <span className={`text-sm font-medium transition-colors block leading-tight line-clamp-2 ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
                     {task.title}
                   </span>
                   <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{task.startDate} - {task.endDate}</div>
