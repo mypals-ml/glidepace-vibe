@@ -15,7 +15,7 @@ import { useScrollSync } from '../hooks/useScrollSync';
 function DashboardLayout() {
   const { t } = useTranslation();
   const { hasProject, isChartVisible, tasks, selectedTaskId, setSelectedTaskId } = useDashboard();
-  const { width: sidebarWidth, onMouseDown } = useResizablePanel();
+  const { width: sidebarWidth, isResizing, panelRef, onMouseDown } = useResizablePanel();
   const { sidebarRef, timelineRef, onSidebarScroll, onTimelineScroll } = useScrollSync();
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
@@ -34,7 +34,8 @@ function DashboardLayout() {
           <>
             {/* Sidebar: Issues List */}
             <aside
-              className={`flex-shrink-0 lg:glass-panel md:rounded-l-xl flex flex-col z-10 h-full overflow-hidden bg-white/80 shadow-sm border-r md:border-y md:border-l border-slate-200/60 transition-[width] duration-300 ${isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-auto'
+              ref={panelRef as React.RefObject<HTMLElement>}
+              className={`flex-shrink-0 lg:glass-panel md:rounded-l-xl flex flex-col z-10 h-full overflow-hidden bg-white/80 shadow-sm border-r md:border-y md:border-l border-slate-200/60 ${!isResizing ? 'transition-[width] duration-300' : ''} ${isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-auto'
                 }`}
               style={{ width: window.innerWidth >= 768 ? `${sidebarWidth}px` : (isChartVisible ? '0' : '100%') }}
               aria-label={t('dashboard.issuesList')}
