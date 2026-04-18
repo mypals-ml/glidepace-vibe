@@ -27,15 +27,15 @@ export function StatusSelector({ task, onClose, onSelect }: StatusSelectorProps)
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:left-0 sm:right-0 sm:top-full sm:mt-2 sm:p-0">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:-left-2 sm:top-full sm:mt-2 sm:p-0 pointer-events-none">
       {/* Backdrop for mobile */}
       <div 
-        className="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] sm:hidden" 
+        className="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] sm:hidden pointer-events-auto" 
         onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
       
       {/* Selector Panel */}
-      <div className="glass-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-right">
+      <div className="glass-panel w-full sm:w-auto sm:min-w-[160px] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-left pointer-events-auto">
         {/* Status List */}
         <div className="max-h-[300px] overflow-y-auto custom-scrollbar py-1 bg-white/30">
           {statuses.map(statusName => {
@@ -43,7 +43,10 @@ export function StatusSelector({ task, onClose, onSelect }: StatusSelectorProps)
             return (
               <button
                 key={statusName}
-                onClick={() => handleSelectStatus(statusName)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelectStatus(statusName);
+                }}
                 className="w-full px-3 py-2 flex items-center gap-3 hover:bg-primary/5 transition-colors group text-left"
               >
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center shadow-sm border-2 ${isSelected ? 'border-primary' : 'border-white'} ${getStatusColor(statusName)}`}>
