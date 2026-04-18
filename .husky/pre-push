@@ -1,2 +1,6 @@
+#!/bin/sh
+# Add common Node.js installation paths for macOS (including versioned homebrew paths)
+export PATH="/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 npm run lint
 npm run type-check

@@ -298,10 +298,13 @@ export interface MockVariables {
   projectId?: string;
   itemId?: string;
   issueId?: string;
+  subjectId?: string;
+  body?: string;
   fieldId?: string;
   input?: {
     id?: string;
     itemId?: string;
+    subjectId?: string;
     fieldId?: string;
     assignableId?: string;
     title?: string;
