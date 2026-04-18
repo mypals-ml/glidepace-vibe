@@ -58,7 +58,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
             filteredTasks.map(task => (
               <div 
                 key={task.id} 
-                className={`grid grid-cols-[48px_1fr_100px_80px] gap-2 items-center h-[56px] px-4 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
+                className={`grid grid-cols-[48px_1fr_100px_80px] gap-2 items-center h-[72px] px-4 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
                   selectedTaskId === task.id ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
                 }`} 
                 onClick={() => setSelectedTaskId(task.id)}
@@ -80,7 +80,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
 
                 {/* Title Column */}
                 <div className="flex flex-col justify-center min-w-0 pr-2">
-                  <span className={`text-sm font-medium transition-colors block leading-tight line-clamp-2 ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
+                  <span className={`text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
                     {task.title}
                   </span>
                   <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{task.startDate} - {task.endDate}</div>

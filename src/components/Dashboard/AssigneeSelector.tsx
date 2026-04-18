@@ -222,7 +222,7 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
       
       {/* Invisible overlay for desktop click-outside */}
       <div 
-        className="fixed inset-0 z-[-1] hidden sm:block" 
+        className="fixed inset-0 z-[-1] hidden sm:block pointer-events-auto" 
         onClick={(e) => { e.stopPropagation(); handleApply(); }}
       />
     </div>
