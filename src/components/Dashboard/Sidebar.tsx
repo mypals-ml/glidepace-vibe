@@ -12,7 +12,7 @@ export interface SidebarProps {
 
 export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
   const { t } = useTranslation();
-  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId, setIsCreateTaskModalOpen, apiError } = useDashboard();
+  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId, setIsCreateMode, apiError } = useDashboard();
   const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
 
   return (
@@ -153,7 +153,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
             />
           </div>
           <button
-            onClick={() => setIsCreateTaskModalOpen(true)}
+            onClick={() => setIsCreateMode(true)}
             className="w-9 h-9 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md shadow-sm transition-colors flex items-center justify-center shrink-0"
             title={t('createTask.addButton') || 'Add new task'}
             aria-label={t('createTask.addButton') || 'Add new task'}
