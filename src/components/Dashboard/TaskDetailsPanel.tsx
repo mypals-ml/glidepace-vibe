@@ -96,7 +96,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
 }
 
 function TaskContent({ task, t }: { task: Task; t: TFunction }) {
-  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates } = useDashboard();
+  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment } = useDashboard();
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(task.title);
@@ -109,6 +109,9 @@ function TaskContent({ task, t }: { task: Task; t: TFunction }) {
 
   const [isAssigneeSelectorOpen, setIsAssigneeSelectorOpen] = useState(false);
   const [isStatusSelectorOpen, setIsStatusSelectorOpen] = useState(false);
+
+  const [newCommentBody, setNewCommentBody] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
 
   const handleSaveTitle = async () => {
@@ -130,6 +133,16 @@ function TaskContent({ task, t }: { task: Task; t: TFunction }) {
     if (window.confirm(t('common.confirmDelete'))) {
       await deleteTaskComment(task, commentId);
     }
+  };
+
+  const handleAddComment = async () => {
+    if (!newCommentBody.trim()) return;
+    setIsSubmittingComment(true);
+    const success = await addTaskComment(task, newCommentBody);
+    if (success) {
+      setNewCommentBody('');
+    }
+    setIsSubmittingComment(false);
   };
 
   return (
@@ -339,6 +352,41 @@ function TaskContent({ task, t }: { task: Task; t: TFunction }) {
               )}
             </div>
           ))}
+        </div>
+
+        {/* Add Comment Input */}
+        <div className="mt-8 border-t border-slate-200/60 pt-4">
+          <label className="text-xs font-medium text-slate-600 block mb-3">
+            {t('dashboard.addTaskComment', 'Add a comment')}
+          </label>
+          <textarea
+            value={newCommentBody}
+            onChange={(e) => setNewCommentBody(e.target.value)}
+            placeholder={t('dashboard.addCommentPlaceholder', 'Comment here ...')}
+            className="w-full border border-slate-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none min-h-[80px] resize-y bg-white placeholder:text-slate-400"
+            disabled={isSubmittingComment}
+          />
+        </div>
+        <div className="flex justify-end mt-2">
+          <button
+            onClick={handleAddComment}
+            disabled={isSubmittingComment || !newCommentBody.trim()}
+            className={`px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary-hover transition-colors flex items-center gap-2 ${
+              (isSubmittingComment || !newCommentBody.trim()) ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isSubmittingComment ? (
+              <>
+                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                {t('common.submitting', 'Submitting...')}
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-sm">send</span>
+                {t('dashboard.addComment', 'Comment')}
+              </>
+            )}
+          </button>
         </div>
       </div>
       {/* Bottom spacer to prevent dropdown clipping in scrollable area */}

@@ -989,6 +989,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [githubToken, fetchSingleProjectItem]);
 
+  const addTaskComment = useCallback(async (task: Task, body: string): Promise<boolean> => {
+    if (!task.contentId || !githubToken) return false;
+    try {
+      const query = `mutation AddComment($subjectId: ID!, $body: String!) { addComment(input: { subjectId: $subjectId, body: $body }) { commentEdge { node { id } } } }`;
+      const res = await fetchGitHubGraphQL(query, { subjectId: task.contentId, body }, githubToken);
+      if (res.errors) throw new Error(res.errors[0]?.message);
+      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [githubToken, fetchSingleProjectItem]);
+
   const updateTaskStatus = useCallback(async (task: Task, status: TaskStatus): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !task.projectFieldIds?.status || !task.statusOptions || !githubToken) return false;
     try {
@@ -1069,6 +1083,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     updateTaskDescription,
     updateTaskComment,
     deleteTaskComment,
+    addTaskComment,
     updateTaskStatus,
     updateTaskDates,
 

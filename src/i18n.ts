@@ -92,14 +92,18 @@ const resources = {
         comments: "Comments ({{count}})",
         noDescription: "No description provided.",
         noAssignees: "No assignees",
-        currentProject: "Current Project"
+        currentProject: "Current Project",
+        addTaskComment: "Add a comment",
+        addComment: "Comment",
+        addCommentPlaceholder: "Comment here ..."
       },
       common: {
         save: "Save",
         cancel: "Cancel",
         edit: "Edit",
         delete: "Delete",
-        confirmDelete: "Are you sure you want to delete this item?"
+        confirmDelete: "Are you sure you want to delete this item?",
+        submitting: "Submitting..."
       },
       table: {
         id: "ID",
@@ -231,14 +235,18 @@ const resources = {
         comments: "コメント ({{count}})",
         noDescription: "説明はありません。",
         noAssignees: "担当者なし",
-        currentProject: "現在のプロジェクト"
+        currentProject: "現在のプロジェクト",
+        addTaskComment: "コメントを追加",
+        addComment: "コメント",
+        addCommentPlaceholder: "ここにコメントを入力..."
       },
       common: {
         save: "保存",
         cancel: "キャンセル",
         edit: "編集",
         delete: "削除",
-        confirmDelete: "このアイテムを削除してもよろしいですか？"
+        confirmDelete: "このアイテムを削除してもよろしいですか？",
+        submitting: "送信中..."
       },
       table: {
         id: "ID",
@@ -370,14 +378,18 @@ const resources = {
         comments: "评论 ({{count}})",
         noDescription: "暂无描述。",
         noAssignees: "无经办人",
-        currentProject: "当前项目"
+        currentProject: "当前项目",
+        addTaskComment: "添加评论",
+        addComment: "评论",
+        addCommentPlaceholder: "在此输入评论..."
       },
       common: {
         save: "保存",
         cancel: "取消",
         edit: "编辑",
         delete: "删除",
-        confirmDelete: "您确定要删除此项吗？"
+        confirmDelete: "您确定要删除此项吗？",
+        submitting: "正在提交..."
       },
       table: {
         id: "ID",

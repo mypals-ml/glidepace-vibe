@@ -40,6 +40,7 @@ export interface DashboardContextValue {
   updateTaskDescription: (task: Task, description: string) => Promise<boolean>;
   updateTaskComment: (task: Task, commentId: string, body: string) => Promise<boolean>;
   deleteTaskComment: (task: Task, commentId: string) => Promise<boolean>;
+  addTaskComment: (task: Task, body: string) => Promise<boolean>;
   updateTaskStatus: (task: Task, status: TaskStatus) => Promise<boolean>;
   updateTaskDates: (task: Task, startDate?: string, endDate?: string) => Promise<boolean>;
 
