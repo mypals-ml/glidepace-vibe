@@ -10,14 +10,14 @@ NC='\033[0m' # No Color
 echo "🔍 Running pre-push checks (linting and type-checking)..."
 
 if ! npm run lint; then
-  echo "\n${RED}❌ Linting failed! Please fix coding style issues before pushing.${NC}"
-  echo "${YELLOW}💡 Run 'npm run lint' locally to see details.${NC}\n"
+  printf "\n${RED}❌ Linting failed! Please fix coding style issues before pushing.${NC}\n" >&2
+  printf "${YELLOW}💡 Run 'npm run lint' locally to see details.${NC}\n\n" >&2
   exit 1
 fi
 
 if ! npm run type-check; then
-  echo "\n${RED}❌ Type-checking failed! Please fix TypeScript errors before pushing.${NC}"
-  echo "${YELLOW}💡 Run 'npm run type-check' locally to see details.${NC}\n"
+  printf "\n${RED}❌ Type-checking failed! Please fix TypeScript errors before pushing.${NC}\n" >&2
+  printf "${YELLOW}💡 Run 'npm run type-check' locally to see details.${NC}\n\n" >&2
   exit 1
 fi
 
