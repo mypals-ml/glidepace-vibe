@@ -104,6 +104,9 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
 function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: TFunction; isCreateMode?: boolean }) {
   const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode } = useDashboard();
 
+  // Derive a repository from existing tasks so the AssigneeSelector can fetch assignable users
+  const projectRepository = tasks.find(t => t.repository)?.repository;
+
   // Create Mode state
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -239,6 +242,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               <AssigneeSelector
                 taskId="new"
                 currentAssignees={newAssignees}
+                repository={projectRepository}
                 onClose={() => setIsAssigneeSelectorOpen(false)}
                 onSelect={(users) => setNewAssignees(users)}
               />
