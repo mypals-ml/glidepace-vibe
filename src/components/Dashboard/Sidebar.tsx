@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { AssigneeSelector } from './AssigneeSelector';
+import { StatusSelector } from './StatusSelector';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { User } from '../../types';
 import { useState } from 'react';
@@ -14,6 +15,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
   const { t } = useTranslation();
   const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId, setIsCreateMode, apiError } = useDashboard();
   const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
+  const [openStatusSelectorTaskId, setOpenStatusSelectorTaskId] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
@@ -85,11 +87,26 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
                 </div>
 
                 {/* Status Column */}
-                <div className="flex items-center">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${getStatusColor(task.status)}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${getStatusDotColor(task.status)}`} />
-                    {task.status}
-                  </span>
+                <div className="group/status relative h-full flex items-center">
+                  <div
+                    className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenStatusSelectorTaskId(openStatusSelectorTaskId === task.id ? null : task.id);
+                    }}
+                    title="Update status"
+                  >
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${getStatusColor(task.status)}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${getStatusDotColor(task.status)}`} />
+                      {task.status}
+                    </span>
+                  </div>
+                  {openStatusSelectorTaskId === task.id && (
+                    <StatusSelector
+                      task={task}
+                      onClose={() => setOpenStatusSelectorTaskId(null)}
+                    />
+                  )}
                 </div>
 
                 {/* Assignees Column */}
