@@ -298,10 +298,13 @@ export interface MockVariables {
   projectId?: string;
   itemId?: string;
   issueId?: string;
+  subjectId?: string;
+  body?: string;
   fieldId?: string;
   input?: {
     id?: string;
     itemId?: string;
+    subjectId?: string;
     fieldId?: string;
     assignableId?: string;
     title?: string;
@@ -530,6 +533,36 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
       }
     }
     return { errors: [{ message: 'Comment not found' }] };
+  }
+
+  if (query.includes('addComment(')) {
+    const subjectId = variables.subjectId || variables.input?.subjectId;
+    const body = variables.body || variables.input?.body;
+    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
+    const task = allTasks.find(t => t.contentId === subjectId);
+    if (!task) return { errors: [{ message: 'Issue not found' }] };
+
+    const newComment: TaskComment = {
+      id: `comment-${task.id.replace('#', '')}-${(task.comments || []).length + 1}`,
+      author: MOCK_USER_POOL[0], // Alex Rivera
+      body: body || '',
+      createdAt: new Date().toISOString(),
+    };
+
+    if (!task.comments) task.comments = [];
+    task.comments.push(newComment);
+
+    return {
+      data: {
+        addComment: {
+          commentEdge: {
+            node: {
+              id: newComment.id
+            }
+          }
+        }
+      }
+    };
   }
 
   if (query.includes('updateProjectV2ItemFieldValue(')) {

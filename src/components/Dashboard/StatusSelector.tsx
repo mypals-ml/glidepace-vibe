@@ -6,18 +6,23 @@ import type { Task, TaskStatus } from '../../types';
 const DEFAULT_STATUSES = ['Todo', 'In Progress', 'Done'];
 
 interface StatusSelectorProps {
-  task: Task;
+  task: Task | null;
   onClose: () => void;
+  onSelect?: (status: string) => void;
 }
 
-export function StatusSelector({ task, onClose }: StatusSelectorProps) {
+export function StatusSelector({ task, onClose, onSelect }: StatusSelectorProps) {
   const { updateTaskStatus, projectStatusOptions } = useDashboard();
 
   // Use project statuses from context; fall back to defaults if not yet loaded.
   const statuses = projectStatusOptions.length > 0 ? projectStatusOptions : DEFAULT_STATUSES;
 
   const handleSelectStatus = async (status: string) => {
-    await updateTaskStatus(task, status as TaskStatus);
+    if (onSelect) {
+      onSelect(status);
+    } else if (task) {
+      await updateTaskStatus(task, status as TaskStatus);
+    }
     onClose();
   };
 
@@ -34,7 +39,7 @@ export function StatusSelector({ task, onClose }: StatusSelectorProps) {
         {/* Status List */}
         <div className="max-h-[300px] overflow-y-auto custom-scrollbar py-1 bg-white/30">
           {statuses.map(statusName => {
-            const isSelected = task.status === statusName;
+            const isSelected = task ? task.status === statusName : false;
             return (
               <button
                 key={statusName}

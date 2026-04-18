@@ -162,7 +162,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem): Task {
     fullStartDate: startDate,
     fullEndDate: endDate,
     status: status || 'Todo',
-    assignees: assignees.length > 0 ? assignees : [{ id: 'unassigned', name: 'Unassigned', initials: '?', avatarColor: 'bg-slate-100 text-slate-400' }],
+    assignees: assignees,
     progress: /^(done|closed|completed|merged)$/i.test(status) ? 100 : /^(todo|backlog|open|not started)$/i.test(status) ? 0 : 50,
     repository: content?.repository?.nameWithOwner,
     body: content?.body || '',

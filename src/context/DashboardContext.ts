@@ -34,12 +34,20 @@ export interface DashboardContextValue {
   tasks: Task[];
   isLoadingTasks: boolean;
   fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
-  handleCreateTask: (title: string) => Promise<boolean>;
+  handleCreateTask: (taskData: { 
+    title: string; 
+    body?: string; 
+    status?: string; 
+    startDate?: string; 
+    endDate?: string; 
+    assigneeIds?: string[];
+  }) => Promise<boolean>;
 
   updateTaskTitle: (task: Task, title: string) => Promise<boolean>;
   updateTaskDescription: (task: Task, description: string) => Promise<boolean>;
   updateTaskComment: (task: Task, commentId: string, body: string) => Promise<boolean>;
   deleteTaskComment: (task: Task, commentId: string) => Promise<boolean>;
+  addTaskComment: (task: Task, body: string) => Promise<boolean>;
   updateTaskStatus: (task: Task, status: TaskStatus) => Promise<boolean>;
   updateTaskDates: (task: Task, startDate?: string, endDate?: string) => Promise<boolean>;
 
@@ -56,6 +64,8 @@ export interface DashboardContextValue {
   setIsPatModalOpen: (open: boolean) => void;
   isCreateTaskModalOpen: boolean;
   setIsCreateTaskModalOpen: (open: boolean) => void;
+  isCreateMode: boolean;
+  setIsCreateMode: (open: boolean) => void;
   handleAddAccountByToken: (token: string) => Promise<{ success: boolean; error?: string }>;
 
   // UI state

@@ -8,9 +8,10 @@ interface AssigneeSelectorProps {
   currentAssignees: User[];
   repository?: string;
   onClose: () => void;
+  onSelect?: (users: User[]) => void;
 }
 
-export function AssigneeSelector({ taskId, currentAssignees, repository, onClose }: AssigneeSelectorProps) {
+export function AssigneeSelector({ taskId, currentAssignees, repository, onClose, onSelect }: AssigneeSelectorProps) {
   const { fetchSearchUsers, updateTaskAssignees } = useDashboard();
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,10 +94,18 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
       initialIds.some(id => !localSelectedIds.includes(id));
     
     if (isDifferent) {
-      updateTaskAssignees(taskId, localSelectedIds);
+      if (onSelect) {
+        const selectedUsers = localSelectedIds.map(id => 
+          combinedResults.find(u => u.id === id) || 
+          currentAssignees.find(u => u.id === id)
+        ).filter(Boolean) as User[];
+        onSelect(selectedUsers);
+      } else {
+        updateTaskAssignees(taskId, localSelectedIds);
+      }
     }
     onClose();
-  }, [taskId, localSelectedIds, initialIds, updateTaskAssignees, onClose]);
+  }, [taskId, localSelectedIds, initialIds, updateTaskAssignees, onClose, onSelect, combinedResults, currentAssignees]);
 
   // Handle ESC key
   useEffect(() => {
