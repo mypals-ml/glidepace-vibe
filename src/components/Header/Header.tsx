@@ -48,7 +48,7 @@ export function Header() {
         {(
         <button
           onClick={() => setIsChartVisible(!isChartVisible)}
-          className="flex items-center gap-1.5 px-2.5 sm:px-3 h-[var(--header-button-height)] rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm shrink-0"
+          className="flex md:hidden items-center gap-1.5 px-2.5 sm:px-3 h-[var(--header-button-height)] rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium shadow-sm shrink-0"
           aria-label={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
         >
           <span className="material-symbols-outlined text-[20px] shrink-0">
