@@ -161,56 +161,70 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           </div>
         </div>
 
-        {/* Status & Assignees */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="relative">
-            <label className="text-xs font-medium text-slate-600 block mb-2">{t('table.status')}</label>
-            <div
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border cursor-pointer hover:bg-slate-50 transition-colors ${getStatusColor(newStatus)}`}
-              onClick={() => setIsStatusSelectorOpen(true)}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(newStatus)}`}></span>
-              <span className="text-sm font-medium">{newStatus}</span>
-            </div>
-            {isStatusSelectorOpen && (
-              <StatusSelector
-                task={null}
-                onClose={() => setIsStatusSelectorOpen(false)}
-                onSelect={(status) => {
-                  setNewStatus(status);
-                  setIsStatusSelectorOpen(false);
-                }}
-              />
-            )}
+        {/* Description */}
+        <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
+          <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
+            <label className="text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
           </div>
+          <div className="px-3 pt-3">
+            <textarea
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+              placeholder={t('dashboard.descriptionPlaceholder', 'Add description...')}
+              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all min-h-[120px] resize-none"
+            />
+          </div>
+        </div>
 
-          <div className="relative">
-            <label className="text-xs font-medium text-slate-600 block mb-2">{t('table.assignees')}</label>
-            <div
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
-              onClick={() => setIsAssigneeSelectorOpen(true)}
-            >
-              <div className="flex -space-x-1 overflow-hidden">
-                {newAssignees.length > 0 ? newAssignees.slice(0, 3).map(user => (
-                  <div key={user.id} className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border border-white ${user.avatarColor}`}>
-                    {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full rounded-full" /> : user.initials}
-                  </div>
-                )) : <span className="text-sm text-slate-400">?</span>}
-              </div>
-              <span className="text-sm font-medium text-slate-700 truncate">
-                {newAssignees.length === 0 ? t('dashboard.unassigned') : newAssignees.length === 1 ? newAssignees[0].name : `${newAssignees.length} people`}
-              </span>
-            </div>
-            {isAssigneeSelectorOpen && (
-              <AssigneeSelector
-                taskId="new"
-                currentAssignees={newAssignees}
-                repository={projectRepository}
-                onClose={() => setIsAssigneeSelectorOpen(false)}
-                onSelect={(users) => setNewAssignees(users)}
-              />
-            )}
+        {/* Status */}
+        <div className="relative">
+          <label className="text-xs font-medium text-slate-600 block mb-2">{t('table.status')}</label>
+          <div
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border cursor-pointer hover:bg-slate-50 transition-colors ${getStatusColor(newStatus)}`}
+            onClick={() => setIsStatusSelectorOpen(true)}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(newStatus)}`}></span>
+            <span className="text-sm font-medium">{newStatus}</span>
           </div>
+          {isStatusSelectorOpen && (
+            <StatusSelector
+              task={null}
+              onClose={() => setIsStatusSelectorOpen(false)}
+              onSelect={(status) => {
+                setNewStatus(status);
+                setIsStatusSelectorOpen(false);
+              }}
+            />
+          )}
+        </div>
+
+        {/* Assignees */}
+        <div className="relative">
+          <label className="text-xs font-medium text-slate-600 block mb-2">{t('table.assignees')}</label>
+          <div
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+            onClick={() => setIsAssigneeSelectorOpen(true)}
+          >
+            <div className="flex -space-x-1 overflow-hidden">
+              {newAssignees.length > 0 ? newAssignees.slice(0, 3).map(user => (
+                <div key={user.id} className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border border-white ${user.avatarColor}`}>
+                  {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full rounded-full" /> : user.initials}
+                </div>
+              )) : <span className="text-sm text-slate-400">?</span>}
+            </div>
+            <span className="text-sm font-medium text-slate-700 truncate">
+              {newAssignees.length === 0 ? t('dashboard.unassigned') : newAssignees.length === 1 ? newAssignees[0].name : `${newAssignees.length} people`}
+            </span>
+          </div>
+          {isAssigneeSelectorOpen && (
+            <AssigneeSelector
+              taskId="new"
+              currentAssignees={newAssignees}
+              repository={projectRepository}
+              onClose={() => setIsAssigneeSelectorOpen(false)}
+              onSelect={(users) => setNewAssignees(users)}
+            />
+          )}
         </div>
 
         {/* Dates */}
@@ -231,21 +245,6 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               value={newEndDate}
               onChange={(e) => setNewEndDate(e.target.value)}
               className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-        </div>
-
-        {/* Description */}
-        <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
-          <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
-            <label className="text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
-          </div>
-          <div className="px-3 pt-3">
-            <textarea
-              value={newDesc}
-              onChange={(e) => setNewDesc(e.target.value)}
-              placeholder={t('dashboard.descriptionPlaceholder', 'Add description...')}
-              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all min-h-[120px] resize-none"
             />
           </div>
         </div>
@@ -315,6 +314,40 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         </div>
       </div>
 
+      {/* Task Description */}
+      <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
+        <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
+          <label className="text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
+          {!editingDesc && (
+            <button 
+              onClick={() => setEditingDesc(true)}
+              className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
+            >
+              {t('common.edit', 'Edit')}
+            </button>
+          )}
+        </div>
+
+        {editingDesc ? (
+          <div className="space-y-2">
+            <textarea
+              value={draftDesc}
+              onChange={(e) => setDraftDesc(e.target.value)}
+              className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[100px] resize-y"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button onClick={handleSaveDesc} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
+              <button onClick={() => { setEditingDesc(false); setDraftDesc(task.body || ''); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
+            </div>
+          </div>
+        ) : (
+          <div className="px-3 pt-2 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap min-h-[2rem]">
+            {task.body || <span className="text-slate-400 italic">{t('dashboard.noDescription')}</span>}
+          </div>
+        )}
+      </div>
+
       {/* Status */}
       <div className="border-t border-slate-200/60 pt-3 relative">
         <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.status')}</label>
@@ -331,6 +364,36 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           <StatusSelector
             task={task}
             onClose={() => setIsStatusSelectorOpen(false)}
+          />
+        )}
+      </div>
+
+      {/* Assignees */}
+      <div className="border-t border-slate-200/60 pt-3 relative">
+        <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.assignees')}</label>
+        <div
+          className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
+          onClick={() => setIsAssigneeSelectorOpen(true)}
+        >
+          {task.assignees && task.assignees.length > 0 ? task.assignees.map(user => (
+            <div key={user.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${user.avatarColor}`}>
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.name} className="w-5 h-5 rounded-full object-cover" />
+              ) : (
+                <span className="text-xs font-bold">{user.initials}</span>
+              )}
+              <span className="text-sm font-medium">{user.name}</span>
+            </div>
+          )) : (
+            <span className="text-sm text-slate-500">{t('dashboard.unassigned')}</span>
+          )}
+        </div>
+        {isAssigneeSelectorOpen && (
+          <AssigneeSelector
+            taskId={task.id}
+            currentAssignees={task.assignees}
+            repository={task.repository}
+            onClose={() => setIsAssigneeSelectorOpen(false)}
           />
         )}
       </div>
@@ -378,70 +441,6 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           </div>
           <span className="text-sm font-medium text-slate-600 w-10 text-right">{task.progress}%</span>
         </div>
-      </div>
-
-      {/* Assignees */}
-      <div className="border-t border-slate-200/60 pt-3 relative">
-        <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.assignees')}</label>
-        <div
-          className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
-          onClick={() => setIsAssigneeSelectorOpen(true)}
-        >
-          {task.assignees && task.assignees.length > 0 ? task.assignees.map(user => (
-            <div key={user.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${user.avatarColor}`}>
-              {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.name} className="w-5 h-5 rounded-full object-cover" />
-              ) : (
-                <span className="text-xs font-bold">{user.initials}</span>
-              )}
-              <span className="text-sm font-medium">{user.name}</span>
-            </div>
-          )) : (
-            <span className="text-sm text-slate-500">{t('dashboard.unassigned')}</span>
-          )}
-        </div>
-        {isAssigneeSelectorOpen && (
-          <AssigneeSelector
-            taskId={task.id}
-            currentAssignees={task.assignees}
-            repository={task.repository}
-            onClose={() => setIsAssigneeSelectorOpen(false)}
-          />
-        )}
-      </div>
-
-      {/* Task Description */}
-      <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
-        <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
-          <label className="text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
-          {!editingDesc && (
-            <button 
-              onClick={() => setEditingDesc(true)}
-              className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
-            >
-              {t('common.edit', 'Edit')}
-            </button>
-          )}
-        </div>
-
-        {editingDesc ? (
-          <div className="space-y-2">
-            <textarea
-              value={draftDesc}
-              onChange={(e) => setDraftDesc(e.target.value)}
-              className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[100px] resize-y"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button onClick={handleSaveDesc} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
-              <button onClick={() => { setEditingDesc(false); setDraftDesc(task.body || ''); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
-            </div>
-          </div>
-        ) : (
-          <div className="px-3 pt-2 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap min-h-[2rem]">
-            {task.body || <span className="text-slate-400 italic">{t('dashboard.noDescription')}</span>}
-          </div>
-        )}
       </div>
 
       {/* Comments Section */}
