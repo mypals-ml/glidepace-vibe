@@ -811,7 +811,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             initials: (a.name || a.login || '??').substring(0, 2).toUpperCase(),
             avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
           }))
-          : [{ id: 'unassigned', name: 'Unassigned', initials: '?', avatarColor: 'bg-slate-100 text-slate-400' }];
+          : [];
 
         setTasks(prev => prev.map(t => 
           (t.id === taskId || t.itemId === taskId) ? { ...t, assignees: updatedAssignees } : t

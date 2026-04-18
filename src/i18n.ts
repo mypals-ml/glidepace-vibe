@@ -92,10 +92,18 @@ const resources = {
         comments: "Comments ({{count}})",
         noDescription: "No description provided.",
         noAssignees: "No assignees",
+        unassigned: "Unassigned",
         currentProject: "Current Project",
         addTaskComment: "Add a comment",
         addComment: "Comment",
-        addCommentPlaceholder: "Comment here ..."
+        addCommentPlaceholder: "Comment here ...",
+        descriptionPlaceholder: "Add description..."
+      },
+      createTask: {
+        title: "Create New Task",
+        titlePlaceholder: "Task Title",
+        descriptionPlaceholder: "Add description...",
+        create: "Create Task"
       },
       common: {
         save: "Save",
@@ -235,10 +243,18 @@ const resources = {
         comments: "コメント ({{count}})",
         noDescription: "説明はありません。",
         noAssignees: "担当者なし",
+        unassigned: "未割り当て",
         currentProject: "現在のプロジェクト",
         addTaskComment: "コメントを追加",
         addComment: "コメント",
-        addCommentPlaceholder: "ここにコメントを入力..."
+        addCommentPlaceholder: "ここにコメントを入力...",
+        descriptionPlaceholder: "説明を追加..."
+      },
+      createTask: {
+        title: "新しいタスクを作成",
+        titlePlaceholder: "タスク名",
+        descriptionPlaceholder: "説明を追加...",
+        create: "タスクを作成"
       },
       common: {
         save: "保存",
@@ -378,10 +394,18 @@ const resources = {
         comments: "评论 ({{count}})",
         noDescription: "暂无描述。",
         noAssignees: "无经办人",
+        unassigned: "未分配",
         currentProject: "当前项目",
         addTaskComment: "添加评论",
         addComment: "评论",
-        addCommentPlaceholder: "在此输入评论..."
+        addCommentPlaceholder: "在此输入评论...",
+        descriptionPlaceholder: "添加描述..."
+      },
+      createTask: {
+        title: "创建新任务",
+        titlePlaceholder: "任务标题",
+        descriptionPlaceholder: "添加描述...",
+        create: "创建任务"
       },
       common: {
         save: "保存",

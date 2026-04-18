@@ -239,7 +239,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                 )) : <span className="text-sm text-slate-400">?</span>}
               </div>
               <span className="text-sm font-medium text-slate-700 truncate">
-                {newAssignees.length === 0 ? 'Unassigned' : newAssignees.length === 1 ? newAssignees[0].name : `${newAssignees.length} people`}
+                {newAssignees.length === 0 ? t('dashboard.unassigned') : newAssignees.length === 1 ? newAssignees[0].name : `${newAssignees.length} people`}
               </span>
             </div>
             {isAssigneeSelectorOpen && (
@@ -435,7 +435,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               <span className="text-sm font-medium">{user.name}</span>
             </div>
           )) : (
-            <span className="text-sm text-slate-500">Unassigned</span>
+            <span className="text-sm text-slate-500">{t('dashboard.unassigned')}</span>
           )}
         </div>
         {isAssigneeSelectorOpen && (
