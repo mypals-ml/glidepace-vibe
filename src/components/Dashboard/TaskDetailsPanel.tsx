@@ -12,47 +12,6 @@ interface TaskDetailsPanelProps {
   onClose: () => void;
 }
 
-function ActionMenu({ onEdit, onDelete, showDelete = false }: { onEdit: () => void; onDelete?: () => void; showDelete?: boolean }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation();
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <button onClick={() => setIsOpen(!isOpen)} className="p-1 rounded-md hover:bg-slate-200 text-slate-500">
-        <span className="material-symbols-outlined text-sm">more_vert</span>
-      </button>
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-md shadow-lg border border-slate-200 z-[60] py-1">
-          <button
-            className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
-            onClick={() => { onEdit(); setIsOpen(false); }}
-          >
-            {t('common.edit', 'Edit')}
-          </button>
-          {showDelete && onDelete && (
-            <button
-              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-              onClick={() => { onDelete(); setIsOpen(false); }}
-            >
-              {t('common.delete', 'Delete')}
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
   const { t } = useTranslation();
@@ -326,9 +285,12 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
           <span className="text-xs font-mono text-slate-500">{task.id}</span>
           {!editingTitle && (
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <ActionMenu onEdit={() => setEditingTitle(true)} />
-            </div>
+            <button 
+              onClick={() => setEditingTitle(true)}
+              className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
+            >
+              {t('common.edit', 'Edit')}
+            </button>
           )}
         </div>
 
@@ -453,9 +415,12 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
           <label className="text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
           {!editingDesc && (
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <ActionMenu onEdit={() => setEditingDesc(true)} />
-            </div>
+            <button 
+              onClick={() => setEditingDesc(true)}
+              className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
+            >
+              {t('common.edit', 'Edit')}
+            </button>
           )}
         </div>
 
@@ -515,12 +480,19 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               ) : (
                 <>
                   <p className="px-3 pt-2 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{comment.body}</p>
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ActionMenu
-                      showDelete
-                      onEdit={() => { setEditingCommentId(comment.id); setDraftComment(comment.body); }}
-                      onDelete={() => handleDeleteComment(comment.id)}
-                    />
+                  <div className="absolute top-2 right-2 flex items-center gap-1">
+                    <button 
+                      onClick={() => { setEditingCommentId(comment.id); setDraftComment(comment.body); }}
+                      className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
+                    >
+                      {t('common.edit', 'Edit')}
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteComment(comment.id)}
+                      className="px-2 py-1 rounded-md hover:bg-red-50 text-red-600 text-xs font-medium"
+                    >
+                      {t('common.delete', 'Delete')}
+                    </button>
                   </div>
                 </>
               )}
