@@ -28,20 +28,6 @@ export function Header() {
         <div className="flex items-center gap-[var(--header-gap-sm)] md:gap-[var(--header-gap-md)]">
           <ProjectSelectorDropdown />
 
-          <div className="relative hidden lg:flex items-center bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary h-[var(--header-button-height)]">
-            <div className="px-3 flex items-center h-full bg-slate-50 border-r border-slate-200 text-xs font-medium text-slate-500" id="language-select-label">{t('app.language')}</div>
-            <select
-              className="border-0 focus:ring-0 text-sm h-full pl-3 pr-8 w-28 text-slate-700 font-medium focus:outline-none bg-transparent appearance-none cursor-pointer"
-              value={i18n.language}
-              onChange={(e) => i18n.changeLanguage(e.target.value)}
-              aria-labelledby="language-select-label"
-            >
-              <option value="en">{t('app.locales.en')}</option>
-              <option value="ja">{t('app.locales.ja')}</option>
-              <option value="zh-CN">{t('app.locales.zhCN')}</option>
-            </select>
-            <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]" aria-hidden="true">language</span>
-          </div>
         </div>
       </div>
       <div className="flex items-center gap-[var(--header-gap-sm)] md:gap-[var(--header-gap-md)]">
@@ -57,6 +43,22 @@ export function Header() {
           <span className="hidden md:inline whitespace-nowrap">{isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}</span>
         </button>
         )}
+
+        <div className="relative flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-50 lg:hover:bg-white transition-colors rounded-lg lg:rounded-md shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary h-[var(--header-button-height)] w-[var(--header-button-height)] lg:w-auto shrink-0">
+          <div className="hidden lg:flex px-3 items-center h-full bg-slate-50 border-r border-slate-200 text-xs font-medium text-slate-500" id="language-select-label">{t('app.language')}</div>
+          <select
+            className="absolute inset-0 opacity-0 lg:static lg:opacity-100 border-0 focus:ring-0 text-sm h-full lg:pl-3 lg:pr-8 lg:w-28 text-slate-700 font-medium focus:outline-none bg-transparent appearance-none cursor-pointer z-10"
+            value={i18n.language}
+            onChange={(e) => i18n.changeLanguage(e.target.value)}
+            aria-labelledby="language-select-label"
+            title={t('app.language')}
+          >
+            <option value="en">{t('app.locales.en')}</option>
+            <option value="ja">{t('app.locales.ja')}</option>
+            <option value="zh-CN">{t('app.locales.zhCN')}</option>
+          </select>
+          <span className="material-symbols-outlined absolute lg:right-2 top-1/2 -translate-y-1/2 text-slate-700 lg:text-slate-400 pointer-events-none text-[20px] lg:text-[18px] z-0" aria-hidden="true">language</span>
+        </div>
 
         <SyncStatusIndicator />
 
