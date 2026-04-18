@@ -42,7 +42,7 @@ export function Timeline({ className = '', scrollRef, onScroll }: TimelineProps)
             <div className="flex-1 border-r border-slate-100 bg-slate-50/30"></div>
             <div className="flex-1 border-r border-slate-100 bg-slate-50/30"></div>
           </div>
-          <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ backgroundImage: 'linear-gradient(to bottom, transparent 55px, rgba(226, 232, 240, 0.4) 56px)', backgroundSize: '100% 56px' }}></div>
+          <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ backgroundImage: 'linear-gradient(to bottom, transparent 71px, rgba(226, 232, 240, 0.4) 72px)', backgroundSize: '100% 72px' }}></div>
 
           {isLoadingTasks ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px] z-30">
@@ -70,7 +70,7 @@ export function Timeline({ className = '', scrollRef, onScroll }: TimelineProps)
                 const width = 20 + (idx * 10) % 40;
 
                 return (
-                  <div key={task.id} className="relative h-[56px] w-full flex items-center group z-10 px-2">
+                  <div key={task.id} className="relative h-[72px] w-full flex items-center group z-10 px-2">
                   <div
                       className={`absolute h-8 rounded-md border flex items-center px-3 cursor-pointer transition-all shadow-sm hover:opacity-80 ${getStatusColor(task.status)}`}
                       style={{
