@@ -134,21 +134,25 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
 
 
   const handleSaveTitle = async () => {
+    if (!task) return;
     await updateTaskTitle(task, draftTitle);
     setEditingTitle(false);
   };
 
   const handleSaveDesc = async () => {
+    if (!task) return;
     await updateTaskDescription(task, draftDesc);
     setEditingDesc(false);
   };
 
   const handleSaveComment = async (commentId: string) => {
+    if (!task) return;
     await updateTaskComment(task, commentId, draftComment);
     setEditingCommentId(null);
   };
 
   const handleDeleteComment = async (commentId: string) => {
+    if (!task) return;
     if (window.confirm(t('common.confirmDelete'))) {
       await deleteTaskComment(task, commentId);
     }
@@ -167,7 +171,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const onHandleCreate = async () => {
     if (!newTitle.trim()) return;
     setIsCreating(true);
-    const success = await handleCreateTask({
+    await handleCreateTask({
       title: newTitle,
       body: newDesc,
       status: newStatus,
