@@ -11,5 +11,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true
+  },
+  server: {
+    host: '0.0.0.0', // allow testing from mobile devices on local network
+    port: 5173
   }
 })
