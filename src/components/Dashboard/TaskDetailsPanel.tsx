@@ -355,7 +355,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                 className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none"
                 autoFocus
               />
-              <div className="flex gap-2">
+              <div className="flex gap-2 justify-end">
                 <button onClick={handleSaveTitle} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
                 <button onClick={() => { setEditingTitle(false); setDraftTitle(task.title); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
               </div>
@@ -385,24 +385,26 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           </div>
         </div>
 
-        {editingDesc ? (
-          <div className="space-y-2">
-            <textarea
-              value={draftDesc}
-              onChange={(e) => setDraftDesc(e.target.value)}
-              className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[100px] resize-y"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button onClick={handleSaveDesc} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
-              <button onClick={() => { setEditingDesc(false); setDraftDesc(task.body || ''); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
+        <div className="px-3 pt-3">
+          {editingDesc ? (
+            <div className="space-y-2">
+              <textarea
+                value={draftDesc}
+                onChange={(e) => setDraftDesc(e.target.value)}
+                className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[100px] resize-y"
+                autoFocus
+              />
+              <div className="flex gap-2 justify-end">
+                <button onClick={handleSaveDesc} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
+                <button onClick={() => { setEditingDesc(false); setDraftDesc(task.body || ''); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="px-3 pt-2 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap min-h-[2rem]">
-            {task.body || <span className="text-slate-400 italic">{t('dashboard.noDescription')}</span>}
-          </div>
-        )}
+          ) : (
+            <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap min-h-[2rem]">
+              {task.body || <span className="text-slate-400 italic">{t('dashboard.noDescription')}</span>}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Status */}
@@ -528,7 +530,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                     className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[60px] resize-y"
                     autoFocus
                   />
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 justify-end">
                     <button onClick={() => handleSaveComment(comment.id)} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
                     <button onClick={() => setEditingCommentId(null)} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
                   </div>
