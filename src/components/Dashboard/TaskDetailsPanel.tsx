@@ -220,14 +220,16 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         </div>
 
         {/* Status */}
-        <div className="relative">
-          <label className="text-xs font-medium text-slate-600 block mb-2">{t('table.status')}</label>
+        <div className="border-t border-slate-200/60 pt-3 relative">
+          <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.status')}</label>
           <div
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border cursor-pointer hover:bg-slate-50 transition-colors ${getStatusColor(newStatus)}`}
+            className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
             onClick={() => setIsStatusSelectorOpen(true)}
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(newStatus)}`}></span>
-            <span className="text-sm font-medium">{newStatus}</span>
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${getStatusColor(newStatus)}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(newStatus)}`}></span>
+              <span className="text-sm font-medium">{newStatus}</span>
+            </div>
           </div>
           {isStatusSelectorOpen && (
             <StatusSelector
@@ -242,22 +244,24 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         </div>
 
         {/* Assignees */}
-        <div className="relative">
-          <label className="text-xs font-medium text-slate-600 block mb-2">{t('table.assignees')}</label>
+        <div className="border-t border-slate-200/60 pt-3 relative">
+          <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.assignees')}</label>
           <div
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+            className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
             onClick={() => setIsAssigneeSelectorOpen(true)}
           >
-            <div className="flex -space-x-1 overflow-hidden">
-              {newAssignees.length > 0 ? newAssignees.slice(0, 3).map(user => (
-                <div key={user.id} className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border border-white ${user.avatarColor}`}>
-                  {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full rounded-full" /> : user.initials}
-                </div>
-              )) : <span className="text-sm text-slate-400">?</span>}
-            </div>
-            <span className="text-sm font-medium text-slate-700 truncate">
-              {newAssignees.length === 0 ? t('dashboard.unassigned') : newAssignees.length === 1 ? newAssignees[0].name : `${newAssignees.length} people`}
-            </span>
+            {newAssignees.length > 0 ? newAssignees.map(user => (
+              <div key={user.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${user.avatarColor}`}>
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user.name} className="w-5 h-5 rounded-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold">{user.initials}</span>
+                )}
+                <span className="text-sm font-medium">{user.name}</span>
+              </div>
+            )) : (
+              <span className="text-sm text-slate-500">{t('dashboard.unassigned')}</span>
+            )}
           </div>
           {isAssigneeSelectorOpen && (
             <AssigneeSelector
@@ -271,14 +275,14 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         </div>
 
         {/* Dates */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="border-t border-slate-200/60 pt-3 grid grid-cols-2 gap-4">
           <div>
             <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
             <input
               type="date"
               value={newStartDate}
               onChange={(e) => setNewStartDate(e.target.value)}
-              className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
             />
           </div>
           <div>
@@ -287,7 +291,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               type="date"
               value={newEndDate}
               onChange={(e) => setNewEndDate(e.target.value)}
-              className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
             />
           </div>
         </div>

@@ -97,7 +97,11 @@ const resources = {
         addTaskComment: "Add a comment",
         addComment: "Comment",
         addCommentPlaceholder: "Comment here ...",
-        descriptionPlaceholder: "Add description..."
+        descriptionPlaceholder: "Add description...",
+        searchPlaceholder: "Search people...",
+        noResults: "No results found",
+        assignable: "Assignable",
+        suggestions: "Suggestions"
       },
       createTask: {
         title: "Create New Task",
@@ -113,7 +117,9 @@ const resources = {
         edit: "Edit",
         delete: "Delete",
         confirmDelete: "Are you sure you want to delete this item?",
-        submitting: "Submitting..."
+        submitting: "Submitting...",
+        done: "Done",
+        selected: "{{count}} selected"
       },
       table: {
         id: "ID",
@@ -250,7 +256,11 @@ const resources = {
         addTaskComment: "コメントを追加",
         addComment: "コメント",
         addCommentPlaceholder: "ここにコメントを入力...",
-        descriptionPlaceholder: "説明を追加..."
+        descriptionPlaceholder: "説明を追加...",
+        searchPlaceholder: "ユーザーを検索...",
+        noResults: "結果が見つかりません",
+        assignable: "割り当て可能",
+        suggestions: "提案"
       },
       createTask: {
         title: "新しいタスクを作成",
@@ -266,7 +276,9 @@ const resources = {
         edit: "編集",
         delete: "削除",
         confirmDelete: "このアイテムを削除してもよろしいですか？",
-        submitting: "送信中..."
+        submitting: "送信中...",
+        done: "完了",
+        selected: "{{count}}件選択中"
       },
       table: {
         id: "ID",
@@ -403,7 +415,11 @@ const resources = {
         addTaskComment: "添加评论",
         addComment: "评论",
         addCommentPlaceholder: "在此输入评论...",
-        descriptionPlaceholder: "添加描述..."
+        descriptionPlaceholder: "添加描述...",
+        searchPlaceholder: "搜索用户...",
+        noResults: "未找到结果",
+        assignable: "可分配",
+        suggestions: "建议"
       },
       createTask: {
         title: "创建新任务",
@@ -419,7 +435,9 @@ const resources = {
         edit: "编辑",
         delete: "删除",
         confirmDelete: "您确定要删除此项吗？",
-        submitting: "正在提交..."
+        submitting: "正在提交...",
+        done: "完成",
+        selected: "已选择 {{count}} 项"
       },
       table: {
         id: "ID",

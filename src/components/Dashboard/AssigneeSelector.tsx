@@ -210,12 +210,12 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
 
         {/* Footer/Action */}
         <div className="p-2 border-t border-slate-200/60 bg-slate-50/80 flex justify-between items-center sm:hidden">
-          <span className="text-[10px] text-slate-400 ml-2">{localSelectedIds.length} selected</span>
+          <span className="text-[10px] text-slate-400 ml-2">{t('common.selected', { count: localSelectedIds.length })}</span>
           <button 
             onClick={handleApply}
             className="px-4 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg shadow-glow hover:bg-primary-hover transition-all"
           >
-            Done
+            {t('common.done')}
           </button>
         </div>
       </div>
