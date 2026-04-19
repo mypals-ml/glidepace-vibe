@@ -8,8 +8,8 @@ export interface DashboardContextValue {
   setActiveAccountId: (id: string) => void;
   githubToken: string;
   isLoadingAuth: boolean;
-  isAppInstalled: Record<string, boolean>;
-  isRefreshing: Record<string, boolean>;
+  isAppInstalled: Record<string, boolean | undefined>;
+  isRefreshing: Record<string, boolean | undefined>;
   handleOpenAuth: () => void;
   handleDisconnect: (accountId: string) => void;
 
