@@ -28,14 +28,17 @@ export function StatusSelector({ task, onClose, onSelect }: StatusSelectorProps)
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:-left-2 sm:top-full sm:mt-2 sm:p-0 pointer-events-none">
-      {/* Backdrop for mobile */}
+      {/* Universal backdrop for mobile and click-outside capture for desktop */}
       <div 
-        className="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] sm:hidden pointer-events-auto" 
+        className="fixed inset-0 z-[-1] bg-slate-900/20 backdrop-blur-[2px] sm:bg-transparent sm:backdrop-blur-none pointer-events-auto" 
         onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
       
       {/* Selector Panel */}
-      <div className="glass-panel w-full sm:w-auto sm:min-w-[160px] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-left pointer-events-auto">
+      <div 
+        className="glass-panel w-full sm:w-auto sm:min-w-[160px] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-left pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Status List */}
         <div className="max-h-[300px] overflow-y-auto custom-scrollbar py-1 bg-white/30">
           {statuses.map(statusName => {
