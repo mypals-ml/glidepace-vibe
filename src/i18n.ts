@@ -106,6 +106,8 @@ const resources = {
         create: "Create Task"
       },
       common: {
+        copy: "Copy",
+        copied: "Copied!",
         save: "Save",
         cancel: "Cancel",
         edit: "Edit",
@@ -257,6 +259,8 @@ const resources = {
         create: "タスクを作成"
       },
       common: {
+        copy: "コピー",
+        copied: "コピーしました",
         save: "保存",
         cancel: "キャンセル",
         edit: "編集",
@@ -408,6 +412,8 @@ const resources = {
         create: "创建任务"
       },
       common: {
+        copy: "复制",
+        copied: "已复制",
         save: "保存",
         cancel: "取消",
         edit: "编辑",
