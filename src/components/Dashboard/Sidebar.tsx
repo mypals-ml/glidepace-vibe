@@ -87,7 +87,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
                 </div>
 
                 {/* Status Column */}
-                <div className="group/status relative h-full flex items-center min-w-0 overflow-hidden">
+                <div className="group/status relative h-full flex items-center min-w-0">
                   <div
                     className="flex items-center cursor-pointer hover:opacity-80 transition-opacity max-w-full"
                     onClick={(e) => {
