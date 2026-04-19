@@ -33,6 +33,7 @@ export const MOCK_PROJECTS_DATA: ProjectOwnerInfo[] = [
       { id: DUMMY_PROJECT_ID, title: 'Demo: Product Roadmap 2024', public: true },
       { id: 'PVT_2', title: 'Demo: Bug Tracker', public: false },
       { id: 'PVT_3', title: 'Connected GitHub Tasks', public: true },
+      { id: 'PVT_EMPTY', title: 'Empty Project Demo', public: true },
     ],
   },
 ];
@@ -327,6 +328,25 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 800));
 
+  if (query.includes('organization(') && query.includes('membersWithRole')) {
+    // Mock Org Members fetch
+    return {
+      data: {
+        organization: {
+          membersWithRole: {
+            nodes: MOCK_USER_POOL.map(u => ({
+              __typename: 'User',
+              id: u.id,
+              login: u.login,
+              name: u.name,
+              avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random`
+            }))
+          }
+        }
+      }
+    };
+  }
+
   if (query.includes('projectsV2') && !query.includes('items')) {
     // List projects
     return {
@@ -406,7 +426,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
             ]
           },
           items: {
-            nodes: (variables.projectId === 'PVT_3' ? CONNECTED_TASKS_TASKS : (variables.projectId === 'PVT_2' ? MOCK_TASKS_BUG_TRACKER : MOCK_TASKS)).map(mapTaskToGraphQLNode)
+            nodes: (variables.projectId === 'PVT_EMPTY' ? [] : (variables.projectId === 'PVT_3' ? CONNECTED_TASKS_TASKS : (variables.projectId === 'PVT_2' ? MOCK_TASKS_BUG_TRACKER : MOCK_TASKS))).map(mapTaskToGraphQLNode)
           }
         }
       }

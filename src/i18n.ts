@@ -119,7 +119,8 @@ const resources = {
         confirmDelete: "Are you sure you want to delete this item?",
         submitting: "Submitting...",
         done: "Done",
-        selected: "{{count}} selected"
+        selected: "{{count}} selected",
+        me: "Me"
       },
       table: {
         id: "ID",
@@ -278,7 +279,8 @@ const resources = {
         confirmDelete: "このアイテムを削除してもよろしいですか？",
         submitting: "送信中...",
         done: "完了",
-        selected: "{{count}}件選択中"
+        selected: "{{count}}件選択中",
+        me: "自分"
       },
       table: {
         id: "ID",
@@ -437,7 +439,8 @@ const resources = {
         confirmDelete: "您确定要删除此项吗？",
         submitting: "正在提交...",
         done: "完成",
-        selected: "已选择 {{count}} 项"
+        selected: "已选择 {{count}} 项",
+        me: "我"
       },
       table: {
         id: "ID",

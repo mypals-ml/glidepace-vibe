@@ -76,11 +76,14 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
   const combinedResults = useMemo(() => {
     const results = [...filteredAssignable];
     const seenIds = new Set(results.map(u => u.id));
+    const seenLogins = new Set(results.map(u => u.login).filter(Boolean) as string[]);
     
     searchedUsers.forEach(user => {
-      if (!seenIds.has(user.id)) {
+      const isDuplicate = seenIds.has(user.id) || (user.login && seenLogins.has(user.login));
+      if (!isDuplicate) {
         results.push(user);
         seenIds.add(user.id);
+        if (user.login) seenLogins.add(user.login);
       }
     });
     
@@ -186,12 +189,12 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
               })}
 
               {/* Suggestions from Search */}
-              {searchTerm && searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id)).length > 0 && (
+              {searchTerm && searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id || (u.login && au.login === u.login))).length > 0 && (
                 <>
                   <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50 mt-1 border-t border-slate-100">
                     {t('dashboard.suggestions', 'Suggestions')}
                   </div>
-                  {searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id)).map(user => {
+                  {searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id || (u.login && au.login === u.login))).map(user => {
                     const isSelected = localSelectedIds.includes(user.id);
                     return (
                       <UserButton 
