@@ -12,7 +12,8 @@ interface AssigneeSelectorProps {
 }
 
 export function AssigneeSelector({ taskId, currentAssignees, repository, onClose, onSelect }: AssigneeSelectorProps) {
-  const { fetchSearchUsers, updateTaskAssignees } = useDashboard();
+  const { fetchSearchUsers, updateTaskAssignees, selectedProject } = useDashboard();
+  const isPrivate = selectedProject && !selectedProject.public;
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchedUsers, setSearchedUsers] = useState<User[]>([]);
@@ -151,21 +152,32 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
             <input
               autoFocus
               type="text"
-              className="w-full bg-slate-100/50 border border-slate-200/50 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className={`w-full bg-slate-100/50 border border-slate-200/50 rounded-lg pl-8 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${isPrivate ? 'pr-16' : 'pr-3'}`}
               placeholder={t('dashboard.searchPlaceholder', 'Search people...')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onClick={(e) => e.stopPropagation()}
             />
+            {isPrivate && (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100/80 text-[10px] text-slate-500 font-bold border border-slate-200/50 backdrop-blur-sm select-none pointer-events-none">
+                <span className="material-symbols-outlined text-[14px]">lock</span>
+                {t('dashboard.privateStatus', 'Private')}
+              </div>
+            )}
           </div>
         </div>
 
         {/* User List */}
         <div className="max-h-[300px] overflow-y-auto custom-scrollbar py-1 bg-white/30">
           {combinedResults.length === 0 && !isSearching ? (
-            <div className="px-4 py-8 text-center">
+            <div className="px-4 py-10 text-center">
               <span className="material-symbols-outlined text-slate-300 text-3xl mb-2">person_search</span>
               <div className="text-slate-400 text-xs italic">{t('dashboard.noResults', 'No results found')}</div>
+              {isPrivate && (
+                <div className="mt-4 px-4 text-[10px] text-slate-400/70 leading-relaxed">
+                  {t('dashboard.privateProjectSearchNotice', 'Global search is limited for private projects.')}
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col">
@@ -206,6 +218,18 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
                     );
                   })}
                 </>
+              )}
+
+              {/* Private project notice at bottom of results */}
+              {isPrivate && combinedResults.length > 0 && (
+                <div className="px-3 py-1.5 border-t border-slate-100/50 mt-1">
+                  <div className="flex items-center gap-2 text-slate-400/60">
+                    <span className="material-symbols-outlined text-xs">info</span>
+                    <p className="text-[9px] leading-tight italic">
+                      {t('dashboard.privateProjectSearchNotice', 'Global search is limited for private projects.')}
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           )}

@@ -101,7 +101,9 @@ const resources = {
         searchPlaceholder: "Search people...",
         noResults: "No results found",
         assignable: "Assignable",
-        suggestions: "Suggestions"
+        suggestions: "Suggestions",
+        privateProjectSearchNotice: "Global search is limited for private projects.",
+        privateStatus: "Private"
       },
       createTask: {
         title: "Create New Task",
@@ -120,7 +122,8 @@ const resources = {
         submitting: "Submitting...",
         done: "Done",
         selected: "{{count}} selected",
-        me: "Me"
+        me: "Me",
+        private: "Private"
       },
       table: {
         id: "ID",
@@ -261,7 +264,9 @@ const resources = {
         searchPlaceholder: "ユーザーを検索...",
         noResults: "結果が見つかりません",
         assignable: "割り当て可能",
-        suggestions: "提案"
+        suggestions: "提案",
+        privateProjectSearchNotice: "プライベートプロジェクトではグローバル検索が制限されています。",
+        privateStatus: "プライベート"
       },
       createTask: {
         title: "新しいタスクを作成",
@@ -280,7 +285,8 @@ const resources = {
         submitting: "送信中...",
         done: "完了",
         selected: "{{count}}件選択中",
-        me: "自分"
+        me: "自分",
+        private: "プライベート"
       },
       table: {
         id: "ID",
@@ -421,7 +427,9 @@ const resources = {
         searchPlaceholder: "搜索用户...",
         noResults: "未找到结果",
         assignable: "可分配",
-        suggestions: "建议"
+        suggestions: "建议",
+        privateProjectSearchNotice: "私有项目限制全局搜索。",
+        privateStatus: "私有"
       },
       createTask: {
         title: "创建新任务",
@@ -440,7 +448,8 @@ const resources = {
         submitting: "正在提交...",
         done: "完成",
         selected: "已选择 {{count}} 项",
-        me: "我"
+        me: "我",
+        private: "私有"
       },
       table: {
         id: "ID",
