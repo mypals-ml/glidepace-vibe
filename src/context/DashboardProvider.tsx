@@ -653,7 +653,22 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     if (!githubToken) return [];
 
     try {
-      let results: User[] = [];
+      // Use a Map to track users by ID to prevent duplicates
+      const resultsMap = new Map<string, User>();
+
+      // Always include the current logged-in user as a suggestion
+      const currentAccount = githubAccounts.find(a => a.id === activeAccountId);
+      if (currentAccount) {
+        const currentUser: User = {
+          id: currentAccount.id,
+          login: currentAccount.login,
+          name: (currentAccount.name || currentAccount.login) + ` (${t('common.me', 'Me')})`,
+          avatarUrl: currentAccount.avatarUrl,
+          initials: (currentAccount.name || currentAccount.login || '??').substring(0, 2).toUpperCase(),
+          avatarColor: 'bg-primary/20 text-primary',
+        };
+        resultsMap.set(currentUser.id, currentUser);
+      }
 
       // 1. Try to fetch assignable users from the repository if provided
       // This is the source of truth for who can actually be assigned.
@@ -678,24 +693,71 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           const assignableJson = await fetchGitHubGraphQL(assignableQuery, { owner, name, query: searchTerm || undefined }, githubToken);
           const assignableNodes = (assignableJson.data?.repository?.assignableUsers?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
           
-          results = assignableNodes
-            .filter(n => n && n.id)
-            .map((n, idx) => ({
-              id: n.id!,
-              login: n.login,
-              name: n.name || n.login || 'Unknown User',
-              avatarUrl: n.avatarUrl || '',
-              initials: (n.name || n.login || '??').substring(0, 2).toUpperCase(),
-              avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][idx % 5],
-            }));
+          assignableNodes.forEach((n, idx) => {
+            if (n && n.id) {
+              const isDuplicate = resultsMap.has(n.id) || 
+                                (n.login && Array.from(resultsMap.values()).some(u => u.login === n.login));
+              
+              if (!isDuplicate) {
+                resultsMap.set(n.id, {
+                  id: n.id,
+                  login: n.login,
+                  name: n.name || n.login || 'Unknown User',
+                  avatarUrl: n.avatarUrl || '',
+                  initials: (n.name || n.login || '??').substring(0, 2).toUpperCase(),
+                  avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][(resultsMap.size + idx) % 5],
+                });
+              }
+            }
+          });
         }
       }
 
-      // 2. Fallback / Additional discovery for Orgs (if search term is provided)
+      const currentOwner = projectsData.find(o => o.projects.some(p => p.id === selectedProject?.id));
+
+      // 2. Cold Start: If no search term and no repository, try to get members from the Org/Owner
+      if (!searchTerm && !repository && currentOwner) {
+        if (currentOwner.isOrg) {
+          const orgMembersQuery = `
+            query($login: String!) {
+              organization(login: $login) {
+                membersWithRole(first: 20) {
+                  nodes {
+                    id
+                    login
+                    name
+                    avatarUrl
+                  }
+                }
+              }
+            }
+          `;
+          const orgJson = await fetchGitHubGraphQL(orgMembersQuery, { login: currentOwner.login }, githubToken);
+          const orgNodes = (orgJson.data?.organization?.membersWithRole?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
+          
+          orgNodes.forEach((n, idx) => {
+            if (n && n.id) {
+              const isDuplicate = resultsMap.has(n.id) || 
+                                (n.login && Array.from(resultsMap.values()).some(u => u.login === n.login));
+                                
+              if (!isDuplicate) {
+                resultsMap.set(n.id, {
+                  id: n.id,
+                  login: n.login,
+                  name: n.name || n.login || 'Unknown User',
+                  avatarUrl: n.avatarUrl || '',
+                  initials: (n.name || n.login || '??').substring(0, 2).toUpperCase(),
+                  avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][(resultsMap.size + idx) % 5],
+                });
+              }
+            }
+          });
+        }
+      }
+
+      // 3. Fallback / Additional discovery for Orgs (if search term is provided)
       // Only perform global user search if we have a search term and it's an org project or public project.
       if (searchTerm && searchTerm.length >= 2) {
-        const currentOwner = projectsData.find(o => o.projects.some(p => p.id === selectedProject?.id));
-        
         let shouldGlobalSearch = false;
         let searchQuery = searchTerm;
 
@@ -725,29 +787,33 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           const globalJson = await fetchGitHubGraphQL(globalQuery, { searchQuery }, githubToken);
           const globalNodes = (globalJson.data?.search?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
           
-          const existingIds = new Set(results.map(r => r.id));
           globalNodes.forEach((n, idx) => {
-            if (n && n.id && !existingIds.has(n.id)) {
-              const displayName = n.name || n.login || 'Unknown User';
-              results.push({
-                id: n.id!,
-                login: n.login,
-                name: displayName,
-                avatarUrl: n.avatarUrl || '',
-                initials: displayName.substring(0, 2).toUpperCase(),
-                avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][(results.length + idx) % 5],
-              });
+            if (n && n.id) {
+              const isDuplicate = resultsMap.has(n.id) || 
+                                (n.login && Array.from(resultsMap.values()).some(u => u.login === n.login));
+              
+              if (!isDuplicate) {
+                const displayName = n.name || n.login || 'Unknown User';
+                resultsMap.set(n.id, {
+                  id: n.id,
+                  login: n.login,
+                  name: displayName,
+                  avatarUrl: n.avatarUrl || '',
+                  initials: displayName.substring(0, 2).toUpperCase(),
+                  avatarColor: ['bg-amber-100 text-amber-700', 'bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-purple-100 text-purple-700'][(resultsMap.size + idx) % 5],
+                });
+              }
             }
           });
         }
       }
 
-      return results;
+      return Array.from(resultsMap.values());
     } catch (e) {
       console.error('Search users failed:', e);
       return [];
     }
-  }, [githubToken, projectsData, selectedProject]);
+  }, [githubToken, projectsData, selectedProject, activeAccountId, githubAccounts, t]);
 
   const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[]) => {
     const task = tasks.find(t => t.id === taskId);

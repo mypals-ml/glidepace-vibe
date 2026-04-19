@@ -20,7 +20,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
       {/* Header - Moved outside scroll container for alignment */}
-      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[40px_1fr_72px_76px] gap-2 pl-4 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
+      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[40px_1fr_64px_76px] gap-2 pl-4 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.id')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.title')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
@@ -58,7 +58,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
             filteredTasks.map(task => (
               <div 
                 key={task.id} 
-                className={`grid grid-cols-[40px_1fr_72px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
+                className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
                   selectedTaskId === task.id ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
                 }`} 
                 onClick={() => setSelectedTaskId(task.id)}
@@ -87,9 +87,9 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
                 </div>
 
                 {/* Status Column */}
-                <div className="group/status relative h-full flex items-center">
+                <div className="group/status relative h-full flex items-center min-w-0">
                   <div
-                    className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+                    className="flex items-center cursor-pointer hover:opacity-80 transition-opacity max-w-full"
                     onClick={(e) => {
                       e.stopPropagation();
                       setOpenStatusSelectorTaskId(openStatusSelectorTaskId === task.id ? null : task.id);
