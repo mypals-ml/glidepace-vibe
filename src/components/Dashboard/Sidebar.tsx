@@ -20,7 +20,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
       {/* Header - Moved outside scroll container for alignment */}
-      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[48px_1fr_100px_80px] gap-2 px-4 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
+      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[40px_1fr_72px_76px] gap-2 pl-4 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.id')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.title')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
@@ -58,7 +58,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
             filteredTasks.map(task => (
               <div 
                 key={task.id} 
-                className={`grid grid-cols-[48px_1fr_100px_80px] gap-2 items-center h-[72px] px-4 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
+                className={`grid grid-cols-[40px_1fr_72px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
                   selectedTaskId === task.id ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
                 }`} 
                 onClick={() => setSelectedTaskId(task.id)}
@@ -79,7 +79,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
                 </div>
 
                 {/* Title Column */}
-                <div className="flex flex-col justify-center min-w-0 pr-2">
+                <div className="flex flex-col justify-center min-w-0 pr-1">
                   <span className={`text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
                     {task.title}
                   </span>
@@ -96,9 +96,9 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
                     }}
                     title="Update status"
                   >
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${getStatusColor(task.status)}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${getStatusDotColor(task.status)}`} />
-                      {task.status}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors max-w-full ${getStatusColor(task.status)}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 mr-1.5 ${getStatusDotColor(task.status)}`} />
+                      <span className="truncate">{task.status}</span>
                     </span>
                   </div>
                   {openStatusSelectorTaskId === task.id && (
