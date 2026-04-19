@@ -12,6 +12,49 @@ interface TaskDetailsPanelProps {
   onClose: () => void;
 }
 
+function CopyButton({ text, t }: { text: string; t: TFunction }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!text) return;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback for non-secure contexts (e.g. local IP access on mobile)
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        if (!successful) throw new Error('copy command failed');
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={`p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all flex items-center justify-center shrink-0 ${copied ? 'bg-green-50' : ''}`}
+      title={copied ? t('common.copied', 'Copied!') : t('common.copy', 'Copy')}
+    >
+      <span className={`material-symbols-outlined text-[14px] leading-none ${copied ? 'text-green-600 scale-110 font-bold' : ''} transition-all duration-200`}>
+        {copied ? 'check' : 'content_copy'}
+      </span>
+    </button>
+  );
+}
+
 
 export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
   const { t } = useTranslation();
@@ -283,14 +326,19 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
         <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
           <span className="text-xs font-mono text-slate-500">{task.id}</span>
-          {!editingTitle && (
-            <button 
-              onClick={() => setEditingTitle(true)}
-              className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
-            >
-              {t('common.edit', 'Edit')}
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {!editingTitle && (
+              <>
+                <CopyButton text={task.title} t={t} />
+                <button 
+                  onClick={() => setEditingTitle(true)}
+                  className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
+                >
+                  {t('common.edit', 'Edit')}
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="px-3 pt-3">
@@ -318,14 +366,19 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
         <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
           <label className="text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
-          {!editingDesc && (
-            <button 
-              onClick={() => setEditingDesc(true)}
-              className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
-            >
-              {t('common.edit', 'Edit')}
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {!editingDesc && (
+              <>
+                <CopyButton text={task.body || ''} t={t} />
+                <button 
+                  onClick={() => setEditingDesc(true)}
+                  className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
+                >
+                  {t('common.edit', 'Edit')}
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {editingDesc ? (
@@ -480,6 +533,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                 <>
                   <p className="px-3 pt-2 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{comment.body}</p>
                   <div className="absolute top-2 right-2 flex items-center gap-1">
+                    <CopyButton text={comment.body} t={t} />
                     <button 
                       onClick={() => { setEditingCommentId(comment.id); setDraftComment(comment.body); }}
                       className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
