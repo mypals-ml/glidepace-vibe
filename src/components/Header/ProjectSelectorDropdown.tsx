@@ -10,7 +10,6 @@ export function ProjectSelectorDropdown() {
     setHasProject,
     selectedProject,
     setSelectedProject,
-    setTasks,
     handleOpenProjectClick,
     handleSelectRealProject,
     handleRemoveFromHistory,
