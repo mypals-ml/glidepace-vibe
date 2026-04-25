@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { USE_MOCK_DATA, MOCK_PROJECTS } from '../lib/mockData';
 import { fetchGitHubGraphQL } from '../lib/githubService';
 import { GET_USER_PROJECTS_QUERY } from '../lib/githubQueries';
-import { DUMMY_PROJECT_ID, MOCK_TOKEN } from '../lib/githubMock';
+import { MOCK_TOKEN } from '../lib/githubMock';
 import type { ProjectOwnerInfo, GitHubProject, ProjectHistoryItem, SortMethod } from '../types';
 
 interface UseDashboardProjectsProps {
@@ -118,7 +118,7 @@ export function useDashboardProjects({
     localStorage.removeItem('selected_project_type');
 
     const isMockAccount = activeAccountId === 'mock-1';
-    const isMockProject = id === DUMMY_PROJECT_ID || isMockAccount;
+    const isMockProject = isMockAccount;
     const tokenToUse = forceToken || (isMockProject ? MOCK_TOKEN : githubToken);
 
     if (tokenToUse) {

@@ -15,7 +15,7 @@ To allow users to log into your local environment securely and grant permission 
 👉 **Next Step:** [Read GITHUB_OAUTH_SETUP.md](./GITHUB_OAUTH_SETUP.md) (Follow the Local Development section)
 
 ## 3. Webhook Setup (Local)
-Because GitHub cannot deliver webhooks to `localhost`, you need to set up a [Smee.io](https://smee.io/) proxy channel to forward webhook payloads to your local development server. You will also learn how `vite-plugin-vercel-mock.ts` lets you run everything with `npm run dev` — no Vercel CLI needed.
+Because GitHub cannot deliver webhooks to `localhost`, you need to set up a [Smee.io](https://smee.io/) proxy channel to forward webhook payloads to your local development server. You will also learn how `vite-plugin-vercel-mock.ts` lets you run everything with `npm run dev` — no Vercel CLI needed. For an even simpler setup without OAuth/Webhooks, use `npm run dev:test` to enable **Mock Mode**.
 
 👉 **Next Step:** [Read WEBHOOK_SETUP.md](./WEBHOOK_SETUP.md) (Follow the Local Development section)
 

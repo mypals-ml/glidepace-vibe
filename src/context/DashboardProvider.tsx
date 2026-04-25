@@ -1,5 +1,4 @@
 import { useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { DUMMY_TASKS } from '../lib/dummyData';
 import { DashboardContext } from './DashboardContext';
 import type { DashboardContextValue } from './DashboardContext';
 
@@ -11,7 +10,6 @@ import { useDashboardTasks } from '../hooks/useDashboardTasks';
 import { useDashboardSync } from '../hooks/useDashboardSync';
 
 // Service
-import { DUMMY_PROJECT_ID } from '../lib/githubMock';
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   // Bridging Refs to break circular dependencies between hooks
@@ -90,23 +88,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [auth, ui]);
 
-  const handleOpenDummyProject = useCallback(() => {
-    const mockAccount = auth.githubAccounts.find(a => a.id === 'mock-1');
-    if (!mockAccount) {
-      // Logic from old provider - simplified
-      auth.setActiveAccountId('mock-1');
-    } else {
-      auth.setActiveAccountId(mockAccount.id);
-    }
-    projects.handleSelectRealProject(DUMMY_PROJECT_ID, 'Demo: Product Roadmap 2024', true);
-  }, [auth, projects]);
-
   const handleDisconnect = useCallback((accountId: string) => {
     auth.handleDisconnect(accountId, () => {
       projects.setProjectHistory([]);
       projects.setHasProject(false);
       projects.setSelectedProject(null);
-      tasks.setTasks(DUMMY_TASKS);
+      tasks.setTasks([]);
     });
   }, [auth, projects, tasks]);
 
@@ -129,7 +116,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     ...sync,
     handleDisconnect,
     handleOpenProjectClick,
-    handleOpenDummyProject,
     handleAddAccountByToken,
   };
 

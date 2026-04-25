@@ -12,7 +12,7 @@ export async function fetchGitHubGraphQL(query: string, variables: Record<string
   // Check if we should use mock data
   // Force mock if token is mock-token OR if the project ID is the dummy project ID
   if (token === MOCK_TOKEN ||
-    (typeof variables.projectId === 'string' && (variables.projectId === 'PVT_DUMMY_123' || variables.projectId === 'PVT_2' || variables.projectId === 'PVT_3')) ||
+    (typeof variables.projectId === 'string' && (variables.projectId === 'PVT_2' || variables.projectId === 'PVT_3')) ||
     (typeof variables.itemId === 'string' && variables.itemId.startsWith('item-'))) {
     return handleMockGraphQL(query, variables as MockVariables);
   }

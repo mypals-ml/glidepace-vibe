@@ -19,7 +19,6 @@ const MOCK_FIELD_IDS = {
 };
 
 export const MOCK_TOKEN = 'mock-token-123';
-export const DUMMY_PROJECT_ID = 'PVT_DUMMY_123';
 
 export const MOCK_ACCOUNTS_DATA = [
   { id: 'mock-1', login: 'glidelines-demo', name: 'Glidelines Demo', avatarUrl: 'https://avatars.githubusercontent.com/u/583231?v=4', token: MOCK_TOKEN },
@@ -30,7 +29,6 @@ export const MOCK_PROJECTS_DATA: ProjectOwnerInfo[] = [
     login: 'glidelines-demo',
     isOrg: false,
     projects: [
-      { id: DUMMY_PROJECT_ID, title: 'Demo: Product Roadmap 2024', public: true },
       { id: 'PVT_2', title: 'Demo: Bug Tracker', public: false },
       { id: 'PVT_3', title: 'Connected GitHub Tasks', public: true },
       { id: 'PVT_EMPTY', title: 'Empty Project Demo', public: true },

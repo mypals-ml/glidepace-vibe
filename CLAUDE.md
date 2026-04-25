@@ -55,7 +55,7 @@ Real-time updates flow through: GitHub Webhook → `/api/github-webhook.ts` (Ver
 Mock mode activates when:
 - `VITE_USE_MOCK_DATA=true` (set in `.env.test`)
 - Token equals `mock-token`
-- Project ID is `PVT_DUMMY_123`, `PVT_2`, or `PVT_3`
+- Project ID is `PVT_2` or `PVT_3`
 - Item IDs start with `item-`
 
 `githubMock.ts` is a comprehensive GraphQL handler that supports full Gantt chart interaction without a real GitHub connection. Use `npm run dev:test` for UI development.

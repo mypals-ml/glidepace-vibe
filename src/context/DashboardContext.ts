@@ -87,7 +87,6 @@ export interface DashboardContextValue {
   availableUsers: User[];
   fetchSearchUsers: (query: string, repository?: string) => Promise<User[]>;
   updateTaskAssignees: (taskId: string, userIds: string[]) => Promise<boolean>;
-  handleOpenDummyProject: () => void;
 }
 
 export const DashboardContext = createContext<DashboardContextValue | null>(null);
