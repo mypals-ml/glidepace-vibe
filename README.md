@@ -21,6 +21,9 @@ Glidelines bridges the gap between GitHub's robust task tracking and project man
 ### 🚀 Getting Started
 *   **[Local Development Guide](docs/LOCAL_DEVELOPMENT.md):** 🗺️ Your onboarding map to the `localhost` setup.
 *   **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md):** 🛰️ Steps to launch Glidelines on Vercel.
+*   **[Antigravity AI Agent](ANTIGRAVITY.md):** 🤖 Instructions and protocols for the Antigravity agent.
+*   **[Jules AI Agent](JULES.md):** 🦾 Instructions and protocols for the Jules agent.
+*   **[Vibe Coding Rules](RULES.md):** 📜 Core principles and guidelines for project development.
 
 ### 🏗️ Architecture & Core Logic
 *   **[Architecture Overview](docs/ARCHITECTURE.md):** 🏛️ High-level technical design and module breakdown.

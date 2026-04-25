@@ -1,4 +1,4 @@
-# Add a New Task
+# [Implemented] Add a New Task
 
 This document describes the UI design for adding a new task to the project.
 

@@ -37,14 +37,13 @@ This document outlines the core principles and guidelines for developing within 
 *   **Real-time Debugging:** Use Smee.io to test webhook payloads locally via the Vite API middleware.
 
 ## 6. AI Assistant Preferences
-*   **All Assistants Protocol:**
-    *   **Creating Tasks:** Whenever the user asks to "Add a task in the github task project" or similar phrasing, it strictly means to *both* add the task to the project mentioned in the file `docs/PROJECT_INFO.md` *and* convert it into an issue.
-*   **Google Antigravity Protocol:**
-    *   **Voice Input Confirmation:** If the input is a voice recording, print the command text to the chat interface before proceeding with the command.
-*   **Google Jules Protocol:**
-    *   **Google Jules Label:** *DO NOT* add JULES label without user confirmation to any issue or task.
-    *   **Google Jules Branches:** If Jules needs to create a branch, always create it under `/jules/`.
-    *   **Google Jules Branch Naming:** If the branch has a connecting task or issue, the branch name should start with `task#{task/issue number}`.
+
+Different AI agents have specific protocols tailored to their capabilities. Please refer to the respective files for detailed instructions:
+
+*   **Google Antigravity AI Agent**: See [ANTIGRAVITY.md](ANTIGRAVITY.md)
+*   **Google Jules AI Agent**: See [JULES.md](JULES.md)
+*   **All Assistants Shared Protocol**:
+    *   **Creating Tasks**: Whenever the user asks to "Add a task in the github task project" or similar phrasing, it strictly means to *both* add the task to the project mentioned in the file `docs/PROJECT_INFO.md` *and* convert it into an issue.
 
 ## 7. Environment & Troubleshooting
 *   **Command PATH**: The assistant's tool environment may have a restricted `PATH`. On this machine, Node and npm are located in `/opt/homebrew/opt/node@22/bin`. If commands are still not found, check `~/.zshrc` for the latest `PATH` exports and manually update the command's `PATH` (e.g., `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"`).

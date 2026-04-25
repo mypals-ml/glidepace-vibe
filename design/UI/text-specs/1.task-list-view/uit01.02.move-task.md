@@ -1,4 +1,4 @@
-# Move a Task Up or Down
+# [Planning] Move a Task Up or Down
 
 This document describes the UI design for moving a task up or down in the task list.
 

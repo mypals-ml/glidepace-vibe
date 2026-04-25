@@ -1,4 +1,4 @@
-# Delete a Task
+# [Planning] Delete a Task
 
 This document describes the UI design for deleting a task from the project.
 

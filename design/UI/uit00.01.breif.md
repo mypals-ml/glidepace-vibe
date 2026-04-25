@@ -1,4 +1,4 @@
-# Gantt Chart View
+# [Implemented] Gantt Chart View
 
 This document describes the UI design for the Gantt chart view, which is used to visualize and manage project schedules. The design is based on the Gantt chart functionality in Microsoft Project.
 
