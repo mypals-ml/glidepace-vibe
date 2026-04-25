@@ -1,5 +1,12 @@
 import { GITHUB_GRAPHQL_API_URL } from './constants';
 import { handleMockGraphQL, MOCK_TOKEN, type MockVariables } from './githubMock';
+import { 
+  GET_REPOSITORY_ID_QUERY, 
+  CREATE_ISSUE_MUTATION, 
+  ADD_PROJECT_ITEM_MUTATION,
+  ADD_DRAFT_ISSUE_MUTATION,
+  UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION
+} from './githubQueries';
 
 export async function fetchGitHubGraphQL(query: string, variables: Record<string, unknown> = {}, token: string) {
   // Check if we should use mock data
@@ -39,4 +46,40 @@ export async function fetchGitHubGraphQL(query: string, variables: Record<string
  */
 export function isMockToken(token: string): boolean {
   return token === MOCK_TOKEN;
+}
+
+// ---- High-level helpers ----
+
+export async function getRepositoryId(owner: string, name: string, token: string): Promise<string | null> {
+  const json = await fetchGitHubGraphQL(GET_REPOSITORY_ID_QUERY, { owner, name }, token);
+  return json.data?.repository?.id || null;
+}
+
+export async function createGitHubIssue(repositoryId: string, title: string, body: string | undefined, token: string): Promise<string | null> {
+  const json = await fetchGitHubGraphQL(CREATE_ISSUE_MUTATION, { repositoryId, title, body }, token);
+  return json.data?.createIssue?.issue?.id || null;
+}
+
+export async function addProjectV2Item(projectId: string, contentId: string, token: string): Promise<string | null> {
+  const json = await fetchGitHubGraphQL(ADD_PROJECT_ITEM_MUTATION, { projectId, contentId }, token);
+  return json.data?.addProjectV2ItemById?.item?.id || null;
+}
+
+export async function addProjectV2DraftIssue(projectId: string, title: string, body: string | undefined, token: string): Promise<string | null> {
+  const json = await fetchGitHubGraphQL(ADD_DRAFT_ISSUE_MUTATION, { projectId, title, body }, token);
+  return json.data?.addProjectV2DraftIssue?.projectItem?.id || null;
+}
+
+export async function updateProjectV2ItemField(projectId: string, itemId: string, fieldId: string, value: unknown, token: string): Promise<boolean> {
+  try {
+    const res = await fetchGitHubGraphQL(UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION, { projectId, itemId, fieldId, value }, token);
+    if (res.errors) {
+      console.error('Update field failed:', res.errors);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('Update field failed:', e);
+    return false;
+  }
 }
