@@ -1,4 +1,4 @@
-# Level Up a Task
+# [Planning] Level Up a Task
 
 This document describes the UI design for leveling up a task, promoting it from a subtask to a top-level task or moving it out from under its current parent.
 

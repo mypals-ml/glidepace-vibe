@@ -1,4 +1,4 @@
-# Use Case: Connecting to a GitHub Project
+# [Implemented] Use Case: Connecting to a GitHub Project
 
 This use case describes the step-by-step process of a user connecting to a GitHub project and viewing it as a Gantt chart.
 

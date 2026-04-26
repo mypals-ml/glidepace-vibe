@@ -1,0 +1,11 @@
+# Project Rules for AI Coding Assistants
+
+This project has a restricted environment for AI agents where the standard `PATH` does not include Node.js. 
+
+### Mandatory Verification Step
+**Before completing any task, you MUST run the custom verification script to ensure no Type-Checking or Lint errors were introduced.**
+
+- **Command**: `npm run verify`
+- **What it does**: This script uses `./check.sh` to correctly configure the `PATH` to `/opt/homebrew/opt/node@22/bin` before running `tsc -b` and `eslint .`.
+
+DO NOT use `npm run type-check` or `npm run lint` directly, as they will likely fail with "command not found".

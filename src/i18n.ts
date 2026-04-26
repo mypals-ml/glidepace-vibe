@@ -23,7 +23,6 @@ const resources = {
         projectLabel: "Project",
         projectIdPlaceholder: "Enter ID...",
         emptyProjectOption: "Empty Project",
-        dummyProjectOption: "Dummy Project",
         language: "Language",
         locales: {
           en: "EN",
@@ -66,7 +65,6 @@ const resources = {
         loadingTasks: "Loading tasks from project...",
         noTasksInProject: "No tasks found in this project. Items must be added to the project board to appear here.",
         noMatchingTasks: "No tasks match your search criteria.",
-        openDummyProjectButton: "Open Dummy Project",
         historyToday: "Today",
         historyYesterday: "Yesterday",
         historyLast7Days: "Last 7 Days",
@@ -186,7 +184,6 @@ const resources = {
         projectLabel: "プロジェクト",
         projectIdPlaceholder: "IDを入力...",
         emptyProjectOption: "空のプロジェクト",
-        dummyProjectOption: "ダミープロジェクト",
         language: "言語",
         locales: {
           en: "EN",
@@ -229,7 +226,6 @@ const resources = {
         loadingTasks: "プロジェクトからタスクを読み込んでいます...",
         noTasksInProject: "このプロジェクトにタスクが見つかりませんでした。表示するにはプロジェクトボードに項目を追加する必要があります。",
         noMatchingTasks: "検索条件に一致するタスクが見つかりませんでした。",
-        openDummyProjectButton: "ダミープロジェクトを開く",
         historyToday: "今日",
         historyYesterday: "昨日",
         historyLast7Days: "過去7日間",
@@ -349,7 +345,6 @@ const resources = {
         projectLabel: "项目",
         projectIdPlaceholder: "输入 ID...",
         emptyProjectOption: "空项目",
-        dummyProjectOption: "演示项目",
         language: "语言",
         locales: {
           en: "EN",
@@ -392,7 +387,6 @@ const resources = {
         loadingTasks: "正在从项目加载任务...",
         noTasksInProject: "此项目中未找到任务。必须将项添加到项目板才能在此处显示。",
         noMatchingTasks: "未找到符合搜索条件的任务。",
-        openDummyProjectButton: "打开演示项目",
         historyToday: "今天",
         historyYesterday: "昨天",
         historyLast7Days: "过去 7 天",

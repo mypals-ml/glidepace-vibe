@@ -19,20 +19,23 @@ const MOCK_FIELD_IDS = {
 };
 
 export const MOCK_TOKEN = 'mock-token-123';
-export const DUMMY_PROJECT_ID = 'PVT_DUMMY_123';
 
 export const MOCK_ACCOUNTS_DATA = [
-  { id: 'mock-1', login: 'glidelines-demo', name: 'Glidelines Demo', avatarUrl: 'https://avatars.githubusercontent.com/u/583231?v=4', token: MOCK_TOKEN },
+  { id: 'mock-1', login: 'octocat', name: 'Mona Lisa Octocat', avatarUrl: 'https://avatars.githubusercontent.com/u/583231?v=4', token: MOCK_TOKEN },
 ];
 
 export const MOCK_PROJECTS_DATA: ProjectOwnerInfo[] = [
   {
-    login: 'glidelines-demo',
+    login: 'octocat',
     isOrg: false,
     projects: [
-      { id: DUMMY_PROJECT_ID, title: 'Demo: Product Roadmap 2024', public: true },
+      { id: 'PVT_1', title: 'Alpha Release Tracker', public: true },
       { id: 'PVT_2', title: 'Demo: Bug Tracker', public: false },
       { id: 'PVT_3', title: 'Connected GitHub Tasks', public: true },
+      { id: 'PVT_4', title: 'Mobile App Redesign', public: false },
+      { id: 'PVT_5', title: 'Zephyr Cloud Migration', public: true },
+      { id: 'PVT_6', title: 'Customer Feedback Board', public: false },
+      { id: 'PVT_7', title: 'Demo: Product Roadmap 2024', public: true },
       { id: 'PVT_EMPTY', title: 'Empty Project Demo', public: true },
     ],
   },
@@ -295,6 +298,31 @@ function mapTaskToGraphQLNode(task: Task) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Per-project task storage for in-memory persistence during the session
+// ---------------------------------------------------------------------------
+const MOCK_PROJECT_TASKS_MAP: Record<string, Task[]> = {
+  'PVT_2': MOCK_TASKS_BUG_TRACKER,
+  'PVT_3': CONNECTED_TASKS_TASKS,
+  'PVT_EMPTY': [],
+};
+
+function getTasksForProject(projectId: string): Task[] {
+  if (!MOCK_PROJECT_TASKS_MAP[projectId]) {
+    // Initialize other projects with a copy of the default MOCK_TASKS
+    MOCK_PROJECT_TASKS_MAP[projectId] = [...MOCK_TASKS];
+  }
+  return MOCK_PROJECT_TASKS_MAP[projectId];
+}
+
+function getAllMockTasks(): Task[] {
+  const all: Task[] = [];
+  Object.values(MOCK_PROJECT_TASKS_MAP).forEach(list => all.push(...list));
+  // Also include base MOCK_TASKS just in case
+  all.push(...MOCK_TASKS);
+  return all;
+}
+
 export interface MockVariables {
   projectId?: string;
   itemId?: string;
@@ -328,6 +356,15 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 800));
 
+  // Helper to extract variables that might be flat or nested in 'input'
+  const getVar = (key: string) => {
+    const v = variables as Record<string, unknown>;
+    const i = (variables.input || {}) as Record<string, unknown>;
+    const val = v[key] ?? i[key];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return val as any;
+  };
+
   if (query.includes('organization(') && query.includes('membersWithRole')) {
     // Mock Org Members fetch
     return {
@@ -352,7 +389,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     return {
       data: {
         viewer: {
-          login: 'glidelines-demo',
+          login: 'octocat',
           databaseId: 12345,
           projectsV2: {
             nodes: MOCK_PROJECTS_DATA[0].projects
@@ -411,10 +448,11 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
 
   if (query.includes('items')) {
     // List project tasks
+    const projectId = variables.projectId || 'PVT_1';
     return {
       data: {
         node: {
-          public: variables.projectId === 'PVT_2' ? false : true,
+          public: projectId === 'PVT_2' ? false : true,
           fields: {
             nodes: [
               {
@@ -426,7 +464,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
             ]
           },
           items: {
-            nodes: (variables.projectId === 'PVT_EMPTY' ? [] : (variables.projectId === 'PVT_3' ? CONNECTED_TASKS_TASKS : (variables.projectId === 'PVT_2' ? MOCK_TASKS_BUG_TRACKER : MOCK_TASKS))).map(mapTaskToGraphQLNode)
+            nodes: getTasksForProject(projectId).map(mapTaskToGraphQLNode)
           }
         }
       }
@@ -436,8 +474,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   if (query.includes('node(id: $itemId)')) {
     // Fetch single item
     const itemId = variables.itemId;
-    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
-    const task = allTasks.find(t => t.itemId === itemId);
+    const task = getAllMockTasks().find(t => t.itemId === itemId);
     if (!task) return { errors: [{ message: 'Node not found' }] };
 
     return {
@@ -448,26 +485,27 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   }
 
   if (query.includes('updateIssue(')) {
-    const issueId = variables.input?.id || variables.issueId;
-    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
-    const task = allTasks.find(t => t.contentId === issueId);
+    const issueId = getVar('id') || getVar('issueId');
+    const task = getAllMockTasks().find(t => t.contentId === issueId);
     if (!task) return { errors: [{ message: 'Issue not found' }] };
 
-    if (variables.input?.title !== undefined) task.title = variables.input.title;
-    if (variables.input?.body !== undefined) task.body = variables.input.body;
-    if (variables.input?.assigneeIds !== undefined) {
-      const selectedIds = variables.input.assigneeIds;
-      task.assignees = MOCK_USER_POOL.filter(u => selectedIds.includes(u.id));
+    const title = getVar('title');
+    const body = getVar('body');
+    const assigneeIds = getVar('assigneeIds');
+
+    if (title !== undefined) task.title = title;
+    if (body !== undefined) task.body = body;
+    if (assigneeIds !== undefined) {
+      task.assignees = MOCK_USER_POOL.filter(u => assigneeIds.includes(u.id));
     }
 
     return { data: { updateIssue: { issue: { id: task.contentId } } } };
   }
 
   if (query.includes('addAssigneesToAssignable(')) {
-    const issueId = variables.input?.assignableId || variables.assignableId;
-    const assigneeIds = variables.input?.assigneeIds || variables.assigneeIds || [];
-    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
-    const task = allTasks.find(t => t.contentId === issueId);
+    const issueId = getVar('assignableId') || getVar('issueId');
+    const assigneeIds = getVar('assigneeIds') || [];
+    const task = getAllMockTasks().find(t => t.contentId === issueId);
     if (!task) return { errors: [{ message: 'Issue not found' }] };
 
     const newAssignees = MOCK_USER_POOL.filter(u => assigneeIds.includes(u.id));
@@ -498,10 +536,9 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   }
 
   if (query.includes('removeAssigneesFromAssignable(')) {
-    const issueId = variables.input?.assignableId || variables.assignableId;
-    const assigneeIds = variables.input?.assigneeIds || variables.assigneeIds || [];
-    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
-    const task = allTasks.find(t => t.contentId === issueId);
+    const issueId = getVar('assignableId') || getVar('issueId');
+    const assigneeIds = getVar('assigneeIds') || [];
+    const task = getAllMockTasks().find(t => t.contentId === issueId);
     if (!task) return { errors: [{ message: 'Issue not found' }] };
 
     task.assignees = task.assignees.filter(a => !assigneeIds.includes(a.id));
@@ -527,9 +564,9 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   }
 
   if (query.includes('updateIssueComment(')) {
-    const commentId = variables.input?.id;
-    const body = variables.input?.body;
-    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
+    const commentId = getVar('id');
+    const body = getVar('body');
+    const allTasks = getAllMockTasks();
     for (const task of allTasks) {
       const comment = task.comments?.find(c => c.id === commentId);
       if (comment && body !== undefined) {
@@ -541,8 +578,8 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   }
 
   if (query.includes('deleteIssueComment(')) {
-    const commentId = variables.input?.id;
-    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
+    const commentId = getVar('id');
+    const allTasks = getAllMockTasks();
     for (const task of allTasks) {
       if (task.comments) {
         const commentIndex = task.comments.findIndex(c => c.id === commentId);
@@ -556,10 +593,9 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   }
 
   if (query.includes('addComment(')) {
-    const subjectId = variables.subjectId || variables.input?.subjectId;
-    const body = variables.body || variables.input?.body;
-    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
-    const task = allTasks.find(t => t.contentId === subjectId);
+    const subjectId = getVar('subjectId');
+    const body = getVar('body');
+    const task = getAllMockTasks().find(t => t.contentId === subjectId);
     if (!task) return { errors: [{ message: 'Issue not found' }] };
 
     const newComment: TaskComment = {
@@ -585,29 +621,66 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     };
   }
 
+  if (query.includes('addProjectV2DraftIssue(')) {
+    const projectId = getVar('projectId');
+    const title = getVar('title');
+    const body = getVar('body');
+    
+    if (!projectId) return { errors: [{ message: 'ProjectId is required' }] };
+
+    const projectTasks = getTasksForProject(projectId);
+    const newId = projectTasks.length + 501; // Start high for draft issues
+    
+    const newTask: Task = {
+      id: `#${newId}`,
+      itemId: `item-${newId}`,
+      contentId: `content-${newId}`,
+      title: title || 'New Task',
+      body: body || '',
+      status: 'Todo',
+      startDate: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      endDate: new Date(Date.now() + 86400000 * 2).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      assignees: [],
+      progress: 0,
+      comments: [],
+    };
+
+    projectTasks.push(newTask); // Add to bottom (real project behavior)
+
+    return {
+      data: {
+        addProjectV2DraftIssue: {
+          projectItem: {
+            id: newTask.itemId
+          }
+        }
+      }
+    };
+  }
+
   if (query.includes('updateProjectV2ItemFieldValue(')) {
-    const itemId = variables.input?.itemId;
-    const allTasks = [...MOCK_TASKS, ...MOCK_TASKS_BUG_TRACKER, ...CONNECTED_TASKS_TASKS];
-    const task = allTasks.find(t => t.itemId === itemId);
+    const itemId = getVar('itemId');
+    const task = getAllMockTasks().find(t => t.itemId === itemId);
     if (!task) return { errors: [{ message: 'Item not found' }] };
 
-    if (variables.input?.value?.singleSelectOptionId) {
+    const value = getVar('value');
+    if (value?.singleSelectOptionId) {
       // Resolve status by option ID (real IDs from MOCK_STATUS_OPTIONS)
-      const optionId = variables.input.value.singleSelectOptionId;
+      const optionId = value.singleSelectOptionId;
       const matched = MOCK_STATUS_OPTIONS.find(o => o.id === optionId);
       if (matched) {
         task.status = matched.name as TaskStatus;
         task.progress = task.status === 'Done' ? 100 : (task.status === 'In Progress' ? 50 : 0);
       }
     }
-    if (variables.input?.value?.date) {
-      const fieldId = variables.input?.fieldId ?? variables.fieldId;
+    if (value?.date) {
+      const fieldId = getVar('fieldId');
       if (fieldId === MOCK_FIELD_IDS.startDate) {
-        task.fullStartDate = variables.input.value.date;
-        task.startDate = new Date(variables.input.value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        task.fullStartDate = value.date;
+        task.startDate = new Date(value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       } else if (fieldId === MOCK_FIELD_IDS.endDate) {
-        task.fullEndDate = variables.input.value.date;
-        task.endDate = new Date(variables.input.value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        task.fullEndDate = value.date;
+        task.endDate = new Date(value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       }
     }
 
@@ -616,3 +689,4 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
 
   return { errors: [{ message: 'Mock query not implemented' }] };
 }
+

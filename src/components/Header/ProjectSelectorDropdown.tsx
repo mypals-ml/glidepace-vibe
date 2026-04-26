@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useDashboard } from '../../context/DashboardContext';
-import { DUMMY_TASKS } from '../../lib/dummyData';
 
 export function ProjectSelectorDropdown() {
   const { t } = useTranslation();
@@ -11,7 +10,6 @@ export function ProjectSelectorDropdown() {
     setHasProject,
     selectedProject,
     setSelectedProject,
-    setTasks,
     handleOpenProjectClick,
     handleSelectRealProject,
     handleRemoveFromHistory,
@@ -37,7 +35,7 @@ export function ProjectSelectorDropdown() {
           <span className="material-symbols-outlined text-[20px] text-primary shrink-0" aria-hidden="true">folder_open</span>
           <span className="truncate hidden sm:inline max-w-[100px] lg:max-w-[200px]">
             {hasProject
-              ? (selectedProject ? selectedProject.title : t('app.dummyProjectOption'))
+              ? (selectedProject ? selectedProject.title : t('app.emptyProjectOption'))
               : t('app.emptyProjectOption')}
           </span>
           <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
@@ -67,42 +65,21 @@ export function ProjectSelectorDropdown() {
 
             {/* Hide empty/dummy when a real project is selected */}
             {!(hasProject && selectedProject) && (
-              <>
-                <div className="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  Demo Environments
-                </div>
-                <button
-                  onClick={() => {
-                    setHasProject(true);
-                    setSelectedProject(null);
-                    setIsOpen(false);
-                    localStorage.removeItem('selected_project');
-                    localStorage.setItem('selected_project_type', 'none');
-                  }}
-                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!selectedProject && localStorage.getItem('selected_project_type') === 'none' ? 'text-primary font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
-                  role="option"
-                  aria-selected={!selectedProject && localStorage.getItem('selected_project_type') === 'none'}
-                >
-                  <span className="truncate pr-10">{t('app.emptyProjectOption')}</span>
-                  {!selectedProject && localStorage.getItem('selected_project_type') === 'none' && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
-                </button>
-                <button
-                  onClick={() => {
-                    setHasProject(true);
-                    setSelectedProject(null);
-                    setIsOpen(false);
-                    setTasks(DUMMY_TASKS);
-                    localStorage.removeItem('selected_project');
-                    localStorage.setItem('selected_project_type', 'dummy');
-                  }}
-                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!selectedProject && localStorage.getItem('selected_project_type') === 'dummy' ? 'text-primary font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
-                  role="option"
-                  aria-selected={!selectedProject && localStorage.getItem('selected_project_type') === 'dummy'}
-                >
-                  <span className="truncate pr-10">{t('app.dummyProjectOption')}</span>
-                  {!selectedProject && localStorage.getItem('selected_project_type') === 'dummy' && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
-                </button>
-              </>
+              <button
+                onClick={() => {
+                  setHasProject(true);
+                  setSelectedProject(null);
+                  setIsOpen(false);
+                  localStorage.removeItem('selected_project');
+                  localStorage.setItem('selected_project_type', 'none');
+                }}
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${!selectedProject && localStorage.getItem('selected_project_type') === 'none' ? 'text-primary font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
+                role="option"
+                aria-selected={!selectedProject && localStorage.getItem('selected_project_type') === 'none'}
+              >
+                <span className="truncate pr-10">{t('app.emptyProjectOption')}</span>
+                {!selectedProject && localStorage.getItem('selected_project_type') === 'none' && <span className="material-symbols-outlined text-sm" aria-hidden="true">check</span>}
+              </button>
             )}
 
             {/* Project History */}

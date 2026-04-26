@@ -15,24 +15,31 @@ Reference: https://vercel.com/docs/deployments/environments#local-development-en
 3. Start the Vite hot-reloading server: `npm run dev`
 4. Open `http://localhost:5173` in your browser.
 
+## 2. Mock Mode (Developing without GitHub API)
+If you don't want to configure real GitHub OAuth or webhooks locally, you can use the built-in mock mode. This simulates the entire GitHub GraphQL API and provides pre-configured mock accounts.
+
+1.  **Start Mock Server:** `npm run dev:test`
+2.  **Auto-login:** The app will automatically connect as the "Octocat" user.
+3.  **Behavior:** All actions (dragging tasks, editing titles, adding comments) are handled by `src/lib/githubMock.ts` and persist during your active session.
+
 ### Debugging the UI
-- **React DevTools:** Install the [React Developer Tools](https://react.dev/learn/react-developer-tools) browser extension. It allows you to deeply inspect the Component tree, view props (like the Dummy Data in the Gantt Chart), and force state/theme changes.
+- **React DevTools:** Install the [React Developer Tools](https://react.dev/learn/react-developer-tools) browser extension. It allows you to deeply inspect the Component tree, view props, and force state/theme changes.
 - **Console & Network:** Use Chrome/Firefox DevTools (F12) to monitor standard `console.log` outputs and watch for failed GraphQL network requests (once GitHub integration is live).
 - **Tailwind v4:** If styles aren't appearing correctly, ensure you are running through Vite. Tailwind v4 compiles entirely via the `@tailwindcss/vite` plugin and does not require a standalone watcher.
 
-## 2. Testing Logic (Vitest)
+## 3. Testing Logic (Vitest)
 For complex business logic—specifically the core date math for the Gantt chart—we use Vitest.
 
 1. **Run Tests Once:** `npm run test` (or `npx vitest`)
 2. **Watch Mode:** `npm run test --watch` to continuously run tests in the background while you write pure functions.
 
-## 3. API & Webhook Debugging (Vite Middleware)
+## 4. API & Webhook Debugging (Vite Middleware)
 Since Glidelines implements a serverless architecture, we use a custom Vite plugin to simulate the production API environment locally.
 
 *   **Vite Plugin:** `vite-plugin-vercel-mock.ts` intercepts `/api/*` requests and routes them to your serverless functions in the `api/` directory.
 *   **Webhook Simulation:** Use Smee.io to forward real GitHub webhooks to `http://localhost:5173/api/github-webhook` while `npm run dev` is active.
 
-## 4. Mobile Device Debugging (Capacitor)
+## 5. Mobile Device Debugging (Capacitor)
 Since this is a Capacitor project, the web app is instantly wrappable for native iOS/Android deployment.
 
 1. **Sync Web Build:** Run `npm run build && npx cap sync` to compile the TypeScript payload and hand it over to the native iOS/Android wrapper folders.

@@ -4,6 +4,7 @@ import type { Task, GitHubProjectItem, GitHubFieldValue } from '../types';
 export const PROJECT_ITEM_FRAGMENT = `
   id
   content {
+    __typename
     ... on DraftIssue { id title body }
     ... on Issue {
       id
@@ -56,6 +57,7 @@ export const PROJECT_ITEM_FRAGMENT = `
   }
   fieldValues(first: 20) {
     nodes {
+      __typename
       ... on ProjectV2ItemFieldSingleSelectValue {
         id
         name
@@ -84,6 +86,12 @@ export const PROJECT_ITEM_FRAGMENT = `
         number
         field { ... on ProjectV2Field { id name } }
       }
+      ... on ProjectV2ItemFieldUserValue {
+        users(first: 10) {
+          nodes { id login name avatarUrl }
+        }
+        field { ... on ProjectV2FieldCommon { name } }
+      }
     }
   }
 `;
@@ -111,8 +119,19 @@ export function mapProjectItemToTask(item: GitHubProjectItem): Task {
     ? new Date(new Date(iterationField.startDate).getTime() + (iterationField.duration || 0) * 86400000).toISOString().split('T')[0]
     : startDate;
   const endDate = endDateField?.date || iterationEnd;
+  
+  // Extract assignees from either the content (Issues/PRs) or the User field (Drafts)
+  let assigneeNodes = content?.assignees?.nodes || [];
+  if (assigneeNodes.length === 0) {
+    const userField = fieldValues.find((f: GitHubFieldValue) => 
+      f.__typename === 'ProjectV2ItemFieldUserValue' && f.field?.name?.toLowerCase() === 'assignees'
+    );
+    if (userField?.users?.nodes) {
+      assigneeNodes = userField.users.nodes;
+    }
+  }
 
-  const assignees = (content?.assignees?.nodes || []).map((a, idx: number) => ({
+  const assignees = (assigneeNodes || []).map((a, idx: number) => ({
     id: a.id || a.login || 'unknown',
     login: a.login,
     name: a.name || a.login || 'Unknown',
@@ -172,5 +191,6 @@ export function mapProjectItemToTask(item: GitHubProjectItem): Task {
     projectFieldIds,
     statusOptions,
     statusColorMap,
+    isDraft: content?.__typename === 'DraftIssue' || !content?.number,
   };
 }

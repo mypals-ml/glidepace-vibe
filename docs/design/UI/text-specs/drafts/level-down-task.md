@@ -1,4 +1,4 @@
-# Level Down a Task
+# [Planning] Level Down a Task
 
 This document describes the UI design for leveling down a task, making it a child of the task directly above it in the task list.
 
