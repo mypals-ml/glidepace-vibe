@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import type { Task } from '../types';
@@ -56,41 +56,88 @@ export function useDashboardSync({
     return t('app.syncedYearsAgo', { count: years });
   }, [t]);
 
-  // Supabase real-time sync
+  // Use a ref for tasks and fetch functions to avoid effect re-runs
+  const tasksRef = useRef(tasks);
+  useEffect(() => { tasksRef.current = tasks; }, [tasks]);
+
+  const fetchProjectTasksRef = useRef(fetchProjectTasks);
+  const fetchSingleItemRef = useRef(fetchSingleProjectItem);
+  useEffect(() => { fetchProjectTasksRef.current = fetchProjectTasks; }, [fetchProjectTasks]);
+  useEffect(() => { fetchSingleItemRef.current = fetchSingleProjectItem; }, [fetchSingleProjectItem]);
+
+  // Project-level Sync Channel (Stable)
   useEffect(() => {
     if (!selectedProject?.id || !supabase) return;
 
-    const projectChannelLabel = `project-${selectedProject.id}`;
+    const label = `project-${selectedProject.id}`;
+    const channel = supabase.channel(label);
+    
+    console.log(`[DashboardSync] Subscribing to Project Channel: ${label}`);
+
+    channel
+      .on('broadcast', { event: 'sync' }, () => {
+        console.log(`[DashboardSync] Full Sync Event on ${label}`);
+        if (githubToken && selectedProject.id) {
+          fetchProjectTasksRef.current(selectedProject.id, githubToken);
+        }
+      })
+      .on('broadcast', { event: 'refresh_task' }, (payload) => {
+        const { itemId, contentId } = payload.payload || {};
+        console.log(`[DashboardSync] Refresh Task Event on ${label}:`, { itemId, contentId });
+
+        if (githubToken && itemId) {
+          fetchSingleItemRef.current(itemId, githubToken);
+        } else if (githubToken && contentId) {
+          const task = tasksRef.current.find(t => t.contentId === contentId);
+          if (task && task.itemId) {
+            fetchSingleItemRef.current(task.itemId, githubToken);
+          } else {
+            fetchProjectTasksRef.current(selectedProject.id, githubToken);
+          }
+        } else if (githubToken) {
+          fetchProjectTasksRef.current(selectedProject.id, githubToken);
+        }
+      })
+      .subscribe((status) => {
+        console.log(`[DashboardSync] Project Channel Status (${label}):`, status);
+      });
+
+    return () => {
+      console.log(`[DashboardSync] Unsubscribing from Project Channel: ${label}`);
+      if (supabase) supabase.removeChannel(channel);
+    };
+  }, [selectedProject?.id, githubToken]);
+
+  // Repo-level Sync Channels (Dynamic based on visible tasks)
+  useEffect(() => {
+    const s = supabase;
+    if (!selectedProject?.id || !s) return;
+
     const repoNames = Array.from(new Set(tasks.map(t => t.repository).filter(Boolean)));
-    const repoChannelLabels = repoNames.map(name => `repo-${name!.replace(/\//g, '-')}`);
+    const labels = repoNames.map(name => `repo-${name!.replace(/\//g, '-')}`);
+    
+    if (labels.length === 0) return;
 
-    const allChannels = [projectChannelLabel, ...repoChannelLabels];
+    const activeChannels = labels.map(label => {
+      const channel = s.channel(label);
+      console.log(`[DashboardSync] Subscribing to Repo Channel: ${label}`);
 
-    const activeChannels = allChannels.map(label => {
-      const client = supabase;
-      if (!client) return null;
-      const channel = client.channel(label);
       channel
         .on('broadcast', { event: 'sync' }, () => {
           if (githubToken && selectedProject.id) {
-            fetchProjectTasks(selectedProject.id, githubToken);
+            fetchProjectTasksRef.current(selectedProject.id, githubToken);
           }
         })
         .on('broadcast', { event: 'refresh_task' }, (payload) => {
           const { itemId, contentId } = payload.payload || {};
-          console.log(`[DashboardSync] Targeted Refresh RECEIVED on ${label}:`, { itemId, contentId });
-
+          console.log(`[DashboardSync] Refresh Task Event on ${label}:`, { itemId, contentId });
           if (githubToken && itemId) {
-            fetchSingleProjectItem(itemId, githubToken);
+            fetchSingleItemRef.current(itemId, githubToken);
           } else if (githubToken && contentId) {
-            const task = tasks.find(t => t.contentId === contentId);
+            const task = tasksRef.current.find(t => t.contentId === contentId);
             if (task && task.itemId) {
-              fetchSingleProjectItem(task.itemId, githubToken);
-            } else if (selectedProject?.id) {
-              fetchProjectTasks(selectedProject.id, githubToken);
+              fetchSingleItemRef.current(task.itemId, githubToken);
             }
-          } else if (githubToken && selectedProject?.id) {
-            fetchProjectTasks(selectedProject.id, githubToken);
           }
         })
         .subscribe();
@@ -98,14 +145,11 @@ export function useDashboardSync({
     });
 
     return () => {
-      const client = supabase;
-      if (client) {
-        activeChannels.forEach(channel => {
-          if (channel) client.removeChannel(channel);
-        });
-      }
+      activeChannels.forEach(channel => {
+        if (supabase) supabase.removeChannel(channel);
+      });
     };
-  }, [selectedProject?.id, githubToken, fetchProjectTasks, tasks, fetchSingleProjectItem]);
+  }, [tasks.map(t => t.repository).join(','), selectedProject?.id, githubToken]);
 
   return {
     lastSyncedTime,

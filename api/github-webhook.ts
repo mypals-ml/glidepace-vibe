@@ -104,23 +104,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (projectId) {
       const channelLabel = `project-${projectId}`;
       const channel = supabase.channel(channelLabel);
-      await channel.send({
+      
+      // For all sync events, wait a bit for GitHub API eventual consistency.
+      // GitHub sometimes sends the webhook before the GraphQL API is fully updated.
+      const delay = syncType === 'sync' ? 2000 : 1000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+
+      const status = await channel.send({
         type: 'broadcast',
         event: syncType,
         payload: broadcastPayload
       });
-      console.log(`Broadcasted ${syncType} for project: ${projectId}`);
+      
+      console.log(`[Webhook] Broadcasted ${syncType} to ${channelLabel}, status: ${status}, payload:`, JSON.stringify(broadcastPayload));
     } else {
       const repoName = payload.repository?.full_name;
       if (repoName) {
         const channelLabel = `repo-${repoName.replace(/\//g, '-')}`;
         const channel = supabase.channel(channelLabel);
-        await channel.send({
+        
+        const status = await channel.send({
           type: 'broadcast',
           event: syncType,
           payload: broadcastPayload
         });
-        console.log(`Broadcasted ${syncType} for repository: ${repoName}`);
+        console.log(`[Webhook] Broadcasted ${syncType} to ${channelLabel}, status: ${status}`);
       }
     }
   } else {

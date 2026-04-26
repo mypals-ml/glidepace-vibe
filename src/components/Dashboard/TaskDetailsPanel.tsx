@@ -451,7 +451,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           <AssigneeSelector
             taskId={task.id}
             currentAssignees={task.assignees}
-            repository={task.repository}
+            repository={task.repository || projectRepository}
             onClose={() => setIsAssigneeSelectorOpen(false)}
           />
         )}

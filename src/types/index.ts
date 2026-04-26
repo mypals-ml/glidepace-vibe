@@ -41,6 +41,7 @@ export interface Task {
   projectFieldIds?: Record<string, string>;
   statusOptions?: Record<string, string>;
   statusColorMap?: Record<string, string>;
+  isDraft?: boolean;
 }
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---
@@ -68,7 +69,8 @@ export interface ProjectHistoryItem {
 }
 
 export interface GithubAccount {
-  id: string;
+  id: string; // This is the REST API integer ID as a string
+  nodeId?: string; // This is the GraphQL Global Node ID
   login: string;
   name?: string;
   avatarUrl: string;
@@ -115,6 +117,7 @@ export interface GitHubProjectContent {
   comments?: {
     nodes: GitHubComment[];
   };
+  __typename?: string;
 }
 
 export interface GitHubFieldValue {
@@ -137,6 +140,9 @@ export interface GitHubFieldValue {
     }>;
   };
   optionId?: string;
+  users?: {
+    nodes: Array<{ id: string, login: string, name?: string, avatarUrl: string }>;
+  };
 }
 
 export interface GitHubProjectItem {

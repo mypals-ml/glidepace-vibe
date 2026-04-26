@@ -13,6 +13,9 @@ import {
   REMOVE_ASSIGNEES_MUTATION,
   UPDATE_ISSUE_TITLE_MUTATION,
   UPDATE_ISSUE_BODY_MUTATION,
+  UPDATE_DRAFT_TITLE_MUTATION,
+  UPDATE_DRAFT_BODY_MUTATION,
+  UPDATE_DRAFT_ASSIGNEES_MUTATION,
   UPDATE_ISSUE_COMMENT_MUTATION,
   DELETE_ISSUE_COMMENT_MUTATION,
   ADD_ISSUE_COMMENT_MUTATION
@@ -93,7 +96,7 @@ export function useDashboardTasks({
       const json = await fetchGitHubGraphQL(GET_PROJECT_TASKS_QUERY, { projectId }, token);
 
       if (json.errors) {
-        console.error('GraphQL Errors fetching items:', json.errors);
+        console.error('GraphQL Errors fetching items:', JSON.stringify(json.errors, null, 2));
         setApiError(json.errors.map((e: { message: string }) => e.message).join(', '));
         setTasks([]);
         return;
@@ -128,6 +131,18 @@ export function useDashboardTasks({
   const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[]) => {
     const task = tasks.find(t => t.id === taskId || t.itemId === taskId);
     if (!task || !task.contentId || !githubToken) return false;
+
+    if (task.isDraft) {
+      try {
+        const res = await fetchGitHubGraphQL(UPDATE_DRAFT_ASSIGNEES_MUTATION, { id: task.contentId, assigneeIds: userIds }, githubToken);
+        if (res.errors) throw new Error(res.errors[0]?.message);
+        if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
+        return true;
+      } catch (e) {
+        console.error('Update draft assignees failed:', e);
+        return false;
+      }
+    }
 
     const currentIds = task.assignees.map(a => a.id).filter(id => id !== 'unassigned');
     const addedIds = userIds.filter(id => !currentIds.includes(id));
@@ -292,7 +307,8 @@ export function useDashboardTasks({
   const updateTaskTitle = useCallback(async (task: Task, title: string): Promise<boolean> => {
     if (!task.contentId || !githubToken) return false;
     try {
-      const res = await fetchGitHubGraphQL(UPDATE_ISSUE_TITLE_MUTATION, { id: task.contentId, title }, githubToken);
+      const mutation = task.isDraft ? UPDATE_DRAFT_TITLE_MUTATION : UPDATE_ISSUE_TITLE_MUTATION;
+      const res = await fetchGitHubGraphQL(mutation, { id: task.contentId, title }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
       if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
       return true;
@@ -305,7 +321,8 @@ export function useDashboardTasks({
   const updateTaskDescription = useCallback(async (task: Task, description: string): Promise<boolean> => {
     if (!task.contentId || !githubToken) return false;
     try {
-      const res = await fetchGitHubGraphQL(UPDATE_ISSUE_BODY_MUTATION, { id: task.contentId, body: description }, githubToken);
+      const mutation = task.isDraft ? UPDATE_DRAFT_BODY_MUTATION : UPDATE_ISSUE_BODY_MUTATION;
+      const res = await fetchGitHubGraphQL(mutation, { id: task.contentId, body: description }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
       if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
       return true;
@@ -361,9 +378,9 @@ export function useDashboardTasks({
       const resultsMap = new Map<string, User>();
 
       const currentAccount = githubAccounts.find(a => a.id === activeAccountId);
-      if (currentAccount) {
+      if (currentAccount && currentAccount.nodeId) {
         const currentUser: User = {
-          id: currentAccount.id,
+          id: currentAccount.nodeId,
           login: currentAccount.login,
           name: (currentAccount.name || currentAccount.login) + ` (${t('common.me', 'Me')})`,
           avatarUrl: currentAccount.avatarUrl,

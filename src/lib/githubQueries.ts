@@ -203,6 +203,30 @@ export const UPDATE_ISSUE_BODY_MUTATION = `
   }
 `;
 
+export const UPDATE_DRAFT_TITLE_MUTATION = `
+  mutation UpdateDraftIssue($id: ID!, $title: String!) {
+    updateProjectV2DraftIssue(input: { draftIssueId: $id, title: $title }) {
+      draftIssue { id }
+    }
+  }
+`;
+
+export const UPDATE_DRAFT_BODY_MUTATION = `
+  mutation UpdateDraftIssue($id: ID!, $body: String!) {
+    updateProjectV2DraftIssue(input: { draftIssueId: $id, body: $body }) {
+      draftIssue { id }
+    }
+  }
+`;
+
+export const UPDATE_DRAFT_ASSIGNEES_MUTATION = `
+  mutation UpdateDraftAssignees($id: ID!, $assigneeIds: [ID!]!) {
+    updateProjectV2DraftIssue(input: { draftIssueId: $id, assigneeIds: $assigneeIds }) {
+      draftIssue { id }
+    }
+  }
+`;
+
 export const UPDATE_ISSUE_COMMENT_MUTATION = `
   mutation UpdateIssueComment($id: ID!, $body: String!) { 
     updateIssueComment(input: { id: $id, body: $body }) { 

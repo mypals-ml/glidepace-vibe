@@ -94,6 +94,7 @@ export function useDashboardAuth() {
       const userData = await res.json();
       const newAccount: GithubAccount = {
         id: userData.id.toString(),
+        nodeId: userData.node_id,
         login: userData.login,
         name: userData.name || userData.login,
         avatarUrl: userData.avatar_url,
@@ -139,6 +140,7 @@ export function useDashboardAuth() {
           if (data.access_token && data.user) {
             const newAccount: GithubAccount = {
               id: data.user.id,
+              nodeId: data.user.node_id,
               login: data.user.login,
               name: data.user.name,
               avatarUrl: data.user.avatar_url,
