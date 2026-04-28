@@ -137,7 +137,11 @@ export function useDashboardSync({
             const task = tasksRef.current.find(t => t.contentId === contentId);
             if (task && task.itemId) {
               fetchSingleItemRef.current(task.itemId, githubToken);
+            } else {
+              fetchProjectTasksRef.current(selectedProject.id, githubToken);
             }
+          } else if (githubToken) {
+            fetchProjectTasksRef.current(selectedProject.id, githubToken);
           }
         })
         .subscribe();

@@ -78,22 +78,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Determine sync requirement based on tables
   let syncType: SyncType | null = null;
 
-  if (event === 'project_v2_item') {
+  if (event === 'projects_v2_item') {
     syncType = PROJECT_V2_ITEM_CONFIG[action] || 'sync'; // Fallback to full sync for unknown actions
   } else if (event === 'issues') {
     syncType = ISSUE_CONFIG[action] || 'sync'; // Fallback to full sync for unknown actions
-  } else if (event === 'push' || event === 'project_v2') {
+  } else if (event === 'push' || event === 'projects_v2') {
     syncType = 'sync'; // Always full sync for structural repo/project changes
   }
 
   if (syncType) {
-    const projectId = payload.project_v2_item?.project_node_id || payload.project_v2?.node_id;
+    const projectId = payload.projects_v2_item?.project_node_id || payload.projects_v2?.node_id;
 
     // Construct broadcast data
     const broadcastPayload = syncType === 'refresh_task'
       ? {
-        itemId: payload.project_v2_item?.node_id,
-        contentId: payload.issue?.node_id,
+        itemId: payload.projects_v2_item?.node_id,
+        contentId: payload.projects_v2_item?.content_node_id || payload.issue?.node_id,
         timestamp: Date.now()
       }
       : {
