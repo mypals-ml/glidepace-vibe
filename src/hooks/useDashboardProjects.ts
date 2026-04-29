@@ -90,6 +90,28 @@ export function useDashboardProjects({
           return viewer.login;
         });
         updateSyncTime();
+
+        // ID Migration: Handle transitions between GitHub ID formats (legacy vs next-gen)
+        const allProjects = owners.flatMap(o => o.projects);
+        const cached = localStorage.getItem('selected_project');
+        if (cached) {
+          try {
+            const cachedProject = JSON.parse(cached);
+            const matchById = allProjects.find(p => p.id === cachedProject.id);
+            if (!matchById) {
+              const matchByTitle = allProjects.find(p => p.title === cachedProject.title);
+              if (matchByTitle) {
+                const updated = { ...cachedProject, id: matchByTitle.id };
+                setSelectedProject(updated);
+                localStorage.setItem('selected_project', JSON.stringify(updated));
+                // Re-fetch tasks with the corrected project ID format
+                fetchProjectTasks(matchByTitle.id, token);
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to parse cached project during migration:', e);
+          }
+        }
       }
       if (forceModal) {
         setIsProjectModalOpen(true);
@@ -99,7 +121,7 @@ export function useDashboardProjects({
     } finally {
       setIsRefreshing(prev => ({ ...prev, [accountId]: false }));
     }
-  }, [updateSyncTime, setIsProjectModalOpen]);
+  }, [updateSyncTime, setIsProjectModalOpen, fetchProjectTasks]);
 
   const handleSelectRealProject = useCallback((id: string, title: string, isPublic?: boolean, forceToken?: string) => {
     setIsProjectModalOpen(false);
