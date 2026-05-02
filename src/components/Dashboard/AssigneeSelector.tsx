@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import { useTranslation } from 'react-i18next';
 import type { User } from '../../types';
+import { Button } from '../UI/Button';
 
 interface AssigneeSelectorProps {
   taskId: string;
@@ -238,12 +239,13 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
         {/* Footer/Action */}
         <div className="p-2 border-t border-slate-200/60 bg-slate-50/80 flex justify-between items-center sm:hidden">
           <span className="text-[10px] text-slate-400 ml-2">{t('common.selected', { count: localSelectedIds.length })}</span>
-          <button 
+          <Button
+            variant="primary"
+            size="sm"
             onClick={handleApply}
-            className="px-4 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg shadow-glow hover:bg-primary-hover transition-all"
           >
             {t('common.done')}
-          </button>
+          </Button>
         </div>
       </div>
       

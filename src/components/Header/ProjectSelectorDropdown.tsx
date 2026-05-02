@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useDashboard } from '../../context/DashboardContext';
+import { Button } from '../UI/Button';
+import { IconButton } from '../UI/IconButton';
 
 export function ProjectSelectorDropdown() {
   const { t } = useTranslation();
@@ -43,7 +45,10 @@ export function ProjectSelectorDropdown() {
       </div>
 
       {isOpen && (
-        <div className="absolute left-0 top-full mt-2 min-w-[280px] max-w-[440px] w-max bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60" role="listbox">
+        <div 
+          className="fixed sm:absolute left-4 right-4 sm:left-0 sm:right-auto top-[72px] sm:top-full mt-2 sm:min-w-[280px] max-w-[calc(100vw-2rem)] sm:max-w-[440px] w-auto sm:w-max bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60" 
+          role="listbox"
+        >
           <div className="p-2 space-y-1">
             {/* Current Project Section */}
             {hasProject && selectedProject && (
@@ -116,13 +121,15 @@ export function ProjectSelectorDropdown() {
                             </div>
                           )}
                         </button>
-                        <button
+                        <IconButton
+                          icon="close"
+                          variant="ghost"
+                          size="sm"
                           onClick={(e) => { e.stopPropagation(); handleRemoveFromHistory(item.id); }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-rose-50 z-10"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 hover:bg-rose-50 z-10"
                           title={t('dashboard.removeFromHistory')}
-                        >
-                          <span className="material-symbols-outlined text-[20px]">close</span>
-                        </button>
+                          aria-label={t('dashboard.removeFromHistory')}
+                        />
                       </div>
                     ))}
                   </div>
@@ -132,13 +139,15 @@ export function ProjectSelectorDropdown() {
           </div>
 
           <div className="p-2 border-t border-slate-100 bg-slate-50/50">
-            <button
+            <Button
+              variant="primary"
+              size="sm"
+              fullWidth
               onClick={() => { handleOpenProjectClick(); setIsOpen(false); }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-lg transition-all shadow-md shadow-primary/20"
+              leftIcon="folder_open"
             >
-              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">folder_open</span>
               {t('dashboard.addProjectButton')}
-            </button>
+            </Button>
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import type { Task } from '../types';
@@ -115,14 +115,16 @@ export function useDashboardSync({
       console.log(`[DashboardSync] Unsubscribing from Project Channel: ${label}`);
       if (supabase) supabase.removeChannel(channel);
     };
-  }, [selectedProject?.id, githubToken]);
+  }, [selectedProject?.id, selectedProject?.title, githubToken]);
 
   // Repo-level Sync Channels (Dynamic based on visible tasks)
+  const repoString = useMemo(() => tasks.map(t => t.repository).join(','), [tasks]);
+
   useEffect(() => {
     const s = supabase;
     if (!selectedProject?.id || !s) return;
 
-    const repoNames = Array.from(new Set(tasks.map(t => t.repository).filter(Boolean)));
+    const repoNames = Array.from(new Set(tasksRef.current.map(t => t.repository).filter(Boolean)));
     const labels = repoNames.map(name => `repo-${name!.replace(/\//g, '-')}`);
     
     if (labels.length === 0) return;
@@ -169,16 +171,16 @@ export function useDashboardSync({
         if (supabase) supabase.removeChannel(channel);
       });
     };
-  }, [tasks.map(t => t.repository).join(','), selectedProject?.id, githubToken]);
+  }, [repoString, selectedProject?.id, githubToken]);
 
   // Owner-level Fallback Channel (For when project/repo IDs mismatch)
   useEffect(() => {
     const s = supabase;
     if (!selectedProject?.id || !s) return;
 
-    // We can't easily get the owner from tasks, so we try to infer it or just skip if not possible.
+    // We can't easily get the owner from tasksRef, so we try to infer it or just skip if not possible.
     // For now, let's use the repo owner of the first task as a hint.
-    const firstTask = tasks.find(t => t.repository);
+    const firstTask = tasksRef.current.find(t => t.repository);
     const owner = firstTask?.repository?.split('/')[0];
     
     if (!owner) return;
@@ -217,7 +219,7 @@ export function useDashboardSync({
     return () => {
       if (supabase) supabase.removeChannel(channel);
     };
-  }, [tasks.map(t => t.repository).join(','), selectedProject?.id, githubToken]);
+  }, [repoString, selectedProject?.id, githubToken]);
 
   return {
     lastSyncedTime,

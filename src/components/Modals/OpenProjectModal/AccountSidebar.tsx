@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
+import { Button } from '../../UI/Button';
+import { IconButton } from '../../UI/IconButton';
 
 interface AccountSidebarProps {
   selectedAccountId: string | null;
@@ -45,7 +47,11 @@ export function AccountSidebar({
               <p className={`text-sm font-bold truncate transition-colors ${selectedAccountId === account.id ? 'text-slate-900' : 'text-slate-600 group-hover:text-slate-900'}`}>@{account.login}</p>
               <p className="text-[11px] font-bold tracking-tight mt-0.5 text-slate-400">{t('app.connected')}</p>
             </div>
-            <button
+            <IconButton
+              icon="refresh"
+              variant="ghost"
+              size="sm"
+              isLoading={isRefreshing[account.id]}
               onClick={(e) => {
                 e.stopPropagation();
                 setActiveAccountId(account.id);
@@ -55,23 +61,24 @@ export function AccountSidebar({
                 isRefreshing[account.id] 
                   ? 'opacity-100' 
                   : (selectedAccountId === account.id ? 'opacity-0 group-hover:opacity-100' : 'hidden')
-              } transition-opacity p-2 hover:bg-slate-200 rounded-full flex items-center justify-center bg-white/80 backdrop-blur shadow-sm`}
+              } transition-opacity bg-white/80 backdrop-blur shadow-sm`}
               title={t('dashboard.refreshProjects')}
               aria-label={t('dashboard.refreshProjects')}
-            >
-              <span className={`material-symbols-outlined text-slate-500 text-[18px] ${isRefreshing[account.id] ? 'animate-spin' : ''}`}>refresh</span>
-            </button>
+            />
           </div>
         ))}
       </div>
       {/* Manage Button */}
-      <button
+      <Button
+        variant="secondary"
+        size="md"
+        fullWidth
         onClick={() => setIsAccountModalOpen(true)}
-        className="w-full mt-6 md:mt-8 flex items-center justify-center gap-3 p-4 bg-slate-100/50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 rounded-xl transition-all group"
+        leftIcon="settings"
+        className="mt-6 md:mt-8 bg-slate-100/50 border-slate-200 hover:border-slate-300 hover:bg-slate-100"
       >
-        <span className="material-symbols-outlined text-slate-500 group-hover:text-slate-800 transition-colors" aria-hidden="true">settings</span>
-        <span className="text-sm font-bold text-slate-500 group-hover:text-slate-800 transition-colors">{t('dashboard.manageButton')}</span>
-      </button>
+        {t('dashboard.manageButton')}
+      </Button>
     </div>
   );
 }

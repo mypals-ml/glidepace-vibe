@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { AutoSyncBanner } from './AutoSyncBanner';
 import type { SortMethod } from '../../../types';
+import { Button } from '../../UI/Button';
 
 interface ProjectListContentProps {
   selectedAccountId: string | null;
@@ -175,15 +176,16 @@ export function ProjectListContent({
               <div className="flex items-center gap-6">
                 <div className="flex items-center transition-all">
                   <div className="hidden group-hover:flex items-center gap-3 transition-all">
-                    <button 
+                    <Button
+                      variant="primary"
+                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSelectRealProject(proj.id, proj.title, proj.public);
-                      }} 
-                      className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors shadow-sm shadow-primary/20"
+                      }}
                     >
                       {t('dashboard.openProjectAction')}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

@@ -1,6 +1,7 @@
-import { useDashboard } from '../../context/DashboardContext';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { Task, TaskStatus } from '../../types';
+import { Button } from '../UI/Button';
+import { useDashboard } from '../../context/DashboardContext';
 
 /** Fallback used before a project is loaded (demo without mock response yet, etc.) */
 const DEFAULT_STATUSES = ['Todo', 'In Progress', 'Done'];
@@ -41,7 +42,7 @@ export function StatusSelector({ task, onClose, onSelect }: StatusSelectorProps)
       >
         {/* Status List */}
         <div className="max-h-[300px] overflow-y-auto custom-scrollbar py-1 bg-white/30">
-          {statuses.map(statusName => {
+          {statuses.map((statusName: string) => {
             const isSelected = task ? task.status === statusName : false;
             return (
               <button
@@ -68,12 +69,13 @@ export function StatusSelector({ task, onClose, onSelect }: StatusSelectorProps)
 
         {/* Footer/Action (mobile only) */}
         <div className="p-2 border-t border-slate-200/60 bg-slate-50/80 flex justify-end items-center sm:hidden">
-          <button 
+          <Button
+            variant="primary"
+            size="sm"
             onClick={(e) => { e.stopPropagation(); onClose(); }}
-            className="px-4 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg shadow-glow hover:bg-primary-hover transition-all"
           >
             Done
-          </button>
+          </Button>
         </div>
       </div>
       

@@ -6,6 +6,8 @@ import { AssigneeSelector } from './AssigneeSelector';
 import { StatusSelector } from './StatusSelector';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { Task, User } from '../../types';
+import { Button } from '../UI/Button';
+import { IconButton } from '../UI/IconButton';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -43,15 +45,16 @@ function CopyButton({ text, t }: { text: string; t: TFunction }) {
   };
 
   return (
-    <button
+    <IconButton
+      icon={copied ? 'check' : 'content_copy'}
+      variant="ghost"
+      size="sm"
       onClick={handleCopy}
-      className={`p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all flex items-center justify-center shrink-0 ${copied ? 'bg-green-50' : ''}`}
+      className={`${copied ? 'bg-green-50 text-green-600 scale-110 font-bold' : ''}`}
+      iconClassName="!text-[16px]"
       title={copied ? t('common.copied', 'Copied!') : t('common.copy', 'Copy')}
-    >
-      <span className={`material-symbols-outlined text-[14px] leading-none ${copied ? 'text-green-600 scale-110 font-bold' : ''} transition-all duration-200`}>
-        {copied ? 'check' : 'content_copy'}
-      </span>
-    </button>
+      aria-label={copied ? t('common.copied', 'Copied!') : t('common.copy', 'Copy')}
+    />
   );
 }
 
@@ -77,9 +80,13 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
         <div className="md:hidden bg-white h-full rounded-t-2xl flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/60">
             <h2 className="text-lg font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
-            <button onClick={handleClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-              <span className="material-symbols-outlined text-xl text-slate-600">close</span>
-            </button>
+            <IconButton
+              icon="close"
+              variant="ghost"
+              size="md"
+              onClick={handleClose}
+              aria-label="Close"
+            />
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-6 space-y-6">
             <TaskContent key={isCreateMode ? 'new-task' : task?.id} task={task} t={t} isCreateMode={isCreateMode} />
@@ -90,9 +97,13 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
         <div className="hidden md:flex flex-col bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/60 h-full overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-slate-200/60">
             <h2 className="text-sm font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
-            <button onClick={handleClose} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-              <span className="material-symbols-outlined text-lg text-slate-600">close</span>
-            </button>
+            <IconButton
+              icon="close"
+              variant="ghost"
+              size="sm"
+              onClick={handleClose}
+              aria-label="Close"
+            />
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 pt-4 space-y-4">
             <TaskContent key={isCreateMode ? 'new-task' : task?.id} task={task} t={t} isCreateMode={isCreateMode} />
@@ -298,24 +309,25 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
 
         {/* Submit Button */}
         <div className="pt-4 flex flex-col gap-3">
-          <button
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
             onClick={onHandleCreate}
             disabled={!newTitle.trim() || isCreating}
-            className={`w-full py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all flex items-center justify-center gap-2 ${!newTitle.trim() || isCreating ? 'opacity-50 grayscale' : ''}`}
+            isLoading={isCreating}
+            leftIcon="add_circle"
           >
-            {isCreating ? (
-              <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-            ) : (
-              <span className="material-symbols-outlined text-lg">add_circle</span>
-            )}
             {t('createTask.create', 'Create Task')}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            fullWidth
             onClick={() => setIsCreateMode(false)}
-            className="w-full py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
           >
             {t('common.cancel', 'Cancel')}
-          </button>
+          </Button>
         </div>
         <div className="h-20" />
       </div>
@@ -334,12 +346,13 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             {!editingTitle && (
               <>
                 <CopyButton text={task.title} t={t} />
-                <button 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setEditingTitle(true)}
-                  className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
                 >
                   {t('common.edit', 'Edit')}
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -356,8 +369,8 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                 autoFocus
               />
               <div className="flex gap-2 justify-end">
-                <button onClick={handleSaveTitle} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
-                <button onClick={() => { setEditingTitle(false); setDraftTitle(task.title); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
+                <Button variant="primary" size="sm" onClick={handleSaveTitle}>{t('common.save')}</Button>
+                <Button variant="secondary" size="sm" onClick={() => { setEditingTitle(false); setDraftTitle(task.title); }}>{t('common.cancel')}</Button>
               </div>
             </div>
           ) : (
@@ -374,12 +387,13 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             {!editingDesc && (
               <>
                 <CopyButton text={task.body || ''} t={t} />
-                <button 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setEditingDesc(true)}
-                  className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
                 >
                   {t('common.edit', 'Edit')}
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -395,8 +409,8 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                 autoFocus
               />
               <div className="flex gap-2 justify-end">
-                <button onClick={handleSaveDesc} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
-                <button onClick={() => { setEditingDesc(false); setDraftDesc(task.body || ''); }} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
+                <Button variant="primary" size="sm" onClick={handleSaveDesc}>{t('common.save')}</Button>
+                <Button variant="secondary" size="sm" onClick={() => { setEditingDesc(false); setDraftDesc(task.body || ''); }}>{t('common.cancel')}</Button>
               </div>
             </div>
           ) : (
@@ -531,8 +545,8 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                     autoFocus
                   />
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => handleSaveComment(comment.id)} className="px-3 py-1 bg-primary text-white text-xs rounded hover:bg-primary-hover">{t('common.save')}</button>
-                    <button onClick={() => setEditingCommentId(null)} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs rounded hover:bg-slate-300">{t('common.cancel')}</button>
+                    <Button variant="primary" size="sm" onClick={() => handleSaveComment(comment.id)}>{t('common.save')}</Button>
+                    <Button variant="secondary" size="sm" onClick={() => setEditingCommentId(null)}>{t('common.cancel')}</Button>
                   </div>
                 </div>
               ) : (
@@ -540,18 +554,21 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                   <p className="px-3 pt-2 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{comment.body}</p>
                   <div className="absolute top-2 right-2 flex items-center gap-1">
                     <CopyButton text={comment.body} t={t} />
-                    <button 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => { setEditingCommentId(comment.id); setDraftComment(comment.body); }}
-                      className="px-2 py-1 rounded-md hover:bg-slate-200 text-slate-600 text-xs font-medium"
                     >
                       {t('common.edit', 'Edit')}
-                    </button>
-                    <button 
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
                       onClick={() => handleDeleteComment(comment.id)}
-                      className="px-2 py-1 rounded-md hover:bg-red-50 text-red-600 text-xs font-medium"
                     >
                       {t('common.delete', 'Delete')}
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
@@ -573,25 +590,16 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           />
         </div>
         <div className="flex justify-end mt-2">
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={handleAddComment}
             disabled={isSubmittingComment || !newCommentBody.trim()}
-            className={`px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary-hover transition-colors flex items-center gap-2 ${
-              (isSubmittingComment || !newCommentBody.trim()) ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+            isLoading={isSubmittingComment}
+            rightIcon="send"
           >
-            {isSubmittingComment ? (
-              <>
-                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                {t('common.submitting', 'Submitting...')}
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-sm">send</span>
-                {t('dashboard.addComment', 'Comment')}
-              </>
-            )}
-          </button>
+            {t('dashboard.addComment', 'Comment')}
+          </Button>
         </div>
       </div>
       {/* Bottom spacer to prevent dropdown clipping in scrollable area */}

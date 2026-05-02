@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
+import { Button } from '../UI/Button';
 
 export function EmptyState() {
   const { t } = useTranslation();
@@ -13,14 +14,16 @@ export function EmptyState() {
         </div>
         <h2 className="text-lg font-semibold mb-1 text-slate-800">{t('dashboard.emptyStateTitle')}</h2>
         <p className="text-sm text-slate-500 mb-6 text-center">{t('dashboard.emptyStateDesc')}</p>
-        <button
+        <Button
+          variant="primary"
+          size="md"
+          fullWidth
           onClick={handleOpenProjectClick}
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm"
+          leftIcon="folder_open"
           aria-label={t('dashboard.addProjectButton')}
         >
-          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">folder_open</span>
           {t('dashboard.addProjectButton')}
-        </button>
+        </Button>
       </div>
 
       <div className={`flex-1 flex-col bg-slate-50/50 ${isChartVisible ? 'flex' : 'hidden md:flex'}`}>
