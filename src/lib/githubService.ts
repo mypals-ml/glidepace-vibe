@@ -30,10 +30,15 @@ export async function fetchGitHubGraphQL(query: string, variables: Record<string
 
     if (!res.ok) {
       const errorText = await res.text();
+      console.error(`[GitHubAPI] ❌ Error: ${res.status}`, errorText);
       throw new Error(`GitHub API error: ${res.status} ${errorText}`);
     }
 
-    return await res.json();
+    const data = await res.json();
+    if (data.errors) {
+      console.warn(`[GitHubAPI] ⚠️ GraphQL Errors for query ${query.slice(0, 50)}...`, data.errors);
+    }
+    return data;
   } catch (error: unknown) {
     console.error('Fetch GitHub GraphQL failed:', error);
     throw error;
