@@ -1,0 +1,24 @@
+#!/bin/sh
+# Add common Node.js installation paths for macOS (including versioned homebrew paths)
+export PATH="/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# Colors for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo "🔍 Running pre-push checks (linting and type-checking)..."
+
+if ! npm run lint; then
+  printf "\n${RED}❌ Linting failed! Please fix coding style issues before pushing.${NC}\n" >&2
+  printf "${YELLOW}💡 Run 'npm run lint' locally to see details.${NC}\n\n" >&2
+  exit 1
+fi
+
+if ! npm run type-check; then
+  printf "\n${RED}❌ Type-checking failed! Please fix TypeScript errors before pushing.${NC}\n" >&2
+  printf "${YELLOW}💡 Run 'npm run type-check' locally to see details.${NC}\n\n" >&2
+  exit 1
+fi
+
+echo "✅ Pre-push checks passed!"
