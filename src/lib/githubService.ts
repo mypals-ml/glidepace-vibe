@@ -19,6 +19,7 @@ export async function fetchGitHubGraphQL(query: string, variables: Record<string
 
   // Real API call
   try {
+    console.log('[GitHubAPI] Executing GraphQL query with token (last 4):', token.slice(-4));
     const res = await fetch(GITHUB_GRAPHQL_API_URL, {
       method: 'POST',
       headers: {
@@ -76,6 +77,7 @@ export async function addProjectV2DraftIssue(projectId: string, title: string, b
 
 export async function updateProjectV2ItemField(projectId: string, itemId: string, fieldId: string, value: unknown, token: string): Promise<boolean> {
   try {
+    console.log('[GitHubAPI] Executing GraphQL query with token (last 4):', token.slice(-4));
     const res = await fetchGitHubGraphQL(UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION, { projectId, itemId, fieldId, value }, token);
     if (res.errors) {
       console.error('Update field failed:', res.errors);

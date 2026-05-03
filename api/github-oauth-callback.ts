@@ -111,8 +111,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             } catch (e) {}
             const filtered = accounts.filter(a => a.id !== newAccount.id);
             filtered.push(newAccount);
+            console.log('[Auth] SERVER-SIDE SCRIPT: Saving new account to localStorage:', newAccount.login);
             localStorage.setItem('github_accounts', JSON.stringify(filtered));
-            localStorage.setItem('active_github_account_id', newAccount.id);
+            
+            // Sync with DashboardProvider orchestration
+            try {
+              const savedContext = localStorage.getItem('auth_return_context');
+              if (savedContext) {
+                const context = JSON.parse(savedContext);
+                context.new_account_id = newAccount.id;
+                localStorage.setItem('auth_return_context', JSON.stringify(context));
+                console.log('[Auth] SERVER-SIDE SCRIPT: Updated auth_return_context with new account ID');
+              }
+            } catch (e) {
+              console.error('[Auth] SERVER-SIDE SCRIPT: Failed to update context:', e);
+            }
+
             window.location.href = '/';
           </script>
         </body>
