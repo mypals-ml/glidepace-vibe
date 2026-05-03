@@ -23,17 +23,55 @@ export function useDashboardProjects({
 
   const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
   const [activeTabLogin, setActiveTabLogin] = useState<string>('');
-  const [selectedProject, setSelectedProject] = useState<{ id: string; title: string; public: boolean } | null>(() => {
+  const [selectedProject, setSelectedProjectState] = useState<{ id: string; title: string; public: boolean } | null>(() => {
     try {
-      const saved = localStorage.getItem('selected_project');
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlProjectId = urlParams.get('project');
+      if (urlProjectId) {
+        return { id: urlProjectId, title: 'Loading...', public: false };
+      }
+      const saved = sessionStorage.getItem('selected_project') || localStorage.getItem('selected_project');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
   });
-  const [hasProject, setHasProject] = useState(() => {
-    return !!localStorage.getItem('selected_project_type') || !!localStorage.getItem('selected_project');
+
+  const setSelectedProject = useCallback((project: { id: string; title: string; public: boolean } | null) => {
+    setSelectedProjectState(project);
+    
+    // Update Storage
+    if (project) {
+      const str = JSON.stringify(project);
+      sessionStorage.setItem('selected_project', str);
+      localStorage.setItem('selected_project', str);
+    } else {
+      sessionStorage.removeItem('selected_project');
+      localStorage.removeItem('selected_project');
+    }
+
+    // Sync to URL
+    const url = new URL(window.location.href);
+    if (project) {
+      url.searchParams.set('project', project.id);
+    } else {
+      url.searchParams.delete('project');
+    }
+    window.history.replaceState({}, document.title, url.toString());
+  }, []);
+
+  const [hasProject, setHasProjectState] = useState(() => {
+    return !!sessionStorage.getItem('selected_project_type') || 
+           !!localStorage.getItem('selected_project_type') || 
+           !!sessionStorage.getItem('selected_project') || 
+           !!localStorage.getItem('selected_project');
   });
+
+  const setHasProject = useCallback((has: boolean) => {
+    setHasProjectState(has);
+    // Note: We don't explicitly set storage here as hasProject is usually a derivative of selectedProject
+    // But we keep the setter for compatibility with the hook's interface
+  }, []);
   const [projectHistory, setHistory] = useState<ProjectHistoryItem[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('project_history') || '[]');
@@ -107,21 +145,22 @@ export function useDashboardProjects({
     if (projectsData.length === 0) return;
 
     const allProjects = projectsData.flatMap(o => o.projects);
-    const cached = localStorage.getItem('selected_project');
-    if (cached) {
-      try {
-        const cachedProject = JSON.parse(cached);
-        // Check if the current cached ID matches ANY of the fetched projects
-        const matchById = allProjects.find(p => p.id === cachedProject.id);
-        
-        if (!matchById) {
-          // If not found by ID, try finding it by title to see if it's an ID format mismatch
-          const matchByTitle = allProjects.find(p => p.title === cachedProject.title);
+    
+    if (selectedProject) {
+      const matchById = allProjects.find(p => p.id === selectedProject.id);
+      
+      if (matchById) {
+        // Hydrate title/public status if missing or stale (e.g. from URL)
+        if (selectedProject.title === 'Loading...' || selectedProject.title !== matchById.title || selectedProject.public !== matchById.public) {
+          setSelectedProject(matchById);
+        }
+      } else {
+        // ID format mismatch? Try finding by title
+        if (selectedProject.title !== 'Loading...') {
+          const matchByTitle = allProjects.find(p => p.title === selectedProject.title);
           if (matchByTitle) {
-            console.log(`[ID Migration] 🚀 Migrating project "${cachedProject.title}" ID: ${cachedProject.id} -> ${matchByTitle.id}`);
-            const updated = { ...cachedProject, id: matchByTitle.id };
-            setSelectedProject(updated);
-            localStorage.setItem('selected_project', JSON.stringify(updated));
+            console.log(`[ID Migration] 🚀 Migrating project "${selectedProject.title}" ID: ${selectedProject.id} -> ${matchByTitle.id}`);
+            setSelectedProject(matchByTitle);
             
             // Re-fetch tasks with the corrected project ID format
             if (githubToken) {
@@ -129,11 +168,9 @@ export function useDashboardProjects({
             }
           }
         }
-      } catch (e) {
-        console.warn('Failed to parse cached project during migration:', e);
       }
     }
-  }, [projectsData, githubToken, fetchProjectTasks, setSelectedProject]);
+  }, [projectsData, githubToken, fetchProjectTasks, setSelectedProject, selectedProject]);
 
   const handleSelectRealProject = useCallback((id: string, title: string, isPublic?: boolean, forceToken?: string) => {
     setIsProjectModalOpen(false);
@@ -148,7 +185,9 @@ export function useDashboardProjects({
     setSelectedProject(project);
     setHasProject(true);
     
+    sessionStorage.setItem('selected_project', JSON.stringify(project));
     localStorage.setItem('selected_project', JSON.stringify(project));
+    sessionStorage.removeItem('selected_project_type');
     localStorage.removeItem('selected_project_type');
 
     const isMockAccount = activeAccountId === 'mock-1';
@@ -207,6 +246,15 @@ export function useDashboardProjects({
         return sorted;
     }
   }, [sortMethod]);
+
+  // Sync initial state to URL if missing
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (selectedProject?.id && !url.searchParams.has('project')) {
+      url.searchParams.set('project', selectedProject.id);
+      window.history.replaceState({}, document.title, url.toString());
+    }
+  }, [selectedProject?.id]);
 
   return {
     projectsData,

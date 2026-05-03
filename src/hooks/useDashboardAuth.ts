@@ -16,7 +16,12 @@ export function useDashboardAuth() {
   });
 
   const [activeAccountId, setActiveAccountIdState] = useState<string>(
-    () => USE_MOCK_DATA ? MOCK_ACCOUNTS[0].id : (localStorage.getItem('active_github_account_id') || '')
+    () => {
+      if (USE_MOCK_DATA) return MOCK_ACCOUNTS[0].id;
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlAccount = urlParams.get('account');
+      return urlAccount || sessionStorage.getItem('active_github_account_id') || localStorage.getItem('active_github_account_id') || '';
+    }
   );
 
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
@@ -29,7 +34,24 @@ export function useDashboardAuth() {
 
   const setActiveAccountId = useCallback((id: string) => {
     setActiveAccountIdState(id);
-    localStorage.setItem('active_github_account_id', id);
+    
+    // Update Storage
+    if (id) {
+      sessionStorage.setItem('active_github_account_id', id);
+      localStorage.setItem('active_github_account_id', id);
+    } else {
+      sessionStorage.removeItem('active_github_account_id');
+      localStorage.removeItem('active_github_account_id');
+    }
+
+    // Sync to URL
+    const url = new URL(window.location.href);
+    if (id) {
+      url.searchParams.set('account', id);
+    } else {
+      url.searchParams.delete('account');
+    }
+    window.history.replaceState({}, document.title, url.toString());
   }, []);
 
   const handleOpenAuth = useCallback(() => {
@@ -72,7 +94,8 @@ export function useDashboardAuth() {
         });
         setActiveAccountId(mockAccount.id);
         onCloseModals();
-        if (localStorage.getItem('pending_open_project') === 'true') {
+        if (sessionStorage.getItem('pending_open_project') === 'true' || localStorage.getItem('pending_open_project') === 'true') {
+          sessionStorage.removeItem('pending_open_project');
           localStorage.removeItem('pending_open_project');
           onOpenProject();
         }
@@ -110,10 +133,11 @@ export function useDashboardAuth() {
       setActiveAccountId(newAccount.id);
       onCloseModals();
 
-      if (localStorage.getItem('pending_open_project') === 'true') {
-        localStorage.removeItem('pending_open_project');
-        onOpenProject();
-      }
+        if (sessionStorage.getItem('pending_open_project') === 'true' || localStorage.getItem('pending_open_project') === 'true') {
+          sessionStorage.removeItem('pending_open_project');
+          localStorage.removeItem('pending_open_project');
+          onOpenProject();
+        }
 
       return { success: true };
     } catch (e: unknown) {
@@ -130,7 +154,7 @@ export function useDashboardAuth() {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
 
-      if (code && !githubToken) {
+      if (code) {
         setIsLoadingAuth(true);
         try {
           const res = await fetch(`/api/github-oauth-callback?code=${code}`, {
@@ -153,17 +177,19 @@ export function useDashboardAuth() {
               return nextAccounts;
             });
             setActiveAccountId(newAccount.id);
-            window.history.replaceState({}, document.title, window.location.pathname);
           }
         } catch (e) {
           console.error('Failed to authenticate:', e);
         } finally {
           setIsLoadingAuth(false);
+          const url = new URL(window.location.href);
+          url.searchParams.delete('code');
+          window.history.replaceState({}, document.title, url.toString());
         }
       }
     };
     handleAuthCallback();
-  }, [githubToken, setActiveAccountId]);
+  }, [setActiveAccountId]);
 
   const checkAppInstallation = useCallback(async (login: string) => {
     if (!login || isAppInstalled[login] !== undefined) return;
@@ -178,6 +204,15 @@ export function useDashboardAuth() {
       console.error('Failed to check app installation:', e);
     }
   }, [isAppInstalled]);
+
+  // Sync initial state to URL if missing
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (activeAccountId && !url.searchParams.has('account')) {
+      url.searchParams.set('account', activeAccountId);
+      window.history.replaceState({}, document.title, url.toString());
+    }
+  }, [activeAccountId]);
 
   return {
     githubAccounts,

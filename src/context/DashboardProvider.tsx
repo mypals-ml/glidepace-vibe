@@ -84,6 +84,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     if (auth.githubAccounts.length > 0) {
       ui.setIsProjectModalOpen(true);
     } else {
+      sessionStorage.setItem('pending_open_project', 'true');
       localStorage.setItem('pending_open_project', 'true');
       auth.handleOpenAuth();
     }
