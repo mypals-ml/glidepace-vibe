@@ -27,12 +27,29 @@
   --color-status-todo-highlight: #8b949e;
 
 
-  --header-button-height: 2.25rem;
+  --btn-h-sm: 2.25rem;
+  --header-button-height: var(--btn-h-sm);
   --header-gap-sm: 0.5rem;
   --header-gap-md: 0.75rem;
   --header-gap-lg: 1rem;
   --dashboard-header-height: 1.8rem;
   --search-bar-height: 61px;
+
+  /* Button Tokens */
+  --btn-h-md: 2.5rem;
+  --btn-h-lg: 3rem;
+  
+  --btn-px-sm: 0.75rem;
+  --btn-px-md: 1rem;
+  --btn-px-lg: 1.25rem;
+
+  --btn-icon-gap: 0.5rem;
+  
+  --btn-radius: 0.625rem; /* 10px */
+  
+  --icon-size-sm: 18px;
+  --icon-size-md: 20px;
+  --icon-size-lg: 24px;
 }
 
 @layer components {

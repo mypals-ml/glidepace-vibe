@@ -78,22 +78,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Determine sync requirement based on tables
   let syncType: SyncType | null = null;
 
-  if (event === 'project_v2_item') {
+  if (event === 'projects_v2_item' || event === 'project_v2_item') {
     syncType = PROJECT_V2_ITEM_CONFIG[action] || 'sync'; // Fallback to full sync for unknown actions
   } else if (event === 'issues') {
     syncType = ISSUE_CONFIG[action] || 'sync'; // Fallback to full sync for unknown actions
-  } else if (event === 'push' || event === 'project_v2') {
+  } else if (event === 'push' || event === 'projects_v2' || event === 'project_v2') {
     syncType = 'sync'; // Always full sync for structural repo/project changes
   }
 
   if (syncType) {
-    const projectId = payload.project_v2_item?.project_node_id || payload.project_v2?.node_id;
+    const projectId = payload.projects_v2_item?.project_node_id || payload.project_v2_item?.project_node_id || payload.projects_v2?.node_id || payload.project_v2?.node_id;
 
     // Construct broadcast data
     const broadcastPayload = syncType === 'refresh_task'
       ? {
-        itemId: payload.project_v2_item?.node_id,
-        contentId: payload.issue?.node_id,
+        itemId: payload.projects_v2_item?.node_id || payload.project_v2_item?.node_id,
+        contentId: payload.projects_v2_item?.content_node_id || payload.project_v2_item?.content_node_id || payload.issue?.node_id,
         timestamp: Date.now()
       }
       : {
@@ -101,12 +101,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         timestamp: Date.now()
       };
 
+    // INDEPENDENT BROADCASTS: Reach the client via all applicable channels
+    // 1. Project Channel (Specific to the project board)
     if (projectId) {
       const channelLabel = `project-${projectId}`;
       const channel = supabase.channel(channelLabel);
       
       // For all sync events, wait a bit for GitHub API eventual consistency.
-      // GitHub sometimes sends the webhook before the GraphQL API is fully updated.
       const delay = syncType === 'sync' ? 2000 : 1000;
       await new Promise(resolve => setTimeout(resolve, delay));
 
@@ -116,20 +117,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         payload: broadcastPayload
       });
       
-      console.log(`[Webhook] Broadcasted ${syncType} to ${channelLabel}, status: ${status}, payload:`, JSON.stringify(broadcastPayload));
-    } else {
-      const repoName = payload.repository?.full_name;
-      if (repoName) {
-        const channelLabel = `repo-${repoName.replace(/\//g, '-')}`;
-        const channel = supabase.channel(channelLabel);
-        
-        const status = await channel.send({
-          type: 'broadcast',
-          event: syncType,
-          payload: broadcastPayload
-        });
-        console.log(`[Webhook] Broadcasted ${syncType} to ${channelLabel}, status: ${status}`);
-      }
+      console.log(`[Webhook] Broadcasted ${syncType} to ${channelLabel}, status: ${status}`);
+    }
+
+    // 2. Repo Channel (Redundant fallback for issues/PRs linked to a repo)
+    const repoName = payload.repository?.full_name;
+    if (repoName) {
+      const channelLabel = `repo-${repoName.replace(/\//g, '-')}`;
+      const channel = supabase.channel(channelLabel);
+      
+      const status = await channel.send({
+        type: 'broadcast',
+        event: syncType,
+        payload: broadcastPayload
+      });
+      
+      console.log(`[Webhook] Redundant broadcast ${syncType} to ${channelLabel}, status: ${status}`);
+    }
+
+    // 3. Organization/User Channel (Top-level fallback)
+    const ownerLogin = payload.organization?.login || payload.sender?.login;
+    if (ownerLogin) {
+      const channelLabel = `owner-${ownerLogin}`;
+      const channel = supabase.channel(channelLabel);
+      
+      await channel.send({
+        type: 'broadcast',
+        event: syncType,
+        payload: { ...broadcastPayload, projectId } // Include projectId so client knows if it's for them
+      });
+      
+      console.log(`[Webhook] Broadcasted ${syncType} to ${channelLabel}`);
+    }
+
+    if (!projectId && !repoName) {
+      console.warn(`[Webhook] No destination channel found (no projectId or repoName) for event: ${event}`);
     }
   } else {
     console.log(`[Webhook] Event or action ignored: ${event}.${action}`);

@@ -4,6 +4,7 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { useDashboard } from '../../context/DashboardContext';
 import { AccountSidebar } from './OpenProjectModal/AccountSidebar';
 import { ProjectListContent } from './OpenProjectModal/ProjectListContent';
+import { IconButton } from '../UI/IconButton';
 
 export function OpenProjectModal() {
   const { isProjectModalOpen } = useDashboard();
@@ -37,22 +38,27 @@ function OpenProjectModalContent() {
         <div className="px-6 md:px-8 py-5 md:py-6 flex justify-between items-center bg-slate-50/40 border-b border-slate-200">
           <div className="flex items-center gap-3">
             {mobileView === 'projects' && (
-              <button 
+              <IconButton
+                icon="arrow_back"
+                variant="ghost"
+                size="sm"
                 onClick={() => setMobileView('accounts')}
-                className="md:hidden p-1 -ml-1 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
+                className="md:hidden"
                 aria-label="Back to accounts"
-              >
-                <span className="material-symbols-outlined">arrow_back</span>
-              </button>
+              />
             )}
             <div>
               <h2 id="open-project-title" className="text-xl md:text-2xl font-extrabold tracking-tight text-slate-900 line-clamp-1">{t('dashboard.openProjectModalTitle')}</h2>
               <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5 line-clamp-1">{t('dashboard.openProjectModalDesc')}</p>
             </div>
           </div>
-          <button onClick={() => setIsProjectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500" aria-label="Close">
-            <span className="material-symbols-outlined" aria-hidden="true">close</span>
-          </button>
+          <IconButton
+            icon="close"
+            variant="ghost"
+            size="md"
+            onClick={() => setIsProjectModalOpen(false)}
+            aria-label="Close"
+          />
         </div>
         
         {/* Modal Content */}

@@ -5,6 +5,7 @@ import { StatusSelector } from './StatusSelector';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { User } from '../../types';
 import { useState } from 'react';
+import { IconButton } from '../UI/IconButton';
 
 export interface SidebarProps {
   scrollRef?: React.RefObject<HTMLDivElement | null>;
@@ -169,14 +170,14 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button
+          <IconButton
+            icon="add"
+            variant="success"
+            size="sm"
             onClick={() => setIsCreateMode(true)}
-            className="w-9 h-9 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md shadow-sm transition-colors flex items-center justify-center shrink-0"
             title={t('createTask.addButton') || 'Add new task'}
             aria-label={t('createTask.addButton') || 'Add new task'}
-          >
-            <span className="material-symbols-outlined text-[20px]">add</span>
-          </button>
+          />
         </div>
       </div>
     </div>

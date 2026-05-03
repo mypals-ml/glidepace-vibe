@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { USE_MOCK_DATA, MOCK_PROJECTS } from '../lib/mockData';
 import { fetchGitHubGraphQL } from '../lib/githubService';
 import { GET_USER_PROJECTS_QUERY } from '../lib/githubQueries';
@@ -100,6 +100,40 @@ export function useDashboardProjects({
       setIsRefreshing(prev => ({ ...prev, [accountId]: false }));
     }
   }, [updateSyncTime, setIsProjectModalOpen]);
+
+  // ID Migration: Handle transitions between GitHub ID formats (legacy vs next-gen)
+  // This effect runs whenever projectsData is updated, ensuring stale IDs in localStorage are corrected.
+  useEffect(() => {
+    if (projectsData.length === 0) return;
+
+    const allProjects = projectsData.flatMap(o => o.projects);
+    const cached = localStorage.getItem('selected_project');
+    if (cached) {
+      try {
+        const cachedProject = JSON.parse(cached);
+        // Check if the current cached ID matches ANY of the fetched projects
+        const matchById = allProjects.find(p => p.id === cachedProject.id);
+        
+        if (!matchById) {
+          // If not found by ID, try finding it by title to see if it's an ID format mismatch
+          const matchByTitle = allProjects.find(p => p.title === cachedProject.title);
+          if (matchByTitle) {
+            console.log(`[ID Migration] 🚀 Migrating project "${cachedProject.title}" ID: ${cachedProject.id} -> ${matchByTitle.id}`);
+            const updated = { ...cachedProject, id: matchByTitle.id };
+            setSelectedProject(updated);
+            localStorage.setItem('selected_project', JSON.stringify(updated));
+            
+            // Re-fetch tasks with the corrected project ID format
+            if (githubToken) {
+              fetchProjectTasks(matchByTitle.id, githubToken);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to parse cached project during migration:', e);
+      }
+    }
+  }, [projectsData, githubToken, fetchProjectTasks, setSelectedProject]);
 
   const handleSelectRealProject = useCallback((id: string, title: string, isPublic?: boolean, forceToken?: string) => {
     setIsProjectModalOpen(false);

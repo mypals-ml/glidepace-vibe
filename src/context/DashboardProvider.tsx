@@ -67,8 +67,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // Initial data load
   useEffect(() => {
-    if (auth.githubToken && !projects.hasProject) {
-      projects.fetchProjects(auth.githubToken, auth.activeAccountId, true);
+    if (auth.githubToken) {
+      // Always fetch project list to ensure metadata/IDs are up to date and trigger migration
+      projects.fetchProjects(auth.githubToken, auth.activeAccountId, !projects.hasProject);
     }
 
     if (auth.githubToken && projects.selectedProject) {

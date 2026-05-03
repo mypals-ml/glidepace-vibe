@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
+import { Button } from '../UI/Button';
 
 export function SyncStatusIndicator() {
   const { t } = useTranslation();
@@ -14,7 +15,6 @@ export function SyncStatusIndicator() {
     activeAccountId,
   } = useDashboard();
   const [isStale, setIsStale] = useState(false);
-  const [isHoveringSync, setIsHoveringSync] = useState(false);
 
   useEffect(() => {
     const checkStaleness = () => {
@@ -28,42 +28,39 @@ export function SyncStatusIndicator() {
     return () => clearInterval(interval);
   }, [lastSyncedTime]);
 
+  const handleSync = () => {
+    if (selectedProject?.id) {
+      fetchProjectTasks(selectedProject.id, githubToken);
+    } else {
+      fetchProjects(githubToken, activeAccountId);
+    }
+  };
+
   return (
-    <div
-      className="flex items-center shrink-0"
-      onMouseEnter={() => setIsHoveringSync(true)}
-      onMouseLeave={() => setIsHoveringSync(false)}
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={handleSync}
+      className={`w-[var(--btn-h-sm)] lg:w-auto lg:min-w-[140px] px-0 lg:px-4 justify-center relative transition-all duration-300 ${
+        isStale 
+          ? 'bg-slate-50 border-slate-200 text-slate-500' 
+          : 'bg-emerald-50/50 border-emerald-100 text-emerald-700 hover:bg-emerald-50'
+      }`}
+      aria-label={t('app.syncNow')}
     >
-      {isHoveringSync ? (
-        <button
-          onClick={() => {
-            if (selectedProject?.id) {
-              fetchProjectTasks(selectedProject.id, githubToken);
-            } else {
-              fetchProjects(githubToken, activeAccountId);
-            }
-          }}
-          className="flex items-center gap-2 px-3 h-[var(--header-button-height)] rounded-full border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold shadow-sm transition-all animate-in fade-in zoom-in duration-200"
-        >
-          <span className="material-symbols-outlined text-[16px] animate-spin-slow shrink-0">sync</span>
-          <span className="leading-none hidden md:inline">{t('app.syncNow')}</span>
-        </button>
-      ) : (
-        <div
-          className={`flex items-center gap-2 px-3 h-[var(--header-button-height)] rounded-full border text-xs font-medium shadow-sm transition-all animate-in fade-in duration-300 ${
-            isStale
-              ? 'bg-slate-50 border-slate-200 text-slate-500'
-              : 'bg-emerald-50 border-emerald-100 text-emerald-700'
-          }`}
-          aria-live="polite"
-        >
-          <span className="relative flex h-2 w-2">
+      <div className="flex items-center gap-2">
+        <div className="relative flex items-center justify-center">
+          <span className="material-symbols-outlined text-[20px] lg:text-[18px]">sync</span>
+          {/* Status Dot Overlay */}
+          <span className="absolute -top-1 -right-1 flex h-2 w-2">
             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isStale ? 'bg-slate-300' : 'bg-emerald-400'}`}></span>
             <span className={`relative inline-flex rounded-full h-2 w-2 ${isStale ? 'bg-slate-400' : 'bg-emerald-500'}`}></span>
           </span>
-          <span className="leading-none hidden md:inline">{getSyncedTimeText(lastSyncedTime)}</span>
         </div>
-      )}
-    </div>
+        <span className="hidden lg:inline text-xs font-medium whitespace-nowrap">
+          {getSyncedTimeText(lastSyncedTime)}
+        </span>
+      </div>
+    </Button>
   );
 }

@@ -74,16 +74,36 @@ export function useDashboardTasks({
   }, [tasks, searchQuery]);
 
   const fetchSingleProjectItem = useCallback(async (itemId: string, token: string) => {
+    console.log(`[DashboardTasks] 📡 Fetching single item: ${itemId}`);
     try {
       const json = await fetchGitHubGraphQL(GET_SINGLE_ITEM_QUERY, { itemId }, token);
+      console.log(`[DashboardTasks] 📥 GraphQL Response for ${itemId}:`, json);
       const itemData = json.data?.node as GitHubProjectItem;
 
       if (itemData) {
         const updatedTask = mapProjectItemToTask(itemData);
-        setTasks(prevTasks => prevTasks.map(t =>
-          (t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId) ? updatedTask : t
-        ));
+        console.log(`[DashboardTasks] ✅ Mapped Task for ${itemId}:`, {
+          title: updatedTask.title,
+          status: updatedTask.status,
+          isDraft: updatedTask.isDraft,
+          contentId: updatedTask.contentId
+        });
+        setTasks(prevTasks => {
+          const match = prevTasks.find(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
+          if (!match) {
+            console.warn(`[DashboardTasks] ⚠️ Received task update for ${itemId} but couldn't find it in local state.`, {
+              receivedItemId: updatedTask.itemId,
+              receivedContentId: updatedTask.contentId,
+              existingIds: prevTasks.map(t => ({ itemId: t.itemId, contentId: t.contentId }))
+            });
+          }
+          return prevTasks.map(t =>
+            (t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId) ? updatedTask : t
+          );
+        });
         updateSyncTime();
+      } else {
+        console.warn(`[DashboardTasks] ⚠️ No item data returned for ${itemId}`);
       }
     } catch (e) {
       console.error('Failed to fetch single project item:', e);

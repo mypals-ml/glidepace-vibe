@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
+import { Button } from '../UI/Button';
+import { IconButton } from '../UI/IconButton';
 
 export function ConnectedAccountsModal() {
   const { t } = useTranslation();
@@ -23,9 +25,13 @@ export function ConnectedAccountsModal() {
         <div className="p-8 pb-4">
           <div className="flex items-center justify-between mb-2">
             <h3 id="manage-accounts-title" className="font-sans text-2xl font-extrabold text-slate-900">{t('app.connectedAccounts')}</h3>
-            <button onClick={() => setIsAccountModalOpen(false)} className="text-slate-500 hover:text-slate-900 transition-colors" aria-label="Close">
-              <span className="material-symbols-outlined" aria-hidden="true">close</span>
-            </button>
+            <IconButton
+              icon="close"
+              variant="ghost"
+              size="md"
+              onClick={() => setIsAccountModalOpen(false)}
+              aria-label="Close"
+            />
           </div>
           <p className="text-slate-500 text-sm">{t('app.manageAccounts')}</p>
         </div>
@@ -45,24 +51,38 @@ export function ConnectedAccountsModal() {
                   <p className="text-xs text-slate-500">@{account.login}</p>
                 </div>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); handleDisconnect(account.id); }} className="text-sm font-semibold text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-full transition-all">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={(e) => { e.stopPropagation(); handleDisconnect(account.id); }}
+              >
                 {t('app.disconnect')}
-              </button>
+              </Button>
             </div>
           ))}
         </div>
         {/* Modal Footer (Action) */}
         <div className="p-8 pt-2">
-          <button onClick={handleOpenAuth} className="w-full bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-sans font-bold py-4 rounded-full shadow-lg shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-            <span className="material-symbols-outlined text-lg" aria-hidden="true">add_circle</span>
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            onClick={handleOpenAuth}
+            leftIcon="add_circle"
+            className="rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 shadow-lg shadow-primary/20"
+          >
             {t('app.connectToAdd')}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            fullWidth
+            className="mt-3"
             onClick={() => setIsPatModalOpen(true)}
-            className="w-full mt-3 py-3 text-sm font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100/50 rounded-xl transition-all border border-transparent hover:border-slate-200"
           >
             Add manually with token
-          </button>
+          </Button>
           <p className="text-center mt-4 text-xs text-slate-500 px-6">
             {t('app.addAccountPermissionNotice')}
           </p>

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { Button } from '../UI/Button';
 
 export function PatAuthModal() {
   const { isPatModalOpen } = useDashboard();
@@ -78,28 +79,29 @@ function PatAuthModalContent() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <button
+              <Button
                 type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
                 disabled={isLoadingAuth || !token.trim()}
-                className="w-full py-4 px-6 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:hover:bg-slate-900 text-white rounded-xl font-bold transition-all shadow-lg shadow-slate-200 flex items-center justify-center gap-2 group active:scale-[0.98]"
+                isLoading={isLoadingAuth}
+                rightIcon="arrow_forward"
+                className="bg-slate-900 hover:bg-slate-800"
               >
-                {isLoadingAuth ? (
-                  <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
-                ) : (
-                  <span className="font-bold">{t('app.authSave')}</span>
-                )}
-                {!isLoadingAuth && <span className="material-symbols-outlined text-[18px] transition-transform group-hover:translate-x-1">arrow_forward</span>}
-              </button>
+                {t('app.authSave')}
+              </Button>
               
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
+                fullWidth
                 onClick={() => setIsPatModalOpen(false)}
                 disabled={isLoadingAuth}
-                className="w-full py-3 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
-                aria-label="Cancel"
               >
                 {t('app.authCancel')}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

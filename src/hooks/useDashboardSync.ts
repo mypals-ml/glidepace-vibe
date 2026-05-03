@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import type { Task } from '../types';
@@ -72,7 +72,10 @@ export function useDashboardSync({
     const label = `project-${selectedProject.id}`;
     const channel = supabase.channel(label);
     
-    console.log(`[DashboardSync] Subscribing to Project Channel: ${label}`);
+    console.log(`[DashboardSync] 📡 Subscribing to Project Channel: ${label}`, { 
+      projectId: selectedProject.id,
+      projectTitle: selectedProject.title 
+    });
 
     channel
       .on('broadcast', { event: 'sync' }, () => {
@@ -82,19 +85,25 @@ export function useDashboardSync({
         }
       })
       .on('broadcast', { event: 'refresh_task' }, (payload) => {
-        const { itemId, contentId } = payload.payload || {};
-        console.log(`[DashboardSync] Refresh Task Event on ${label}:`, { itemId, contentId });
+        const data = payload.payload || payload;
+        const { itemId, contentId } = data || {};
+        console.log(`[DashboardSync] 🔄 Refresh Task Event on ${label}:`, { itemId, contentId, rawPayload: payload });
 
         if (githubToken && itemId) {
+          console.log(`[DashboardSync] -> Triggering fetchSingleItem for itemId: ${itemId}`);
           fetchSingleItemRef.current(itemId, githubToken);
         } else if (githubToken && contentId) {
+          console.log(`[DashboardSync] -> No itemId, searching for contentId: ${contentId}`);
           const task = tasksRef.current.find(t => t.contentId === contentId);
           if (task && task.itemId) {
+            console.log(`[DashboardSync] -> Found matching task. itemId: ${task.itemId}`);
             fetchSingleItemRef.current(task.itemId, githubToken);
           } else {
+            console.warn(`[DashboardSync] -> No task found with contentId ${contentId}, doing full project refresh.`);
             fetchProjectTasksRef.current(selectedProject.id, githubToken);
           }
         } else if (githubToken) {
+          console.warn(`[DashboardSync] -> No itemId or contentId in payload, doing full project refresh.`);
           fetchProjectTasksRef.current(selectedProject.id, githubToken);
         }
       })
@@ -106,14 +115,16 @@ export function useDashboardSync({
       console.log(`[DashboardSync] Unsubscribing from Project Channel: ${label}`);
       if (supabase) supabase.removeChannel(channel);
     };
-  }, [selectedProject?.id, githubToken]);
+  }, [selectedProject?.id, selectedProject?.title, githubToken]);
 
   // Repo-level Sync Channels (Dynamic based on visible tasks)
+  const repoString = useMemo(() => tasks.map(t => t.repository).join(','), [tasks]);
+
   useEffect(() => {
     const s = supabase;
     if (!selectedProject?.id || !s) return;
 
-    const repoNames = Array.from(new Set(tasks.map(t => t.repository).filter(Boolean)));
+    const repoNames = Array.from(new Set(tasksRef.current.map(t => t.repository).filter(Boolean)));
     const labels = repoNames.map(name => `repo-${name!.replace(/\//g, '-')}`);
     
     if (labels.length === 0) return;
@@ -129,15 +140,26 @@ export function useDashboardSync({
           }
         })
         .on('broadcast', { event: 'refresh_task' }, (payload) => {
-          const { itemId, contentId } = payload.payload || {};
-          console.log(`[DashboardSync] Refresh Task Event on ${label}:`, { itemId, contentId });
+          const data = payload.payload || payload;
+          const { itemId, contentId } = data || {};
+          console.log(`[DashboardSync] 🔄 Refresh Task Event on ${label}:`, { itemId, contentId, rawPayload: payload });
+          
           if (githubToken && itemId) {
+            console.log(`[DashboardSync] -> Triggering fetchSingleItem for itemId: ${itemId}`);
             fetchSingleItemRef.current(itemId, githubToken);
           } else if (githubToken && contentId) {
+            console.log(`[DashboardSync] -> No itemId, searching for contentId: ${contentId}`);
             const task = tasksRef.current.find(t => t.contentId === contentId);
             if (task && task.itemId) {
+              console.log(`[DashboardSync] -> Found matching task. itemId: ${task.itemId}`);
               fetchSingleItemRef.current(task.itemId, githubToken);
+            } else {
+              console.warn(`[DashboardSync] -> No task found with contentId ${contentId}, doing full project refresh.`);
+              fetchProjectTasksRef.current(selectedProject.id, githubToken);
             }
+          } else if (githubToken) {
+            console.warn(`[DashboardSync] -> No itemId or contentId in payload, doing full project refresh.`);
+            fetchProjectTasksRef.current(selectedProject.id, githubToken);
           }
         })
         .subscribe();
@@ -149,7 +171,55 @@ export function useDashboardSync({
         if (supabase) supabase.removeChannel(channel);
       });
     };
-  }, [tasks.map(t => t.repository).join(','), selectedProject?.id, githubToken]);
+  }, [repoString, selectedProject?.id, githubToken]);
+
+  // Owner-level Fallback Channel (For when project/repo IDs mismatch)
+  useEffect(() => {
+    const s = supabase;
+    if (!selectedProject?.id || !s) return;
+
+    // We can't easily get the owner from tasksRef, so we try to infer it or just skip if not possible.
+    // For now, let's use the repo owner of the first task as a hint.
+    const firstTask = tasksRef.current.find(t => t.repository);
+    const owner = firstTask?.repository?.split('/')[0];
+    
+    if (!owner) return;
+
+    const label = `owner-${owner}`;
+    const channel = s.channel(label);
+    console.log(`[DashboardSync] 🛡️ Subscribing to Owner Fallback Channel: ${label}`);
+
+    channel
+      .on('broadcast', { event: 'sync' }, () => {
+        console.log(`[DashboardSync] 🛡️ Fallback Sync Event on ${label}`);
+        fetchProjectTasksRef.current(selectedProject.id, githubToken);
+      })
+      .on('broadcast', { event: 'refresh_task' }, (payload) => {
+        const data = payload.payload || payload;
+        const { itemId, contentId, projectId } = data || {};
+        
+        // If the payload contains a projectId that doesn't match ours, ignore it
+        if (projectId && projectId !== selectedProject.id) return;
+
+        console.log(`[DashboardSync] 🛡️ Fallback Refresh Event on ${label}:`, { itemId, contentId });
+        
+        if (githubToken && itemId) {
+          fetchSingleItemRef.current(itemId, githubToken);
+        } else if (githubToken && contentId) {
+          const task = tasksRef.current.find(t => t.contentId === contentId);
+          if (task && task.itemId) {
+            fetchSingleItemRef.current(task.itemId, githubToken);
+          } else {
+            fetchProjectTasksRef.current(selectedProject.id, githubToken);
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      if (supabase) supabase.removeChannel(channel);
+    };
+  }, [repoString, selectedProject?.id, githubToken]);
 
   return {
     lastSyncedTime,

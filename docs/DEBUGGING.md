@@ -15,7 +15,33 @@ Reference: https://vercel.com/docs/deployments/environments#local-development-en
 3. Start the Vite hot-reloading server: `npm run dev`
 4. Open `http://localhost:5173` in your browser.
 
-## 2. Mock Mode (Developing without GitHub API)
+## 2. API & Webhook Debugging (Vite Middleware)
+
+Since Glidelines implements a serverless architecture, we use a custom Vite plugin to simulate the production API environment locally. This allows you to test the `api/*.ts` functions without deploying to Vercel.
+
+### Local Setup (Step-by-Step)
+1.  **Vite Middleware:** The `vite-plugin-vercel-mock.ts` plugin intercepts `/api/*` requests and routes them to your serverless functions in the `api/` directory. No special command is needed beyond `npm run dev`.
+2.  **Smee Proxy:** GitHub cannot reach `localhost`. You must run a Smee client to forward real GitHub webhooks to your local machine:
+    ```bash
+    npx smee-client -u <YOUR_SMEE_URL> -t http://localhost:5173/api/github-webhook
+    ```
+3.  **GitHub App Config:** Ensure your "Local Test" GitHub App's **Webhook URL** is set to your Smee URL.
+
+### "Why is my app updating without Smee?"
+If you see real-time updates in your local browser even when Smee is **not** running, it's usually because:
+- You have **two GitHub Apps** installed on your repository (e.g., a "Product App" and a "Local App").
+- The **Product App** sends webhooks to the live **Vercel** server.
+- The Vercel server broadcasts the event to **Supabase**.
+- Your local browser is connected to the same **Supabase project** and hears the broadcast.
+
+> [!IMPORTANT]
+> To debug **local changes** to the webhook code (`api/github-webhook.ts`), you **must** use Smee. Otherwise, you are just watching the production server handle the events!
+
+### Verification
+- Check the **Browser Console** for `[DashboardSync]` logs to see events being received.
+- Check the **Terminal** where `npm run dev` is running to see `[Webhook]` logs from the server-side code.
+
+## 3. Mock Mode (Developing without GitHub API)
 If you don't want to configure real GitHub OAuth or webhooks locally, you can use the built-in mock mode. This simulates the entire GitHub GraphQL API and provides pre-configured mock accounts.
 
 1.  **Start Mock Server:** `npm run dev:test`
@@ -27,17 +53,11 @@ If you don't want to configure real GitHub OAuth or webhooks locally, you can us
 - **Console & Network:** Use Chrome/Firefox DevTools (F12) to monitor standard `console.log` outputs and watch for failed GraphQL network requests (once GitHub integration is live).
 - **Tailwind v4:** If styles aren't appearing correctly, ensure you are running through Vite. Tailwind v4 compiles entirely via the `@tailwindcss/vite` plugin and does not require a standalone watcher.
 
-## 3. Testing Logic (Vitest)
+## 4. Testing Logic (Vitest)
 For complex business logic—specifically the core date math for the Gantt chart—we use Vitest.
 
 1. **Run Tests Once:** `npm run test` (or `npx vitest`)
 2. **Watch Mode:** `npm run test --watch` to continuously run tests in the background while you write pure functions.
-
-## 4. API & Webhook Debugging (Vite Middleware)
-Since Glidelines implements a serverless architecture, we use a custom Vite plugin to simulate the production API environment locally.
-
-*   **Vite Plugin:** `vite-plugin-vercel-mock.ts` intercepts `/api/*` requests and routes them to your serverless functions in the `api/` directory.
-*   **Webhook Simulation:** Use Smee.io to forward real GitHub webhooks to `http://localhost:5173/api/github-webhook` while `npm run dev` is active.
 
 ## 5. Mobile Device Debugging (Capacitor)
 Since this is a Capacitor project, the web app is instantly wrappable for native iOS/Android deployment.
