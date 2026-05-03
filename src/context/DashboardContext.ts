@@ -4,8 +4,9 @@ import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHi
 export interface DashboardContextValue {
   // Auth
   githubAccounts: GithubAccount[];
-  activeAccountId: string;
-  setActiveAccountId: (id: string) => void;
+  browsingAccountId: string;
+  setBrowsingAccountId: (id: string) => void;
+  browsingToken: string;
   githubToken: string;
   isLoadingAuth: boolean;
   isAppInstalled: Record<string, boolean>;
@@ -20,10 +21,11 @@ export interface DashboardContextValue {
   projectsData: ProjectOwnerInfo[];
   activeTabLogin: string;
   setActiveTabLogin: (login: string) => void;
-  selectedProject: { id: string; title: string; public: boolean } | null;
+  selectedProject: { id: string; title: string; public: boolean; accountId?: string } | null;
   hasProject: boolean;
   projectHistory: ProjectHistoryItem[];
   fetchProjects: (token: string, accountId: string, forceModal?: boolean) => Promise<void>;
+  refreshProjects: () => void;
   handleSelectRealProject: (id: string, title: string, isPublic?: boolean) => void;
   handleRemoveFromHistory: (id: string) => void;
   handleOpenProjectClick: () => void;
@@ -82,7 +84,7 @@ export interface DashboardContextValue {
 
   // Demo environment helpers
   setHasProject: (val: boolean) => void;
-  setSelectedProject: (val: { id: string; title: string; public: boolean } | null) => void;
+  setSelectedProject: (val: { id: string; title: string; public: boolean; accountId?: string } | null) => void;
   setTasks: (tasks: Task[]) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;

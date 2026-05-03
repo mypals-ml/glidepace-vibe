@@ -7,20 +7,27 @@ import type { GithubAccount } from '../types';
 export function useDashboardAuth() {
 
   const [githubAccounts, setGithubAccounts] = useState<GithubAccount[]>(() => {
-    if (USE_MOCK_DATA) return MOCK_ACCOUNTS;
+    if (USE_MOCK_DATA) {
+      console.log('[Auth] Initializing with MOCK accounts:', MOCK_ACCOUNTS.map(a => a.login));
+      return MOCK_ACCOUNTS;
+    }
     try {
-      return JSON.parse(localStorage.getItem('github_accounts') || '[]');
+      const saved = localStorage.getItem('github_accounts');
+      const parsed = JSON.parse(saved || '[]');
+      console.log('[Auth] Initializing with SAVED accounts from localStorage:', parsed.map((a: GithubAccount) => a.login));
+      return parsed;
     } catch {
+      console.log('[Auth] Initializing with EMPTY accounts (parse failed)');
       return [];
     }
   });
 
-  const [activeAccountId, setActiveAccountIdState] = useState<string>(
+  const [browsingAccountId, setBrowsingAccountId] = useState<string>(
     () => {
       if (USE_MOCK_DATA) return MOCK_ACCOUNTS[0].id;
       const urlParams = new URLSearchParams(window.location.search);
       const urlAccount = urlParams.get('account');
-      return urlAccount || sessionStorage.getItem('active_github_account_id') || localStorage.getItem('active_github_account_id') || '';
+      return urlAccount || sessionStorage.getItem('browsing_github_account_id') || localStorage.getItem('browsing_github_account_id') || '';
     }
   );
 
@@ -28,32 +35,18 @@ export function useDashboardAuth() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAppInstalled, setIsAppInstalled] = useState<Record<string, boolean>>({});
 
-  const githubToken = useMemo(() => 
-    githubAccounts.find(a => a.id === activeAccountId)?.token || '',
-    [githubAccounts, activeAccountId]
+  const browsingToken = useMemo(() => 
+    githubAccounts.find(a => a.id === browsingAccountId)?.token || '',
+    [githubAccounts, browsingAccountId]
   );
 
-  const setActiveAccountId = useCallback((id: string) => {
-    setActiveAccountIdState(id);
-    
-    // Update Storage
-    if (id) {
-      sessionStorage.setItem('active_github_account_id', id);
-      localStorage.setItem('active_github_account_id', id);
-    } else {
-      sessionStorage.removeItem('active_github_account_id');
-      localStorage.removeItem('active_github_account_id');
-    }
+  // Diagnostic: Log whenever githubAccounts state actually changes in React
+  useEffect(() => {
+    console.log('[Auth] githubAccounts state has changed! Current list:', githubAccounts.map(a => a.login));
+  }, [githubAccounts]);
 
-    // Sync to URL
-    const url = new URL(window.location.href);
-    if (id) {
-      url.searchParams.set('account', id);
-    } else {
-      url.searchParams.delete('account');
-    }
-    window.history.replaceState({}, document.title, url.toString());
-  }, []);
+  // Sync browsingAccountId to storage (no URL sync here)
+  // URL sync is now project-driven.
 
   const handleOpenAuth = useCallback(() => {
     const clientId = import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID;
@@ -66,8 +59,10 @@ export function useDashboardAuth() {
     const urlParams = new URLSearchParams(window.location.search);
     const context = {
       project_id: urlParams.get('project'),
-      account_id: urlParams.get('account')
+      account_id: urlParams.get('account'),
+      new_account_id: null
     };
+    console.log('[Auth] Initiating OAuth redirect. Saving context:', context);
     localStorage.setItem('auth_return_context', JSON.stringify(context));
 
     window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=read:org,project,repo&prompt=consent`;
@@ -77,51 +72,56 @@ export function useDashboardAuth() {
     onDisconnect(); // Clear project-related states in the provider/projects hook
 
     const nextAccounts = githubAccounts.filter(a => a.id !== accountId);
+    console.log('[Auth] State Update (Disconnect): New account list:', nextAccounts.map(a => a.login));
+    console.log('[Auth] handleDisconnect: removing account:', accountId);
     setGithubAccounts(nextAccounts);
     localStorage.removeItem('github_accounts');
     if (nextAccounts.length > 0) {
+      console.log('[Auth] handleDisconnect: Persisting new account list to storage');
       localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
     }
 
-    if (activeAccountId === accountId) {
-      const nextActive = nextAccounts.length > 0 ? nextAccounts[0].id : '';
-      setActiveAccountId(nextActive);
+    if (browsingAccountId === accountId) {
+      const nextBrowsing = nextAccounts.length > 0 ? nextAccounts[0].id : '';
+      setBrowsingAccountId(nextBrowsing);
     }
-  }, [githubAccounts, activeAccountId, setActiveAccountId]);
+  }, [githubAccounts, browsingAccountId]);
 
-  const handleAddAccountByToken = useCallback(async (token: string, onOpenProject: (token: string, id: string) => void, onCloseModals: () => void) => {
+  const handleAddAccountByToken = useCallback(async (token: string): Promise<{ success: boolean; account?: GithubAccount; error?: string }> => {
+    console.log('[Auth] Hook: handleAddAccountByToken fetching user data...');
     if (!token) return { success: false, error: 'Token is required' };
 
     setIsLoadingAuth(true);
     try {
       if (token === MOCK_TOKEN) {
         const mockAccount = MOCK_ACCOUNTS_DATA[0];
+        console.log('[Auth] handleAddAccountByToken (Mock): Triggering setGithubAccounts');
         setGithubAccounts(prev => {
           const filtered = prev.filter(acc => acc.id !== mockAccount.id);
           const nextAccounts = [...filtered, mockAccount];
+          console.log('[Auth] State Update (Mock PAT): Saving accounts to list:', nextAccounts.map(a => a.login));
+          console.log('[Auth] handleAddAccountByToken (Mock): Persisting account to storage');
           localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
           return nextAccounts;
         });
-        // Phase 1: Persistence Done
-        // Returning the new account as a signal to the caller (DashboardProvider)
+        setBrowsingAccountId(mockAccount.id);
         return { success: true, account: mockAccount };
       }
 
-      const res = await fetch('https://api.github.com/user', {
+      const response = await fetch('https://api.github.com/user', {
         headers: {
-          'Authorization': `token ${token}`,
-          'Accept': 'application/json'
-        }
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        return { success: false, error: errorData.message || 'Invalid token' };
+      if (!response.ok) {
+        throw new Error('Invalid token');
       }
 
-      const userData = await res.json();
+      const userData = await response.json();
       const newAccount: GithubAccount = {
-        id: userData.id.toString(),
+        id: String(userData.id),
         nodeId: userData.node_id,
         login: userData.login,
         name: userData.name || userData.login,
@@ -129,37 +129,64 @@ export function useDashboardAuth() {
         token: token,
       };
 
+      console.log('[Auth] handleAddAccountByToken: Triggering setGithubAccounts');
       setGithubAccounts(prev => {
-        const filtered = prev.filter(acc => acc.id !== newAccount.id);
-        const nextAccounts = [...filtered, newAccount];
+        const nextAccounts = [...prev.filter(a => a.id !== newAccount.id), newAccount];
+        console.log('[Auth] State Update (PAT): Saving accounts to list:', nextAccounts.map(a => a.login));
+        console.log('[Auth] handleAddAccountByToken: Persisting account to storage');
         localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
         return nextAccounts;
       });
-      // Phase 1: Persistence Done
-      // Returning the new account as a signal to the caller (DashboardProvider)
+      
+      console.log('[Auth] Hook: Account added successfully:', newAccount.login);
+      setBrowsingAccountId(newAccount.id);
+
       return { success: true, account: newAccount };
-    } catch (e: unknown) {
-      const error = e as Error;
-      return { success: false, error: error.message || 'An unexpected error occurred' };
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error('Add account by token failed:', error);
+      setAuthError(error.message);
+      return { success: false, error: error.message };
     } finally {
       setIsLoadingAuth(false);
     }
-  }, [setActiveAccountId]);
+  }, []);
 
-  // Auth: OAuth callback
-  const useOAuthCallback = (onOpenProject: (token: string, id: string) => void) => {
+  const updateAuthReturnContext = useCallback((newAccountId: string) => {
+    const saved = localStorage.getItem('auth_return_context');
+    if (saved) {
+      try {
+        const context = JSON.parse(saved);
+        context.new_account_id = newAccountId;
+        console.log('[Auth] updateAuthReturnContext: Updating context with new_account_id:', newAccountId, 'Old context:', context);
+        localStorage.setItem('auth_return_context', JSON.stringify(context));
+      } catch (e) {
+        console.error('Failed to update auth return context:', e);
+      }
+    }
+  }, []);
+
+  const useOAuthCallback = (onOpenProject: () => void) => {
     useEffect(() => {
       const handleAuthCallback = async () => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
+        console.log('[Auth] handleAuthCallback checking URL. Code present:', code, 'URL:', window.location.href);
 
         if (code) {
+          console.log('[Auth] OAuth Callback detected with code');
           setIsLoadingAuth(true);
           try {
             const res = await fetch(`/api/github-oauth-callback?code=${code}`, {
               headers: { Accept: 'application/json' },
             });
             const data = await res.json();
+            console.log('[Auth] OAuth API Response received:', { 
+              hasToken: !!data.access_token, 
+              hasUser: !!data.user,
+              userId: data.user?.id 
+            });
+
             if (data.access_token && data.user) {
               const newAccountId = data.user.id.toString();
               // Note: Use a ref-like check or compare against the current state
@@ -175,6 +202,7 @@ export function useDashboardAuth() {
                 token: data.access_token,
               };
 
+              console.log('[Auth] handleAuthCallback: Success! Triggering setGithubAccounts');
               setGithubAccounts(prev => {
                 const isAlreadyPresent = prev.some(acc => acc.id === newAccount.id);
                 if (isAlreadyPresent) {
@@ -185,22 +213,20 @@ export function useDashboardAuth() {
                 
                 const filtered = prev.filter(acc => acc.id !== newAccount.id);
                 const nextAccounts = [...filtered, newAccount];
+                console.log('[Auth] State Update: Saving accounts to list:', nextAccounts.map(a => a.login));
+                console.log('[Auth] handleAuthCallback: Persisting new account list to storage');
                 localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
                 return nextAccounts;
               });
               
-              // Check if we should open the project modal after login
-              if (sessionStorage.getItem('pending_open_project') === 'true' || localStorage.getItem('pending_open_project') === 'true') {
-                sessionStorage.removeItem('pending_open_project');
-                localStorage.removeItem('pending_open_project');
-                
-                // Note: We don't call setActiveAccountId here anymore.
-                // DashboardProvider will handle the orchestration.
-                onOpenProject(data.access_token, newAccountId);
-              }
+              console.log('[Auth] handleAuthCallback: Success! Calling updateAuthReturnContext for account:', newAccountId);
+              updateAuthReturnContext(newAccountId);
+              console.log('[Auth] OAuth Successful. Calling onOpenProject signal.');
+              onOpenProject();
             }
           } catch (e) {
-            console.error('Failed to authenticate:', e);
+            console.error('[Auth] Failed to authenticate:', e);
+            onOpenProject();
           } finally {
             setIsLoadingAuth(false);
             const url = new URL(window.location.href);
@@ -232,21 +258,21 @@ export function useDashboardAuth() {
     return githubAccounts.find(a => a.id === id)?.token || '';
   }, [githubAccounts]);
 
-  // Sync initial state to URL if missing
+  // Sync browsingAccountId to storage (no URL sync here)
   useEffect(() => {
-    const url = new URL(window.location.href);
-    if (activeAccountId && !url.searchParams.has('account')) {
-      url.searchParams.set('account', activeAccountId);
-      window.history.replaceState({}, document.title, url.toString());
+    if (browsingAccountId) {
+      localStorage.setItem('browsing_github_account_id', browsingAccountId);
     }
-  }, [activeAccountId]);
+  }, [browsingAccountId]);
 
   return {
     githubAccounts,
     setGithubAccounts,
-    activeAccountId,
-    setActiveAccountId,
-    githubToken,
+    authError,
+    setAuthError,
+    browsingAccountId,
+    setBrowsingAccountId,
+    browsingToken,
     isLoadingAuth,
     isAppInstalled,
     setIsAppInstalled,
@@ -255,8 +281,7 @@ export function useDashboardAuth() {
     handleDisconnect,
     handleAddAccountByToken,
     useOAuthCallback,
-    authError,
-    setAuthError,
     getTokenById,
+    updateAuthReturnContext,
   };
 }

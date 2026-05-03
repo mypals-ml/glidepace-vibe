@@ -11,8 +11,7 @@ export function SyncStatusIndicator() {
     getSyncedTimeText,
     selectedProject,
     fetchProjectTasks,
-    fetchProjects,
-    activeAccountId,
+    refreshProjects,
   } = useDashboard();
   const [isStale, setIsStale] = useState(false);
 
@@ -32,7 +31,7 @@ export function SyncStatusIndicator() {
     if (selectedProject?.id) {
       fetchProjectTasks(selectedProject.id, githubToken);
     } else {
-      fetchProjects(githubToken, activeAccountId);
+      refreshProjects();
     }
   };
 

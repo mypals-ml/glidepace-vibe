@@ -14,10 +14,9 @@ export function OpenProjectModal() {
 
 function OpenProjectModalContent() {
   const { t } = useTranslation();
-  const { setIsProjectModalOpen } = useDashboard();
+  const { setIsProjectModalOpen, browsingAccountId } = useDashboard();
 
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'accounts' | 'projects'>('accounts');
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -64,15 +63,14 @@ function OpenProjectModalContent() {
         {/* Modal Content */}
         <div className="flex flex-1 min-h-0 md:min-h-[550px]">
           <AccountSidebar 
-            selectedAccountId={selectedAccountId}
-            setSelectedAccountId={setSelectedAccountId}
+            selectedAccountId={browsingAccountId}
             mobileView={mobileView}
             setMobileView={setMobileView}
           />
           
           <div className={`${mobileView === 'projects' ? 'flex' : 'hidden md:flex'} flex-1 w-full md:w-[68%] p-6 md:p-8 bg-white/50 flex-col overflow-y-auto`}>
             <ProjectListContent 
-              selectedAccountId={selectedAccountId}
+              selectedAccountId={browsingAccountId}
               appInstallUrl={appInstallUrl}
               isSortDropdownOpen={isSortDropdownOpen}
               setIsSortDropdownOpen={setIsSortDropdownOpen}

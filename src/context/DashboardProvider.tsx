@@ -21,33 +21,30 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const auth = useDashboardAuth();
   const ui = useDashboardUI();
 
-  // 1.5 Sync Auth Callback (must be near top)
-  auth.useOAuthCallback((token, id) => {
-    // Phase 2: Atomic Transition for OAuth
-    ui.setIsProjectModalOpen(true);
-    auth.setActiveAccountId(id);
-    projects.fetchProjects(token, id, false); // forceModal is false because we set it above
-  });
+  // Stable references to prevent orchestration loops
+  const authRef = useRef(auth);
+  const uiRef = useRef(ui);
+  useEffect(() => { authRef.current = auth; }, [auth]);
+  useEffect(() => { uiRef.current = ui; }, [ui]);
 
   // 2. Projects Hook (Needs bridge to Tasks and Sync)
   const projects = useDashboardProjects({
-    githubToken: auth.getTokenById(auth.activeAccountId), // Projects list uses active (browsing) account
-    activeAccountId: auth.activeAccountId,
-    githubAccounts: auth.githubAccounts,
+    githubToken: auth.browsingToken, // Projects list uses browsing account token
+    browsingAccountId: auth.browsingAccountId,
     setIsProjectModalOpen: ui.setIsProjectModalOpen,
     updateSyncTime: () => updateSyncTimeRef.current(),
     fetchProjectTasks: (id, token) => fetchProjectTasksRef.current(id, token),
   });
 
   // 3. Compute effective tokens (Must be after projects hook)
-  const projectToken = auth.getTokenById(projects.selectedProject?.accountId || auth.activeAccountId);
+  const projectToken = auth.getTokenById(projects.selectedProject?.accountId);
 
   // 4. Tasks Hook (Needs Auth, UI, and Project State)
   const tasks = useDashboardTasks({
     githubToken: projectToken,
     selectedProject: projects.selectedProject,
     projectsData: projects.projectsData,
-    activeAccountId: projects.selectedProject?.accountId || auth.activeAccountId,
+    projectAccountId: projects.selectedProject?.accountId || '',
     githubAccounts: auth.githubAccounts,
     updateSyncTime: () => updateSyncTimeRef.current(),
     setIsCreateMode: ui.setIsCreateMode,
@@ -67,6 +64,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   fetchSingleItemRef.current = tasks.fetchSingleProjectItem;
   updateSyncTimeRef.current = sync.updateSyncTime;
 
+  const projectsRef = useRef(projects);
+  useEffect(() => { projectsRef.current = projects; }, [projects]);
+
   // ---- Effects moved back to Provider for orchestration ----
 
   // App Installation check
@@ -79,11 +79,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // Initial data load - Projects List
   useEffect(() => {
-    const activeToken = auth.getTokenById(auth.activeAccountId);
-    if (activeToken) {
-      projects.fetchProjects(activeToken, auth.activeAccountId, !projects.hasProject);
+    const browsingToken = auth.getTokenById(auth.browsingAccountId);
+    if (browsingToken) {
+      projects.fetchProjects(browsingToken, auth.browsingAccountId, !projects.hasProject);
     }
-  }, [auth.activeAccountId]); // Only re-fetch projects when the active (browsing) account changes
+  }, [auth.browsingAccountId, auth, projects]); // Only re-fetch projects when the browsing account changes
 
   // Initial data load - Tasks
   useEffect(() => {
@@ -93,9 +93,58 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         tasks.fetchProjectTasks(projects.selectedProject.id, projectToken);
       }
     }
-  }, [projectToken, projects.selectedProject?.id]); // Re-fetch only if the project or its owner's token changes
+  }, [projectToken, projects.selectedProject?.id, projects.selectedProject, tasks]); // Re-fetch only if the project or its owner's token changes
 
-  // ---- Demo helpers ----
+  // ---- Unified Account Addition & Project Reload Routine ----
+
+  const processAuthReturnContext = useCallback(() => {
+    const savedContextStr = localStorage.getItem('auth_return_context');
+    console.log('[Auth] Processing return context. Saved context:', savedContextStr);
+    if (!savedContextStr) return;
+
+    try {
+      const context = JSON.parse(savedContextStr);
+      
+      // Step 1: Reload active project (Restores background)
+      if (context.project_id) {
+        console.log('[Auth] Step 1: Restoring background project:', context.project_id);
+        projectsRef.current.setSelectedProject({ 
+          id: context.project_id, 
+          title: 'Loading...', 
+          public: false, 
+          accountId: context.account_id 
+        });
+      }
+
+      // Step 2: Check new account and show dialog (Retrieved from storage)
+      if (context.new_account_id) {
+        console.log('[Auth] Step 2: Automatically opening project modal for account:', context.new_account_id);
+        authRef.current.setBrowsingAccountId(context.new_account_id);
+        uiRef.current.setIsProjectModalOpen(true);
+      }
+      
+      // Step 3: Immediate Cleanup
+      console.log('[Auth] Step 3: Cleaning up return context');
+      localStorage.removeItem('auth_return_context');
+    } catch (e) {
+      console.error('[Auth] Failed to process auth return context:', e);
+      localStorage.removeItem('auth_return_context');
+    }
+  }, []); // Stable thanks to refs
+
+  useEffect(() => {
+    console.log('[Auth] DashboardProvider: Single Mount Effect -> Triggering processAuthReturnContext');
+    processAuthReturnContext();
+  }, [processAuthReturnContext]); // Re-add dependency now that it's stable
+
+  // Memoize the callback to prevent the hook's useEffect from firing on every render
+  const handleOAuthSuccess = useCallback(() => {
+    console.log('[Auth] Provider: handleOAuthSuccess triggered -> Triggering processAuthReturnContext');
+    processAuthReturnContext();
+  }, [processAuthReturnContext]);
+
+  // OAuth Callback Trigger
+  auth.useOAuthCallback(handleOAuthSuccess);
 
   const handleOpenProjectClick = useCallback(() => {
     if (auth.githubAccounts.length > 0) {
@@ -107,31 +156,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [auth, ui]);
 
-  // Auto-Sync Context when modal closes
-  useEffect(() => {
-    if (!ui.isProjectModalOpen) {
-      const savedContextStr = localStorage.getItem('auth_return_context');
-      if (savedContextStr) {
-        try {
-          const context = JSON.parse(savedContextStr);
-          // If we are back on a different account than the preserved context, sync back
-          if (context.account_id && auth.activeAccountId !== context.account_id) {
-            auth.setActiveAccountId(context.account_id);
-          }
-        } catch (e) {
-          console.error('Failed to parse auth_return_context', e);
-        } finally {
-          localStorage.removeItem('auth_return_context');
-        }
-      } else if (projects.selectedProject?.accountId) {
-        // Fallback: Ensure active account matches open project
-        if (auth.activeAccountId !== projects.selectedProject.accountId) {
-          auth.setActiveAccountId(projects.selectedProject.accountId);
-        }
-      }
-    }
-  }, [ui.isProjectModalOpen, projects.selectedProject?.accountId, auth.activeAccountId]);
-
   const handleDisconnect = useCallback((accountId: string) => {
     auth.handleDisconnect(accountId, () => {
       projects.setProjectHistory([]);
@@ -142,37 +166,37 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, [auth, projects, tasks]);
 
   const handleAddAccountByToken = useCallback(async (token: string) => {
+    console.log('[Auth] Provider: handleAddAccountByToken started');
     // Phase 0: Context Preservation for PAT
     const context = {
       project_id: projects.selectedProject?.id,
-      account_id: auth.activeAccountId
+      account_id: projects.selectedProject?.accountId,
+      new_account_id: null
     };
+    console.log('[Auth] Provider: Saving PAT return context:', context);
     localStorage.setItem('auth_return_context', JSON.stringify(context));
 
-    const result = await auth.handleAddAccountByToken(token, 
-      (newToken, newId) => {
-        // This is the fetch callback inside handleAddAccountByToken (if still used)
-        projects.fetchProjects(newToken, newId, false);
-      },
-      () => {} // onCloseModals is handled below
-    );
+    const result = await auth.handleAddAccountByToken(token);
+    console.log('[Auth] Provider: auth.handleAddAccountByToken result:', result.success ? 'SUCCESS' : 'FAILED', result.error);
 
     if (result.success && result.account) {
-      // Phase 2: Atomic Transition for PAT
       ui.setIsAccountModalOpen(false);
       ui.setIsPatModalOpen(false);
-      ui.setIsProjectModalOpen(true);
-      auth.setActiveAccountId(result.account.id);
-      projects.fetchProjects(result.account.token, result.account.id, false);
+      
+      // Update storage and trigger parameterless routine
+      console.log('[Auth] Provider: Calling updateAuthReturnContext for account:', result.account.id);
+      auth.updateAuthReturnContext(result.account.id);
+      console.log('[Auth] Provider: handleAddAccountByToken succeeded -> Triggering processAuthReturnContext');
+      processAuthReturnContext();
     } else {
-      // Cleanup context if failed
       localStorage.removeItem('auth_return_context');
     }
     return result;
-  }, [auth, projects, ui]);
+  }, [auth, projects, ui, processAuthReturnContext]);
 
   const value: DashboardContextValue = {
     ...auth,
+    githubToken: projectToken, // Overwrite global token with the project-specific one
     ...ui,
     ...projects,
     ...tasks,

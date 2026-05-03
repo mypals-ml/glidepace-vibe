@@ -7,8 +7,7 @@ export function ConnectedAccountsModal() {
   const { t } = useTranslation();
   const {
     githubAccounts,
-    activeAccountId,
-    setActiveAccountId,
+    selectedProject,
     isAccountModalOpen,
     setIsAccountModalOpen,
     setIsPatModalOpen,
@@ -17,6 +16,10 @@ export function ConnectedAccountsModal() {
     authError,
     setAuthError,
   } = useDashboard();
+
+  if (isAccountModalOpen) {
+    console.log('[Auth] ConnectedAccountsModal is OPEN');
+  }
 
   if (!isAccountModalOpen) return null;
 
@@ -45,7 +48,7 @@ export function ConnectedAccountsModal() {
         {/* Modal Content (Account List) */}
         <div className="p-8 space-y-4 pt-4 max-h-[60vh] overflow-y-auto">
           {githubAccounts.map((account) => (
-            <div key={account.id} onClick={() => setActiveAccountId(account.id)} className={`flex items-center justify-between bg-white/50 p-4 rounded-xl border transition-all cursor-pointer ${activeAccountId === account.id ? 'border-primary ring-1 ring-primary' : 'border-white/40 hover:border-primary/50'}`}>
+            <div key={account.id} className={`flex items-center justify-between bg-white/50 p-4 rounded-xl border transition-all ${selectedProject?.accountId === account.id ? 'border-primary ring-1 ring-primary' : 'border-white/40'}`}>
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 ring-2 ring-primary/20">
                   <img className="w-full h-full object-cover" alt={account.login} src={account.avatarUrl || `https://ui-avatars.com/api/?name=${account.login}`} />
@@ -53,7 +56,6 @@ export function ConnectedAccountsModal() {
                 <div>
                   <p className="font-sans font-bold text-slate-900 leading-tight flex items-center gap-2">
                     {account.name || account.login}
-                    {activeAccountId === account.id && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded-sm font-bold">{t('app.activeStatus')}</span>}
                   </p>
                   <p className="text-xs text-slate-500">@{account.login}</p>
                 </div>
@@ -92,7 +94,10 @@ export function ConnectedAccountsModal() {
             variant="primary"
             size="lg"
             fullWidth
-            onClick={handleOpenAuth}
+            onClick={() => {
+              console.log('[Auth] Clicked "Connect to Add" (OAuth flow)');
+              handleOpenAuth();
+            }}
             leftIcon="add_circle"
             className="rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 shadow-lg shadow-primary/20"
           >
@@ -104,6 +109,7 @@ export function ConnectedAccountsModal() {
             fullWidth
             className="mt-3"
             onClick={() => {
+              console.log('[Auth] Clicked "Add manually with token" (PAT flow)');
               setIsPatModalOpen(true);
               setAuthError(null);
             }}
