@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
+import { useSortedLocales } from '../hooks/useLocales';
 
 export function HelpOrgProjects() {
   const { t, i18n } = useTranslation();
+  const sortedLocales = useSortedLocales();
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans p-8 md:p-12 border-t-4 border-primary relative">
@@ -15,10 +17,9 @@ export function HelpOrgProjects() {
             onChange={(e) => i18n.changeLanguage(e.target.value)}
             aria-labelledby="help-language-select-label"
           >
-            <option value="en">{t('app.locales.en')}</option>
-            <option value="ja">{t('app.locales.ja')}</option>
-            <option value="zh-CN">{t('app.locales.zhCN')}</option>
-            <option value="zh-TW">{t('app.locales.zhTW')}</option>
+            {sortedLocales.map((locale) => (
+              <option key={locale.code} value={locale.code}>{locale.label}</option>
+            ))}
           </select>
           <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]" aria-hidden="true">language</span>
         </div>
