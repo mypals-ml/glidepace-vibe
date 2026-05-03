@@ -1,16 +1,19 @@
+import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../context/DashboardContext';
 import { DashboardProvider } from '../context/DashboardProvider';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { Header } from './Header/Header';
-import { ConnectedAccountsModal } from './Modals/ConnectedAccountsModal';
-import { OpenProjectModal } from './Modals/OpenProjectModal';
-import { PatAuthModal } from './Modals/PatAuthModal';
 import { Sidebar } from './Dashboard/Sidebar';
 import { Timeline } from './Dashboard/Timeline';
 import { EmptyState } from './Dashboard/EmptyState';
-import { TaskDetailsPanel } from './Dashboard/TaskDetailsPanel';
 import { useScrollSync } from '../hooks/useScrollSync';
+
+const ConnectedAccountsModal = lazy(() => import('./Modals/ConnectedAccountsModal').then(m => ({ default: m.ConnectedAccountsModal })));
+const OpenProjectModal = lazy(() => import('./Modals/OpenProjectModal').then(m => ({ default: m.OpenProjectModal })));
+const PatAuthModal = lazy(() => import('./Modals/PatAuthModal').then(m => ({ default: m.PatAuthModal })));
+const TaskDetailsPanel = lazy(() => import('./Dashboard/TaskDetailsPanel').then(m => ({ default: m.TaskDetailsPanel })));
+
 
 function DashboardLayout() {
   const { t } = useTranslation();
@@ -65,10 +68,13 @@ function DashboardLayout() {
       </div>
 
       {/* Modals */}
-      <TaskDetailsPanel task={selectedTask} onClose={() => setSelectedTaskId(null)} />
-      <OpenProjectModal />
-      <ConnectedAccountsModal />
-      <PatAuthModal />
+      <Suspense fallback={null}>
+        <TaskDetailsPanel task={selectedTask} onClose={() => setSelectedTaskId(null)} />
+        <OpenProjectModal />
+        <ConnectedAccountsModal />
+        <PatAuthModal />
+      </Suspense>
+
     </div>
   );
 }
