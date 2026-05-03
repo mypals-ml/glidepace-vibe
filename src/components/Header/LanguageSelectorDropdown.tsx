@@ -13,6 +13,7 @@ export function LanguageSelectorDropdown() {
     { code: 'en', label: t('app.locales.en') },
     { code: 'ja', label: t('app.locales.ja') },
     { code: 'zh-CN', label: t('app.locales.zhCN') },
+    { code: 'zh-TW', label: t('app.locales.zhTW') },
   ];
 
   const currentLocale = locales.find(l => l.code === i18n.language) || locales[0];
