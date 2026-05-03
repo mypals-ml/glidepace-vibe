@@ -14,9 +14,16 @@ export function ConnectedAccountsModal() {
     setIsPatModalOpen,
     handleOpenAuth,
     handleDisconnect,
+    authError,
+    setAuthError,
   } = useDashboard();
 
   if (!isAccountModalOpen) return null;
+
+  const handleClose = () => {
+    setIsAccountModalOpen(false);
+    setAuthError(null);
+  };
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-labelledby="manage-accounts-title">
@@ -29,7 +36,7 @@ export function ConnectedAccountsModal() {
               icon="close"
               variant="ghost"
               size="md"
-              onClick={() => setIsAccountModalOpen(false)}
+              onClick={handleClose}
               aria-label="Close"
             />
           </div>
@@ -64,6 +71,23 @@ export function ConnectedAccountsModal() {
         </div>
         {/* Modal Footer (Action) */}
         <div className="p-8 pt-2">
+          {authError && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-xl flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
+               <span className="material-symbols-outlined text-amber-500 shrink-0">warning</span>
+               <div className="space-y-2">
+                 <p className="text-xs text-amber-800 font-medium leading-relaxed">{authError}</p>
+                 <a 
+                   href="https://github.com/logout" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   className="inline-block text-[10px] font-bold text-amber-700 hover:underline uppercase tracking-wider"
+                 >
+                   Sign out of GitHub.com
+                 </a>
+               </div>
+            </div>
+          )}
+
           <Button
             variant="primary"
             size="lg"
@@ -79,11 +103,20 @@ export function ConnectedAccountsModal() {
             size="sm"
             fullWidth
             className="mt-3"
-            onClick={() => setIsPatModalOpen(true)}
+            onClick={() => {
+              setIsPatModalOpen(true);
+              setAuthError(null);
+            }}
           >
             Add manually with token
           </Button>
-          <p className="text-center mt-4 text-xs text-slate-500 px-6">
+          <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-100">
+            <p className="text-[10px] text-slate-500 leading-relaxed italic text-center">
+              <span className="material-symbols-outlined text-[12px] align-middle mr-1">info</span>
+              Tip: GitHub OAuth follows your current browser session. To add a different account, ensure you are logged into it at github.com first.
+            </p>
+          </div>
+          <p className="text-center mt-4 text-[10px] text-slate-400 px-6 uppercase tracking-widest">
             {t('app.addAccountPermissionNotice')}
           </p>
         </div>

@@ -21,10 +21,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const auth = useDashboardAuth();
   const ui = useDashboardUI();
 
+  // 1.5 Sync Auth Callback (must be near top)
+  auth.useOAuthCallback((token, id) => {
+    projects.fetchProjects(token, id, true);
+  });
+
   // 2. Projects Hook (Needs bridge to Tasks and Sync)
   const projects = useDashboardProjects({
     githubToken: auth.githubToken,
     activeAccountId: auth.activeAccountId,
+    githubAccounts: auth.githubAccounts,
     setIsProjectModalOpen: ui.setIsProjectModalOpen,
     updateSyncTime: () => updateSyncTimeRef.current(),
     fetchProjectTasks: (id, token) => fetchProjectTasksRef.current(id, token),
@@ -102,7 +108,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const handleAddAccountByToken = useCallback(async (token: string) => {
     return auth.handleAddAccountByToken(
       token,
-      () => projects.fetchProjects(auth.githubToken, auth.activeAccountId, true),
+      (newToken, newId) => projects.fetchProjects(newToken, newId, true),
       () => {
         ui.setIsAccountModalOpen(false);
         ui.setIsPatModalOpen(false);

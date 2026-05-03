@@ -25,6 +25,7 @@ export function useDashboardAuth() {
   );
 
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [isAppInstalled, setIsAppInstalled] = useState<Record<string, boolean>>({});
 
   const githubToken = useMemo(() => 
@@ -60,7 +61,7 @@ export function useDashboardAuth() {
       alert('Missing VITE_GITHUB_OAUTH_CLIENT_ID environment variable!');
       return;
     }
-    window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=read:org,project,repo`;
+    window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=read:org,project,repo&prompt=consent`;
   }, []);
 
   const handleDisconnect = useCallback((accountId: string, onDisconnect: () => void) => {
@@ -79,7 +80,7 @@ export function useDashboardAuth() {
     }
   }, [githubAccounts, activeAccountId, setActiveAccountId]);
 
-  const handleAddAccountByToken = useCallback(async (token: string, onOpenProject: () => void, onCloseModals: () => void) => {
+  const handleAddAccountByToken = useCallback(async (token: string, onOpenProject: (token: string, id: string) => void, onCloseModals: () => void) => {
     if (!token) return { success: false, error: 'Token is required' };
 
     setIsLoadingAuth(true);
@@ -94,11 +95,14 @@ export function useDashboardAuth() {
         });
         setActiveAccountId(mockAccount.id);
         onCloseModals();
-        if (sessionStorage.getItem('pending_open_project') === 'true' || localStorage.getItem('pending_open_project') === 'true') {
-          sessionStorage.removeItem('pending_open_project');
-          localStorage.removeItem('pending_open_project');
-          onOpenProject();
-        }
+        
+        // Clear pending flag if exists
+        sessionStorage.removeItem('pending_open_project');
+        localStorage.removeItem('pending_open_project');
+        
+        // Always trigger project fetch for the new account
+        onOpenProject(mockAccount.token, mockAccount.id);
+        
         return { success: true };
       }
 
@@ -133,11 +137,12 @@ export function useDashboardAuth() {
       setActiveAccountId(newAccount.id);
       onCloseModals();
 
-        if (sessionStorage.getItem('pending_open_project') === 'true' || localStorage.getItem('pending_open_project') === 'true') {
-          sessionStorage.removeItem('pending_open_project');
-          localStorage.removeItem('pending_open_project');
-          onOpenProject();
-        }
+      // Clear pending flag if exists
+      sessionStorage.removeItem('pending_open_project');
+      localStorage.removeItem('pending_open_project');
+      
+      // Always trigger project fetch for the new account
+      onOpenProject(newAccount.token, newAccount.id);
 
       return { success: true };
     } catch (e: unknown) {
@@ -149,47 +154,70 @@ export function useDashboardAuth() {
   }, [setActiveAccountId]);
 
   // Auth: OAuth callback
-  useEffect(() => {
-    const handleAuthCallback = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
+  const useOAuthCallback = (onOpenProject: (token: string, id: string) => void) => {
+    useEffect(() => {
+      const handleAuthCallback = async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
 
-      if (code) {
-        setIsLoadingAuth(true);
-        try {
-          const res = await fetch(`/api/github-oauth-callback?code=${code}`, {
-            headers: { Accept: 'application/json' },
-          });
-          const data = await res.json();
-          if (data.access_token && data.user) {
-            const newAccount: GithubAccount = {
-              id: data.user.id,
-              nodeId: data.user.node_id,
-              login: data.user.login,
-              name: data.user.name,
-              avatarUrl: data.user.avatar_url,
-              token: data.access_token,
-            };
-            setGithubAccounts(prev => {
-              const filtered = prev.filter(acc => acc.id !== newAccount.id);
-              const nextAccounts = [...filtered, newAccount];
-              localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
-              return nextAccounts;
+        if (code) {
+          setIsLoadingAuth(true);
+          try {
+            const res = await fetch(`/api/github-oauth-callback?code=${code}`, {
+              headers: { Accept: 'application/json' },
             });
-            setActiveAccountId(newAccount.id);
+            const data = await res.json();
+            if (data.access_token && data.user) {
+              const newAccountId = data.user.id.toString();
+              // Note: Use a ref-like check or compare against the current state
+              // Since this is inside useEffect, we should be careful with stale githubAccounts
+              // But setGithubAccounts functional update is safe for the list itself.
+              
+              const newAccount: GithubAccount = {
+                id: newAccountId,
+                nodeId: data.user.node_id,
+                login: data.user.login,
+                name: data.user.name,
+                avatarUrl: data.user.avatar_url,
+                token: data.access_token,
+              };
+
+              setGithubAccounts(prev => {
+                const isAlreadyPresent = prev.some(acc => acc.id === newAccount.id);
+                if (isAlreadyPresent) {
+                  setAuthError(`Account @${newAccount.login} is already connected. To add a different account, please sign out of GitHub.com first.`);
+                } else {
+                  setAuthError(null);
+                }
+                
+                const filtered = prev.filter(acc => acc.id !== newAccount.id);
+                const nextAccounts = [...filtered, newAccount];
+                localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
+                return nextAccounts;
+              });
+              
+              setActiveAccountId(newAccount.id);
+
+              // Check if we should open the project modal after login
+              if (sessionStorage.getItem('pending_open_project') === 'true' || localStorage.getItem('pending_open_project') === 'true') {
+                sessionStorage.removeItem('pending_open_project');
+                localStorage.removeItem('pending_open_project');
+                onOpenProject(data.access_token, newAccount.id);
+              }
+            }
+          } catch (e) {
+            console.error('Failed to authenticate:', e);
+          } finally {
+            setIsLoadingAuth(false);
+            const url = new URL(window.location.href);
+            url.searchParams.delete('code');
+            window.history.replaceState({}, document.title, url.toString());
           }
-        } catch (e) {
-          console.error('Failed to authenticate:', e);
-        } finally {
-          setIsLoadingAuth(false);
-          const url = new URL(window.location.href);
-          url.searchParams.delete('code');
-          window.history.replaceState({}, document.title, url.toString());
         }
-      }
-    };
-    handleAuthCallback();
-  }, [setActiveAccountId]);
+      };
+      handleAuthCallback();
+    }, [onOpenProject]);
+  };
 
   const checkAppInstallation = useCallback(async (login: string) => {
     if (!login || isAppInstalled[login] !== undefined) return;
@@ -227,5 +255,8 @@ export function useDashboardAuth() {
     handleOpenAuth,
     handleDisconnect,
     handleAddAccountByToken,
+    useOAuthCallback,
+    authError,
+    setAuthError,
   };
 }

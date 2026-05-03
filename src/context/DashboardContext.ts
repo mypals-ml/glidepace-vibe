@@ -12,6 +12,8 @@ export interface DashboardContextValue {
   isRefreshing: Record<string, boolean>;
   handleOpenAuth: () => void;
   handleDisconnect: (accountId: string) => void;
+  authError: string | null;
+  setAuthError: (error: string | null) => void;
 
   // Projects
   projectsData: ProjectOwnerInfo[];
