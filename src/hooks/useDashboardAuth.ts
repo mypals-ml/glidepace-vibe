@@ -61,6 +61,15 @@ export function useDashboardAuth() {
       alert('Missing VITE_GITHUB_OAUTH_CLIENT_ID environment variable!');
       return;
     }
+
+    // Phase 0: Context Preservation (Pre-Auth)
+    const urlParams = new URLSearchParams(window.location.search);
+    const context = {
+      project_id: urlParams.get('project'),
+      account_id: urlParams.get('account')
+    };
+    localStorage.setItem('auth_return_context', JSON.stringify(context));
+
     window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=read:org,project,repo&prompt=consent`;
   }, []);
 
@@ -93,17 +102,9 @@ export function useDashboardAuth() {
           localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
           return nextAccounts;
         });
-        setActiveAccountId(mockAccount.id);
-        onCloseModals();
-        
-        // Clear pending flag if exists
-        sessionStorage.removeItem('pending_open_project');
-        localStorage.removeItem('pending_open_project');
-        
-        // Always trigger project fetch for the new account
-        onOpenProject(mockAccount.token, mockAccount.id);
-        
-        return { success: true };
+        // Phase 1: Persistence Done
+        // Returning the new account as a signal to the caller (DashboardProvider)
+        return { success: true, account: mockAccount };
       }
 
       const res = await fetch('https://api.github.com/user', {
@@ -134,17 +135,9 @@ export function useDashboardAuth() {
         localStorage.setItem('github_accounts', JSON.stringify(nextAccounts));
         return nextAccounts;
       });
-      setActiveAccountId(newAccount.id);
-      onCloseModals();
-
-      // Clear pending flag if exists
-      sessionStorage.removeItem('pending_open_project');
-      localStorage.removeItem('pending_open_project');
-      
-      // Always trigger project fetch for the new account
-      onOpenProject(newAccount.token, newAccount.id);
-
-      return { success: true };
+      // Phase 1: Persistence Done
+      // Returning the new account as a signal to the caller (DashboardProvider)
+      return { success: true, account: newAccount };
     } catch (e: unknown) {
       const error = e as Error;
       return { success: false, error: error.message || 'An unexpected error occurred' };
@@ -196,13 +189,14 @@ export function useDashboardAuth() {
                 return nextAccounts;
               });
               
-              setActiveAccountId(newAccount.id);
-
               // Check if we should open the project modal after login
               if (sessionStorage.getItem('pending_open_project') === 'true' || localStorage.getItem('pending_open_project') === 'true') {
                 sessionStorage.removeItem('pending_open_project');
                 localStorage.removeItem('pending_open_project');
-                onOpenProject(data.access_token, newAccount.id);
+                
+                // Note: We don't call setActiveAccountId here anymore.
+                // DashboardProvider will handle the orchestration.
+                onOpenProject(data.access_token, newAccountId);
               }
             }
           } catch (e) {

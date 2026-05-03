@@ -69,7 +69,7 @@ export interface DashboardContextValue {
   setIsCreateTaskModalOpen: (open: boolean) => void;
   isCreateMode: boolean;
   setIsCreateMode: (open: boolean) => void;
-  handleAddAccountByToken: (token: string) => Promise<{ success: boolean; error?: string }>;
+  handleAddAccountByToken: (token: string) => Promise<{ success: boolean; account?: GithubAccount; error?: string }>;
 
   // UI state
   isChartVisible: boolean;

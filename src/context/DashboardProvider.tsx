@@ -23,7 +23,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // 1.5 Sync Auth Callback (must be near top)
   auth.useOAuthCallback((token, id) => {
-    projects.fetchProjects(token, id, true);
+    // Phase 2: Atomic Transition for OAuth
+    ui.setIsProjectModalOpen(true);
+    auth.setActiveAccountId(id);
+    projects.fetchProjects(token, id, false); // forceModal is false because we set it above
   });
 
   // 2. Projects Hook (Needs bridge to Tasks and Sync)
@@ -104,14 +107,30 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [auth, ui]);
 
-  // Auto-Revert Account when modal closes without selection
+  // Auto-Sync Context when modal closes
   useEffect(() => {
-    if (!ui.isProjectModalOpen && projects.selectedProject?.accountId) {
-      if (auth.activeAccountId !== projects.selectedProject.accountId) {
-        auth.setActiveAccountId(projects.selectedProject.accountId);
+    if (!ui.isProjectModalOpen) {
+      const savedContextStr = localStorage.getItem('auth_return_context');
+      if (savedContextStr) {
+        try {
+          const context = JSON.parse(savedContextStr);
+          // If we are back on a different account than the preserved context, sync back
+          if (context.account_id && auth.activeAccountId !== context.account_id) {
+            auth.setActiveAccountId(context.account_id);
+          }
+        } catch (e) {
+          console.error('Failed to parse auth_return_context', e);
+        } finally {
+          localStorage.removeItem('auth_return_context');
+        }
+      } else if (projects.selectedProject?.accountId) {
+        // Fallback: Ensure active account matches open project
+        if (auth.activeAccountId !== projects.selectedProject.accountId) {
+          auth.setActiveAccountId(projects.selectedProject.accountId);
+        }
       }
     }
-  }, [ui.isProjectModalOpen, projects.selectedProject?.accountId, auth]);
+  }, [ui.isProjectModalOpen, projects.selectedProject?.accountId, auth.activeAccountId]);
 
   const handleDisconnect = useCallback((accountId: string) => {
     auth.handleDisconnect(accountId, () => {
@@ -123,14 +142,33 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, [auth, projects, tasks]);
 
   const handleAddAccountByToken = useCallback(async (token: string) => {
-    return auth.handleAddAccountByToken(
-      token,
-      (newToken, newId) => projects.fetchProjects(newToken, newId, true),
-      () => {
-        ui.setIsAccountModalOpen(false);
-        ui.setIsPatModalOpen(false);
-      }
+    // Phase 0: Context Preservation for PAT
+    const context = {
+      project_id: projects.selectedProject?.id,
+      account_id: auth.activeAccountId
+    };
+    localStorage.setItem('auth_return_context', JSON.stringify(context));
+
+    const result = await auth.handleAddAccountByToken(token, 
+      (newToken, newId) => {
+        // This is the fetch callback inside handleAddAccountByToken (if still used)
+        projects.fetchProjects(newToken, newId, false);
+      },
+      () => {} // onCloseModals is handled below
     );
+
+    if (result.success && result.account) {
+      // Phase 2: Atomic Transition for PAT
+      ui.setIsAccountModalOpen(false);
+      ui.setIsPatModalOpen(false);
+      ui.setIsProjectModalOpen(true);
+      auth.setActiveAccountId(result.account.id);
+      projects.fetchProjects(result.account.token, result.account.id, false);
+    } else {
+      // Cleanup context if failed
+      localStorage.removeItem('auth_return_context');
+    }
+    return result;
   }, [auth, projects, ui]);
 
   const value: DashboardContextValue = {
