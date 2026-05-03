@@ -226,7 +226,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               placeholder={t('dashboard.descriptionPlaceholder', 'Add description...')}
-              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all min-h-[120px] resize-none"
+              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all min-h-[120px] resize-y resizable-textarea"
             />
           </div>
         </div>
@@ -406,7 +406,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               <textarea
                 value={draftDesc}
                 onChange={(e) => setDraftDesc(e.target.value)}
-                className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[100px] resize-y"
+                className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[100px] resize-y resizable-textarea"
                 autoFocus
               />
               <div className="flex gap-2 justify-end">
@@ -542,7 +542,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                   <textarea
                     value={draftComment}
                     onChange={(e) => setDraftComment(e.target.value)}
-                    className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[60px] resize-y"
+                    className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[60px] resize-y resizable-textarea"
                     autoFocus
                   />
                   <div className="flex gap-2 justify-end">
@@ -586,7 +586,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             value={newCommentBody}
             onChange={(e) => setNewCommentBody(e.target.value)}
             placeholder={t('dashboard.addCommentPlaceholder', 'Comment here ...')}
-            className="w-full border border-slate-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none min-h-[80px] resize-y bg-white placeholder:text-slate-400"
+            className="w-full border border-slate-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none min-h-[80px] resize-y resizable-textarea bg-white placeholder:text-slate-400"
             disabled={isSubmittingComment}
           />
         </div>
