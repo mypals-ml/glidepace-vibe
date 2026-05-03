@@ -14,6 +14,7 @@ export interface DashboardContextValue {
   handleDisconnect: (accountId: string) => void;
   authError: string | null;
   setAuthError: (error: string | null) => void;
+  getTokenById: (id: string | undefined) => string;
 
   // Projects
   projectsData: ProjectOwnerInfo[];

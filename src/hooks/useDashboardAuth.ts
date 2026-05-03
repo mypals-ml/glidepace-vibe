@@ -233,6 +233,11 @@ export function useDashboardAuth() {
     }
   }, [isAppInstalled]);
 
+  const getTokenById = useCallback((id: string | undefined) => {
+    if (!id) return '';
+    return githubAccounts.find(a => a.id === id)?.token || '';
+  }, [githubAccounts]);
+
   // Sync initial state to URL if missing
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -258,5 +263,6 @@ export function useDashboardAuth() {
     useOAuthCallback,
     authError,
     setAuthError,
+    getTokenById,
   };
 }

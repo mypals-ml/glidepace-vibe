@@ -102,7 +102,8 @@ const resources = {
         assignable: "Assignable",
         suggestions: "Suggestions",
         privateProjectSearchNotice: "Global search is limited for private projects.",
-        privateStatus: "Private"
+        privateStatus: "Private",
+        projectNoLongerAccessible: "Project no longer accessible. It has been removed from your history."
       },
       createTask: {
         title: "Create New Task",
@@ -264,7 +265,8 @@ const resources = {
         assignable: "割り当て可能",
         suggestions: "提案",
         privateProjectSearchNotice: "プライベートプロジェクトではグローバル検索が制限されています。",
-        privateStatus: "プライベート"
+        privateStatus: "プライベート",
+        projectNoLongerAccessible: "プロジェクトにアクセスできなくなりました。履歴から削除されました。"
       },
       createTask: {
         title: "新しいタスクを作成",
@@ -426,7 +428,8 @@ const resources = {
         assignable: "可分配",
         suggestions: "建议",
         privateProjectSearchNotice: "私有项目限制全局搜索。",
-        privateStatus: "私有"
+        privateStatus: "私有",
+        projectNoLongerAccessible: "项目不再可用。已从您的历史记录中移除。"
       },
       createTask: {
         title: "创建新任务",
@@ -588,7 +591,8 @@ const resources = {
         assignable: "可分配",
         suggestions: "建議",
         privateProjectSearchNotice: "私有專案限制全域搜尋。",
-        privateStatus: "私有"
+        privateStatus: "私有",
+        projectNoLongerAccessible: "專案不再可用。已從您的歷史記錄中移除。"
       },
       createTask: {
         title: "建立新任務",

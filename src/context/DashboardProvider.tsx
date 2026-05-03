@@ -28,7 +28,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // 2. Projects Hook (Needs bridge to Tasks and Sync)
   const projects = useDashboardProjects({
-    githubToken: auth.githubToken,
+    githubToken: auth.getTokenById(auth.activeAccountId), // Projects list uses active (browsing) account
     activeAccountId: auth.activeAccountId,
     githubAccounts: auth.githubAccounts,
     setIsProjectModalOpen: ui.setIsProjectModalOpen,
@@ -36,20 +36,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     fetchProjectTasks: (id, token) => fetchProjectTasksRef.current(id, token),
   });
 
-  // 3. Tasks Hook (Needs Auth, UI, and Project State)
+  // 3. Compute effective tokens (Must be after projects hook)
+  const projectToken = auth.getTokenById(projects.selectedProject?.accountId || auth.activeAccountId);
+
+  // 4. Tasks Hook (Needs Auth, UI, and Project State)
   const tasks = useDashboardTasks({
-    githubToken: auth.githubToken,
+    githubToken: projectToken,
     selectedProject: projects.selectedProject,
     projectsData: projects.projectsData,
-    activeAccountId: auth.activeAccountId,
+    activeAccountId: projects.selectedProject?.accountId || auth.activeAccountId,
     githubAccounts: auth.githubAccounts,
     updateSyncTime: () => updateSyncTimeRef.current(),
     setIsCreateMode: ui.setIsCreateMode,
   });
 
-  // 4. Sync Hook (Needs Bridge to Tasks)
+  // 5. Sync Hook (Needs Bridge to Tasks)
   const sync = useDashboardSync({
-    githubToken: auth.githubToken,
+    githubToken: projectToken,
     selectedProject: projects.selectedProject,
     tasks: tasks.tasks,
     fetchProjectTasks: (id, token) => fetchProjectTasksRef.current(id, token),
@@ -71,18 +74,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [projects.activeTabLogin, auth]);
 
-  // Initial data load
+  // Initial data load - Projects List
   useEffect(() => {
-    if (auth.githubToken) {
-      // Always fetch project list to ensure metadata/IDs are up to date and trigger migration
-      projects.fetchProjects(auth.githubToken, auth.activeAccountId, !projects.hasProject);
+    const activeToken = auth.getTokenById(auth.activeAccountId);
+    if (activeToken) {
+      projects.fetchProjects(activeToken, auth.activeAccountId, !projects.hasProject);
     }
+  }, [auth.activeAccountId]); // Only re-fetch projects when the active (browsing) account changes
 
-    if (auth.githubToken && projects.selectedProject) {
-      tasks.fetchProjectTasks(projects.selectedProject.id, auth.githubToken);
+  // Initial data load - Tasks
+  useEffect(() => {
+    if (projectToken && projects.selectedProject) {
+      // ONLY fetch if the project belongs to an account we have a token for
+      if (projects.selectedProject.accountId) {
+        tasks.fetchProjectTasks(projects.selectedProject.id, projectToken);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.githubToken]);
+  }, [projectToken, projects.selectedProject?.id]); // Re-fetch only if the project or its owner's token changes
 
   // ---- Demo helpers ----
 
@@ -95,6 +103,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       auth.handleOpenAuth();
     }
   }, [auth, ui]);
+
+  // Auto-Revert Account when modal closes without selection
+  useEffect(() => {
+    if (!ui.isProjectModalOpen && projects.selectedProject?.accountId) {
+      if (auth.activeAccountId !== projects.selectedProject.accountId) {
+        auth.setActiveAccountId(projects.selectedProject.accountId);
+      }
+    }
+  }, [ui.isProjectModalOpen, projects.selectedProject?.accountId, auth]);
 
   const handleDisconnect = useCallback((accountId: string) => {
     auth.handleDisconnect(accountId, () => {
