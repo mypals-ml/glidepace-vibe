@@ -19,6 +19,7 @@ function CopyButton({ text, t }: { text: string; t: TFunction }) {
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    (e.currentTarget as HTMLElement).blur();
     if (!text) return;
     try {
       if (navigator.clipboard && window.isSecureContext) {
