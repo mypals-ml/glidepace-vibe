@@ -34,6 +34,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setIsProjectModalOpen: ui.setIsProjectModalOpen,
     updateSyncTime: useCallback(() => updateSyncTimeRef.current(), []),
     fetchProjectTasks: useCallback((id: string, token: string) => fetchProjectTasksRef.current(id, token), []),
+    getTokenById: auth.getTokenById,
   });
 
   // 3. Compute effective tokens (Must be after projects hook)

@@ -11,6 +11,7 @@ interface UseDashboardProjectsProps {
   setIsProjectModalOpen: (open: boolean) => void;
   updateSyncTime: () => void;
   fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
+  getTokenById: (id: string | undefined) => string;
 }
 
 export function useDashboardProjects({
@@ -19,6 +20,7 @@ export function useDashboardProjects({
   setIsProjectModalOpen,
   updateSyncTime,
   fetchProjectTasks,
+  getTokenById,
 }: UseDashboardProjectsProps) {
 
   const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
@@ -118,7 +120,9 @@ export function useDashboardProjects({
           login: viewer.login,
           isOrg: false,
           databaseId: viewer.databaseId,
-          projects: (viewer.projectsV2?.nodes || []).filter(Boolean),
+          projects: (viewer.projectsV2?.nodes || [])
+            .filter(Boolean)
+            .map((p: any) => ({ ...p, accountId })),
         });
 
         const orgs = viewer.organizations?.nodes || [];
@@ -128,7 +132,9 @@ export function useDashboardProjects({
             login: org.login,
             isOrg: true,
             databaseId: org.databaseId,
-            projects: (org.projectsV2?.nodes || []).filter(Boolean),
+            projects: (org.projectsV2?.nodes || [])
+              .filter(Boolean)
+              .map((p: any) => ({ ...p, accountId })),
           });
         }
         setProjectsData(owners);
@@ -170,31 +176,25 @@ export function useDashboardProjects({
                                selectedProject.public !== matchById.public;
         
         if (needsHydration || !selectedProject.accountId) {
-          console.log('[Projects] Hydrating project details. Preserving accountId if present.');
+          console.log('[Projects] Hydrating project details from list.');
           setSelectedProject({ 
             ...matchById, 
-            accountId: selectedProject.accountId || browsingAccountId 
+            accountId: matchById.accountId
           });
         }
       } else if (matchByTitle) {
         if (selectedProject.id !== matchByTitle.id || !selectedProject.accountId) {
-          console.log('[Projects] Syncing project by title. Setting accountId.');
-          setSelectedProject({ ...matchByTitle, accountId: selectedProject.accountId || browsingAccountId });
+          console.log('[Projects] Syncing project by title. Setting accountId from list.');
+          setSelectedProject({ ...matchByTitle, accountId: matchByTitle.accountId });
         }
       }
     }
   }, [projectsData, githubToken, fetchProjectTasks, setSelectedProject, selectedProject, browsingAccountId]);
 
-  const handleSelectRealProject = useCallback((id: string, title: string, isPublic?: boolean, forceToken?: string) => {
+  const handleSelectRealProject = useCallback((id: string, title: string, isPublic: boolean, accountId: string, forceToken?: string) => {
     setIsProjectModalOpen(false);
 
-    let finalPublic = isPublic;
-    if (finalPublic === undefined) {
-      const found = projectsData.flatMap(o => o.projects).find(p => p.id === id);
-      finalPublic = found ? found.public : false;
-    }
-
-    const project = { id, title, public: finalPublic, accountId: browsingAccountId };
+    const project = { id, title, public: isPublic, accountId };
     setSelectedProject(project);
     setHasProject(true);
     
@@ -203,16 +203,16 @@ export function useDashboardProjects({
     sessionStorage.removeItem('selected_project_type');
     localStorage.removeItem('selected_project_type');
 
-    const isMockAccount = browsingAccountId === 'mock-1';
+    const isMockAccount = accountId === 'mock-1';
     const isMockProject = isMockAccount;
-    const tokenToUse = forceToken || (isMockProject ? MOCK_TOKEN : githubToken);
+    const tokenToUse = forceToken || (isMockProject ? MOCK_TOKEN : getTokenById(accountId));
 
     if (tokenToUse) {
       fetchProjectTasks(id, tokenToUse);
       updateSyncTime();
     }
 
-    const newItem: ProjectHistoryItem = { id, title, public: finalPublic, accountId: browsingAccountId, lastOpened: Date.now() };
+    const newItem: ProjectHistoryItem = { id, title, public: isPublic, accountId: accountId, lastOpened: Date.now() };
     
     // Success: Clear any pending auth context
     localStorage.removeItem('auth_return_context');

@@ -26,7 +26,7 @@ export interface DashboardContextValue {
   projectHistory: ProjectHistoryItem[];
   fetchProjects: (token: string, accountId: string, forceModal?: boolean) => Promise<void>;
   refreshProjects: () => void;
-  handleSelectRealProject: (id: string, title: string, isPublic?: boolean) => void;
+  handleSelectRealProject: (id: string, title: string, isPublic: boolean, accountId: string) => void;
   handleRemoveFromHistory: (id: string) => void;
   handleOpenProjectClick: () => void;
   sortMethod: SortMethod;

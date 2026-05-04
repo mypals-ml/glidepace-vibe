@@ -161,7 +161,7 @@ export function ProjectListContent({
           list.map(proj => (
             <div 
               key={proj.id} 
-              onClick={() => handleSelectRealProject(proj.id, proj.title, proj.public)}
+              onClick={() => handleSelectRealProject(proj.id, proj.title, proj.public, proj.accountId!)}
               className="group flex items-center justify-between p-5 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all cursor-pointer"
             >
               <div className="flex items-center gap-5">
@@ -181,7 +181,7 @@ export function ProjectListContent({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleSelectRealProject(proj.id, proj.title, proj.public);
+                        handleSelectRealProject(proj.id, proj.title, proj.public, proj.accountId!);
                       }}
                     >
                       {t('dashboard.openProjectAction')}
