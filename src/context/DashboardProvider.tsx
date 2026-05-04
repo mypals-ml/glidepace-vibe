@@ -32,8 +32,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     githubToken: auth.browsingToken, // Projects list uses browsing account token
     browsingAccountId: auth.browsingAccountId,
     setIsProjectModalOpen: ui.setIsProjectModalOpen,
-    updateSyncTime: () => updateSyncTimeRef.current(),
-    fetchProjectTasks: (id, token) => fetchProjectTasksRef.current(id, token),
+    updateSyncTime: useCallback(() => updateSyncTimeRef.current(), []),
+    fetchProjectTasks: useCallback((id: string, token: string) => fetchProjectTasksRef.current(id, token), []),
   });
 
   // 3. Compute effective tokens (Must be after projects hook)
@@ -46,7 +46,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     projectsData: projects.projectsData,
     projectAccountId: projects.selectedProject?.accountId || '',
     githubAccounts: auth.githubAccounts,
-    updateSyncTime: () => updateSyncTimeRef.current(),
+    updateSyncTime: useCallback(() => updateSyncTimeRef.current(), []),
     setIsCreateMode: ui.setIsCreateMode,
   });
 
@@ -55,8 +55,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     githubToken: projectToken,
     selectedProject: projects.selectedProject,
     tasks: tasks.tasks,
-    fetchProjectTasks: (id, token) => fetchProjectTasksRef.current(id, token),
-    fetchSingleProjectItem: (id, token) => fetchSingleItemRef.current(id, token),
+    fetchProjectTasks: useCallback((id: string, token: string) => fetchProjectTasksRef.current(id, token), []),
+    fetchSingleProjectItem: useCallback((id: string, token: string) => fetchSingleItemRef.current(id, token), []),
   });
 
   // 5. Assign Refs to capture the actual implementations
@@ -69,31 +69,33 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // ---- Effects moved back to Provider for orchestration ----
 
+  const { checkAppInstallation, browsingAccountId, getTokenById } = auth;
+  const { activeTabLogin, fetchProjects, hasProject, selectedProject } = projects;
+  const { fetchProjectTasks } = tasks;
+
   // App Installation check
   useEffect(() => {
-    const { checkAppInstallation } = auth;
-    if (projects.activeTabLogin) {
-      checkAppInstallation(projects.activeTabLogin);
+    if (activeTabLogin) {
+      checkAppInstallation(activeTabLogin);
     }
-  }, [projects.activeTabLogin, auth]);
+  }, [activeTabLogin, checkAppInstallation]);
 
   // Initial data load - Projects List
   useEffect(() => {
-    const browsingToken = auth.getTokenById(auth.browsingAccountId);
+    const browsingToken = getTokenById(browsingAccountId);
     if (browsingToken) {
-      projects.fetchProjects(browsingToken, auth.browsingAccountId, !projects.hasProject);
+      fetchProjects(browsingToken, browsingAccountId, !hasProject);
     }
-  }, [auth.browsingAccountId, auth, projects]); // Only re-fetch projects when the browsing account changes
+  }, [browsingAccountId, fetchProjects, hasProject, getTokenById]);
 
   // Initial data load - Tasks
   useEffect(() => {
-    if (projectToken && projects.selectedProject) {
-      // ONLY fetch if the project belongs to an account we have a token for
-      if (projects.selectedProject.accountId) {
-        tasks.fetchProjectTasks(projects.selectedProject.id, projectToken);
+    if (projectToken && selectedProject) {
+      if (selectedProject.accountId) {
+        fetchProjectTasks(selectedProject.id, projectToken);
       }
     }
-  }, [projectToken, projects.selectedProject?.id, projects.selectedProject, tasks]); // Re-fetch only if the project or its owner's token changes
+  }, [projectToken, selectedProject, fetchProjectTasks]);
 
   // ---- Unified Account Addition & Project Reload Routine ----
 
