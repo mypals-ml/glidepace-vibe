@@ -1,3 +1,4 @@
+import { useState, useRef, useLayoutEffect } from 'react';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { Task, TaskStatus } from '../../types';
 import { Button } from '../UI/Button';
@@ -14,6 +15,9 @@ interface StatusSelectorProps {
 
 export function StatusSelector({ task, onClose, onSelect }: StatusSelectorProps) {
   const { updateTaskStatus, projectStatusOptions } = useDashboard();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [placement, setPlacement] = useState<'top' | 'bottom'>('bottom');
 
   // Use project statuses from context; fall back to defaults if not yet loaded.
   const statuses = projectStatusOptions.length > 0 ? projectStatusOptions : DEFAULT_STATUSES;
@@ -27,8 +31,29 @@ export function StatusSelector({ task, onClose, onSelect }: StatusSelectorProps)
     onClose();
   };
 
+  useLayoutEffect(() => {
+    const calculatePlacement = () => {
+      if (containerRef.current && panelRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const panelHeight = panelRef.current.offsetHeight;
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - rect.bottom;
+        
+        if (spaceBelow < panelHeight + 20) {
+          setPlacement('top');
+        } else {
+          setPlacement('bottom');
+        }
+      }
+    };
+
+    calculatePlacement();
+    window.addEventListener('resize', calculatePlacement);
+    return () => window.removeEventListener('resize', calculatePlacement);
+  }, [statuses]);
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:-left-2 sm:top-full sm:mt-2 sm:p-0 pointer-events-none">
+    <div ref={containerRef} className={`fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:-left-2 ${placement === 'top' ? 'sm:bottom-full sm:mb-2' : 'sm:top-full sm:mt-2'} sm:p-0 pointer-events-none`}>
       {/* Universal backdrop for mobile and click-outside capture for desktop */}
       <div 
         className="fixed inset-0 z-[-1] bg-slate-900/20 backdrop-blur-[2px] sm:bg-transparent sm:backdrop-blur-none pointer-events-auto" 
@@ -37,7 +62,8 @@ export function StatusSelector({ task, onClose, onSelect }: StatusSelectorProps)
       
       {/* Selector Panel */}
       <div 
-        className="glass-panel w-full sm:w-auto sm:min-w-[160px] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-left pointer-events-auto"
+        ref={panelRef}
+        className={`glass-panel w-full sm:w-auto sm:min-w-[160px] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 ${placement === 'top' ? 'origin-bottom-left' : 'origin-top-left'} pointer-events-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Status List */}
