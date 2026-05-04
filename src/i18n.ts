@@ -27,7 +27,8 @@ const resources = {
         locales: {
           en: "EN",
           ja: "日本語",
-          zhCN: "中文"
+          zhCN: "简体中文",
+          zhTW: "繁體中文"
         },
         authTitle: "GitHub Authentication",
         authDesc: "Enter your Personal Access Token to connect securely.",
@@ -96,12 +97,14 @@ const resources = {
         addComment: "Comment",
         addCommentPlaceholder: "Comment here ...",
         descriptionPlaceholder: "Add description...",
+        draftCommentsDisabled: "Comments are not supported for draft tasks. Convert to an issue on GitHub to enable comments.",
         searchPlaceholder: "Search people...",
         noResults: "No results found",
         assignable: "Assignable",
         suggestions: "Suggestions",
         privateProjectSearchNotice: "Global search is limited for private projects.",
-        privateStatus: "Private"
+        privateStatus: "Private",
+        projectNoLongerAccessible: "Project no longer accessible. It has been removed from your history."
       },
       createTask: {
         title: "Create New Task",
@@ -188,7 +191,8 @@ const resources = {
         locales: {
           en: "EN",
           ja: "日本語",
-          zhCN: "中文"
+          zhCN: "简体中文",
+          zhTW: "繁體中文"
         },
         authTitle: "GitHub認証",
         authDesc: "パーソナルアクセストークンを入力して安全に接続してください。",
@@ -257,12 +261,14 @@ const resources = {
         addComment: "コメント",
         addCommentPlaceholder: "ここにコメントを入力...",
         descriptionPlaceholder: "説明を追加...",
+        draftCommentsDisabled: "下書きタスクではコメントはサポートされていません。コメントを有効にするには、GitHubで実課題に変換してください。",
         searchPlaceholder: "ユーザーを検索...",
         noResults: "結果が見つかりません",
         assignable: "割り当て可能",
         suggestions: "提案",
         privateProjectSearchNotice: "プライベートプロジェクトではグローバル検索が制限されています。",
-        privateStatus: "プライベート"
+        privateStatus: "プライベート",
+        projectNoLongerAccessible: "プロジェクトにアクセスできなくなりました。履歴から削除されました。"
       },
       createTask: {
         title: "新しいタスクを作成",
@@ -349,7 +355,8 @@ const resources = {
         locales: {
           en: "EN",
           ja: "日本語",
-          zhCN: "中文"
+          zhCN: "简体中文",
+          zhTW: "繁體中文"
         },
         authTitle: "GitHub 身份验证",
         authDesc: "输入您的个人访问令牌以安全连接。",
@@ -418,12 +425,14 @@ const resources = {
         addComment: "评论",
         addCommentPlaceholder: "在此输入评论...",
         descriptionPlaceholder: "添加描述...",
+        draftCommentsDisabled: "草稿任务不支持评论。请在 GitHub 上将其转换为正式问题以启用评论。",
         searchPlaceholder: "搜索用户...",
         noResults: "未找到结果",
         assignable: "可分配",
         suggestions: "建议",
         privateProjectSearchNotice: "私有项目限制全局搜索。",
-        privateStatus: "私有"
+        privateStatus: "私有",
+        projectNoLongerAccessible: "项目不再可用。已从您的历史记录中移除。"
       },
       createTask: {
         title: "创建新任务",
@@ -483,6 +492,170 @@ const resources = {
         grantAccessOrgPolicy: "如果您撤销了对某个组织的访问权限，并且找不到重新授权的方法，请按照此处的说明操作：",
         grantAccessOrgPolicyLink: "阅读 GitHub 文档",
         closeWindow: "关闭窗口"
+      }
+    }
+  },
+  'zh-TW': {
+    translation: {
+      app: {
+        name: "Glidelines",
+        syncedJustNow: "剛剛同步",
+        syncNow: "立即同步",
+        syncedMinutesAgo: "{{count}} 分鐘前同步",
+        syncedHoursAgo: "{{count}} 小時前同步",
+        syncedDaysAgo: "{{count}} 天前同步",
+        syncedMonthsAgo: "{{count}} 個月前同步",
+        syncedYearsAgo: "{{count}} 年前同步",
+        connectToGitHub: "連接到 GitHub",
+        connected: "已連接",
+        connectedAccounts: "已連接的帳戶",
+        manageAccounts: "管理您的帳戶。",
+        disconnect: "中斷連接",
+        connectToAdd: "連接以添加",
+        projectLabel: "專案",
+        projectIdPlaceholder: "輸入 ID...",
+        emptyProjectOption: "空專案",
+        language: "語言",
+        locales: {
+          en: "EN",
+          ja: "日本語",
+          zhCN: "简体中文",
+          zhTW: "繁體中文"
+        },
+        authTitle: "GitHub 身份驗證",
+        authDesc: "輸入您的個人存取權杖以安全連接。",
+        authInputPlaceholder: "ghp_...",
+        authSave: "儲存權杖",
+        authCancel: "取消",
+        connectedAccountsLabel: "已連接的帳戶",
+        activeStatus: "活躍",
+        addAccountPermissionNotice: "添加新帳戶可能需要您的 Github 帳戶提供額外權限。"
+      },
+      dashboard: {
+        issuesList: "問題列表",
+        filterPlaceholder: "過濾問題...",
+        emptyStateTitle: "未選擇專案",
+        emptyStateDesc: "連接一個 GitHub 專案 (v2) 以開始使用。注意：這會同步專案板，而不是程式碼倉庫。",
+        addProjectButton: "打開專案",
+        addProjectTimelinePrompt: "添加一個專案以查看時間線",
+        openProjectModalTitle: "打開專案",
+        openProjectModalDesc: "連接並打開 GitHub 專案",
+        manageButton: "管理",
+        searchProjectsPlaceholder: "搜尋專案...",
+        sortBy: "排序方式:",
+        sortRecent: "最近",
+        sortOldest: "最早",
+        sortNameAZ: "名稱 (A → Z)",
+        sortNameZA: "名稱 (Z → A)",
+        projectIdPrefix: "專案 ID: ",
+        projectAvailable: "可用",
+        openProjectAction: "打開",
+        noProjectsFound: "此帳戶中未找到處於活動狀態的 GitHub 專案。",
+        noProjectsFoundHint: "如果有專案未顯示，請確保它們是 GitHub Projects V2，並且已為此帳戶安裝了 GitHub App。",
+        manageAppInstall: "管理應用程式安裝",
+        refreshProjects: "重新整理專案",
+        orgProjectsHelpLink: "組織的專案在哪裡？",
+        loadingTasks: "正在從專案載入任務...",
+        noTasksInProject: "此專案中未找到任務。必須將項添加到專案板才能在此處顯示。",
+        noMatchingTasks: "未找到符合搜尋條件的任務。",
+        historyToday: "今天",
+        historyYesterday: "昨天",
+        historyLast7Days: "過去 7 天",
+        historyEarlier: "更早以前",
+        removeFromHistory: "移除",
+        chartToggle: "圖表",
+        listToggle: "列表",
+        selectAccountToViewProjects: "從左側列表選擇一個帳戶以查看專案。",
+        enableAutoSyncTitle: "啟用自動同步",
+        enableAutoSyncDesc: "獲取即時任務更新。安裝我們的官方 GitHub 應用程式，為這些專案安全地啟用背景 Webhooks。",
+        installAppAction: "安裝應用程式",
+        githubApiErrorTitle: "GitHub API 錯誤：",
+        githubApiErrorDesc: "這通常意味著 GitHub 應用程式缺少某些權限（如專案或成員），或者尚未更新。請檢查瀏覽器主控台了解更多詳情。",
+        unknownError: "獲取任務時發生未知錯誤",
+        invalidItem: "無效項目",
+        noTitle: "無標題",
+        taskDetails: "任務詳情",
+        repository: "倉庫",
+        startDate: "開始日期",
+        endDate: "截止日期",
+        progress: "進度",
+        description: "描述",
+        comments: "評論 ({{count}})",
+        noDescription: "暫無描述。",
+        noAssignees: "無經辦人",
+        unassigned: "未分配",
+        currentProject: "目前專案",
+        addTaskComment: "添加評論",
+        addComment: "評論",
+        addCommentPlaceholder: "在此輸入評論...",
+        descriptionPlaceholder: "添加描述...",
+        draftCommentsDisabled: "草稿任務不支援評論。請在 GitHub 上將其轉換為正式問題以啟用評論。",
+        searchPlaceholder: "搜尋使用者...",
+        noResults: "未找到結果",
+        assignable: "可分配",
+        suggestions: "建議",
+        privateProjectSearchNotice: "私有專案限制全域搜尋。",
+        privateStatus: "私有",
+        projectNoLongerAccessible: "專案不再可用。已從您的歷史記錄中移除。"
+      },
+      createTask: {
+        title: "建立新任務",
+        titlePlaceholder: "任務標題",
+        descriptionPlaceholder: "添加描述...",
+        create: "建立任務"
+      },
+      common: {
+        copy: "複製",
+        copied: "已複製",
+        save: "儲存",
+        cancel: "取消",
+        edit: "編輯",
+        delete: "刪除",
+        confirmDelete: "您確定要刪除此項嗎？",
+        submitting: "正在提交...",
+        done: "完成",
+        selected: "已選擇 {{count}} 項",
+        me: "我",
+        private: "私有"
+      },
+      table: {
+        id: "ID",
+        title: "標題",
+        status: "狀態",
+        assignees: "經辦人",
+      },
+      days: {
+        mon: "週一 10",
+        tue: "週二 11",
+        wed: "週三 12",
+        thu: "週四 13",
+        fri: "週五 14",
+        sat: "週六 15",
+        sun: "週日 16",
+      },
+      taskStatuses: {
+        inProgress: "進行中",
+        done: "已完成",
+        todo: "待辦"
+      },
+      help: {
+        orgProjectsTitle: "如何存取組織的 GitHub 專案",
+        orgProjectsIntro: "如果您無法看到組織的專案，可能是因為您的 GitHub 應用程式需要更多的權限，或者您需要授予第三方存取權限。",
+        checkScopeTitle: "1. 授予組織權限",
+        checkScopeDesc: "GitHub 應用程式需要「Members (成員)」權限才能列出您的組織。要更新此權限：",
+        checkScopeStep1: "轉到 github.com 上的 GitHub App Settings (應用程式設定)。",
+        checkScopeStep2: "按一下 Edit 並轉到 Permissions & events (權限和事件)。",
+        checkScopeStep3: "在 Organization permissions (組織權限) 下，將 Members 設定為 Read-only (唯讀) 並儲存。",
+        checkScopeWarning: "儲存後，請確保在 Glidelines 應用程式中斷開連接並重新連接您的帳戶以重新整理權限。",
+        grantAccessTitle: "2. 授予第三方存取權限",
+        grantAccessDesc: "預設情況下，GitHub 會阻止第三方應用程式讀取組織資料，除非管理員進行審批。",
+        grantAccessStep1: "轉到 GitHub -> Settings（設定） -> Applications（應用程式） -> Authorized OAuth Apps（已授權的 OAuth 應用程式）。",
+        grantAccessStep2: "按一下 Glidepace Vibe（或您的應用程式名稱）。",
+        grantAccessStep3: "向下捲動到 Organization access（組織存取）。",
+        grantAccessStep4: "按一下組織旁的 Grant（授予權限）。如果您不是管理員，請按一下 Request（請求權限），這需要管理員批准後才能查看專案。",
+        grantAccessOrgPolicy: "如果您撤銷了對某個組織的存取權限，並且找不到重新授權的方法，請按照此處的說明操作：",
+        grantAccessOrgPolicyLink: "閱讀 GitHub 文件",
+        closeWindow: "關閉視窗"
       }
     }
   }

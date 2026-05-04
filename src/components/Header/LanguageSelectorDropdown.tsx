@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { useSortedLocales } from '../../hooks/useLocales';
 
 export function LanguageSelectorDropdown() {
   const { t, i18n } = useTranslation();
@@ -9,13 +10,8 @@ export function LanguageSelectorDropdown() {
 
   useClickOutside(dropdownRef, () => setIsOpen(false), isOpen);
 
-  const locales = [
-    { code: 'en', label: t('app.locales.en') },
-    { code: 'ja', label: t('app.locales.ja') },
-    { code: 'zh-CN', label: t('app.locales.zhCN') },
-  ];
-
-  const currentLocale = locales.find(l => l.code === i18n.language) || locales[0];
+  const sortedLocales = useSortedLocales();
+  const currentLocale = sortedLocales.find(l => l.code === i18n.language) || sortedLocales[0];
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -37,7 +33,7 @@ export function LanguageSelectorDropdown() {
       {isOpen && (
         <div className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-[72px] sm:top-full mt-2 w-auto sm:w-44 bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60">
           <div className="p-1">
-            {locales.map((locale) => (
+            {sortedLocales.map((locale) => (
               <button
                 key={locale.code}
                 onClick={() => {

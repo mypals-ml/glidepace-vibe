@@ -24,9 +24,9 @@ import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubPro
 
 interface UseDashboardTasksProps {
   githubToken: string;
-  selectedProject: { id: string; title: string; public: boolean } | null;
+  selectedProject: { id: string; title: string; public: boolean; accountId?: string } | null;
   projectsData: ProjectOwnerInfo[];
-  activeAccountId: string;
+  projectAccountId: string;
   githubAccounts: GithubAccount[];
   updateSyncTime: () => void;
   setIsCreateMode: (val: boolean) => void;
@@ -36,7 +36,7 @@ export function useDashboardTasks({
   githubToken,
   selectedProject,
   projectsData,
-  activeAccountId,
+  projectAccountId,
   githubAccounts,
   updateSyncTime,
   setIsCreateMode,
@@ -112,6 +112,7 @@ export function useDashboardTasks({
 
   const fetchProjectTasks = useCallback(async (projectId: string, token: string) => {
     setIsLoadingTasks(true);
+    console.log('[Tasks] Fetching items for project:', projectId, 'using account:', projectAccountId);
     try {
       const json = await fetchGitHubGraphQL(GET_PROJECT_TASKS_QUERY, { projectId }, token);
 
@@ -146,7 +147,7 @@ export function useDashboardTasks({
     } finally {
       setIsLoadingTasks(false);
     }
-  }, [updateSyncTime, t]);
+  }, [updateSyncTime, t, projectAccountId]);
 
   const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[]) => {
     const task = tasks.find(t => t.id === taskId || t.itemId === taskId);
@@ -379,7 +380,7 @@ export function useDashboardTasks({
   }, [githubToken, fetchSingleProjectItem]);
 
   const addTaskComment = useCallback(async (task: Task, body: string): Promise<boolean> => {
-    if (!task.contentId || !githubToken) return false;
+    if (!task.contentId || !githubToken || task.isDraft) return false;
     try {
       const res = await fetchGitHubGraphQL(ADD_ISSUE_COMMENT_MUTATION, { subjectId: task.contentId, body }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
@@ -397,7 +398,7 @@ export function useDashboardTasks({
     try {
       const resultsMap = new Map<string, User>();
 
-      const currentAccount = githubAccounts.find(a => a.id === activeAccountId);
+      const currentAccount = githubAccounts.find(a => a.id === projectAccountId);
       if (currentAccount && currentAccount.nodeId) {
         const currentUser: User = {
           id: currentAccount.nodeId,
@@ -489,7 +490,7 @@ export function useDashboardTasks({
       console.error('Search users failed:', e);
       return [];
     }
-  }, [githubToken, projectsData, selectedProject, activeAccountId, githubAccounts, t]);
+  }, [githubToken, projectsData, selectedProject, projectAccountId, githubAccounts, t]);
 
   return {
     tasks,

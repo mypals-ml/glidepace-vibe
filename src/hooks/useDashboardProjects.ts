@@ -7,36 +7,87 @@ import type { ProjectOwnerInfo, GitHubProject, ProjectHistoryItem, SortMethod } 
 
 interface UseDashboardProjectsProps {
   githubToken: string;
-  activeAccountId: string;
+  browsingAccountId: string;
   setIsProjectModalOpen: (open: boolean) => void;
   updateSyncTime: () => void;
   fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
+  getTokenById: (id: string | undefined) => string;
 }
 
 export function useDashboardProjects({
   githubToken,
-  activeAccountId,
+  browsingAccountId,
   setIsProjectModalOpen,
   updateSyncTime,
   fetchProjectTasks,
+  getTokenById,
 }: UseDashboardProjectsProps) {
 
   const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
   const [activeTabLogin, setActiveTabLogin] = useState<string>('');
-  const [selectedProject, setSelectedProject] = useState<{ id: string; title: string; public: boolean } | null>(() => {
+  const [selectedProject, setSelectedProjectState] = useState<{ id: string; title: string; public: boolean; accountId?: string } | null>(() => {
     try {
-      const saved = localStorage.getItem('selected_project');
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlProjectId = urlParams.get('project');
+      const urlAccountId = urlParams.get('account');
+      if (urlProjectId) {
+        return { id: urlProjectId, title: 'Loading...', public: false, accountId: urlAccountId || undefined };
+      }
+      const saved = sessionStorage.getItem('selected_project') || localStorage.getItem('selected_project');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
   });
-  const [hasProject, setHasProject] = useState(() => {
-    return !!localStorage.getItem('selected_project_type') || !!localStorage.getItem('selected_project');
+
+  const setSelectedProject = useCallback((project: { id: string; title: string; public: boolean; accountId?: string } | null) => {
+    setSelectedProjectState(project);
+    
+    // Update Storage
+    if (project) {
+      const str = JSON.stringify(project);
+      sessionStorage.setItem('selected_project', str);
+      localStorage.setItem('selected_project', str);
+    } else {
+      sessionStorage.removeItem('selected_project');
+      localStorage.removeItem('selected_project');
+    }
+
+    // Sync to URL
+    const url = new URL(window.location.href);
+    if (project) {
+      url.searchParams.set('project', project.id);
+      if (project.accountId) {
+        url.searchParams.set('account', project.accountId);
+      }
+    } else {
+      url.searchParams.delete('project');
+    }
+    window.history.replaceState({}, document.title, url.toString());
+  }, []);
+
+  const [hasProject, setHasProjectState] = useState(() => {
+    return !!sessionStorage.getItem('selected_project_type') || 
+           !!localStorage.getItem('selected_project_type') || 
+           !!sessionStorage.getItem('selected_project') || 
+           !!localStorage.getItem('selected_project');
   });
+
+  const setHasProject = useCallback((has: boolean) => {
+    setHasProjectState(has);
+    // Note: We don't explicitly set storage here as hasProject is usually a derivative of selectedProject
+    // But we keep the setter for compatibility with the hook's interface
+  }, []);
   const [projectHistory, setHistory] = useState<ProjectHistoryItem[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem('project_history') || '[]');
+      const saved = localStorage.getItem('project_history');
+      if (!saved) return [];
+      const history = JSON.parse(saved);
+      // Migration: Ensure items have accountId (fallback to active if missing)
+      return history.map((item: ProjectHistoryItem) => ({
+        ...item,
+        accountId: item.accountId || ''
+      }));
     } catch {
       return [];
     }
@@ -69,7 +120,9 @@ export function useDashboardProjects({
           login: viewer.login,
           isOrg: false,
           databaseId: viewer.databaseId,
-          projects: (viewer.projectsV2?.nodes || []).filter(Boolean),
+          projects: (viewer.projectsV2?.nodes || [])
+            .filter(Boolean)
+            .map((p: GitHubProject) => ({ ...p, accountId })),
         });
 
         const orgs = viewer.organizations?.nodes || [];
@@ -79,7 +132,9 @@ export function useDashboardProjects({
             login: org.login,
             isOrg: true,
             databaseId: org.databaseId,
-            projects: (org.projectsV2?.nodes || []).filter(Boolean),
+            projects: (org.projectsV2?.nodes || [])
+              .filter(Boolean)
+              .map((p: GitHubProject) => ({ ...p, accountId })),
           });
         }
         setProjectsData(owners);
@@ -107,63 +162,63 @@ export function useDashboardProjects({
     if (projectsData.length === 0) return;
 
     const allProjects = projectsData.flatMap(o => o.projects);
-    const cached = localStorage.getItem('selected_project');
-    if (cached) {
-      try {
-        const cachedProject = JSON.parse(cached);
-        // Check if the current cached ID matches ANY of the fetched projects
-        const matchById = allProjects.find(p => p.id === cachedProject.id);
+    
+    if (selectedProject) {
+      const matchById = allProjects.find(p => p.id === selectedProject.id);
+      const matchByTitle = selectedProject.title !== 'Loading...' ? allProjects.find(p => p.title === selectedProject.title) : undefined;
+      
+      if (matchById) {
+        // Hydrate title/public status. 
+        // DO NOT stomp on the accountId if we already have a valid one that matches the owner.
+        // We only set it if it's missing.
+        const needsHydration = selectedProject.title === 'Loading...' || 
+                               selectedProject.title !== matchById.title || 
+                               selectedProject.public !== matchById.public;
         
-        if (!matchById) {
-          // If not found by ID, try finding it by title to see if it's an ID format mismatch
-          const matchByTitle = allProjects.find(p => p.title === cachedProject.title);
-          if (matchByTitle) {
-            console.log(`[ID Migration] 🚀 Migrating project "${cachedProject.title}" ID: ${cachedProject.id} -> ${matchByTitle.id}`);
-            const updated = { ...cachedProject, id: matchByTitle.id };
-            setSelectedProject(updated);
-            localStorage.setItem('selected_project', JSON.stringify(updated));
-            
-            // Re-fetch tasks with the corrected project ID format
-            if (githubToken) {
-              fetchProjectTasks(matchByTitle.id, githubToken);
-            }
-          }
+        if (needsHydration || !selectedProject.accountId) {
+          console.log('[Projects] Hydrating project details from list.');
+          setSelectedProject({ 
+            ...matchById, 
+            accountId: matchById.accountId
+          });
         }
-      } catch (e) {
-        console.warn('Failed to parse cached project during migration:', e);
+      } else if (matchByTitle) {
+        if (selectedProject.id !== matchByTitle.id || !selectedProject.accountId) {
+          console.log('[Projects] Syncing project by title. Setting accountId from list.');
+          setSelectedProject({ ...matchByTitle, accountId: matchByTitle.accountId });
+        }
       }
     }
-  }, [projectsData, githubToken, fetchProjectTasks, setSelectedProject]);
+  }, [projectsData, githubToken, fetchProjectTasks, setSelectedProject, selectedProject, browsingAccountId]);
 
-  const handleSelectRealProject = useCallback((id: string, title: string, isPublic?: boolean, forceToken?: string) => {
+  const handleSelectRealProject = useCallback((id: string, title: string, isPublic: boolean, accountId: string, forceToken?: string) => {
     setIsProjectModalOpen(false);
 
-    let finalPublic = isPublic;
-    if (finalPublic === undefined) {
-      const found = projectsData.flatMap(o => o.projects).find(p => p.id === id);
-      finalPublic = found ? found.public : false;
-    }
-
-    const project = { id, title, public: finalPublic };
+    const project = { id, title, public: isPublic, accountId };
     setSelectedProject(project);
     setHasProject(true);
     
+    sessionStorage.setItem('selected_project', JSON.stringify(project));
     localStorage.setItem('selected_project', JSON.stringify(project));
+    sessionStorage.removeItem('selected_project_type');
     localStorage.removeItem('selected_project_type');
 
-    const isMockAccount = activeAccountId === 'mock-1';
+    const isMockAccount = accountId === 'mock-1';
     const isMockProject = isMockAccount;
-    const tokenToUse = forceToken || (isMockProject ? MOCK_TOKEN : githubToken);
+    const tokenToUse = forceToken || (isMockProject ? MOCK_TOKEN : getTokenById(accountId));
 
     if (tokenToUse) {
       fetchProjectTasks(id, tokenToUse);
       updateSyncTime();
     }
 
-    const newItem: ProjectHistoryItem = { id, title, public: finalPublic, lastOpened: Date.now() };
+    const newItem: ProjectHistoryItem = { id, title, public: isPublic, accountId: accountId, lastOpened: Date.now() };
+    
+    // Success: Clear any pending auth context
+    localStorage.removeItem('auth_return_context');
     const nextHistory = [newItem, ...projectHistory.filter(item => item.id !== id)].slice(0, 20);
     setProjectHistory(nextHistory);
-  }, [githubToken, fetchProjectTasks, updateSyncTime, projectsData, activeAccountId, projectHistory, setProjectHistory, setIsProjectModalOpen]);
+  }, [fetchProjectTasks, updateSyncTime, projectHistory, setProjectHistory, setIsProjectModalOpen, setSelectedProject, setHasProject, getTokenById]);
 
   const handleRemoveFromHistory = useCallback((id: string) => {
     const nextHistory = projectHistory.filter(item => item.id !== id);
@@ -208,6 +263,19 @@ export function useDashboardProjects({
     }
   }, [sortMethod]);
 
+  // Sync initial state to URL if missing
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (selectedProject?.id && !url.searchParams.has('project')) {
+      url.searchParams.set('project', selectedProject.id);
+      window.history.replaceState({}, document.title, url.toString());
+    }
+  }, [selectedProject?.id]);
+
+  const refreshProjects = useCallback(() => {
+    fetchProjects(githubToken, browsingAccountId, false);
+  }, [fetchProjects, githubToken, browsingAccountId]);
+
   return {
     projectsData,
     setProjectsData,
@@ -225,6 +293,7 @@ export function useDashboardProjects({
     setApiError,
     isRefreshing,
     fetchProjects,
+    refreshProjects,
     handleSelectRealProject,
     handleRemoveFromHistory,
     groupHistoryByDate,

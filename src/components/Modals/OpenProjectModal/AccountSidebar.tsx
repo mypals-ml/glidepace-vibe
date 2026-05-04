@@ -5,21 +5,19 @@ import { IconButton } from '../../UI/IconButton';
 
 interface AccountSidebarProps {
   selectedAccountId: string | null;
-  setSelectedAccountId: (id: string | null) => void;
   mobileView: 'accounts' | 'projects';
   setMobileView: (view: 'accounts' | 'projects') => void;
 }
 
 export function AccountSidebar({ 
   selectedAccountId, 
-  setSelectedAccountId, 
   mobileView, 
   setMobileView 
 }: AccountSidebarProps) {
   const { t } = useTranslation();
   const { 
     githubAccounts, 
-    setActiveAccountId, 
+    setBrowsingAccountId, 
     fetchProjects, 
     isRefreshing, 
     setIsAccountModalOpen 
@@ -33,8 +31,7 @@ export function AccountSidebar({
           <div
             key={account.id}
             onClick={() => {
-              setSelectedAccountId(account.id);
-              setActiveAccountId(account.id);
+              setBrowsingAccountId(account.id);
               fetchProjects(account.token, account.id, false);
               setMobileView('projects');
             }}
@@ -54,7 +51,7 @@ export function AccountSidebar({
               isLoading={isRefreshing[account.id]}
               onClick={(e) => {
                 e.stopPropagation();
-                setActiveAccountId(account.id);
+                setBrowsingAccountId(account.id);
                 fetchProjects(account.token, account.id, false);
               }}
               className={`absolute right-4 top-1/2 -translate-y-1/2 ${

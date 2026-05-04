@@ -73,9 +73,20 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
 
 
 
+  const handleBackdropClick = () => {
+    if (!isCreateMode) {
+      handleClose();
+    }
+  };
+
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={onClose}></div>
+      <div
+        className={`fixed inset-0 z-40 transition-all duration-300 ${
+          isCreateMode ? 'bg-slate-900/5 cursor-default' : 'bg-slate-900/20 backdrop-blur-[1px] cursor-pointer'
+        }`}
+        onClick={handleBackdropClick}
+      ></div>
       <div className="fixed md:absolute inset-0 md:inset-auto md:right-4 md:top-4 md:bottom-4 md:w-[26rem] md:rounded-xl md:shadow-lg z-50 flex flex-col">
         {/* Mobile View */}
         <div className="md:hidden bg-white h-full rounded-t-2xl flex flex-col overflow-hidden">
@@ -226,7 +237,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               placeholder={t('dashboard.descriptionPlaceholder', 'Add description...')}
-              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all min-h-[120px] resize-none"
+              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all min-h-[120px] resize-y resizable-textarea"
             />
           </div>
         </div>
@@ -406,7 +417,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               <textarea
                 value={draftDesc}
                 onChange={(e) => setDraftDesc(e.target.value)}
-                className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[100px] resize-y"
+                className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[100px] resize-y resizable-textarea"
                 autoFocus
               />
               <div className="flex gap-2 justify-end">
@@ -522,86 +533,97 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         <label className="text-xs font-medium text-slate-600 block mb-3">
           {t('dashboard.comments', { count: (task.comments || []).length })}
         </label>
-        <div className="space-y-2.5">
-          {(task.comments || []).map((comment) => (
-            <div key={comment.id} className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group relative">
-              <div className="flex items-center gap-2 bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${comment.author.avatarColor}`}>
-                  {comment.author.avatarUrl ? (
-                    <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-full h-full rounded-full object-cover" />
-                  ) : comment.author.initials}
-                </div>
-                <span className="text-xs font-medium text-slate-700">{comment.author.name}</span>
-                <span className="text-xs text-slate-500">
-                  {new Date(comment.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
+        
+        {task.isDraft ? (
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200/60">
+            <p className="text-xs text-slate-500 italic leading-relaxed">
+              {t('dashboard.draftCommentsDisabled')}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2.5">
+              {(task.comments || []).map((comment) => (
+                <div key={comment.id} className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group relative">
+                  <div className="flex items-center gap-2 bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${comment.author.avatarColor}`}>
+                      {comment.author.avatarUrl ? (
+                        <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-full h-full rounded-full object-cover" />
+                      ) : comment.author.initials}
+                    </div>
+                    <span className="text-xs font-medium text-slate-700">{comment.author.name}</span>
+                    <span className="text-xs text-slate-500">
+                      {new Date(comment.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
 
-              {editingCommentId === comment.id ? (
-                <div className="space-y-2">
-                  <textarea
-                    value={draftComment}
-                    onChange={(e) => setDraftComment(e.target.value)}
-                    className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[60px] resize-y"
-                    autoFocus
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="primary" size="sm" onClick={() => handleSaveComment(comment.id)}>{t('common.save')}</Button>
-                    <Button variant="secondary" size="sm" onClick={() => setEditingCommentId(null)}>{t('common.cancel')}</Button>
-                  </div>
+                  {editingCommentId === comment.id ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={draftComment}
+                        onChange={(e) => setDraftComment(e.target.value)}
+                        className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[60px] resize-y resizable-textarea"
+                        autoFocus
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button variant="primary" size="sm" onClick={() => handleSaveComment(comment.id)}>{t('common.save')}</Button>
+                        <Button variant="secondary" size="sm" onClick={() => setEditingCommentId(null)}>{t('common.cancel')}</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="px-3 pt-2 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{comment.body}</p>
+                      <div className="absolute top-2 right-2 flex items-center gap-1">
+                        <CopyButton text={comment.body} t={t} />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => { setEditingCommentId(comment.id); setDraftComment(comment.body); }}
+                        >
+                          {t('common.edit', 'Edit')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                          onClick={() => handleDeleteComment(comment.id)}
+                        >
+                          {t('common.delete', 'Delete')}
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
-              ) : (
-                <>
-                  <p className="px-3 pt-2 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{comment.body}</p>
-                  <div className="absolute top-2 right-2 flex items-center gap-1">
-                    <CopyButton text={comment.body} t={t} />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setEditingCommentId(comment.id); setDraftComment(comment.body); }}
-                    >
-                      {t('common.edit', 'Edit')}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                      onClick={() => handleDeleteComment(comment.id)}
-                    >
-                      {t('common.delete', 'Delete')}
-                    </Button>
-                  </div>
-                </>
-              )}
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Add Comment Input */}
-        <div className="mt-8 border-t border-slate-200/60 pt-4">
-          <label className="text-xs font-medium text-slate-600 block mb-3">
-            {t('dashboard.addTaskComment', 'Add a comment')}
-          </label>
-          <textarea
-            value={newCommentBody}
-            onChange={(e) => setNewCommentBody(e.target.value)}
-            placeholder={t('dashboard.addCommentPlaceholder', 'Comment here ...')}
-            className="w-full border border-slate-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none min-h-[80px] resize-y bg-white placeholder:text-slate-400"
-            disabled={isSubmittingComment}
-          />
-        </div>
-        <div className="flex justify-end mt-2">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleAddComment}
-            disabled={isSubmittingComment || !newCommentBody.trim()}
-            isLoading={isSubmittingComment}
-            rightIcon="send"
-          >
-            {t('dashboard.addComment', 'Comment')}
-          </Button>
-        </div>
+            {/* Add Comment Input */}
+            <div className="mt-8 border-t border-slate-200/60 pt-4">
+              <label className="text-xs font-medium text-slate-600 block mb-3">
+                {t('dashboard.addTaskComment', 'Add a comment')}
+              </label>
+              <textarea
+                value={newCommentBody}
+                onChange={(e) => setNewCommentBody(e.target.value)}
+                placeholder={t('dashboard.addCommentPlaceholder', 'Comment here ...')}
+                className="w-full border border-slate-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none min-h-[80px] resize-y resizable-textarea bg-white placeholder:text-slate-400"
+                disabled={isSubmittingComment}
+              />
+            </div>
+            <div className="flex justify-end mt-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleAddComment}
+                disabled={isSubmittingComment || !newCommentBody.trim()}
+                isLoading={isSubmittingComment}
+                rightIcon="send"
+              >
+                {t('dashboard.addComment', 'Comment')}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
       {/* Bottom spacer to prevent dropdown clipping in scrollable area */}
       <div className="h-40" />

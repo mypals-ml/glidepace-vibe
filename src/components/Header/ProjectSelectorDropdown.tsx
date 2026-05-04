@@ -109,7 +109,7 @@ export function ProjectSelectorDropdown() {
                     {items.map(item => (
                       <div key={item.id} className="relative group">
                         <button
-                          onClick={() => { handleSelectRealProject(item.id, item.title, item.public); setIsOpen(false); }}
+                        onClick={() => { handleSelectRealProject(item.id, item.title, item.public || false, item.accountId || ''); setIsOpen(false); }}
                           className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center ${selectedProject?.id === item.id ? 'text-slate-600 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
                           role="option"
                           aria-selected={selectedProject?.id === item.id}
