@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import { useTranslation } from 'react-i18next';
 import type { User } from '../../types';
@@ -19,6 +19,9 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
   const [searchTerm, setSearchTerm] = useState('');
   const [searchedUsers, setSearchedUsers] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [placement, setPlacement] = useState<'top' | 'bottom'>('bottom');
   
   // Initial assignable users from repo
   const [assignableUsers, setAssignableUsers] = useState<User[]>([]);
@@ -131,8 +134,30 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
     );
   };
 
+  useLayoutEffect(() => {
+    const calculatePlacement = () => {
+      if (containerRef.current && panelRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const panelHeight = panelRef.current.offsetHeight;
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - rect.bottom;
+        
+        // If space below is less than panel height (plus some margin), flip to top
+        if (spaceBelow < panelHeight + 20) {
+          setPlacement('top');
+        } else {
+          setPlacement('bottom');
+        }
+      }
+    };
+
+    calculatePlacement();
+    window.addEventListener('resize', calculatePlacement);
+    return () => window.removeEventListener('resize', calculatePlacement);
+  }, [combinedResults]);
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:right-0 sm:left-auto sm:top-full sm:mt-2 sm:p-0 pointer-events-none">
+    <div ref={containerRef} className={`fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:right-0 sm:left-auto ${placement === 'top' ? 'sm:bottom-full sm:mb-2' : 'sm:top-full sm:mt-2'} sm:p-0 pointer-events-none`}>
       {/* Universal backdrop for mobile and click-outside capture for desktop */}
       <div 
         className="fixed inset-0 z-[-1] bg-slate-900/20 backdrop-blur-[2px] sm:bg-transparent sm:backdrop-blur-none pointer-events-auto" 
@@ -141,7 +166,8 @@ export function AssigneeSelector({ taskId, currentAssignees, repository, onClose
       
       {/* Selector Panel */}
       <div 
-        className="glass-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 origin-top-right min-w-[280px] pointer-events-auto"
+        ref={panelRef}
+        className={`glass-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 ${placement === 'top' ? 'origin-bottom-right' : 'origin-top-right'} min-w-[280px] pointer-events-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Header */}
