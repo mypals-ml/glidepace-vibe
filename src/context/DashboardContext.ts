@@ -4,23 +4,28 @@ import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHi
 export interface DashboardContextValue {
   // Auth
   githubAccounts: GithubAccount[];
-  activeAccountId: string;
-  setActiveAccountId: (id: string) => void;
+  browsingAccountId: string;
+  setBrowsingAccountId: (id: string) => void;
+  browsingToken: string;
   githubToken: string;
   isLoadingAuth: boolean;
   isAppInstalled: Record<string, boolean>;
   isRefreshing: Record<string, boolean>;
   handleOpenAuth: () => void;
   handleDisconnect: (accountId: string) => void;
+  authError: string | null;
+  setAuthError: (error: string | null) => void;
+  getTokenById: (id: string | undefined) => string;
 
   // Projects
   projectsData: ProjectOwnerInfo[];
   activeTabLogin: string;
   setActiveTabLogin: (login: string) => void;
-  selectedProject: { id: string; title: string; public: boolean } | null;
+  selectedProject: { id: string; title: string; public: boolean; accountId?: string } | null;
   hasProject: boolean;
   projectHistory: ProjectHistoryItem[];
   fetchProjects: (token: string, accountId: string, forceModal?: boolean) => Promise<void>;
+  refreshProjects: () => void;
   handleSelectRealProject: (id: string, title: string, isPublic?: boolean) => void;
   handleRemoveFromHistory: (id: string) => void;
   handleOpenProjectClick: () => void;
@@ -66,7 +71,7 @@ export interface DashboardContextValue {
   setIsCreateTaskModalOpen: (open: boolean) => void;
   isCreateMode: boolean;
   setIsCreateMode: (open: boolean) => void;
-  handleAddAccountByToken: (token: string) => Promise<{ success: boolean; error?: string }>;
+  handleAddAccountByToken: (token: string) => Promise<{ success: boolean; account?: GithubAccount; error?: string }>;
 
   // UI state
   isChartVisible: boolean;
@@ -79,7 +84,7 @@ export interface DashboardContextValue {
 
   // Demo environment helpers
   setHasProject: (val: boolean) => void;
-  setSelectedProject: (val: { id: string; title: string; public: boolean } | null) => void;
+  setSelectedProject: (val: { id: string; title: string; public: boolean; accountId?: string } | null) => void;
   setTasks: (tasks: Task[]) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;

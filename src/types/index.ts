@@ -52,6 +52,7 @@ export interface GitHubProject {
   id: string;
   title: string;
   public: boolean;
+  accountId?: string;
 }
 
 export interface ProjectOwnerInfo {
@@ -66,6 +67,7 @@ export interface ProjectHistoryItem {
   title: string;
   lastOpened: number;
   public?: boolean;
+  accountId?: string;
 }
 
 export interface GithubAccount {
