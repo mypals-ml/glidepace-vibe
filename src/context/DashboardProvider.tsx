@@ -160,10 +160,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const handleDisconnect = useCallback((accountId: string) => {
     auth.handleDisconnect(accountId, () => {
-      projects.setProjectHistory([]);
-      projects.setHasProject(false);
-      projects.setSelectedProject(null);
-      tasks.setTasks([]);
+      // 1. Filter project history to remove items belonging to the disconnected account
+      const nextHistory = projects.projectHistory.filter(p => p.accountId !== accountId);
+      projects.setProjectHistory(nextHistory);
+      
+      // 2. Only close the current project if it belongs to the disconnected account
+      if (projects.selectedProject?.accountId === accountId) {
+        projects.setHasProject(false);
+        projects.setSelectedProject(null);
+        tasks.setTasks([]);
+      }
     });
   }, [auth, projects, tasks]);
 
