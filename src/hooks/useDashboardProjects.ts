@@ -122,7 +122,7 @@ export function useDashboardProjects({
           databaseId: viewer.databaseId,
           projects: (viewer.projectsV2?.nodes || [])
             .filter(Boolean)
-            .map((p: any) => ({ ...p, accountId })),
+            .map((p: GitHubProject) => ({ ...p, accountId })),
         });
 
         const orgs = viewer.organizations?.nodes || [];
@@ -134,7 +134,7 @@ export function useDashboardProjects({
             databaseId: org.databaseId,
             projects: (org.projectsV2?.nodes || [])
               .filter(Boolean)
-              .map((p: any) => ({ ...p, accountId })),
+              .map((p: GitHubProject) => ({ ...p, accountId })),
           });
         }
         setProjectsData(owners);
@@ -218,7 +218,7 @@ export function useDashboardProjects({
     localStorage.removeItem('auth_return_context');
     const nextHistory = [newItem, ...projectHistory.filter(item => item.id !== id)].slice(0, 20);
     setProjectHistory(nextHistory);
-  }, [githubToken, fetchProjectTasks, updateSyncTime, projectsData, browsingAccountId, projectHistory, setProjectHistory, setIsProjectModalOpen, setSelectedProject, setHasProject]);
+  }, [fetchProjectTasks, updateSyncTime, projectHistory, setProjectHistory, setIsProjectModalOpen, setSelectedProject, setHasProject, getTokenById]);
 
   const handleRemoveFromHistory = useCallback((id: string) => {
     const nextHistory = projectHistory.filter(item => item.id !== id);
