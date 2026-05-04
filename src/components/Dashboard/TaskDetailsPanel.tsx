@@ -73,9 +73,20 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
 
 
 
+  const handleBackdropClick = () => {
+    if (!isCreateMode) {
+      handleClose();
+    }
+  };
+
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={onClose}></div>
+      <div
+        className={`fixed inset-0 z-40 transition-all duration-300 ${
+          isCreateMode ? 'bg-slate-900/5 cursor-default' : 'bg-slate-900/20 backdrop-blur-[1px] cursor-pointer'
+        }`}
+        onClick={handleBackdropClick}
+      ></div>
       <div className="fixed md:absolute inset-0 md:inset-auto md:right-4 md:top-4 md:bottom-4 md:w-[26rem] md:rounded-xl md:shadow-lg z-50 flex flex-col">
         {/* Mobile View */}
         <div className="md:hidden bg-white h-full rounded-t-2xl flex flex-col overflow-hidden">
