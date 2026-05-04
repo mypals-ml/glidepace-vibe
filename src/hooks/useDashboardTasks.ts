@@ -380,7 +380,7 @@ export function useDashboardTasks({
   }, [githubToken, fetchSingleProjectItem]);
 
   const addTaskComment = useCallback(async (task: Task, body: string): Promise<boolean> => {
-    if (!task.contentId || !githubToken) return false;
+    if (!task.contentId || !githubToken || task.isDraft) return false;
     try {
       const res = await fetchGitHubGraphQL(ADD_ISSUE_COMMENT_MUTATION, { subjectId: task.contentId, body }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
