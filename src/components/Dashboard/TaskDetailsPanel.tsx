@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useDashboard } from '../../context/DashboardContext';
-import { AssigneeSelector } from './AssigneeSelector';
-import { StatusSelector } from './StatusSelector';
+import { AssigneePicker } from './AssigneePicker';
+import { StatusPicker } from './StatusPicker';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { Task, User } from '../../types';
 import { Button } from '../UI/Button';
@@ -131,7 +131,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
 function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: TFunction; isCreateMode?: boolean }) {
   const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode } = useDashboard();
 
-  // Derive a repository from existing tasks so the AssigneeSelector can fetch assignable users
+  // Derive a repository from existing tasks so the AssigneePicker can fetch assignable users
   const projectRepository = tasks.find(t => t.repository)?.repository;
 
   // Create Mode state
@@ -153,8 +153,8 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [draftComment, setDraftComment] = useState('');
 
-  const [isAssigneeSelectorOpen, setIsAssigneeSelectorOpen] = useState(false);
-  const [isStatusSelectorOpen, setIsStatusSelectorOpen] = useState(false);
+  const [isAssigneePickerOpen, setIsAssigneePickerOpen] = useState(false);
+  const [isStatusPickerOpen, setIsStatusPickerOpen] = useState(false);
 
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -256,20 +256,20 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.status')}</label>
           <div
             className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
-            onClick={() => setIsStatusSelectorOpen(true)}
+            onClick={() => setIsStatusPickerOpen(true)}
           >
             <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${getStatusColor(newStatus)}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(newStatus)}`}></span>
               <span className="text-sm font-medium">{newStatus}</span>
             </div>
           </div>
-          {isStatusSelectorOpen && (
-            <StatusSelector
+          {isStatusPickerOpen && (
+            <StatusPicker
               task={null}
-              onClose={() => setIsStatusSelectorOpen(false)}
+              onClose={() => setIsStatusPickerOpen(false)}
               onSelect={(status) => {
                 setNewStatus(status);
-                setIsStatusSelectorOpen(false);
+                setIsStatusPickerOpen(false);
               }}
             />
           )}
@@ -280,7 +280,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.assignees')}</label>
           <div
             className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
-            onClick={() => setIsAssigneeSelectorOpen(true)}
+            onClick={() => setIsAssigneePickerOpen(true)}
           >
             {newAssignees.length > 0 ? newAssignees.map(user => (
               <div key={user.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${user.avatarColor}`}>
@@ -295,12 +295,12 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               <span className="text-sm text-slate-500">{t('dashboard.unassigned')}</span>
             )}
           </div>
-          {isAssigneeSelectorOpen && (
-            <AssigneeSelector
+          {isAssigneePickerOpen && (
+            <AssigneePicker
               taskId="new"
               currentAssignees={newAssignees}
               repository={projectRepository}
-              onClose={() => setIsAssigneeSelectorOpen(false)}
+              onClose={() => setIsAssigneePickerOpen(false)}
               onSelect={(users) => setNewAssignees(users)}
             />
           )}
@@ -447,17 +447,17 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.status')}</label>
         <div
           className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
-          onClick={() => setIsStatusSelectorOpen(true)}
+          onClick={() => setIsStatusPickerOpen(true)}
         >
           <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${getStatusColor(task.status)}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(task.status)}`}></span>
             <span className="text-sm font-medium">{task.status}</span>
           </div>
         </div>
-        {isStatusSelectorOpen && (
-          <StatusSelector
+        {isStatusPickerOpen && (
+          <StatusPicker
             task={task}
-            onClose={() => setIsStatusSelectorOpen(false)}
+            onClose={() => setIsStatusPickerOpen(false)}
           />
         )}
       </div>
@@ -467,7 +467,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.assignees')}</label>
         <div
           className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
-          onClick={() => setIsAssigneeSelectorOpen(true)}
+          onClick={() => setIsAssigneePickerOpen(true)}
         >
           {task.assignees && task.assignees.length > 0 ? task.assignees.map(user => (
             <div key={user.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${user.avatarColor}`}>
@@ -482,12 +482,12 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             <span className="text-sm text-slate-500">{t('dashboard.unassigned')}</span>
           )}
         </div>
-        {isAssigneeSelectorOpen && (
-          <AssigneeSelector
+        {isAssigneePickerOpen && (
+          <AssigneePicker
             taskId={task.id}
             currentAssignees={task.assignees}
             repository={task.repository || projectRepository}
-            onClose={() => setIsAssigneeSelectorOpen(false)}
+            onClose={() => setIsAssigneePickerOpen(false)}
           />
         )}
       </div>

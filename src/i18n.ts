@@ -105,7 +105,10 @@ const resources = {
         suggestions: "Suggestions",
         privateProjectSearchNotice: "Global search is limited for private projects.",
         privateStatus: "Private",
-        projectNoLongerAccessible: "Project no longer accessible. It has been removed from your history."
+        projectNoLongerAccessible: "Project no longer accessible. It has been removed from your history.",
+        viewList: "List",
+        viewGantt: "Gantt",
+        viewBurndown: "Burndown"
       },
       createTask: {
         title: "Create New Task",
@@ -300,7 +303,10 @@ const resources = {
         suggestions: "提案",
         privateProjectSearchNotice: "プライベートプロジェクトではグローバル検索が制限されています。",
         privateStatus: "プライベート",
-        projectNoLongerAccessible: "プロジェクトにアクセスできなくなりました。履歴から削除されました。"
+        projectNoLongerAccessible: "プロジェクトにアクセスできなくなりました。履歴から削除されました。",
+        viewList: "リスト",
+        viewGantt: "ガント",
+        viewBurndown: "バーンダウン"
       },
       createTask: {
         title: "新しいタスクを作成",
@@ -495,7 +501,10 @@ const resources = {
         suggestions: "建议",
         privateProjectSearchNotice: "私有项目限制全局搜索。",
         privateStatus: "私有",
-        projectNoLongerAccessible: "项目不再可用。已从您的历史记录中移除。"
+        projectNoLongerAccessible: "项目不再可用。已从您的历史记录中移除。",
+        viewList: "列表",
+        viewGantt: "甘特图",
+        viewBurndown: "燃尽图"
       },
       createTask: {
         title: "创建新任务",
@@ -690,7 +699,10 @@ const resources = {
         suggestions: "建議",
         privateProjectSearchNotice: "私有專案限制全域搜尋。",
         privateStatus: "私有",
-        projectNoLongerAccessible: "專案不再可用。已從您的歷史記錄中移除。"
+        projectNoLongerAccessible: "專案不再可用。已從您的歷史記錄中移除。",
+        viewList: "列表",
+        viewGantt: "甘特圖",
+        viewBurndown: "燃盡圖"
       },
       createTask: {
         title: "建立新任務",

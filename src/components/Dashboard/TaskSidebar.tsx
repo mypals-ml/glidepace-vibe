@@ -1,22 +1,22 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
-import { AssigneeSelector } from './AssigneeSelector';
-import { StatusSelector } from './StatusSelector';
+import { AssigneePicker } from './AssigneePicker';
+import { StatusPicker } from './StatusPicker';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { User } from '../../types';
 import { useState } from 'react';
 import { IconButton } from '../UI/IconButton';
 
-export interface SidebarProps {
+export interface TaskSidebarProps {
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   onScroll?: React.UIEventHandler<HTMLDivElement>;
 }
 
-export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
+export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const { t } = useTranslation();
   const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId, setIsCreateMode, apiError } = useDashboard();
-  const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
-  const [openStatusSelectorTaskId, setOpenStatusSelectorTaskId] = useState<string | null>(null);
+  const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
+  const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
@@ -90,22 +90,22 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
                 {/* Status Column */}
                 <div className="group/status relative h-full flex items-center min-w-0">
                   <div
-                    className="flex items-center cursor-pointer hover:opacity-80 transition-opacity max-w-full"
+                    className="flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors py-1 h-full w-full"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenStatusSelectorTaskId(openStatusSelectorTaskId === task.id ? null : task.id);
+                      setOpenStatusPickerTaskId(openStatusPickerTaskId === task.id ? null : task.id);
                     }}
                     title="Update status"
                   >
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors max-w-full ${getStatusColor(task.status)}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 mr-1.5 ${getStatusDotColor(task.status)}`} />
-                      <span className="truncate">{task.status}</span>
+                    <span className={`w-2.5 h-2.5 rounded-full ring-2 ring-white shadow-sm mb-1 ${getStatusDotColor(task.status)}`}></span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[40px]">
+                      {task.status}
                     </span>
                   </div>
-                  {openStatusSelectorTaskId === task.id && (
-                    <StatusSelector
+                  {openStatusPickerTaskId === task.id && (
+                    <StatusPicker
                       task={task}
-                      onClose={() => setOpenStatusSelectorTaskId(null)}
+                      onClose={() => setOpenStatusPickerTaskId(null)}
                     />
                   )}
                 </div>
@@ -116,7 +116,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
                     className="flex -space-x-1.5 cursor-pointer hover:scale-110 transition-transform p-1"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenSelectorTaskId(openSelectorTaskId === task.id ? null : task.id);
+                      setOpenPickerTaskId(openPickerTaskId === task.id ? null : task.id);
                     }}
                     title="Update assignees"
                   >
@@ -141,12 +141,12 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
                       </div>
                     )}
                   </div>
-                  {openSelectorTaskId === task.id && (
-                    <AssigneeSelector
+                  {openPickerTaskId === task.id && (
+                    <AssigneePicker
                       taskId={task.id}
                       currentAssignees={task.assignees}
                       repository={task.repository}
-                      onClose={() => setOpenSelectorTaskId(null)}
+                      onClose={() => setOpenPickerTaskId(null)}
                     />
                   )}
                 </div>

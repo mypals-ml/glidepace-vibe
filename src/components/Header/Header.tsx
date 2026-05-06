@@ -4,6 +4,7 @@ import { IconButton } from '../UI/IconButton';
 import { ProjectSelectorDropdown } from './ProjectSelectorDropdown';
 import { LanguageSelectorDropdown } from './LanguageSelectorDropdown';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
+import { DashboardViewSwitcher } from '../Dashboard/Views/DashboardViewSwitcher';
 import { Button } from '../UI/Button';
 
 export function Header() {
@@ -15,6 +16,7 @@ export function Header() {
     setIsAccountModalOpen,
     isChartVisible,
     setIsChartVisible,
+    dashboardView,
     hasProject,
     setIsProjectSettingsModalOpen,
   } = useDashboard();
@@ -33,32 +35,25 @@ export function Header() {
         <div className="flex items-center gap-[var(--header-gap-sm)] md:gap-[var(--header-gap-md)]">
           <ProjectSelectorDropdown />
           {hasProject && (
-            <IconButton
-              icon="settings"
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsProjectSettingsModalOpen(true)}
-              title={t('settings.projectSettings', 'Project Settings')}
-              aria-label={t('settings.projectSettings', 'Project Settings')}
-              className="text-slate-400 hover:text-primary hover:bg-primary/5"
-            />
+            <>
+              <IconButton
+                icon="settings"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsProjectSettingsModalOpen(true)}
+                title={t('settings.projectSettings', 'Project Settings')}
+                aria-label={t('settings.projectSettings', 'Project Settings')}
+                className="text-slate-400 hover:text-primary hover:bg-primary/5"
+              />
+              <div className="h-6 w-px bg-slate-200 mx-2 hidden md:block"></div>
+              <DashboardViewSwitcher />
+            </>
           )}
 
         </div>
       </div>
       <div className="flex items-center gap-[var(--header-gap-sm)] md:gap-[var(--header-gap-md)]">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setIsChartVisible(!isChartVisible)}
-          className="w-[var(--btn-h-sm)] sm:w-auto px-0 sm:px-[var(--btn-px-sm)] md:hidden justify-center"
-          leftIcon={isChartVisible ? 'format_list_bulleted' : 'show_chart'}
-          aria-label={isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
-        >
-          <span className="hidden sm:inline">
-            {isChartVisible ? t('dashboard.listToggle') : t('dashboard.chartToggle')}
-          </span>
-        </Button>
+
 
         <LanguageSelectorDropdown />
 

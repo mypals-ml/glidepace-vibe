@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { User } from '../../types';
 import { Button } from '../UI/Button';
 
-interface AssigneeSelectorProps {
+interface AssigneePickerProps {
   taskId: string;
   currentAssignees: User[];
   repository?: string;
@@ -12,7 +12,7 @@ interface AssigneeSelectorProps {
   onSelect?: (users: User[]) => void;
 }
 
-export function AssigneeSelector({ taskId, currentAssignees, repository, onClose, onSelect }: AssigneeSelectorProps) {
+export function AssigneePicker({ taskId, currentAssignees, repository, onClose, onSelect }: AssigneePickerProps) {
   const { fetchSearchUsers, updateTaskAssignees, selectedProject } = useDashboard();
   const isPrivate = selectedProject && !selectedProject.public;
   const { t } = useTranslation();
