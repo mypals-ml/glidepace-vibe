@@ -20,7 +20,7 @@ import {
   DELETE_ISSUE_COMMENT_MUTATION,
   ADD_ISSUE_COMMENT_MUTATION
 } from '../lib/githubQueries';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectV2, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings } from '../types';
 
 interface UseDashboardTasksProps {
   githubToken: string;

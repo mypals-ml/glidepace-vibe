@@ -40,7 +40,7 @@ export function useFieldSetup({
   const hasPromptedForProject = useRef<string | null>(null);
 
   // Filter helpers
-  const getFieldsByType = (type: string) => {
+  const getFieldsByType = useCallback((type: string) => {
     return projectFields.filter(f => {
       if (type === 'date') return f.__typename === 'ProjectV2IterationField' || (f.__typename === 'ProjectV2Field' && f.dataType === 'DATE');
       if (type === 'number') return f.__typename === 'ProjectV2Field' && f.dataType === 'NUMBER';
@@ -48,7 +48,7 @@ export function useFieldSetup({
       if (type === 'single_select') return f.__typename === 'ProjectV2SingleSelectField' || (f.__typename === 'ProjectV2Field' && f.dataType === 'SINGLE_SELECT');
       return false;
     });
-  };
+  }, [projectFields]);
 
   const triggerFieldDetection = useCallback((forcePrompt: boolean = false) => {
     if (!selectedProjectId || projectFields.length === 0) return;
@@ -102,14 +102,14 @@ export function useFieldSetup({
       // If forced but none missing, show success toast
       showToast(t('settings.allFieldsDetected'), 'success');
     }
-  }, [projectFields, dateSettings, selectedProjectId, updateDateSettings, showToast, t]);
+  }, [projectFields, dateSettings, selectedProjectId, updateDateSettings, showToast, t, getFieldsByType]);
 
   // Run auto-detection when fields load
   useEffect(() => {
     if (selectedProjectId && projectFields.length > 0) {
       triggerFieldDetection(false);
     }
-  }, [selectedProjectId, projectFields.length]); // Don't include triggerFieldDetection to avoid loops
+  }, [selectedProjectId, projectFields.length, triggerFieldDetection]); 
 
   const promptCreateSingleField = useCallback((settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId') => {
     const fieldDef = REQUIRED_FIELDS.find(f => f.settingsKey === settingsKey);

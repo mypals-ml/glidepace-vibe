@@ -8,6 +8,7 @@ import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { Task, User } from '../../types';
 import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
+import { ConfirmationModal } from '../UI/ConfirmationModal';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -158,6 +159,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [newCommentBody, setNewCommentBody] = useState('');
 
 
   const handleSaveTitle = async () => {

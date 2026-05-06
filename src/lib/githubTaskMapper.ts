@@ -109,12 +109,12 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   const status = statusField?.name || 'Todo';
 
   // Find Start Date
-  let startDateField = dateSettings?.startDateFieldId 
+  const startDateField = dateSettings?.startDateFieldId 
     ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.startDateFieldId)
     : fieldValues.find((f: GitHubFieldValue) => f.field?.name?.toLowerCase().includes('start'));
   
   // Find Target Date
-  let targetDateField = dateSettings?.targetDateFieldId
+  const targetDateField = dateSettings?.targetDateFieldId
     ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.targetDateFieldId)
     : fieldValues.find((f: GitHubFieldValue) => f.field?.name?.toLowerCase().includes('target') || f.field?.name?.toLowerCase().includes('end'));
   
@@ -128,7 +128,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   const targetDate = targetDateField?.date || iterationEnd;
   
   // Find Estimate
-  let estimateField = dateSettings?.estimateFieldId
+  const estimateField = dateSettings?.estimateFieldId
     ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.estimateFieldId)
     : fieldValues.find((f: GitHubFieldValue) => 
         f.__typename === 'ProjectV2ItemFieldNumberValue' && 
@@ -141,7 +141,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   const estimate = estimateField?.number || iterationField?.duration;
 
   // Find Estimate Unit (Category)
-  let unitField = dateSettings?.estimateUnitFieldId
+  const unitField = dateSettings?.estimateUnitFieldId
     ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.estimateUnitFieldId)
     : fieldValues.find((f: GitHubFieldValue) => 
         f.__typename === 'ProjectV2ItemFieldTextValue' && 
@@ -174,8 +174,6 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
 
   const comments = (content?.comments?.nodes || []).map((comment: any) => ({
     id: comment.id,
-    body: comment.body,
-    createdAt: comment.createdAt,
     author: {
       id: comment.author?.login || 'unknown',
       login: comment.author?.login,
@@ -184,6 +182,8 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
       initials: (comment.author?.name || comment.author?.login || 'UK').substring(0, 2).toUpperCase(),
       avatarColor: 'bg-slate-100 text-slate-500',
     },
+    body: comment.body,
+    createdAt: comment.createdAt,
   }));
 
   // Extract Field IDs for mutations
@@ -219,9 +219,9 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     estimateUnit,
     status: status || 'Todo',
     assignees: assignees,
+    comments: comments,
     progress: /^(done|closed|completed|merged)$/i.test(status) ? 100 : /^(todo|backlog|open|not started)$/i.test(status) ? 0 : 50,
     repository: content?.repository?.nameWithOwner,
-    contentId: content?.id,
     projectFieldIds,
     statusOptions,
     statusColorMap,

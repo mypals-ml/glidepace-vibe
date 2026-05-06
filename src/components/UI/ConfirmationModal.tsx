@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { IconButton } from './IconButton';
 
@@ -24,6 +25,7 @@ export function ConfirmationModal({
   variant = 'primary',
   isConfirming = false
 }: ConfirmationModalProps) {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
@@ -37,7 +39,7 @@ export function ConfirmationModal({
           <h3 className="text-lg font-bold text-slate-800">
             {title}
           </h3>
-          <IconButton icon="close" variant="ghost" size="sm" onClick={onClose} disabled={isConfirming} />
+          <IconButton icon="close" variant="ghost" size="sm" onClick={onClose} disabled={isConfirming} aria-label={t('common.close', 'Close')} />
         </div>
 
         <div className="p-6">
@@ -50,7 +52,7 @@ export function ConfirmationModal({
           <Button variant="ghost" onClick={onClose} disabled={isConfirming}>
             {cancelLabel}
           </Button>
-          <Button variant={variant === 'danger' ? 'outline' : 'primary'} onClick={onConfirm} disabled={isConfirming}>
+          <Button variant={variant === 'danger' ? 'secondary' : 'primary'} onClick={onConfirm} disabled={isConfirming}>
             {isConfirming ? '...' : confirmLabel}
           </Button>
         </div>

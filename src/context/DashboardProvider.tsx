@@ -95,7 +95,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     githubToken: projectToken,
     selectedProject: projects.selectedProject,
     tasks: tasks.tasks,
-    updateTaskDates: tasks.updateTaskDates,
     fetchProjectTasks: useCallback((id: string, token: string) => fetchProjectTasksRef.current(id, token), []),
     fetchSingleProjectItem: useCallback((id: string, token: string) => fetchSingleItemRef.current(id, token), []),
   });
