@@ -107,7 +107,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       await tasks.fetchProjectTasks(projects.selectedProject.id, projectToken);
     }
     return fieldId;
-  }, [projects.selectedProject?.id, projectToken, tasks.fetchProjectTasks]);
+  }, [projects.selectedProject?.id, projectToken, tasks]);
 
   // Field Setup (Missing Fields Prompt)
   const fieldSetup = useFieldSetup({

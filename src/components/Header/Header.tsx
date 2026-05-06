@@ -14,9 +14,6 @@ export function Header() {
     isLoadingAuth,
     handleOpenAuth,
     setIsAccountModalOpen,
-    isChartVisible,
-    setIsChartVisible,
-    dashboardView,
     hasProject,
     setIsProjectSettingsModalOpen,
   } = useDashboard();

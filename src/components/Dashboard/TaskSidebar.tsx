@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
-import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
+import { getStatusDotColor } from '../../utils/statusColors';
 import type { User } from '../../types';
 import { useState } from 'react';
 import { IconButton } from '../UI/IconButton';

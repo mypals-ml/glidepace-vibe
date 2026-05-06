@@ -1,5 +1,3 @@
-import React from 'react';
-
 export interface BurndownIconProps {
   className?: string;
   size?: number | string;

@@ -73,7 +73,7 @@ export function useDashboardAuth(options?: { showToast: (msg: string, type?: 'su
     localStorage.setItem('auth_return_context', JSON.stringify(context));
 
     window.location.href = `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&scope=read:org,project,repo&prompt=consent`;
-  }, []);
+  }, [showToast, t]);
 
   const handleDisconnect = useCallback((accountId: string, onDisconnect: () => void) => {
     onDisconnect(); // Clear project-related states in the provider/projects hook
