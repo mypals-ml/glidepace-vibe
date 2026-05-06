@@ -20,8 +20,19 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const fetchSingleItemRef = useRef<(id: string, token: string) => Promise<void>>(() => Promise.resolve());
   const updateSyncTimeRef = useRef<() => void>(() => {});
 
+  const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+  }, []);
+
+  const hideToast = useCallback(() => {
+    setToast(null);
+  }, []);
+
   // 1. UI & Auth (independent)
-  const auth = useDashboardAuth();
+  const auth = useDashboardAuth({ showToast });
   const ui = useDashboardUI();
 
   // Stable references to prevent orchestration loops
@@ -63,16 +74,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(`date_settings_${projects.selectedProject.id}`, JSON.stringify(settings));
   };
 
-  const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setToast({ message, type });
-  }, []);
-
-  const hideToast = useCallback(() => {
-    setToast(null);
-  }, []);
 
   // 3. Compute effective tokens (Must be after projects hook)
   const projectToken = auth.getTokenById(projects.selectedProject?.accountId);

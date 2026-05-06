@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GITHUB_OAUTH_AUTHORIZE_URL } from '../lib/constants';
 import { USE_MOCK_DATA, MOCK_ACCOUNTS } from '../lib/mockData';
 import { MOCK_ACCOUNTS_DATA, MOCK_TOKEN } from '../lib/githubMock';
 import type { GithubAccount } from '../types';
 
-export function useDashboardAuth() {
+export function useDashboardAuth(options?: { showToast: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
+  const { t } = useTranslation();
+  const showToast = options?.showToast;
 
   const [githubAccounts, setGithubAccounts] = useState<GithubAccount[]>(() => {
     if (USE_MOCK_DATA) {
@@ -51,7 +54,11 @@ export function useDashboardAuth() {
   const handleOpenAuth = useCallback(() => {
     const clientId = import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID;
     if (!clientId) {
-      alert('Missing VITE_GITHUB_OAUTH_CLIENT_ID environment variable!');
+      if (showToast) {
+        showToast(t('settings.errorMissingClientId'), 'error');
+      } else {
+        alert('Missing VITE_GITHUB_OAUTH_CLIENT_ID environment variable!');
+      }
       return;
     }
 

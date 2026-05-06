@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { GitHubProjectV2Field, ProjectDateSettings } from '../types';
 
 export interface MissingFieldDef {
@@ -32,6 +33,7 @@ export function useFieldSetup({
   selectedProjectId?: string;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }) {
+  const { t } = useTranslation();
   const [isMissingFieldsPromptOpen, setIsMissingFieldsPromptOpen] = useState(false);
   const [missingFieldsList, setMissingFieldsList] = useState<MissingFieldDef[]>([]);
   const [isCreatingFields, setIsCreatingFields] = useState(false);
@@ -98,9 +100,9 @@ export function useFieldSetup({
       }
     } else if (forcePrompt) {
       // If forced but none missing, show success toast
-      showToast('All required fields are already mapped!', 'success');
+      showToast(t('settings.allFieldsDetected'), 'success');
     }
-  }, [projectFields, dateSettings, selectedProjectId, updateDateSettings, showToast]);
+  }, [projectFields, dateSettings, selectedProjectId, updateDateSettings, showToast, t]);
 
   // Run auto-detection when fields load
   useEffect(() => {

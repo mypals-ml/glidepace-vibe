@@ -122,6 +122,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
           </div>
         </div>
       </div>
+
     </>
   );
 }
@@ -154,8 +155,9 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [isAssigneeSelectorOpen, setIsAssigneeSelectorOpen] = useState(false);
   const [isStatusSelectorOpen, setIsStatusSelectorOpen] = useState(false);
 
-  const [newCommentBody, setNewCommentBody] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
 
   const handleSaveTitle = async () => {
@@ -176,11 +178,16 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
     setEditingCommentId(null);
   };
 
-  const handleDeleteComment = async (commentId: string) => {
-    if (!task) return;
-    if (window.confirm(t('common.confirmDelete'))) {
-      await deleteTaskComment(task, commentId);
-    }
+  const handleDeleteComment = (commentId: string) => {
+    setCommentToDelete(commentId);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteComment = async () => {
+    if (!task || !commentToDelete) return;
+    await deleteTaskComment(task, commentToDelete);
+    setIsDeleteConfirmOpen(false);
+    setCommentToDelete(null);
   };
 
   const handleAddComment = async () => {
@@ -627,6 +634,19 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       </div>
       {/* Bottom spacer to prevent dropdown clipping in scrollable area */}
       <div className="h-40" />
+
+      <ConfirmationModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setCommentToDelete(null);
+        }}
+        onConfirm={confirmDeleteComment}
+        title={t('common.delete', 'Delete')}
+        message={t('common.confirmDelete', 'Are you sure you want to delete this comment?')}
+        confirmLabel={t('common.delete', 'Delete')}
+        variant="danger"
+      />
     </>
   );
 }

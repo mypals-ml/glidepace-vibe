@@ -139,7 +139,8 @@ const resources = {
         confirmCreateEstimateUnit: "Creating 'Estimate Unit' will add a new Single Select field to your GitHub project with options: hours, days, and points. Do you want to proceed?",
         automatedSetupTitle: "Automated Setup",
         automatedSetupDesc: "Glidelines can automatically detect or create the necessary GitHub fields for your timeline.",
-        triggerDetection: "Re-scan"
+        triggerDetection: "Re-scan",
+        errorMissingClientId: "Missing VITE_GITHUB_OAUTH_CLIENT_ID environment variable!"
       },
       common: {
         copy: "Copy",
@@ -333,7 +334,8 @@ const resources = {
         confirmCreateEstimateUnit: "「見積もり単位」を作成すると、GitHubプロジェクトに新しい単一選択フィールドが追加され、オプションとして hours, days, points が設定されます。続行しますか？",
         automatedSetupTitle: "自動セットアップ",
         automatedSetupDesc: "Glidelinesは、タイムラインに必要なGitHubフィールドを自動的に検出または作成できます。",
-        triggerDetection: "再スキャン"
+        triggerDetection: "再スキャン",
+        errorMissingClientId: "環境変数 VITE_GITHUB_OAUTH_CLIENT_ID が設定されていません。"
       },
       common: {
         copy: "コピー",
@@ -527,7 +529,8 @@ const resources = {
         confirmCreateEstimateUnit: "创建“预估单位”将向您的 GitHub 项目添加一个新的单选字段，选项包括：hours、days 和 points。您要继续吗？",
         automatedSetupTitle: "自动设置",
         automatedSetupDesc: "Glidelines 可以自动检测或创建时间线所需的 GitHub 字段。",
-        triggerDetection: "重新扫描"
+        triggerDetection: "重新扫描",
+        errorMissingClientId: "缺少 VITE_GITHUB_OAUTH_CLIENT_ID 环境变量！"
       },
       common: {
         copy: "复制",
@@ -721,7 +724,8 @@ const resources = {
         confirmCreateEstimateUnit: "建立「預估單位」將向您的 GitHub 專案添加一個新的單選欄位，選項包括：hours、days 和 points。您要繼續嗎？",
         automatedSetupTitle: "自動設定",
         automatedSetupDesc: "Glidelines 可以自動檢測或建立時間軸所需的 GitHub 欄位。",
-        triggerDetection: "重新掃描"
+        triggerDetection: "重新掃描",
+        errorMissingClientId: "缺少 VITE_GITHUB_OAUTH_CLIENT_ID 環境變數！"
       },
       common: {
         copy: "複製",
