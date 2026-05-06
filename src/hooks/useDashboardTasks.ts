@@ -111,7 +111,7 @@ export function useDashboardTasks({
     } catch (e) {
       console.error('Failed to fetch single project item:', e);
     }
-  }, [updateSyncTime]);
+  }, [updateSyncTime, dateSettings]);
 
   const fetchProjectTasks = useCallback(async (projectId: string, token: string) => {
     setIsLoadingTasks(true);
@@ -122,11 +122,11 @@ export function useDashboardTasks({
       let fieldsCursor: string | undefined = undefined;
       let itemsCursor: string | undefined = undefined;
 
-      const allItems: any[] = [];
+      const allItems: GitHubProjectItem[] = [];
       const allFields: GitHubProjectV2Field[] = [];
 
       while (hasNextFields || hasNextItems) {
-        const variables: Record<string, any> = { projectId };
+        const variables: Record<string, string | number | boolean | undefined> = { projectId };
         if (hasNextFields && fieldsCursor) variables.fieldsCursor = fieldsCursor;
         if (hasNextItems && itemsCursor) variables.itemsCursor = itemsCursor;
 
@@ -139,7 +139,7 @@ export function useDashboardTasks({
           return;
         }
 
-        const projectNode = json.data?.node as any;
+        const projectNode = json.data?.node as { fields?: { nodes: GitHubProjectV2Field[], pageInfo: { hasNextPage: boolean, endCursor: string } }, items?: { nodes: GitHubProjectItem[], pageInfo: { hasNextPage: boolean, endCursor: string } } };
 
         if (hasNextFields) {
           const fieldsConn = projectNode?.fields;
@@ -267,7 +267,7 @@ export function useDashboardTasks({
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;
     let anySuccess = false;
     try {
-      const updateField = async (fieldId: string | undefined, value: any) => {
+      const updateField = async (fieldId: string | undefined, value: Record<string, string | number | boolean | undefined>) => {
         if (!fieldId) return;
         const success = await updateProjectV2ItemField(selectedProject.id, task.itemId!, fieldId, value, githubToken);
         if (success) anySuccess = true;

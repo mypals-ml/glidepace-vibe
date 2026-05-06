@@ -1,5 +1,5 @@
 import i18n from '../i18n';
-import type { Task, GitHubProjectItem, GitHubFieldValue, ProjectDateSettings } from '../types';
+import type { Task, GitHubProjectItem, GitHubFieldValue, ProjectDateSettings, GitHubAssignee, GitHubComment } from '../types';
 
 export const PROJECT_ITEM_FRAGMENT = `
   id
@@ -163,7 +163,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     }
   }
 
-  const assignees = (assigneeNodes || []).map((a: any, idx: number) => ({
+  const assignees = (assigneeNodes || []).map((a: GitHubAssignee, idx: number) => ({
     id: a.id || a.login || 'unknown',
     login: a.login,
     name: a.name || a.login || 'Unknown',
@@ -172,7 +172,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
   }));
 
-  const comments = (content?.comments?.nodes || []).map((comment: any) => ({
+  const comments = (content?.comments?.nodes || []).map((comment: GitHubComment) => ({
     id: comment.id,
     author: {
       id: comment.author?.login || 'unknown',

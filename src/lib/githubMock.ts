@@ -1,4 +1,4 @@
-import type { ProjectOwnerInfo, Task, TaskComment, TaskStatus } from '../types';
+import type { ProjectOwnerInfo, Task, TaskComment, TaskStatus, GitHubProjectV2Field } from '../types';
 
 // ---------------------------------------------------------------------------
 // Mock status options — mirrors the `ProjectV2SingleSelectField.options` shape
@@ -307,7 +307,7 @@ const MOCK_PROJECT_TASKS_MAP: Record<string, Task[]> = {
 // ---------------------------------------------------------------------------
 // Per-project field storage for in-memory persistence during the session
 // ---------------------------------------------------------------------------
-const MOCK_PROJECT_FIELDS_MAP: Record<string, any[]> = {};
+const MOCK_PROJECT_FIELDS_MAP: Record<string, GitHubProjectV2Field[]> = {};
 
 function getFieldsForProject(projectId: string) {
   if (!MOCK_PROJECT_FIELDS_MAP[projectId]) {

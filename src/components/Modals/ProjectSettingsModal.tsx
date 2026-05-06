@@ -86,7 +86,7 @@ export function ProjectSettingsModal() {
 
   const createNewOption = { id: '__create_new__', name: t('settings.createNewField', '+ Create new field...') };
   
-  const getOptions = (fields: any[], fieldId: string | undefined) => {
+  const getOptions = (fields: GitHubProjectV2Field[], fieldId: string | undefined) => {
     const isFound = fields.some(f => f.id === fieldId);
     if (!fieldId || !isFound) {
       return [...fields, createNewOption];
@@ -109,8 +109,8 @@ export function ProjectSettingsModal() {
   const isUnitFieldSingleSelect = selectedUnitField?.__typename === 'ProjectV2SingleSelectField';
   
   // For unit value selection, use the field's options if it's single select, otherwise default options
-  const unitValueOptions = isUnitFieldSingleSelect 
-    ? (selectedUnitField as any).options.map((opt: any) => ({ id: opt.name, name: opt.name }))
+  const unitValueOptions = isUnitFieldSingleSelect && selectedUnitField && 'options' in selectedUnitField
+    ? (selectedUnitField.options || []).map((opt: { id: string; name: string; color?: string }) => ({ id: opt.name, name: opt.name }))
     : unitOptions;
 
   const anyFieldsMissing = !dateSettings.startDateFieldId || !dateSettings.targetDateFieldId || !dateSettings.estimateFieldId || !dateSettings.estimateUnitFieldId;
