@@ -8,16 +8,19 @@ import { Sidebar } from './Dashboard/Sidebar';
 import { Timeline } from './Dashboard/Timeline';
 import { EmptyState } from './Dashboard/EmptyState';
 import { useScrollSync } from '../hooks/useScrollSync';
+import { MissingFieldsPromptModal } from './Modals/MissingFieldsPromptModal';
+import { Toast } from './UI/Toast';
 
 const ConnectedAccountsModal = lazy(() => import('./Modals/ConnectedAccountsModal').then(m => ({ default: m.ConnectedAccountsModal })));
 const OpenProjectModal = lazy(() => import('./Modals/OpenProjectModal').then(m => ({ default: m.OpenProjectModal })));
 const PatAuthModal = lazy(() => import('./Modals/PatAuthModal').then(m => ({ default: m.PatAuthModal })));
 const TaskDetailsPanel = lazy(() => import('./Dashboard/TaskDetailsPanel').then(m => ({ default: m.TaskDetailsPanel })));
+const ProjectSettingsModal = lazy(() => import('./Modals/ProjectSettingsModal').then(m => ({ default: m.ProjectSettingsModal })));
 
 
 function DashboardLayout() {
   const { t } = useTranslation();
-  const { hasProject, isChartVisible, tasks, selectedTaskId, setSelectedTaskId } = useDashboard();
+  const { hasProject, isChartVisible, tasks, selectedTaskId, setSelectedTaskId, toast, hideToast } = useDashboard();
   const { width: sidebarWidth, isResizing, panelRef, onMouseDown } = useResizablePanel();
   const { sidebarRef, timelineRef, onSidebarScroll, onTimelineScroll } = useScrollSync();
 
@@ -73,6 +76,15 @@ function DashboardLayout() {
         <OpenProjectModal />
         <ConnectedAccountsModal />
         <PatAuthModal />
+        <ProjectSettingsModal />
+        <MissingFieldsPromptModal />
+        {toast && (
+          <Toast 
+            message={toast.message} 
+            type={toast.type} 
+            onClose={hideToast} 
+          />
+        )}
       </Suspense>
 
     </div>

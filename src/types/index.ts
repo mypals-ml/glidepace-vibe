@@ -27,12 +27,14 @@ export interface Task {
   id: string;
   title: string;
   startDate: string;
-  endDate: string;
+  targetDate: string;
   fullStartDate?: string;
-  fullEndDate?: string;
+  fullTargetDate?: string;
   status: TaskStatus;
   assignees: User[];
   progress: number;
+  estimate?: number;
+  estimateUnit?: string;
   repository?: string;
   itemId?: string;
   contentId?: string;
@@ -156,13 +158,23 @@ export interface GitHubProjectItem {
 }
 
 export interface GitHubProjectV2Field {
+  __typename: string;
   id: string;
   name: string;
+  dataType?: string;
   options?: Array<{
     id: string;
     name: string;
     color?: string;
   }>;
+}
+
+export interface ProjectDateSettings {
+  startDateFieldId?: string;
+  targetDateFieldId?: string;
+  estimateFieldId?: string;
+  estimateUnitFieldId?: string;
+  estimateUnit?: string;
 }
 
 export interface GitHubProjectV2 {

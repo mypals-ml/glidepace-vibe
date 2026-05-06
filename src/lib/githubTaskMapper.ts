@@ -1,5 +1,5 @@
 import i18n from '../i18n';
-import type { Task, GitHubProjectItem, GitHubFieldValue } from '../types';
+import type { Task, GitHubProjectItem, GitHubFieldValue, ProjectDateSettings } from '../types';
 
 export const PROJECT_ITEM_FRAGMENT = `
   id
@@ -96,8 +96,8 @@ export const PROJECT_ITEM_FRAGMENT = `
   }
 `;
 
-export function mapProjectItemToTask(item: GitHubProjectItem): Task {
-  if (!item) return { id: 'error', title: i18n.t('dashboard.invalidItem'), startDate: '', endDate: '', status: 'Todo', assignees: [], progress: 0 };
+export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: ProjectDateSettings): Task {
+  if (!item) return { id: 'error', title: i18n.t('dashboard.invalidItem'), startDate: '', targetDate: '', status: 'Todo', assignees: [], progress: 0 };
   
   const content = item.content;
   const fieldValues = item.fieldValues?.nodes || [];
@@ -108,18 +108,50 @@ export function mapProjectItemToTask(item: GitHubProjectItem): Task {
   );
   const status = statusField?.name || 'Todo';
 
-  const startDateField = fieldValues.find((f: GitHubFieldValue) => f.field?.name?.toLowerCase().includes('start'));
-  const endDateField = fieldValues.find((f: GitHubFieldValue) => f.field?.name?.toLowerCase().includes('end'));
+  // Find Start Date
+  let startDateField = dateSettings?.startDateFieldId 
+    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.startDateFieldId)
+    : fieldValues.find((f: GitHubFieldValue) => f.field?.name?.toLowerCase().includes('start'));
   
-  // Also check Iteration fields if start/end dates are missing
+  // Find Target Date
+  let targetDateField = dateSettings?.targetDateFieldId
+    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.targetDateFieldId)
+    : fieldValues.find((f: GitHubFieldValue) => f.field?.name?.toLowerCase().includes('target') || f.field?.name?.toLowerCase().includes('end'));
+  
+  // Also check Iteration fields if start/target dates are missing
   const iterationField = fieldValues.find((f: GitHubFieldValue) => f.__typename === 'ProjectV2ItemFieldIterationValue');
 
   const startDate = startDateField?.date || iterationField?.startDate || new Date().toISOString().split('T')[0];
   const iterationEnd = (iterationField && iterationField.startDate) 
     ? new Date(new Date(iterationField.startDate).getTime() + (iterationField.duration || 0) * 86400000).toISOString().split('T')[0]
     : startDate;
-  const endDate = endDateField?.date || iterationEnd;
+  const targetDate = targetDateField?.date || iterationEnd;
   
+  // Find Estimate
+  let estimateField = dateSettings?.estimateFieldId
+    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.estimateFieldId)
+    : fieldValues.find((f: GitHubFieldValue) => 
+        f.__typename === 'ProjectV2ItemFieldNumberValue' && 
+        (f.field?.name?.toLowerCase().includes('estimate') || 
+         f.field?.name?.toLowerCase().includes('duration') || 
+         f.field?.name?.toLowerCase().includes('days') || 
+         f.field?.name?.toLowerCase().includes('hours'))
+      );
+
+  const estimate = estimateField?.number || iterationField?.duration;
+
+  // Find Estimate Unit (Category)
+  let unitField = dateSettings?.estimateUnitFieldId
+    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.estimateUnitFieldId)
+    : fieldValues.find((f: GitHubFieldValue) => 
+        f.__typename === 'ProjectV2ItemFieldTextValue' && 
+        (f.field?.name?.toLowerCase().includes('estimate unit') || 
+         f.field?.name?.toLowerCase().includes('unit') || 
+         f.field?.name?.toLowerCase().includes('category'))
+      );
+
+  const estimateUnit = unitField?.text || dateSettings?.estimateUnit || 'days';
+
   // Extract assignees from either the content (Issues/PRs) or the User field (Drafts)
   let assigneeNodes = content?.assignees?.nodes || [];
   if (assigneeNodes.length === 0) {
@@ -131,7 +163,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem): Task {
     }
   }
 
-  const assignees = (assigneeNodes || []).map((a, idx: number) => ({
+  const assignees = (assigneeNodes || []).map((a: any, idx: number) => ({
     id: a.id || a.login || 'unknown',
     login: a.login,
     name: a.name || a.login || 'Unknown',
@@ -140,7 +172,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem): Task {
     avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
   }));
 
-  const comments = (content?.comments?.nodes || []).map((comment) => ({
+  const comments = (content?.comments?.nodes || []).map((comment: any) => ({
     id: comment.id,
     body: comment.body,
     createdAt: comment.createdAt,
@@ -161,7 +193,9 @@ export function mapProjectItemToTask(item: GitHubProjectItem): Task {
   
   if (statusField?.field?.id) projectFieldIds.status = statusField.field.id;
   if (startDateField?.field?.id) projectFieldIds.startDate = startDateField.field.id;
-  if (endDateField?.field?.id) projectFieldIds.endDate = endDateField.field.id;
+  if (targetDateField?.field?.id) projectFieldIds.targetDate = targetDateField.field.id;
+  if (estimateField?.field?.id) projectFieldIds.estimate = estimateField.field.id;
+  if (unitField?.field?.id) projectFieldIds.estimateUnit = unitField.field.id;
   
   if (statusField?.field?.options) {
     statusField.field.options.forEach((opt: { id: string, name: string, color?: string }) => {
@@ -171,22 +205,22 @@ export function mapProjectItemToTask(item: GitHubProjectItem): Task {
   }
 
   // Clean IDs
-  const displayId = content?.number ? `#${content.number}` : (item.id ? item.id.slice(-6) : Math.random().toString(36).slice(-6));
+  const idPrefix = content?.number ? `#${content.number}` : (item.id ? item.id.slice(-6) : Math.random().toString(36).slice(-6));
 
   return {
-    id: displayId,
+    id: idPrefix,
+    itemId: item.id,
+    contentId: content?.id,
     title: content?.title || i18n.t('dashboard.noTitle'),
-    startDate: new Date(startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    endDate: new Date(endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    fullStartDate: startDate,
-    fullEndDate: endDate,
+    body: content?.body || '',
+    startDate,
+    targetDate,
+    estimate,
+    estimateUnit,
     status: status || 'Todo',
     assignees: assignees,
     progress: /^(done|closed|completed|merged)$/i.test(status) ? 100 : /^(todo|backlog|open|not started)$/i.test(status) ? 0 : 50,
     repository: content?.repository?.nameWithOwner,
-    body: content?.body || '',
-    comments: comments.length > 0 ? comments : undefined,
-    itemId: item.id,
     contentId: content?.id,
     projectFieldIds,
     statusOptions,

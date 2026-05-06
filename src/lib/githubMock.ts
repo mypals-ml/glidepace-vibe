@@ -15,7 +15,7 @@ export const MOCK_STATUS_OPTIONS: { id: string; name: string; color: string }[] 
 const MOCK_FIELD_IDS = {
   status: 'mock-status-field-id',
   startDate: 'mock-start-date-id',
-  endDate: 'mock-end-date-id',
+  targetDate: 'mock-end-date-id',
 };
 
 export const MOCK_TOKEN = 'mock-token-123';
@@ -82,7 +82,7 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   const startDay = (i % 20) + 1;
   const endDay = startDay + (i % 5) + 2;
   const startDate = `Apr ${startDay.toString().padStart(2, '0')}`;
-  const endDate = `Apr ${endDay.toString().padStart(2, '0')}`;
+  const targetDate = `Apr ${endDay.toString().padStart(2, '0')}`;
 
   const numAssignees = i % 5;
   const assignees = MOCK_USER_POOL.slice(0, numAssignees);
@@ -115,7 +115,7 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
     id: `#${id}`,
     title: `Task ${id}: ${titles[i % titles.length]}`,
     startDate,
-    endDate,
+    targetDate,
     status,
     assignees,
     progress: status === 'Done' ? 100 : (status === 'In Progress' ? 50 : 0),
@@ -135,7 +135,7 @@ const MOCK_TASKS_BUG_TRACKER: Task[] = Array.from({ length: 15 }, (_, i) => {
     id: `#${id}`,
     title: `Bug ${id}: ${['Memory leak in sidebar', 'Incorrect alignment', 'API timeout', 'Console warning'][i % 4]}`,
     startDate: 'Apr 10',
-    endDate: 'Apr 12',
+    targetDate: 'Apr 12',
     status,
     assignees,
     progress: status === 'In Progress' ? 30 : 0,
@@ -151,7 +151,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     id: '#101',
     title: 'Implement manual GitHub PAT support',
     startDate: 'Apr 05',
-    endDate: 'Apr 06',
+    targetDate: 'Apr 06',
     status: 'In Progress',
     assignees: [{ id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' }],
     progress: 50,
@@ -177,7 +177,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     id: '#102',
     title: 'Fix modal stacking order (z-index)',
     startDate: 'Apr 05',
-    endDate: 'Apr 05',
+    targetDate: 'Apr 05',
     status: 'Done',
     assignees: [{ id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' }],
     progress: 100,
@@ -209,7 +209,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     id: '#103',
     title: 'Add "Connected GitHub Tasks" mock project',
     startDate: 'Apr 05',
-    endDate: 'Apr 05',
+    targetDate: 'Apr 05',
     status: 'Done',
     assignees: [{ id: 'u6', name: 'Jamie Varga', initials: 'JV', avatarColor: 'bg-cyan-100 text-cyan-700' }],
     progress: 100,
@@ -254,10 +254,10 @@ function mapTaskToGraphQLNode(task: Task) {
     date: task.fullStartDate || new Date().toISOString(),
     field: { __typename: 'ProjectV2Field', id: MOCK_FIELD_IDS.startDate, name: 'Start Date' },
   };
-  const endDateField = {
+  const targetDateField = {
     __typename: 'ProjectV2ItemFieldDateValue',
-    date: task.fullEndDate || new Date().toISOString(),
-    field: { __typename: 'ProjectV2Field', id: MOCK_FIELD_IDS.endDate, name: 'End Date' },
+    date: task.fullTargetDate || new Date().toISOString(),
+    field: { __typename: 'ProjectV2Field', id: MOCK_FIELD_IDS.targetDate, name: 'Target Date' },
   };
 
   return {
@@ -293,19 +293,64 @@ function mapTaskToGraphQLNode(task: Task) {
       }
     },
     fieldValues: {
-      nodes: [statusField, startDateField, endDateField]
+      nodes: [statusField, startDateField, targetDateField]
     }
   };
 }
 
-// ---------------------------------------------------------------------------
-// Per-project task storage for in-memory persistence during the session
-// ---------------------------------------------------------------------------
 const MOCK_PROJECT_TASKS_MAP: Record<string, Task[]> = {
   'PVT_2': MOCK_TASKS_BUG_TRACKER,
   'PVT_3': CONNECTED_TASKS_TASKS,
   'PVT_EMPTY': [],
 };
+
+// ---------------------------------------------------------------------------
+// Per-project field storage for in-memory persistence during the session
+// ---------------------------------------------------------------------------
+const MOCK_PROJECT_FIELDS_MAP: Record<string, any[]> = {};
+
+function getFieldsForProject(projectId: string) {
+  if (!MOCK_PROJECT_FIELDS_MAP[projectId]) {
+    // Default fields for any project
+    MOCK_PROJECT_FIELDS_MAP[projectId] = [
+      {
+        __typename: 'ProjectV2SingleSelectField',
+        id: MOCK_FIELD_IDS.status,
+        name: 'Status',
+        options: MOCK_STATUS_OPTIONS
+      },
+      {
+        __typename: 'ProjectV2Field',
+        id: MOCK_FIELD_IDS.startDate,
+        name: 'Start Date',
+        dataType: 'DATE'
+      },
+      {
+        __typename: 'ProjectV2Field',
+        id: MOCK_FIELD_IDS.targetDate,
+        name: 'Target Date',
+        dataType: 'DATE'
+      },
+      {
+        __typename: 'ProjectV2Field',
+        id: 'mock-estimate-id',
+        name: 'Estimate',
+        dataType: 'NUMBER'
+      }
+    ];
+
+    // Some projects have a unit field already
+    if (projectId === 'PVT_1' || projectId === 'PVT_3') {
+      MOCK_PROJECT_FIELDS_MAP[projectId].push({
+        __typename: 'ProjectV2Field',
+        id: 'mock-unit-id',
+        name: 'Estimate Category',
+        dataType: 'TEXT'
+      });
+    }
+  }
+  return MOCK_PROJECT_FIELDS_MAP[projectId];
+}
 
 function getTasksForProject(projectId: string): Task[] {
   if (!MOCK_PROJECT_TASKS_MAP[projectId]) {
@@ -454,14 +499,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
         node: {
           public: projectId === 'PVT_2' ? false : true,
           fields: {
-            nodes: [
-              {
-                __typename: 'ProjectV2SingleSelectField',
-                id: MOCK_FIELD_IDS.status,
-                name: 'Status',
-                options: MOCK_STATUS_OPTIONS
-              }
-            ]
+            nodes: getFieldsForProject(projectId)
           },
           items: {
             nodes: getTasksForProject(projectId).map(mapTaskToGraphQLNode)
@@ -639,7 +677,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
       body: body || '',
       status: 'Todo',
       startDate: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-      endDate: new Date(Date.now() + 86400000 * 2).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      targetDate: new Date(Date.now() + 86400000 * 2).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
       assignees: [],
       progress: 0,
       comments: [],
@@ -678,13 +716,39 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
       if (fieldId === MOCK_FIELD_IDS.startDate) {
         task.fullStartDate = value.date;
         task.startDate = new Date(value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      } else if (fieldId === MOCK_FIELD_IDS.endDate) {
-        task.fullEndDate = value.date;
-        task.endDate = new Date(value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      } else if (fieldId === MOCK_FIELD_IDS.targetDate) {
+        task.fullTargetDate = value.date;
+        task.targetDate = new Date(value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       }
     }
 
     return { data: { updateProjectV2ItemFieldValue: { projectV2Item: { id: task.itemId } } } };
+  }
+
+  if (query.includes('createProjectV2Field(')) {
+    const projectId = getVar('projectId');
+    const name = getVar('name');
+    const dataType = getVar('dataType');
+
+    const newField = {
+      __typename: 'ProjectV2Field',
+      id: `mock-created-${name.toLowerCase().replace(/\s+/g, '-')}-id`,
+      name,
+      dataType
+    };
+
+    if (projectId) {
+      const fields = getFieldsForProject(projectId);
+      fields.push(newField);
+    }
+
+    return {
+      data: {
+        createProjectV2Field: {
+          projectV2Field: newField
+        }
+      }
+    };
   }
 
   return { errors: [{ message: 'Mock query not implemented' }] };

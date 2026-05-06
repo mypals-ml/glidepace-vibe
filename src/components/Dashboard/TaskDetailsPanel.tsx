@@ -138,7 +138,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [newStatus, setNewStatus] = useState<string>(projectStatusOptions[0] || 'Todo');
   const [newAssignees, setNewAssignees] = useState<User[]>([]);
   const [newStartDate, setNewStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [newEndDate, setNewEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [newTargetDate, setNewTargetDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isCreating, setIsCreating] = useState(false);
 
   // Edit Mode state
@@ -201,7 +201,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       body: newDesc,
       status: newStatus,
       startDate: newStartDate,
-      endDate: newEndDate,
+      targetDate: newTargetDate,
       assigneeIds: newAssignees.map(a => a.id).filter(id => id !== 'unassigned')
     });
     setIsCreating(false);
@@ -309,11 +309,11 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.endDate')}</label>
+            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
             <input
               type="date"
-              value={newEndDate}
-              onChange={(e) => setNewEndDate(e.target.value)}
+              value={newTargetDate}
+              onChange={(e) => setNewTargetDate(e.target.value)}
               className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
             />
           </div>
@@ -497,16 +497,16 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
           <input
             type="date"
-            value={task.fullStartDate ? task.fullStartDate.split('T')[0] : ''}
+            value={task.startDate}
             onChange={(e) => updateTaskDates(task, e.target.value, undefined)}
             className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.endDate')}</label>
+          <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
           <input
             type="date"
-            value={task.fullEndDate ? task.fullEndDate.split('T')[0] : ''}
+            value={task.targetDate}
             onChange={(e) => updateTaskDates(task, undefined, e.target.value)}
             className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
           />

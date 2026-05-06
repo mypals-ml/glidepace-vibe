@@ -1,6 +1,7 @@
-import { useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { DashboardContext } from './DashboardContext';
 import type { DashboardContextValue } from './DashboardContext';
+import type { ProjectDateSettings } from '../types';
 
 // Hooks
 import { useDashboardAuth } from '../hooks/useDashboardAuth';
@@ -8,8 +9,10 @@ import { useDashboardUI } from '../hooks/useDashboardUI';
 import { useDashboardProjects } from '../hooks/useDashboardProjects';
 import { useDashboardTasks } from '../hooks/useDashboardTasks';
 import { useDashboardSync } from '../hooks/useDashboardSync';
+import { useFieldSetup } from '../hooks/useFieldSetup';
 
 // Service
+import { createProjectV2Field } from '../lib/githubService';
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   // Bridging Refs to break circular dependencies between hooks
@@ -37,6 +40,40 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     getTokenById: auth.getTokenById,
   });
 
+  // Date Settings
+  const [dateSettings, setDateSettings] = useState<ProjectDateSettings>(() => {
+    if (!projects.selectedProject?.id) return {};
+    const saved = localStorage.getItem(`date_settings_${projects.selectedProject.id}`);
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // Sync date settings when project changes
+  useEffect(() => {
+    if (projects.selectedProject?.id) {
+      const saved = localStorage.getItem(`date_settings_${projects.selectedProject.id}`);
+      setDateSettings(saved ? JSON.parse(saved) : {});
+    } else {
+      setDateSettings({});
+    }
+  }, [projects.selectedProject?.id]);
+
+  const updateDateSettings = (settings: ProjectDateSettings) => {
+    if (!projects.selectedProject?.id) return;
+    setDateSettings(settings);
+    localStorage.setItem(`date_settings_${projects.selectedProject.id}`, JSON.stringify(settings));
+  };
+
+  const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+  }, []);
+
+  const hideToast = useCallback(() => {
+    setToast(null);
+  }, []);
+
   // 3. Compute effective tokens (Must be after projects hook)
   const projectToken = auth.getTokenById(projects.selectedProject?.accountId);
 
@@ -49,6 +86,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     githubAccounts: auth.githubAccounts,
     updateSyncTime: useCallback(() => updateSyncTimeRef.current(), []),
     setIsCreateMode: ui.setIsCreateMode,
+    dateSettings,
   });
 
   // 5. Sync Hook (Needs Bridge to Tasks)
@@ -56,8 +94,29 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     githubToken: projectToken,
     selectedProject: projects.selectedProject,
     tasks: tasks.tasks,
+    updateTaskDates: tasks.updateTaskDates,
     fetchProjectTasks: useCallback((id: string, token: string) => fetchProjectTasksRef.current(id, token), []),
     fetchSingleProjectItem: useCallback((id: string, token: string) => fetchSingleItemRef.current(id, token), []),
+  });
+
+  const handleCreateProjectV2Field = useCallback(async (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => {
+    if (!projects.selectedProject?.id || !projectToken) return null;
+    const fieldId = await createProjectV2Field(projects.selectedProject.id, name, dataType, projectToken, singleSelectOptions);
+    if (fieldId) {
+      // Trigger a re-fetch of fields and await it to ensure local state is fresh
+      await tasks.fetchProjectTasks(projects.selectedProject.id, projectToken);
+    }
+    return fieldId;
+  }, [projects.selectedProject?.id, projectToken, tasks.fetchProjectTasks]);
+
+  // Field Setup (Missing Fields Prompt)
+  const fieldSetup = useFieldSetup({
+    projectFields: tasks.projectFields,
+    dateSettings,
+    updateDateSettings,
+    createProjectV2Field: handleCreateProjectV2Field,
+    selectedProjectId: projects.selectedProject?.id,
+    showToast
   });
 
   // 5. Assign Refs to capture the actual implementations
@@ -210,9 +269,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     ...projects,
     ...tasks,
     ...sync,
+    dateSettings,
+    updateDateSettings,
+    createProjectV2Field: handleCreateProjectV2Field,
+    isProjectSettingsModalOpen,
+    setIsProjectSettingsModalOpen,
     handleDisconnect,
     handleOpenProjectClick,
     handleAddAccountByToken,
+    ...fieldSetup,
+    toast,
+    showToast,
+    hideToast
   };
 
   return (

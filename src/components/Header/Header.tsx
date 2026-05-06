@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
+import { IconButton } from '../UI/IconButton';
 import { ProjectSelectorDropdown } from './ProjectSelectorDropdown';
 import { LanguageSelectorDropdown } from './LanguageSelectorDropdown';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
@@ -14,6 +15,8 @@ export function Header() {
     setIsAccountModalOpen,
     isChartVisible,
     setIsChartVisible,
+    hasProject,
+    setIsProjectSettingsModalOpen,
   } = useDashboard();
 
   return (
@@ -29,6 +32,17 @@ export function Header() {
         <div className="h-6 w-px bg-slate-200 mx-2 hidden sm:block"></div>
         <div className="flex items-center gap-[var(--header-gap-sm)] md:gap-[var(--header-gap-md)]">
           <ProjectSelectorDropdown />
+          {hasProject && (
+            <IconButton
+              icon="settings"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsProjectSettingsModalOpen(true)}
+              title={t('settings.projectSettings', 'Project Settings')}
+              aria-label={t('settings.projectSettings', 'Project Settings')}
+              className="text-slate-400 hover:text-primary hover:bg-primary/5"
+            />
+          )}
 
         </div>
       </div>

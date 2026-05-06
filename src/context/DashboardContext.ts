@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings } from '../types';
+import type { MissingFieldDef } from '../hooks/useFieldSetup';
 
 export interface DashboardContextValue {
   // Auth
@@ -34,6 +35,9 @@ export interface DashboardContextValue {
   sortProjects: (projects: GitHubProject[]) => GitHubProject[];
   groupHistoryByDate: () => Record<string, ProjectHistoryItem[]>;
   apiError: string | null;
+  projectFields: GitHubProjectV2Field[];
+  dateSettings: ProjectDateSettings;
+  updateDateSettings: (settings: ProjectDateSettings) => void;
 
   // Tasks
   tasks: Task[];
@@ -44,7 +48,9 @@ export interface DashboardContextValue {
     body?: string; 
     status?: string; 
     startDate?: string; 
-    endDate?: string; 
+    targetDate?: string; 
+    estimate?: number;
+    estimateUnit?: string;
     assigneeIds?: string[];
   }) => Promise<boolean>;
 
@@ -54,7 +60,8 @@ export interface DashboardContextValue {
   deleteTaskComment: (task: Task, commentId: string) => Promise<boolean>;
   addTaskComment: (task: Task, body: string) => Promise<boolean>;
   updateTaskStatus: (task: Task, status: TaskStatus) => Promise<boolean>;
-  updateTaskDates: (task: Task, startDate?: string, endDate?: string) => Promise<boolean>;
+  updateTaskDates: (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string) => Promise<boolean>;
+  createProjectV2Field: (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => Promise<string | null>;
 
   // Sync
   lastSyncedTime: number;
@@ -71,7 +78,18 @@ export interface DashboardContextValue {
   setIsCreateTaskModalOpen: (open: boolean) => void;
   isCreateMode: boolean;
   setIsCreateMode: (open: boolean) => void;
+  isProjectSettingsModalOpen: boolean;
+  setIsProjectSettingsModalOpen: (open: boolean) => void;
   handleAddAccountByToken: (token: string) => Promise<{ success: boolean; account?: GithubAccount; error?: string }>;
+
+  // Missing Fields Prompt
+  isMissingFieldsPromptOpen: boolean;
+  setIsMissingFieldsPromptOpen: (open: boolean) => void;
+  missingFieldsList: MissingFieldDef[];
+  triggerFieldDetection: (forcePrompt?: boolean) => void;
+  promptCreateSingleField: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId') => void;
+  handleCreateMissingFields: () => Promise<void>;
+  isCreatingFields: boolean;
 
   // UI state
   isChartVisible: boolean;
@@ -92,6 +110,11 @@ export interface DashboardContextValue {
   availableUsers: User[];
   fetchSearchUsers: (query: string, repository?: string) => Promise<User[]>;
   updateTaskAssignees: (taskId: string, userIds: string[]) => Promise<boolean>;
+  
+  // Toast
+  toast: { message: string; type: 'success' | 'error' | 'info' } | null;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  hideToast: () => void;
 }
 
 export const DashboardContext = createContext<DashboardContextValue | null>(null);
