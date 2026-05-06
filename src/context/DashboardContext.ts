@@ -95,6 +95,8 @@ export interface DashboardContextValue {
   // UI state
   isChartVisible: boolean;
   setIsChartVisible: (visible: boolean) => void;
+  dashboardView: 'gantt' | 'burnup';
+  setDashboardView: (view: 'gantt' | 'burnup') => void;
   selectedTaskId: string | null;
   setSelectedTaskId: (id: string | null) => void;
 

@@ -2,13 +2,13 @@ import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { getStatusColor } from '../../utils/statusColors';
 
-export interface TimelineProps {
+export interface GanttChartProps {
   className?: string;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   onScroll?: React.UIEventHandler<HTMLDivElement>;
 }
 
-export function Timeline({ className = '', scrollRef, onScroll }: TimelineProps) {
+export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
   const { t } = useTranslation();
   const { filteredTasks, isLoadingTasks } = useDashboard();
 

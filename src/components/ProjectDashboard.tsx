@@ -4,8 +4,10 @@ import { useDashboard } from '../context/DashboardContext';
 import { DashboardProvider } from '../context/DashboardProvider';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { Header } from './Header/Header';
-import { Sidebar } from './Dashboard/Sidebar';
-import { Timeline } from './Dashboard/Timeline';
+import { TaskSidebar } from './Dashboard/TaskSidebar';
+import { GanttChart } from './Dashboard/Views/GanttChart';
+import { BurnUpChart } from './Dashboard/Views/BurnUpChart';
+import { DashboardViewSwitcher } from './Dashboard/Views/DashboardViewSwitcher';
 import { EmptyState } from './Dashboard/EmptyState';
 import { useScrollSync } from '../hooks/useScrollSync';
 import { MissingFieldsPromptModal } from './Modals/MissingFieldsPromptModal';
@@ -20,7 +22,7 @@ const ProjectSettingsModal = lazy(() => import('./Modals/ProjectSettingsModal').
 
 function DashboardLayout() {
   const { t } = useTranslation();
-  const { hasProject, isChartVisible, tasks, selectedTaskId, setSelectedTaskId, toast, hideToast } = useDashboard();
+  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, setSelectedTaskId, toast, hideToast } = useDashboard();
   const { width: sidebarWidth, isResizing, panelRef, onMouseDown } = useResizablePanel();
   const { sidebarRef, timelineRef, onSidebarScroll, onTimelineScroll } = useScrollSync();
 
@@ -46,7 +48,7 @@ function DashboardLayout() {
               style={{ width: window.innerWidth >= 768 ? `${sidebarWidth}px` : (isChartVisible ? '0' : '100%') }}
               aria-label={t('dashboard.issuesList')}
             >
-              <Sidebar scrollRef={sidebarRef} onScroll={onSidebarScroll} />
+              <TaskSidebar scrollRef={sidebarRef} onScroll={onSidebarScroll} />
             </aside>
 
             {/* Resizer Handle */}
@@ -58,12 +60,18 @@ function DashboardLayout() {
               <div className="w-0.5 h-8 bg-slate-200 group-hover:bg-slate-400 rounded-full transition-colors"></div>
             </div>
 
-            {/* Timeline Region */}
-            <Timeline 
-              className={isChartVisible ? 'flex' : 'hidden md:flex'} 
-              scrollRef={timelineRef} 
-              onScroll={onTimelineScroll} 
-            />
+            {/* Main View Area */}
+            {dashboardView === 'gantt' ? (
+              <GanttChart 
+                className={isChartVisible ? 'flex' : 'hidden md:flex'} 
+                scrollRef={timelineRef} 
+                onScroll={onTimelineScroll} 
+              />
+            ) : (
+              <BurnUpChart 
+                className={isChartVisible ? 'flex' : 'hidden md:flex'} 
+              />
+            )}
           </>
         ) : (
           <EmptyState />
@@ -91,7 +99,7 @@ function DashboardLayout() {
   );
 }
 
-export function GanttDashboard() {
+export function ProjectDashboard() {
   return (
     <DashboardProvider>
       <DashboardLayout />
