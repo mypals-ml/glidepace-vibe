@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { IconButton } from '../UI/IconButton';
@@ -12,23 +13,13 @@ import { Overflow, OverflowItem } from '@fluentui/react-overflow';
 /**
  * Priority+ responsive header.
  *
- * Layout structure:
- *   <header px py>          ← CSS padding lives here, OUTSIDE overflow
- *     <flex row gap-2>
- *       <Title />           ← fixed, outside overflow
- *       <Divider />         ← fixed, outside overflow
- *       <Overflow>          ← flex-1, measures only its child
- *         <flex row gap-2>  ← overflow container (no CSS padding)
- *           ...OverflowItems...
- *           <OverflowMenu />
- *         </flex>
- *       </Overflow>
- *     </flex>
- *   </header>
- *
- * The `padding` prop compensates for flex gaps between items
- * that offsetWidth doesn't include. With ~8 gaps × 8px = 64px,
- * we use 72 for safety.
+ * Spacing Strategy:
+ * 1. Gaps are managed via `--header-gap` CSS variable.
+ * 2. Gap spacing is moved INSIDE the OverflowItem (using margin-right).
+ *    This allows the Overflow manager to measure the "item + gap" as a single unit.
+ * 3. The greedy `flex-1` spacer is replaced by `margin-left: auto` on the
+ *    right-side group, allowing it to shrink to zero naturally.
+ * 4. When items overflow, the `.header-compressed` class shrinks the gaps.
  */
 export function Header() {
   const { t } = useTranslation();
@@ -41,11 +32,13 @@ export function Header() {
     setIsProjectSettingsModalOpen,
   } = useDashboard();
 
+  const [hasOverflow, setHasOverflow] = useState(false);
+
   return (
-    <header className="glass-panel border-b border-surface-border z-20 sticky top-0 bg-white/70 shadow-sm px-4 md:px-6 py-3">
-      <div className="flex items-center gap-2">
+    <header className={`glass-panel border-b border-surface-border z-20 sticky top-0 bg-white/70 shadow-sm px-4 md:px-6 py-3 transition-all duration-300 ${hasOverflow ? 'header-compressed' : ''}`}>
+      <div className="flex items-center">
         {/* ── Fixed left: always visible, outside overflow ── */}
-        <div className="flex items-center gap-2 md:gap-3 shrink-0">
+        <div className="flex items-center shrink-0" style={{ marginRight: 'var(--header-gap)' }}>
           <h1 className="text-lg md:text-xl font-bold tracking-tight text-slate-900">
             <a href="https://github.com/mypals-ml/glidepace-vibe" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline text-inherit">
               <span className="hidden xs:inline">{t('app.name')}</span>
@@ -53,13 +46,14 @@ export function Header() {
             </a>
           </h1>
         </div>
-        <div className="h-6 w-px bg-slate-200 hidden sm:block shrink-0"></div>
+        
+        <div className="h-6 w-px bg-slate-200 hidden sm:block shrink-0" style={{ marginRight: 'var(--header-gap)' }}></div>
 
-        {/* ── Overflow zone: flex-1, takes all remaining space ── */}
-        <Overflow padding={72}>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+        {/* ── Overflow zone: flex-1 ── */}
+        <Overflow padding={4} onOverflowChange={(_, data) => setHasOverflow(data.hasOverflow)}>
+          <div className="flex items-center flex-1 min-w-0">
             <OverflowItem id="project-selector" priority={1000}>
-              <div className="shrink min-w-0">
+              <div className="shrink min-w-0" style={{ marginRight: 'var(--header-gap)' }}>
                 <ProjectSelectorDropdown />
               </div>
             </OverflowItem>
@@ -67,7 +61,7 @@ export function Header() {
             {hasProject && (
               <>
                 <OverflowItem id="settings" priority={200}>
-                  <div>
+                  <div style={{ marginRight: 'var(--header-gap)' }}>
                     <IconButton
                       icon="settings"
                       variant="ghost"
@@ -81,31 +75,33 @@ export function Header() {
                 </OverflowItem>
 
                 <OverflowItem id="view-switcher" priority={150}>
-                  <div>
+                  <div style={{ marginRight: 'var(--header-gap)' }}>
                     <DashboardViewSwitcher />
                   </div>
                 </OverflowItem>
               </>
             )}
 
-            {/* Spacer: pushes right items to end. flex-1 with no min-width
-                so it can shrink to 0 without the manager needing to know. */}
-            <div className="flex-1"></div>
-
+            {/* 
+              RIGHT SIDE GROUP
+              We use margin-left: auto on the first right-side item to act as a flexible spacer.
+              This spacer will shrink to zero before any items are hidden.
+            */}
+            
             <OverflowItem id="language" priority={100}>
-              <div>
+              <div style={{ marginLeft: 'auto', marginRight: 'var(--header-gap)' }}>
                 <LanguageSelectorDropdown />
               </div>
             </OverflowItem>
 
             <OverflowItem id="sync" priority={120}>
-              <div>
+              <div style={{ marginLeft: 'auto', marginRight: 'var(--header-gap)' }}>
                 <SyncStatusIndicator />
               </div>
             </OverflowItem>
 
             <OverflowItem id="account" priority={50}>
-              <div>
+              <div style={{ marginLeft: 'auto', marginRight: 'var(--header-gap)' }}>
                 <Button
                   variant={githubAccounts.length > 0 ? 'success' : 'primary'}
                   size="sm"
