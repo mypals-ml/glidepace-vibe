@@ -2,6 +2,10 @@ import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { BurndownIcon } from './BurndownIcon';
 
+/**
+ * View switcher for the dashboard header.
+ * Does NOT wrap itself in OverflowItem — that is done by the parent Header.
+ */
 export function DashboardViewSwitcher() {
   const { t } = useTranslation();
   const { 
@@ -11,8 +15,6 @@ export function DashboardViewSwitcher() {
     setIsChartVisible 
   } = useDashboard();
 
-  // On mobile, state is determined by isChartVisible + dashboardView.
-  // On desktop, list is always visible, so state is just dashboardView.
   const currentTab = !isChartVisible ? 'list' : dashboardView;
 
   const handleSwitch = (view: 'list' | 'gantt' | 'burndown') => {
@@ -36,9 +38,9 @@ export function DashboardViewSwitcher() {
         className={`${baseBtnClass} md:hidden ${
           currentTab === 'list' ? activeBtnClass : inactiveBtnClass
         }`}
+        title={t('dashboard.viewList', 'List')}
       >
         <span className="material-symbols-outlined text-[18px]">format_list_bulleted</span>
-        <span className="hidden sm:inline">{t('dashboard.viewList', 'List')}</span>
       </button>
 
       {/* Gantt View */}
@@ -47,6 +49,7 @@ export function DashboardViewSwitcher() {
         className={`${baseBtnClass} ${
           currentTab === 'gantt' ? activeBtnClass : inactiveBtnClass
         }`}
+        title={t('dashboard.viewGantt', 'Gantt')}
       >
         <span 
           className="material-symbols-outlined text-[18px] inline-block"
@@ -54,7 +57,6 @@ export function DashboardViewSwitcher() {
         >
           view_timeline
         </span>
-        <span className="hidden sm:inline">{t('dashboard.viewGantt', 'Gantt')}</span>
       </button>
 
       {/* Burndown View */}
@@ -63,9 +65,9 @@ export function DashboardViewSwitcher() {
         className={`${baseBtnClass} ${
           currentTab === 'burndown' ? activeBtnClass : inactiveBtnClass
         }`}
+        title={t('dashboard.viewBurndown', 'Burndown')}
       >
         <BurndownIcon size={18} />
-        <span className="hidden sm:inline">{t('dashboard.viewBurndown', 'Burndown')}</span>
       </button>
     </div>
   );

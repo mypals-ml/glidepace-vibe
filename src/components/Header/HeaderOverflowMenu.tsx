@@ -1,0 +1,257 @@
+import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useDashboard } from '../../context/DashboardContext';
+import { useClickOutside } from '../../hooks/useClickOutside';
+import { useSortedLocales } from '../../hooks/useLocales';
+import { IconButton } from '../UI/IconButton';
+import { BurndownIcon } from '../Dashboard/Views/BurndownIcon';
+import { useOverflowMenu, useIsOverflowItemVisible } from '@fluentui/react-overflow';
+
+/**
+ * Overflow "More" menu that dynamically shows hidden header items.
+ *
+ * Uses @fluentui/react-overflow hooks:
+ * - useOverflowMenu: registers the menu button so the overflow manager
+ *   accounts for its width when deciding what to hide.
+ * - useIsOverflowItemVisible: checks each item's visibility to decide
+ *   what to render in the dropdown.
+ */
+export function HeaderOverflowMenu() {
+  const { t, i18n } = useTranslation();
+  const { 
+    setIsProjectSettingsModalOpen, 
+    lastSyncedTime, 
+    getSyncedTimeText,
+    selectedProject,
+    fetchProjectTasks,
+    refreshProjects,
+    githubToken,
+    dashboardView,
+    setDashboardView,
+    isChartVisible,
+    setIsChartVisible,
+    githubAccounts,
+    isLoadingAuth,
+    handleOpenAuth,
+    setIsAccountModalOpen,
+  } = useDashboard();
+  
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const sortedLocales = useSortedLocales();
+  const [isStale, setIsStale] = useState(false);
+
+  // Register with overflow manager
+  const { ref: overflowMenuRef, isOverflowing } = useOverflowMenu<HTMLButtonElement>();
+
+  // Check visibility of each item
+  const isViewSwitcherVisible = useIsOverflowItemVisible('view-switcher');
+  const isSettingsVisible = useIsOverflowItemVisible('settings');
+  const isSyncVisible = useIsOverflowItemVisible('sync');
+  const isLanguageVisible = useIsOverflowItemVisible('language');
+  const isAccountVisible = useIsOverflowItemVisible('account');
+
+  useEffect(() => {
+    const checkStaleness = () => {
+      if (lastSyncedTime) {
+        setIsStale((Date.now() - lastSyncedTime) > 60000);
+      }
+    };
+    
+    checkStaleness();
+    const interval = setInterval(checkStaleness, 10000);
+    return () => clearInterval(interval);
+  }, [lastSyncedTime]);
+
+  useClickOutside(dropdownRef, () => setIsOpen(false), isOpen);
+
+  const handleSync = () => {
+    if (selectedProject?.id) {
+      fetchProjectTasks(selectedProject.id, githubToken);
+    } else {
+      refreshProjects();
+    }
+    setIsOpen(false);
+  };
+
+  const handleSwitch = (view: 'list' | 'gantt' | 'burndown') => {
+    if (view === 'list') {
+      setIsChartVisible(false);
+    } else {
+      setIsChartVisible(true);
+      setDashboardView(view);
+    }
+    setIsOpen(false);
+  };
+
+  const currentTab = !isChartVisible ? 'list' : dashboardView;
+
+
+
+  return (
+    <div className={`relative shrink-0 transition-opacity ${isOverflowing ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} ref={dropdownRef}>
+      <IconButton
+        ref={overflowMenuRef}
+        icon="more_vert"
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`text-slate-500 hover:bg-slate-100 ${isOpen ? 'bg-slate-100 text-primary' : ''}`}
+        title={t('app.moreOptions', 'More options')}
+        aria-label={t('app.moreOptions', 'More options')}
+        aria-expanded={isOpen}
+      />
+
+      {isOpen && isOverflowing && (
+        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] z-50 overflow-hidden border border-slate-200/60 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="p-1.5 flex flex-col gap-1">
+            
+            {/* View Switcher Section */}
+            {!isViewSwitcherVisible && (
+              <>
+                <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  {t('dashboard.view', 'View')}
+                </div>
+                <div className="flex flex-col gap-0.5 px-1 pb-2">
+                  <button
+                    onClick={() => handleSwitch('list')}
+                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentTab === 'list' ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-[20px]">format_list_bulleted</span>
+                      <span>{t('dashboard.viewList', 'List')}</span>
+                    </div>
+                    {currentTab === 'list' && <span className="material-symbols-outlined text-sm">check</span>}
+                  </button>
+                  <button
+                    onClick={() => handleSwitch('gantt')}
+                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentTab === 'gantt' ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-[20px]" style={{ transform: 'scaleX(-1)' }}>view_timeline</span>
+                      <span>{t('dashboard.viewGantt', 'Gantt')}</span>
+                    </div>
+                    {currentTab === 'gantt' && <span className="material-symbols-outlined text-sm">check</span>}
+                  </button>
+                  <button
+                    onClick={() => handleSwitch('burndown')}
+                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentTab === 'burndown' ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <BurndownIcon size={20} />
+                      <span>{t('dashboard.viewBurndown', 'Burndown')}</span>
+                    </div>
+                    {currentTab === 'burndown' && <span className="material-symbols-outlined text-sm">check</span>}
+                  </button>
+                </div>
+                {(!isSettingsVisible || !isSyncVisible || !isAccountVisible || !isLanguageVisible) && <div className="h-px bg-slate-100 my-1 mx-2" />}
+              </>
+            )}
+
+            {/* Actions Section */}
+            {(!isSettingsVisible || !isSyncVisible || !isAccountVisible) && (
+              <>
+                <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  {t('app.actions', 'Actions')}
+                </div>
+
+                {/* Project Settings */}
+                {!isSettingsVisible && (
+                  <button
+                    onClick={() => {
+                      setIsProjectSettingsModalOpen(true);
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[20px] text-slate-400">settings</span>
+                    <span>{t('settings.projectSettings', 'Project Settings')}</span>
+                  </button>
+                )}
+
+                {/* Sync Now */}
+                {!isSyncVisible && (
+                  <button
+                    onClick={handleSync}
+                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="relative flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined text-[20px] text-slate-400">sync</span>
+                      <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isStale ? 'bg-slate-300' : 'bg-emerald-400'}`}></span>
+                        <span className={`relative inline-flex rounded-full h-2 w-2 ${isStale ? 'bg-slate-400' : 'bg-emerald-500'}`}></span>
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-start leading-none min-w-0">
+                      <span className="truncate w-full text-left">{t('app.syncNow', 'Sync Now')}</span>
+                      <span className="text-[10px] text-slate-400 mt-1 truncate w-full text-left">{getSyncedTimeText(lastSyncedTime)}</span>
+                    </div>
+                  </button>
+                )}
+
+                {/* Account Button */}
+                {!isAccountVisible && (
+                  <button
+                    onClick={() => {
+                      if (githubAccounts.length > 0) {
+                        setIsAccountModalOpen(true);
+                      } else {
+                        handleOpenAuth();
+                      }
+                      setIsOpen(false);
+                    }}
+                    disabled={isLoadingAuth}
+                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    {isLoadingAuth ? (
+                      <svg className="animate-spin h-5 w-5 text-slate-400" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg aria-hidden="true" className="w-5 h-5 fill-current text-slate-400" viewBox="0 0 24 24">
+                        <path clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.699-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" fillRule="evenodd"></path>
+                      </svg>
+                    )}
+                    <span>{githubAccounts.length > 0 ? t('app.connectedAccounts') : t('app.connectToGitHub')}</span>
+                  </button>
+                )}
+                {!isLanguageVisible && <div className="h-px bg-slate-100 my-1 mx-2" />}
+              </>
+            )}
+
+            {/* Language Selection */}
+            {!isLanguageVisible && (
+              <>
+                <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  {t('app.language', 'Language')}
+                </div>
+                <div className="flex flex-col gap-0.5 px-1">
+                  {sortedLocales.map((locale) => (
+                    <button
+                      key={locale.code}
+                      onClick={() => {
+                        i18n.changeLanguage(locale.code);
+                        setIsOpen(false);
+                      }}
+                      className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        i18n.language === locale.code 
+                          ? 'bg-primary/5 text-primary' 
+                          : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>{locale.label}</span>
+                      {i18n.language === locale.code && (
+                        <span className="material-symbols-outlined text-sm">check</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
