@@ -8,7 +8,7 @@ import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { DashboardViewSwitcher } from '../Dashboard/Views/DashboardViewSwitcher';
 import { HeaderOverflowMenu } from './HeaderOverflowMenu';
 import { Button } from '../UI/Button';
-import { Overflow, OverflowItem } from '@fluentui/react-overflow';
+import { Overflow, OverflowItem, useIsOverflowItemVisible } from '@fluentui/react-overflow';
 
 /**
  * Priority+ responsive header.
@@ -17,9 +17,8 @@ import { Overflow, OverflowItem } from '@fluentui/react-overflow';
  * 1. Gaps are managed via `--header-gap` CSS variable.
  * 2. Gap spacing is moved INSIDE the OverflowItem (using margin-right).
  *    This allows the Overflow manager to measure the "item + gap" as a single unit.
- * 3. The greedy `flex-1` spacer is replaced by `margin-left: auto` on the
- *    right-side group, allowing it to shrink to zero naturally.
- * 4. When items overflow, the `.header-compressed` class shrinks the gaps.
+ * 3. Only the Account button (or the More menu if account is hidden) uses
+ *    `margin-left: auto`, creating the flexible space in the middle.
  */
 export function Header() {
   const { t } = useTranslation();
@@ -33,11 +32,14 @@ export function Header() {
   } = useDashboard();
 
   const [hasOverflow, setHasOverflow] = useState(false);
+  
+  // Track account visibility to handle right-anchor transition
+  const isAccountVisible = useIsOverflowItemVisible('account');
 
   return (
     <header className={`glass-panel border-b border-surface-border z-20 sticky top-0 bg-white/70 shadow-sm px-4 md:px-6 py-3 transition-all duration-300 ${hasOverflow ? 'header-compressed' : ''}`}>
       <div className="flex items-center">
-        {/* ── Fixed left: always visible, outside overflow ── */}
+        {/* ── Fixed left ── */}
         <div className="flex items-center shrink-0" style={{ marginRight: 'var(--header-gap)' }}>
           <h1 className="text-lg md:text-xl font-bold tracking-tight text-slate-900">
             <a href="https://github.com/mypals-ml/glidepace-vibe" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline text-inherit">
@@ -49,7 +51,7 @@ export function Header() {
         
         <div className="h-6 w-px bg-slate-200 hidden sm:block shrink-0" style={{ marginRight: 'var(--header-gap)' }}></div>
 
-        {/* ── Overflow zone: flex-1 ── */}
+        {/* ── Overflow zone ── */}
         <Overflow padding={4} onOverflowChange={(_, data) => setHasOverflow(data.hasOverflow)}>
           <div className="flex items-center flex-1 min-w-0">
             <OverflowItem id="project-selector" priority={1000}>
@@ -81,25 +83,20 @@ export function Header() {
                 </OverflowItem>
               </>
             )}
-
-            {/* 
-              RIGHT SIDE GROUP
-              We use margin-left: auto on the first right-side item to act as a flexible spacer.
-              This spacer will shrink to zero before any items are hidden.
-            */}
             
             <OverflowItem id="language" priority={100}>
-              <div style={{ marginLeft: 'auto', marginRight: 'var(--header-gap)' }}>
+              <div style={{ marginRight: 'var(--header-gap)' }}>
                 <LanguageSelectorDropdown />
               </div>
             </OverflowItem>
 
             <OverflowItem id="sync" priority={120}>
-              <div style={{ marginLeft: 'auto', marginRight: 'var(--header-gap)' }}>
+              <div style={{ marginRight: 'var(--header-gap)' }}>
                 <SyncStatusIndicator />
               </div>
             </OverflowItem>
 
+            {/* Right-side anchor group starts here */}
             <OverflowItem id="account" priority={50}>
               <div style={{ marginLeft: 'auto', marginRight: 'var(--header-gap)' }}>
                 <Button
@@ -125,8 +122,10 @@ export function Header() {
               </div>
             </OverflowItem>
 
-            {/* Overflow menu: always in DOM for ref registration */}
-            <HeaderOverflowMenu />
+            {/* If account is hidden, the menu wrapper takes over the margin-left: auto */}
+            <div style={{ marginLeft: isAccountVisible ? '0' : 'auto' }}>
+              <HeaderOverflowMenu />
+            </div>
           </div>
         </Overflow>
       </div>
