@@ -4,8 +4,12 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { useDashboard } from '../../context/DashboardContext';
 import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
+import { OverflowItem, useIsOverflowItemVisible } from '@fluentui/react-overflow';
 
 export function ProjectSelectorDropdown() {
+  const isTitleVisible = useIsOverflowItemVisible('project-selector-title');
+  // const isLabelVisible = useIsOverflowItemVisible('project-selector-label'); // Not needed if we use isTitleVisible
+
   const { t } = useTranslation();
   const {
     hasProject,
@@ -27,20 +31,28 @@ export function ProjectSelectorDropdown() {
     <div className="relative" ref={dropdownRef}>
       <div
         onClick={() => setIsOpen(prev => !prev)}
-        className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm cursor-pointer hover:bg-slate-50 transition-colors h-[var(--header-button-height)] overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary"
+        className={`flex items-center bg-white border border-slate-200 rounded-lg shadow-sm cursor-pointer hover:bg-slate-50 transition-all duration-300 h-[var(--header-button-height)] overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary ${!isTitleVisible ? 'px-0' : ''}`}
         role="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <div className="px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 hidden lg:block">{t('app.projectLabel')}</div>
-        <div className="px-2.5 sm:px-3 py-1.5 text-sm font-bold text-slate-700 flex items-center gap-2 min-w-0 overflow-hidden">
+        <OverflowItem id="project-selector-label" priority={11}>
+          <div className={`px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 hidden lg:block ${!isTitleVisible ? 'border-r-0 hidden' : ''}`}>{t('app.projectLabel')}</div>
+        </OverflowItem>
+        
+        <div className={`py-1.5 text-sm font-bold text-slate-700 flex items-center gap-2 min-w-0 overflow-hidden ${!isTitleVisible ? 'px-2' : 'px-2.5 sm:px-3'}`}>
           <span className="material-symbols-outlined text-[20px] text-primary shrink-0" aria-hidden="true">folder_open</span>
-          <span className="truncate max-w-[80px] xs:max-w-[120px] sm:max-w-[160px] lg:max-w-[200px]">
-            {hasProject
-              ? (selectedProject ? selectedProject.title : t('app.emptyProjectOption'))
-              : t('app.emptyProjectOption')}
-          </span>
-          <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
+          
+          <OverflowItem id="project-selector-title" priority={10}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="truncate max-w-[80px] xs:max-w-[120px] sm:max-w-[160px] lg:max-w-[200px]">
+                {hasProject
+                  ? (selectedProject ? selectedProject.title : t('app.emptyProjectOption'))
+                  : t('app.emptyProjectOption')}
+              </span>
+              <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
+            </div>
+          </OverflowItem>
         </div>
       </div>
 

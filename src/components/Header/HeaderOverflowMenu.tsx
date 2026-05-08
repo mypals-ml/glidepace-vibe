@@ -34,6 +34,7 @@ export function HeaderOverflowMenu() {
     isLoadingAuth,
     handleOpenAuth,
     setIsAccountModalOpen,
+    handleOpenProjectClick,
   } = useDashboard();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -45,6 +46,7 @@ export function HeaderOverflowMenu() {
   const { ref: overflowMenuRef, isOverflowing } = useOverflowMenu<HTMLButtonElement>();
 
   // Check visibility of each item
+  const isProjectSelectorVisible = useIsOverflowItemVisible('project-selector');
   const isViewSwitcherVisible = useIsOverflowItemVisible('view-switcher');
   const isSettingsVisible = useIsOverflowItemVisible('settings');
   const isSyncVisible = useIsOverflowItemVisible('sync');
@@ -85,8 +87,6 @@ export function HeaderOverflowMenu() {
   };
 
   const currentTab = !isChartVisible ? 'list' : dashboardView;
-
-
 
   return (
     <div className={`relative shrink-0 transition-opacity ${isOverflowing ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} ref={dropdownRef}>
@@ -144,16 +144,37 @@ export function HeaderOverflowMenu() {
                     {currentTab === 'burndown' && <span className="material-symbols-outlined text-sm">check</span>}
                   </button>
                 </div>
-                {(!isSettingsVisible || !isSyncVisible || !isAccountVisible || !isLanguageVisible) && <div className="h-px bg-slate-100 my-1 mx-2" />}
+                {(!isSettingsVisible || !isSyncVisible || !isAccountVisible || !isLanguageVisible || !isProjectSelectorVisible) && <div className="h-px bg-slate-100 my-1 mx-2" />}
               </>
             )}
 
             {/* Actions Section */}
-            {(!isSettingsVisible || !isSyncVisible || !isAccountVisible) && (
+            {(!isSettingsVisible || !isSyncVisible || !isAccountVisible || !isProjectSelectorVisible) && (
               <>
                 <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {t('app.actions', 'Actions')}
                 </div>
+
+                {/* Project Selector (when fully hidden) */}
+                {!isProjectSelectorVisible && (
+                  <button
+                    onClick={() => {
+                      // This is a bit tricky since the dropdown is hidden.
+                      // We can just trigger the project modal directly.
+                      handleOpenProjectClick();
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[20px] text-slate-400">folder_open</span>
+                    <div className="flex flex-col items-start leading-none min-w-0">
+                      <span className="truncate w-full text-left">{t('dashboard.addProjectButton', 'Open Project')}</span>
+                      {selectedProject && (
+                        <span className="text-[10px] text-slate-400 mt-1 truncate w-full text-left">{selectedProject.title}</span>
+                      )}
+                    </div>
+                  </button>
+                )}
 
                 {/* Project Settings */}
                 {!isSettingsVisible && (

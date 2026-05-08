@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { IconButton } from '../UI/IconButton';
@@ -7,28 +8,17 @@ import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { DashboardViewSwitcher } from '../Dashboard/Views/DashboardViewSwitcher';
 import { HeaderOverflowMenu } from './HeaderOverflowMenu';
 import { Button } from '../UI/Button';
-import { Overflow, OverflowItem } from '@fluentui/react-overflow';
+import { Overflow, OverflowItem, useIsOverflowItemVisible } from '@fluentui/react-overflow';
 
 /**
  * Priority+ responsive header.
  *
- * Layout structure:
- *   <header px py>          ← CSS padding lives here, OUTSIDE overflow
- *     <flex row gap-2>
- *       <Title />           ← fixed, outside overflow
- *       <Divider />         ← fixed, outside overflow
- *       <Overflow>          ← flex-1, measures only its child
- *         <flex row gap-2>  ← overflow container (no CSS padding)
- *           ...OverflowItems...
- *           <OverflowMenu />
- *         </flex>
- *       </Overflow>
- *     </flex>
- *   </header>
- *
- * The `padding` prop compensates for flex gaps between items
- * that offsetWidth doesn't include. With ~8 gaps × 8px = 64px,
- * we use 72 for safety.
+ * Spacing Strategy:
+ * 1. Gaps are managed via `--header-gap` CSS variable.
+ * 2. Gap spacing is moved INSIDE the OverflowItem (using margin-right).
+ *    This allows the Overflow manager to measure the "item + gap" as a single unit.
+ * 3. Only the Account button (or the More menu if account is hidden) uses
+ *    `margin-left: auto`, creating the flexible space in the middle.
  */
 export function Header() {
   const { t } = useTranslation();
@@ -41,11 +31,16 @@ export function Header() {
     setIsProjectSettingsModalOpen,
   } = useDashboard();
 
+  const [hasOverflow, setHasOverflow] = useState(false);
+  
+  // Track account visibility to handle right-anchor transition
+  const isAccountVisible = useIsOverflowItemVisible('account');
+
   return (
-    <header className="glass-panel border-b border-surface-border z-20 sticky top-0 bg-white/70 shadow-sm px-4 md:px-6 py-3">
-      <div className="flex items-center gap-2">
-        {/* ── Fixed left: always visible, outside overflow ── */}
-        <div className="flex items-center gap-2 md:gap-3 shrink-0">
+    <header className={`glass-panel border-b border-surface-border z-20 sticky top-0 bg-white/70 shadow-sm px-4 md:px-6 py-3 transition-all duration-300 ${hasOverflow ? 'header-compressed' : ''}`}>
+      <div className="flex items-center">
+        {/* ── Fixed left ── */}
+        <div className="flex items-center shrink-0" style={{ marginRight: 'var(--header-gap)' }}>
           <h1 className="text-lg md:text-xl font-bold tracking-tight text-slate-900">
             <a href="https://github.com/mypals-ml/glidepace-vibe" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline text-inherit">
               <span className="hidden xs:inline">{t('app.name')}</span>
@@ -53,13 +48,14 @@ export function Header() {
             </a>
           </h1>
         </div>
-        <div className="h-6 w-px bg-slate-200 hidden sm:block shrink-0"></div>
+        
+        <div className="h-6 w-px bg-slate-200 hidden sm:block shrink-0" style={{ marginRight: 'var(--header-gap)' }}></div>
 
-        {/* ── Overflow zone: flex-1, takes all remaining space ── */}
-        <Overflow padding={72}>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+        {/* ── Overflow zone ── */}
+        <Overflow padding={4} onOverflowChange={(_, data) => setHasOverflow(data.hasOverflow)}>
+          <div className="flex items-center flex-1 min-w-0">
             <OverflowItem id="project-selector" priority={1000}>
-              <div className="shrink min-w-0">
+              <div className="shrink min-w-0" style={{ marginRight: 'var(--header-gap)' }}>
                 <ProjectSelectorDropdown />
               </div>
             </OverflowItem>
@@ -67,7 +63,7 @@ export function Header() {
             {hasProject && (
               <>
                 <OverflowItem id="settings" priority={200}>
-                  <div>
+                  <div style={{ marginRight: 'var(--header-gap)' }}>
                     <IconButton
                       icon="settings"
                       variant="ghost"
@@ -81,56 +77,54 @@ export function Header() {
                 </OverflowItem>
 
                 <OverflowItem id="view-switcher" priority={150}>
-                  <div>
+                  <div style={{ marginRight: 'var(--header-gap)' }}>
                     <DashboardViewSwitcher />
                   </div>
                 </OverflowItem>
               </>
             )}
-
-            {/* Spacer: pushes right items to end. flex-1 with no min-width
-                so it can shrink to 0 without the manager needing to know. */}
-            <div className="flex-1"></div>
-
+            
             <OverflowItem id="language" priority={100}>
-              <div>
+              <div style={{ marginRight: 'var(--header-gap)' }}>
                 <LanguageSelectorDropdown />
               </div>
             </OverflowItem>
 
             <OverflowItem id="sync" priority={120}>
-              <div>
+              <div style={{ marginRight: 'var(--header-gap)' }}>
                 <SyncStatusIndicator />
               </div>
             </OverflowItem>
 
-            <OverflowItem id="account" priority={50}>
-              <div>
-                <Button
-                  variant={githubAccounts.length > 0 ? 'success' : 'primary'}
-                  size="sm"
-                  onClick={githubAccounts.length > 0 ? () => setIsAccountModalOpen(true) : handleOpenAuth}
-                  disabled={isLoadingAuth}
-                  isLoading={isLoadingAuth}
-                  aria-label={githubAccounts.length > 0 ? t('app.connectedAccounts') : t('app.connectToGitHub')}
-                  className="px-[var(--btn-px-sm)] justify-center"
-                >
-                  <div className="flex items-center gap-2">
-                    {!isLoadingAuth && (
-                      <svg aria-hidden="true" className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
-                        <path clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.699-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" fillRule="evenodd"></path>
-                      </svg>
-                    )}
-                    <span className="whitespace-nowrap truncate max-w-[120px] hidden lg:inline">
-                      {githubAccounts.length > 0 ? t('app.connectedAccounts') : t('app.connectToGitHub')}
-                    </span>
-                  </div>
-                </Button>
-              </div>
-            </OverflowItem>
+            {/* Right-side anchor group: Account + More menu */}
+            <div className="flex items-center" style={{ marginLeft: 'auto' }}>
+              <OverflowItem id="account" priority={50}>
+                <div style={{ marginRight: 'var(--header-gap)' }}>
+                  <Button
+                    variant={githubAccounts.length > 0 ? 'success' : 'primary'}
+                    size="sm"
+                    onClick={githubAccounts.length > 0 ? () => setIsAccountModalOpen(true) : handleOpenAuth}
+                    disabled={isLoadingAuth}
+                    isLoading={isLoadingAuth}
+                    aria-label={githubAccounts.length > 0 ? t('app.connectedAccounts') : t('app.connectToGitHub')}
+                    className="px-[var(--btn-px-sm)] justify-center"
+                  >
+                    <div className="flex items-center gap-2">
+                      {!isLoadingAuth && (
+                        <svg aria-hidden="true" className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                          <path clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.699-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" fillRule="evenodd"></path>
+                        </svg>
+                      )}
+                      <span className="whitespace-nowrap truncate max-w-[120px] hidden lg:inline">
+                        {githubAccounts.length > 0 ? t('app.connectedAccounts') : t('app.connectToGitHub')}
+                      </span>
+                    </div>
+                  </Button>
+                </div>
+              </OverflowItem>
 
-            {/* Overflow menu: always in DOM for ref registration */}
-            <HeaderOverflowMenu />
+              <HeaderOverflowMenu />
+            </div>
           </div>
         </Overflow>
       </div>
