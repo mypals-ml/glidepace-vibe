@@ -45,6 +45,12 @@ export interface Task {
   statusOptions?: Record<string, string>;
   statusColorMap?: Record<string, string>;
   isDraft?: boolean;
+  tempEstimateUnit?: string;
+  tempStartDate?: string;
+  tempEstimate?: number;
+  tempTargetDate?: string;
+  closedAt?: string;
+  updatedAt?: string;
 }
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---
@@ -116,6 +122,8 @@ export interface GitHubProjectContent {
   state?: string;
   body?: string;
   repository?: GitHubRepository;
+  closedAt?: string;
+  updatedAt?: string;
   assignees?: {
     nodes: GitHubAssignee[];
   };

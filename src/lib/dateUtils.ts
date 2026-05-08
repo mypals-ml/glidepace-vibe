@@ -46,6 +46,22 @@ export function shiftDateByDays(date: string, shiftDays: number): string {
   return d.toISOString().split('T')[0];
 }
 
+export function calculateStartDate(targetDate: string, estimate: number, unit: string = 'days'): string {
+  if (!targetDate) return targetDate;
+  
+  const durationDays = convertEstimateToDays(estimate, unit);
+  const shift = Math.max(0, durationDays - 1);
+  return shiftDateByDays(targetDate, -shift);
+}
+
+export function diffDays(startDate: string, targetDate: string): number {
+  if (!startDate || !targetDate) return 0;
+  const start = new Date(startDate);
+  const target = new Date(targetDate);
+  const diffTime = Math.abs(target.getTime() - start.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 because start and end on same day = 1 day duration
+}
+
 /**
  * Formats a date or string to GitHub's required YYYY-MM-DD format.
  * Uses UTC extraction to avoid timezone-induced day shifts.

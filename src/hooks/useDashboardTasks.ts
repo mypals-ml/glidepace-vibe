@@ -106,13 +106,29 @@ export function useDashboardTasks({
           return [...prevTasks, updatedTask];
         });
         updateSyncTime();
+
+        // Auto-sync missing values for Done tasks
+        if (updatedTask.progress === 100 && updatedTask.itemId && selectedProject?.id) {
+          const updateField = async (fieldId: string | undefined, value: Record<string, string | number | boolean | undefined>) => {
+            if (fieldId) await updateProjectV2ItemField(selectedProject.id, updatedTask.itemId!, fieldId, value, token);
+          };
+          if (!updatedTask.startDate && updatedTask.tempStartDate) {
+            updateField(dateSettings.startDateFieldId || updatedTask.projectFieldIds?.startDate, { date: formatToGitHubDate(updatedTask.tempStartDate) });
+          }
+          if (!updatedTask.targetDate && updatedTask.tempTargetDate) {
+            updateField(dateSettings.targetDateFieldId || updatedTask.projectFieldIds?.targetDate, { date: formatToGitHubDate(updatedTask.tempTargetDate) });
+          }
+          if (updatedTask.estimate === undefined && updatedTask.tempEstimate !== undefined) {
+            updateField(dateSettings.estimateFieldId || updatedTask.projectFieldIds?.estimate, { number: updatedTask.tempEstimate });
+          }
+        }
       } else {
         console.warn(`[DashboardTasks] ⚠️ No item data returned for ${itemId}`);
       }
     } catch (e) {
       console.error('Failed to fetch single project item:', e);
     }
-  }, [updateSyncTime, dateSettings]);
+  }, [updateSyncTime, dateSettings, selectedProject?.id]);
 
   const fetchProjectTasks = useCallback(async (projectId: string, token: string) => {
     setIsLoadingTasks(true);
@@ -199,6 +215,24 @@ export function useDashboardTasks({
       setProjectFields(allFields);
       setTasks(mappedTasks);
       updateSyncTime();
+
+      // Auto-sync missing values for Done tasks
+      mappedTasks.forEach(task => {
+        if (task.progress === 100 && task.itemId && selectedProject?.id) {
+          const updateField = async (fieldId: string | undefined, value: Record<string, string | number | boolean | undefined>) => {
+            if (fieldId) await updateProjectV2ItemField(selectedProject.id, task.itemId!, fieldId, value, token);
+          };
+          if (!task.startDate && task.tempStartDate) {
+            updateField(dateSettings.startDateFieldId || task.projectFieldIds?.startDate, { date: formatToGitHubDate(task.tempStartDate) });
+          }
+          if (!task.targetDate && task.tempTargetDate) {
+            updateField(dateSettings.targetDateFieldId || task.projectFieldIds?.targetDate, { date: formatToGitHubDate(task.tempTargetDate) });
+          }
+          if (task.estimate === undefined && task.tempEstimate !== undefined) {
+            updateField(dateSettings.estimateFieldId || task.projectFieldIds?.estimate, { number: task.tempEstimate });
+          }
+        }
+      });
     } catch (err) {
       const error = err as Error;
       console.error('Failed to fetch project tasks:', error);
@@ -207,7 +241,7 @@ export function useDashboardTasks({
       setIsLoadingTasks(false);
       setFieldsProgress(prev => ({ ...prev, isFetching: false }));
     }
-  }, [updateSyncTime, t, projectAccountId, dateSettings]);
+  }, [updateSyncTime, t, projectAccountId, dateSettings, selectedProject?.id]);
 
   const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[], skipRefresh = false) => {
     const task = tasks.find(t => t.id === taskId || t.itemId === taskId);
