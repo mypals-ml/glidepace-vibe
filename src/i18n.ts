@@ -114,6 +114,8 @@ const resources = {
         title: "Create New Task",
         titlePlaceholder: "Task Title",
         descriptionPlaceholder: "Add description...",
+        estimate: "Estimate",
+        estimateUnit: "Estimate Unit",
         create: "Create Task"
       },
       settings: {
@@ -137,7 +139,7 @@ const resources = {
         usageEstimateUnit: "Used alongside the estimate to specify the unit (e.g. hours).",
         fieldNotFound: "Not found",
         detectMissingNotice: "Some required fields are missing in this project.",
-        estimateUnitValue: "Unit Value",
+        estimateUnitValue: "Estimate Unit Default Value",
         confirmCreateEstimateUnitTitle: "Confirm Field Creation",
         confirmCreateEstimateUnit: "Creating 'Estimate Unit' will add a new Single Select field to your GitHub project with options: hours, days, and points. Do you want to proceed?",
         automatedSetupTitle: "Automated Setup",
@@ -159,6 +161,11 @@ const resources = {
         selected: "{{count}} selected",
         me: "Me",
         private: "Private"
+      },
+      units: {
+        hours: "hours",
+        days: "days",
+        points: "points"
       },
       table: {
         id: "ID",
@@ -312,6 +319,8 @@ const resources = {
         title: "新しいタスクを作成",
         titlePlaceholder: "タスク名",
         descriptionPlaceholder: "説明を追加...",
+        estimate: "見積もり",
+        estimateUnit: "見積もり単位",
         create: "タスクを作成"
       },
       settings: {
@@ -335,7 +344,7 @@ const resources = {
         usageEstimateUnit: "見積もりと合わせて、単位（時間など）を指定するために使用します。",
         fieldNotFound: "見つかりません",
         detectMissingNotice: "このプロジェクトに必要なフィールドがいくつか不足しています。",
-        estimateUnitValue: "単位の値",
+        estimateUnitValue: "見積もり単位のデフォルト値",
         confirmCreateEstimateUnitTitle: "フィールド作成の確認",
         confirmCreateEstimateUnit: "「見積もり単位」を作成すると、GitHubプロジェクトに新しい単一選択フィールドが追加され、オプションとして hours, days, points が設定されます。続行しますか？",
         automatedSetupTitle: "自動セットアップ",
@@ -357,6 +366,11 @@ const resources = {
         selected: "{{count}}件選択中",
         me: "自分",
         private: "プライベート"
+      },
+      units: {
+        hours: "時間",
+        days: "日",
+        points: "ポイント"
       },
       table: {
         id: "ID",
@@ -510,6 +524,8 @@ const resources = {
         title: "创建新任务",
         titlePlaceholder: "任务标题",
         descriptionPlaceholder: "添加描述...",
+        estimate: "预估",
+        estimateUnit: "预估单位",
         create: "创建任务"
       },
       settings: {
@@ -533,7 +549,7 @@ const resources = {
         usageEstimateUnit: "与预估值一起使用，以指定单位（如小时）。",
         fieldNotFound: "未找到",
         detectMissingNotice: "此项目中缺少一些必需的字段。",
-        estimateUnitValue: "单位值",
+        estimateUnitValue: "预估单位默认值",
         confirmCreateEstimateUnitTitle: "确认创建字段",
         confirmCreateEstimateUnit: "创建“预估单位”将向您的 GitHub 项目添加一个新的单选字段，选项包括：hours、days 和 points。您要继续吗？",
         automatedSetupTitle: "自动设置",
@@ -555,6 +571,11 @@ const resources = {
         selected: "已选择 {{count}} 项",
         me: "我",
         private: "私有"
+      },
+      units: {
+        hours: "小时",
+        days: "天",
+        points: "点数"
       },
       table: {
         id: "ID",
@@ -708,6 +729,8 @@ const resources = {
         title: "建立新任務",
         titlePlaceholder: "任務標題",
         descriptionPlaceholder: "添加描述...",
+        estimate: "預估",
+        estimateUnit: "預估單位",
         create: "建立任務"
       },
       settings: {
@@ -731,7 +754,7 @@ const resources = {
         usageEstimateUnit: "與預估值一起使用，以指定單位（如小時）。",
         fieldNotFound: "未找到",
         detectMissingNotice: "此專案中缺少一些必需的欄位。",
-        estimateUnitValue: "單位值",
+        estimateUnitValue: "預估單位默認值",
         confirmCreateEstimateUnitTitle: "確認建立欄位",
         confirmCreateEstimateUnit: "建立「預估單位」將向您的 GitHub 專案添加一個新的單選欄位，選項包括：hours、days 和 points。您要繼續嗎？",
         automatedSetupTitle: "自動設定",
@@ -753,6 +776,11 @@ const resources = {
         selected: "已選擇 {{count}} 項",
         me: "我",
         private: "私有"
+      },
+      units: {
+        hours: "小時",
+        days: "天",
+        points: "點數"
       },
       table: {
         id: "ID",

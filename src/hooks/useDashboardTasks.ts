@@ -425,6 +425,8 @@ export function useDashboardTasks({
         status: 'Todo',
         startDate: '',
         targetDate: '',
+        estimate: estimate || 0,
+        estimateUnit: estimateUnit,
         assignees: [],
         progress: 0,
         projectFieldIds: tasks.length > 0 ? tasks[0].projectFieldIds : undefined,

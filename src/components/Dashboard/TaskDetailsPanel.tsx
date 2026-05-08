@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useDashboard } from '../../context/DashboardContext';
@@ -145,6 +145,13 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [newEstimateUnit, setNewEstimateUnit] = useState<string>(dateSettings.estimateUnit || 'hours');
   const [isCreating, setIsCreating] = useState(false);
 
+  // Sync new task's estimate unit with project settings default when it changes
+  useEffect(() => {
+    if (isCreateMode && dateSettings.estimateUnit) {
+      setNewEstimateUnit(dateSettings.estimateUnit);
+    }
+  }, [isCreateMode, dateSettings.estimateUnit]);
+
   // Edit Mode state
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(task?.title || '');
@@ -189,7 +196,15 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       globalOptions.forEach(opt => optionsSet.add(opt.name));
     }
 
-    // 5. Fallback defaults if list is still empty or has very few items
+    // 5. All unique values currently used in the project (only for text fields)
+    const isSingleSelect = projectFields.find(f => f.id === dateSettings.estimateUnitFieldId)?.__typename === 'ProjectV2SingleSelectField';
+    if (!isSingleSelect) {
+      tasks.forEach(t => {
+        if (t.estimateUnit) optionsSet.add(t.estimateUnit);
+      });
+    }
+
+    // 6. Fallback defaults if list is still empty or has very few items
     if (optionsSet.size === 0 || (optionsSet.size === 1 && !globalOptions)) {
       ['hours', 'days', 'points'].forEach(opt => optionsSet.add(opt));
     }
@@ -379,7 +394,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           </div>
           <div>
             <label className="text-xs font-medium text-slate-600 block mb-2">
-              {t('dashboard.estimate')}
+              {t('createTask.estimate', 'Estimate')}
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -395,7 +410,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                 className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20 cursor-pointer"
               >
                 {mergedEstimateUnitOptions.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
+                  <option key={opt} value={opt}>{t(`units.${opt}`, opt)}</option>
                 ))}
               </select>
             </div>
@@ -620,7 +635,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20 cursor-pointer"
             >
               {mergedEstimateUnitOptions.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
+                <option key={opt} value={opt}>{t(`units.${opt}`, opt)}</option>
               ))}
             </select>
           </div>

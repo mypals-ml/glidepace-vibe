@@ -97,9 +97,9 @@ export function ProjectSettingsModal() {
   };
 
   const unitOptions = [
-    { id: 'hours', name: 'hours' },
-    { id: 'days', name: 'days' },
-    { id: 'points', name: 'points' }
+    { id: 'hours', name: t('units.hours', 'hours') },
+    { id: 'days', name: t('units.days', 'days') },
+    { id: 'points', name: t('units.points', 'points') }
   ];
 
   const autoStartLabel = autoStartField ? `"${autoStartField.name}"` : '...';
@@ -198,7 +198,7 @@ export function ProjectSettingsModal() {
             {dateSettings.estimateUnitFieldId && selectedUnitField && (
               <div className="animate-in fade-in slide-in-from-top-1 duration-200">
                 <CustomSelect 
-                  label={t('settings.estimateUnitValue', 'Unit Value')}
+                  label={t('settings.estimateUnitValue', 'Estimate Unit Default Value')}
                   options={unitValueOptions}
                   value={dateSettings.estimateUnit || ''}
                   onChange={(val) => handleFieldChange('unitValue', val)}
