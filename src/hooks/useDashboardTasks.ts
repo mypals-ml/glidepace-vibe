@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchGitHubGraphQL, getRepositoryId, createGitHubIssue, addProjectV2Item, addProjectV2DraftIssue, updateProjectV2ItemField } from '../lib/githubService';
 import { mapProjectItemToTask } from '../lib/githubTaskMapper';
-import { formatToGitHubDate } from '../lib/dateUtils';
+import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
 import { 
   GET_SINGLE_ITEM_QUERY, 
@@ -295,7 +295,13 @@ export function useDashboardTasks({
         ? { 
             ...t, 
             startDate: startDate !== undefined ? startDate : t.startDate,
-            targetDate: targetDate !== undefined ? targetDate : t.targetDate,
+            targetDate: (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined)
+              ? calculateTargetDate(
+                  startDate !== undefined ? startDate : t.startDate,
+                  estimate !== undefined ? estimate : (t.estimate || 0),
+                  estimateUnit !== undefined ? estimateUnit : (t.estimateUnit || 'days')
+                )
+              : t.targetDate,
             estimate: estimate !== undefined ? estimate : t.estimate,
             estimateUnit: estimateUnit !== undefined ? estimateUnit : t.estimateUnit 
           } 
@@ -310,13 +316,27 @@ export function useDashboardTasks({
         if (success) anySuccess = true;
       };
 
+      // Auto-calculate new target date if dependencies changed
+      let finalTargetDate = targetDate;
+      const effectiveStartDate = startDate !== undefined ? startDate : task.startDate;
+      const effectiveEstimate = estimate !== undefined ? estimate : (task.estimate || 0);
+      const effectiveUnit = estimateUnit !== undefined ? estimateUnit : (task.estimateUnit || 'days');
+      
+      // If any of the inputs changed, recalculate the target date
+      if (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined) {
+        const calculated = calculateTargetDate(effectiveStartDate, effectiveEstimate, effectiveUnit);
+        if (calculated !== task.targetDate) {
+          finalTargetDate = calculated;
+        }
+      }
+
       if (startDate) {
         const fieldId = dateSettings.startDateFieldId || task.projectFieldIds?.startDate;
         await updateField(fieldId, { date: formatToGitHubDate(startDate) });
       }
-      if (targetDate) {
+      if (finalTargetDate) {
         const fieldId = dateSettings.targetDateFieldId || task.projectFieldIds?.targetDate;
-        await updateField(fieldId, { date: formatToGitHubDate(targetDate) });
+        await updateField(fieldId, { date: formatToGitHubDate(finalTargetDate) });
       }
       if (estimate !== undefined) {
         const fieldId = dateSettings.estimateFieldId || task.projectFieldIds?.estimate;

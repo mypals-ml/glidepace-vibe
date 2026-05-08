@@ -9,7 +9,7 @@ import type { Task, User } from '../../types';
 import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
 import { ConfirmationModal } from '../UI/ConfirmationModal';
-import { formatToGitHubDate } from '../../lib/dateUtils';
+import { formatToGitHubDate, calculateTargetDate } from '../../lib/dateUtils';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -153,6 +153,18 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
     setPrevEstimateUnitProp(dateSettings.estimateUnit);
     if (dateSettings.estimateUnit) {
       setNewEstimateUnit(dateSettings.estimateUnit);
+    }
+  }
+
+  // Auto-calculate new target date in create mode
+  const [prevCalcDeps, setPrevCalcDeps] = useState("");
+  const currentDeps = `${newStartDate}-${newEstimate}-${newEstimateUnit}`;
+  
+  if (isCreateMode && currentDeps !== prevCalcDeps) {
+    setPrevCalcDeps(currentDeps);
+    const calculated = calculateTargetDate(newStartDate, parseFloat(newEstimate) || 0, newEstimateUnit);
+    if (calculated !== newTargetDate) {
+      setNewTargetDate(calculated);
     }
   }
 
@@ -391,8 +403,9 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               <input
                 type="date"
                 value={newTargetDate}
-                onChange={(e) => setNewTargetDate(e.target.value)}
-                className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+                readOnly
+                className="w-full text-sm text-slate-400 bg-slate-100 border border-slate-200 rounded p-1.5 cursor-not-allowed outline-none"
+                title={t('dashboard.targetDateAutoCalc', 'Target date is calculated based on start date and estimate')}
               />
             </div>
           </div>
@@ -610,8 +623,9 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             <input
               type="date"
               value={task.targetDate}
-              onChange={(e) => updateTaskDates(task, undefined, e.target.value)}
-              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+              readOnly
+              className="w-full text-sm text-slate-400 bg-slate-100 border border-slate-200 rounded p-1.5 cursor-not-allowed outline-none"
+              title={t('dashboard.targetDateAutoCalc', 'Target date is calculated based on start date and estimate')}
             />
           </div>
         </div>
