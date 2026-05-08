@@ -129,7 +129,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
 }
 
 function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: TFunction; isCreateMode?: boolean }) {
-  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode } = useDashboard();
+  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, dateSettings } = useDashboard();
 
   // Derive a repository from existing tasks so the AssigneePicker can fetch assignable users
   const projectRepository = tasks.find(t => t.repository)?.repository;
@@ -141,6 +141,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [newAssignees, setNewAssignees] = useState<User[]>([]);
   const [newStartDate, setNewStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [newTargetDate, setNewTargetDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [newEstimate, setNewEstimate] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
 
   // Edit Mode state
@@ -211,6 +212,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       status: newStatus,
       startDate: newStartDate,
       targetDate: newTargetDate,
+      estimate: parseFloat(newEstimate) || 0,
       assigneeIds: newAssignees.map(a => a.id).filter(id => id !== 'unassigned')
     });
     setIsCreating(false);
@@ -307,24 +309,43 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         </div>
 
         {/* Dates */}
-        <div className="border-t border-slate-200/60 pt-3 grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
-            <input
-              type="date"
-              value={newStartDate}
-              onChange={(e) => setNewStartDate(e.target.value)}
-              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
-            />
+        <div className="border-t border-slate-200/60 pt-3 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
+              <input
+                type="date"
+                value={newStartDate}
+                onChange={(e) => setNewStartDate(e.target.value)}
+                className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
+              <input
+                type="date"
+                value={newTargetDate}
+                onChange={(e) => setNewTargetDate(e.target.value)}
+                className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+              />
+            </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
-            <input
-              type="date"
-              value={newTargetDate}
-              onChange={(e) => setNewTargetDate(e.target.value)}
-              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
-            />
+            <label className="text-xs font-medium text-slate-600 block mb-2">
+              {t('dashboard.estimate')}
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={newEstimate}
+                onChange={(e) => setNewEstimate(e.target.value)}
+                placeholder="0"
+                className="w-32 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20"
+              />
+              {dateSettings.estimateUnit && (
+                <span className="text-xs text-slate-500">({dateSettings.estimateUnit})</span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -501,24 +522,43 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       )}
 
       {/* Dates */}
-      <div className="border-t border-slate-200/60 pt-3 grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
-          <input
-            type="date"
-            value={task.startDate}
-            onChange={(e) => updateTaskDates(task, e.target.value, undefined)}
-            className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
-          />
+      <div className="border-t border-slate-200/60 pt-3 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
+            <input
+              type="date"
+              value={task.startDate}
+              onChange={(e) => updateTaskDates(task, e.target.value, undefined)}
+              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
+            <input
+              type="date"
+              value={task.targetDate}
+              onChange={(e) => updateTaskDates(task, undefined, e.target.value)}
+              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+            />
+          </div>
         </div>
         <div>
-          <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
-          <input
-            type="date"
-            value={task.targetDate}
-            onChange={(e) => updateTaskDates(task, undefined, e.target.value)}
-            className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
-          />
+          <label className="text-xs font-medium text-slate-600 block mb-2">
+            {t('dashboard.estimate')}
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={task.estimate || ''}
+              onChange={(e) => updateTaskDates(task, undefined, undefined, parseFloat(e.target.value) || 0)}
+              placeholder="0"
+              className="w-32 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20"
+            />
+            {dateSettings.estimateUnit && (
+              <span className="text-xs text-slate-500">({dateSettings.estimateUnit})</span>
+            )}
+          </div>
         </div>
       </div>
 
