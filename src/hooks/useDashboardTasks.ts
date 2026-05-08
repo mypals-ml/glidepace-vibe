@@ -286,6 +286,21 @@ export function useDashboardTasks({
 
   const updateTaskDates = useCallback(async (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;
+    
+    // Optimistic Update
+    const oldTask = { ...task };
+    setTasks(prev => prev.map(t => 
+      (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) 
+        ? { 
+            ...t, 
+            startDate: startDate !== undefined ? startDate : t.startDate,
+            targetDate: targetDate !== undefined ? targetDate : t.targetDate,
+            estimate: estimate !== undefined ? estimate : t.estimate,
+            estimateUnit: estimateUnit !== undefined ? estimateUnit : t.estimateUnit 
+          } 
+        : t
+    ));
+
     let anySuccess = false;
     try {
       const updateField = async (fieldId: string | undefined, value: Record<string, string | number | boolean | undefined>) => {
@@ -309,33 +324,51 @@ export function useDashboardTasks({
       if (estimateUnit !== undefined) {
         const fieldId = dateSettings.estimateUnitFieldId || task.projectFieldIds?.estimateUnit;
         if (fieldId) {
-          let optionId = task.estimateUnitOptions?.[estimateUnit];
-          
-          if (!optionId) {
-            const globalField = projectFields.find(f => f.id === fieldId);
-            if (globalField?.options) {
-              const globalOption = globalField.options.find(o => o.name === estimateUnit);
-              if (globalOption) {
-                optionId = globalOption.id;
-              }
-            }
-          }
+          const globalField = projectFields.find(f => f.id === fieldId);
+          const isSingleSelect = 
+            globalField?.dataType === 'SINGLE_SELECT' || 
+            globalField?.__typename === 'ProjectV2SingleSelectField' ||
+            (task.estimateUnitOptions && Object.keys(task.estimateUnitOptions).length > 0);
 
-          if (optionId) {
-            await updateField(fieldId, { singleSelectOptionId: optionId });
+          if (isSingleSelect) {
+            let optionId = task.estimateUnitOptions?.[estimateUnit];
+            if (!optionId && globalField?.options) {
+              const globalOption = globalField.options.find(o => o.name === estimateUnit);
+              if (globalOption) optionId = globalOption.id;
+            }
+            
+            if (optionId) {
+              await updateField(fieldId, { singleSelectOptionId: optionId });
+            } else {
+              console.warn(`[Tasks] Option '${estimateUnit}' not found for single-select field ${fieldId}. Skipping update.`);
+              // If we can't find the option, this part of the optimistic update was "wrong" or unsupported
+              // but we might not want to rollback everything if other fields succeeded.
+            }
           } else {
+            // Treat as text field
             await updateField(fieldId, { text: estimateUnit });
           }
         }
       }
 
-      if (anySuccess) fetchSingleProjectItem(task.itemId, githubToken);
+      if (anySuccess) {
+        fetchSingleProjectItem(task.itemId, githubToken);
+      } else {
+        // Rollback if nothing succeeded
+        setTasks(prev => prev.map(t => 
+          (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) ? oldTask : t
+        ));
+      }
       return anySuccess;
     } catch (e) {
       console.error(e);
+      // Rollback on error
+      setTasks(prev => prev.map(t => 
+        (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) ? oldTask : t
+      ));
       return false;
     }
-  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, dateSettings, projectFields]);
+  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, dateSettings, projectFields, setTasks]);
 
   const handleCreateTask = useCallback(async (taskData: {
     title: string;
