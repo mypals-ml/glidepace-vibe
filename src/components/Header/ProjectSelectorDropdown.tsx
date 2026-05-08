@@ -36,8 +36,8 @@ export function ProjectSelectorDropdown() {
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <OverflowItem id="project-selector-label" priority={11}>
-          <div className={`px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 hidden lg:block ${!isTitleVisible ? 'border-r-0 hidden' : ''}`}>{t('app.projectLabel')}</div>
+        <OverflowItem id="project-selector-label" priority={20}>
+          <div className={`px-3 py-1.5 bg-slate-50 border-r border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 ${!isTitleVisible ? 'border-r-0 hidden' : ''}`}>{t('app.projectLabel')}</div>
         </OverflowItem>
         
         <div className={`py-1.5 text-sm font-bold text-slate-700 flex items-center gap-2 min-w-0 overflow-hidden ${!isTitleVisible ? 'px-2' : 'px-2.5 sm:px-3'}`}>

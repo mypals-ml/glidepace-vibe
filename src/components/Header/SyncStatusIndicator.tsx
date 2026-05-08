@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { Button } from '../UI/Button';
+import { OverflowItem } from '@fluentui/react-overflow';
 
 /**
  * Sync status indicator button.
@@ -60,9 +61,11 @@ export function SyncStatusIndicator() {
             <span className={`relative inline-flex rounded-full h-2 w-2 ${isStale ? 'bg-slate-400' : 'bg-emerald-500'}`}></span>
           </span>
         </div>
-        <span className="text-xs font-medium whitespace-nowrap hidden lg:inline">
-          {getSyncedTimeText(lastSyncedTime)}
-        </span>
+        <OverflowItem id="sync-text" priority={30}>
+          <span className="text-xs font-medium whitespace-nowrap">
+            {getSyncedTimeText(lastSyncedTime)}
+          </span>
+        </OverflowItem>
       </div>
     </Button>
   );
