@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useDashboard } from '../../context/DashboardContext';
@@ -146,11 +146,14 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [isCreating, setIsCreating] = useState(false);
 
   // Sync new task's estimate unit with project settings default when it changes
-  useEffect(() => {
-    if (isCreateMode && dateSettings.estimateUnit) {
+  const [prevEstimateUnitProp, setPrevEstimateUnitProp] = useState<string | undefined>(dateSettings.estimateUnit);
+
+  if (isCreateMode && dateSettings.estimateUnit !== prevEstimateUnitProp) {
+    setPrevEstimateUnitProp(dateSettings.estimateUnit);
+    if (dateSettings.estimateUnit) {
       setNewEstimateUnit(dateSettings.estimateUnit);
     }
-  }, [isCreateMode, dateSettings.estimateUnit]);
+  }
 
   // Edit Mode state
   const [editingTitle, setEditingTitle] = useState(false);
