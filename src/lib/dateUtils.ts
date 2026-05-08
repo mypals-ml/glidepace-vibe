@@ -3,7 +3,7 @@
  * These functions calculate start/end dates for dependent tasks.
  */
 
-export function calculateEndDate(startDate: string, durationDays: number): string {
+export function calculateTargetDate(startDate: string, durationDays: number): string {
   if (!startDate || durationDays < 0) return startDate;
   
   const d = new Date(startDate);

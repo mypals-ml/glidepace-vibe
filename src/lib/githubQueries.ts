@@ -11,12 +11,20 @@ export const GET_SINGLE_ITEM_QUERY = `
 `;
 
 export const GET_PROJECT_TASKS_QUERY = `
-  query($projectId: ID!) {
+  query($projectId: ID!, $fieldsCursor: String, $itemsCursor: String) {
     node(id: $projectId) {
       ... on ProjectV2 {
         public
-        fields(first: 20) {
+        fields(first: 50, after: $fieldsCursor) {
+          totalCount
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
           nodes {
+            __typename
+            ... on ProjectV2Field { id name dataType }
+            ... on ProjectV2IterationField { id name }
             ... on ProjectV2SingleSelectField {
               id
               name
@@ -24,7 +32,11 @@ export const GET_PROJECT_TASKS_QUERY = `
             }
           }
         }
-        items(first: 50) {
+        items(first: 50, after: $itemsCursor) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
           nodes {
             ${PROJECT_ITEM_FRAGMENT}
           }
@@ -248,5 +260,16 @@ export const ADD_ISSUE_COMMENT_MUTATION = `
     addComment(input: { subjectId: $subjectId, body: $body }) { 
       commentEdge { node { id } } 
     } 
+  }
+`;
+
+export const CREATE_PROJECT_V2_FIELD_MUTATION = `
+  mutation CreateProjectV2Field($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $singleSelectOptions: [ProjectV2SingleSelectFieldOptionInput!]) {
+    createProjectV2Field(input: { projectId: $projectId, name: $name, dataType: $dataType, singleSelectOptions: $singleSelectOptions }) {
+      projectV2Field {
+        ... on ProjectV2Field { id name dataType }
+        ... on ProjectV2SingleSelectField { id name dataType }
+      }
+    }
   }
 `;

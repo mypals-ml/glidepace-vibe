@@ -7,13 +7,13 @@ import { useDashboard } from '../../context/DashboardContext';
 /** Fallback used before a project is loaded (demo without mock response yet, etc.) */
 const DEFAULT_STATUSES = ['Todo', 'In Progress', 'Done'];
 
-interface StatusSelectorProps {
+interface StatusPickerProps {
   task: Task | null;
   onClose: () => void;
   onSelect?: (status: string) => void;
 }
 
-export function StatusSelector({ task, onClose, onSelect }: StatusSelectorProps) {
+export function StatusPicker({ task, onClose, onSelect }: StatusPickerProps) {
   const { updateTaskStatus, projectStatusOptions } = useDashboard();
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);

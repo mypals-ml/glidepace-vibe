@@ -12,7 +12,7 @@ interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
   'aria-label': string; // Enforce aria-label for accessibility
 }
 
-export function IconButton({
+export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton({
   icon,
   variant = 'secondary',
   size = 'md',
@@ -21,7 +21,7 @@ export function IconButton({
   className = '',
   disabled,
   ...props
-}: IconButtonProps) {
+}, ref) {
   const baseStyles = 'inline-flex items-center justify-center transition-all duration-200 rounded-[var(--btn-radius)] focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]';
   
   const variantStyles: Record<IconButtonVariant, string> = {
@@ -53,6 +53,7 @@ export function IconButton({
 
   return (
     <button
+      ref={ref}
       className={combinedClasses}
       disabled={disabled || isLoading}
       {...props}
@@ -69,4 +70,4 @@ export function IconButton({
       )}
     </button>
   );
-}
+});

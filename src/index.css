@@ -34,6 +34,7 @@
   --header-gap-lg: 1rem;
   --dashboard-header-height: 1.8rem;
   --search-bar-height: 61px;
+  --header-gap: 8px;
 
   /* Button Tokens */
   --btn-h-md: 2.5rem;
@@ -50,6 +51,8 @@
   --icon-size-sm: 18px;
   --icon-size-md: 20px;
   --icon-size-lg: 24px;
+
+  --breakpoint-xs: 480px;
 }
 
 @layer components {
@@ -114,4 +117,15 @@ body,
 #root {
   height: 100%;
   margin: 0;
+}
+
+/* Header compression strategy */
+.header-compressed {
+  --header-gap: 4px;
+}
+
+@media (max-width: 640px) {
+  .header-compressed {
+    --header-gap: 2px;
+  }
 }

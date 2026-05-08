@@ -2,8 +2,14 @@ import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSortedLocales } from '../../hooks/useLocales';
+import { OverflowItem, useIsOverflowItemVisible } from '@fluentui/react-overflow';
 
+/**
+ * Language selector dropdown.
+ * Does NOT wrap itself in OverflowItem — that is done by the parent Header.
+ */
 export function LanguageSelectorDropdown() {
+  const isTextVisible = useIsOverflowItemVisible('language-text');
   const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -17,17 +23,24 @@ export function LanguageSelectorDropdown() {
     <div className="relative" ref={dropdownRef}>
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="relative flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-50 lg:hover:bg-white transition-colors rounded-lg lg:rounded-md shadow-sm overflow-hidden h-[var(--header-button-height)] w-[var(--header-button-height)] lg:w-44 shrink-0 cursor-pointer focus-within:ring-1 focus-within:ring-primary focus-within:border-primary"
+        className="relative flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-50 transition-all duration-300 rounded-lg shadow-sm overflow-hidden h-[var(--header-button-height)] cursor-pointer focus-within:ring-1 focus-within:ring-primary focus-within:border-primary min-w-[40px]"
         role="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <div className="hidden lg:flex px-3 items-center h-full bg-slate-50 border-r border-slate-200 text-xs font-medium text-slate-500">{t('app.language')}</div>
-        <div className="flex-1 px-3 text-sm font-medium text-slate-700 hidden lg:flex items-center justify-between min-w-0">
-          <span className="truncate">{currentLocale.label}</span>
-          <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
-        </div>
-        <span className="material-symbols-outlined lg:hidden text-slate-700 text-[20px]">language</span>
+        <OverflowItem id="language-text" priority={40}>
+          <div className={`flex items-center h-full ${!isTextVisible ? 'hidden' : ''}`}>
+            <div className="px-3 items-center h-full bg-slate-50 border-r border-slate-200 text-xs font-medium text-slate-500 flex">{t('app.language')}</div>
+            <div className="flex-1 px-3 text-sm font-medium text-slate-700 flex items-center justify-between min-w-0">
+              <span className="truncate max-w-[80px]">{currentLocale.label}</span>
+              <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
+            </div>
+          </div>
+        </OverflowItem>
+        
+        {!isTextVisible && (
+          <span className="material-symbols-outlined text-slate-700 text-[20px] px-2.5">language</span>
+        )}
       </div>
 
       {isOpen && (

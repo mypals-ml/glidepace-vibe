@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useDashboard } from '../../context/DashboardContext';
-import { AssigneeSelector } from './AssigneeSelector';
-import { StatusSelector } from './StatusSelector';
+import { AssigneePicker } from './AssigneePicker';
+import { StatusPicker } from './StatusPicker';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { Task, User } from '../../types';
 import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
+import { ConfirmationModal } from '../UI/ConfirmationModal';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -122,14 +123,15 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
           </div>
         </div>
       </div>
+
     </>
   );
 }
 
 function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: TFunction; isCreateMode?: boolean }) {
-  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode } = useDashboard();
+  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, dateSettings, projectFields } = useDashboard();
 
-  // Derive a repository from existing tasks so the AssigneeSelector can fetch assignable users
+  // Derive a repository from existing tasks so the AssigneePicker can fetch assignable users
   const projectRepository = tasks.find(t => t.repository)?.repository;
 
   // Create Mode state
@@ -138,8 +140,20 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [newStatus, setNewStatus] = useState<string>(projectStatusOptions[0] || 'Todo');
   const [newAssignees, setNewAssignees] = useState<User[]>([]);
   const [newStartDate, setNewStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [newEndDate, setNewEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [newTargetDate, setNewTargetDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [newEstimate, setNewEstimate] = useState<string>('');
+  const [newEstimateUnit, setNewEstimateUnit] = useState<string>(dateSettings.estimateUnit || 'hours');
   const [isCreating, setIsCreating] = useState(false);
+
+  // Sync new task's estimate unit with project settings default when it changes
+  const [prevEstimateUnitProp, setPrevEstimateUnitProp] = useState<string | undefined>(dateSettings.estimateUnit);
+
+  if (isCreateMode && dateSettings.estimateUnit !== prevEstimateUnitProp) {
+    setPrevEstimateUnitProp(dateSettings.estimateUnit);
+    if (dateSettings.estimateUnit) {
+      setNewEstimateUnit(dateSettings.estimateUnit);
+    }
+  }
 
   // Edit Mode state
   const [editingTitle, setEditingTitle] = useState(false);
@@ -151,11 +165,58 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [draftComment, setDraftComment] = useState('');
 
-  const [isAssigneeSelectorOpen, setIsAssigneeSelectorOpen] = useState(false);
-  const [isStatusSelectorOpen, setIsStatusSelectorOpen] = useState(false);
+  const [isAssigneePickerOpen, setIsAssigneePickerOpen] = useState(false);
+  const [isStatusPickerOpen, setIsStatusPickerOpen] = useState(false);
 
-  const [newCommentBody, setNewCommentBody] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [newCommentBody, setNewCommentBody] = useState('');
+  const [draftEstimate, setDraftEstimate] = useState<string>(task?.estimate?.toString() || '');
+
+  // Derived estimate unit options (merged and deduplicated)
+  const getMergedEstimateUnitOptions = () => {
+    const optionsSet = new Set<string>();
+
+    // 1. Task's current value (for edit mode)
+    if (task?.estimateUnit) {
+      optionsSet.add(task.estimateUnit);
+    }
+
+    // 2. newEstimateUnit (for create mode)
+    if (isCreateMode && newEstimateUnit) {
+      optionsSet.add(newEstimateUnit);
+    }
+
+    // 3. Task's specific options (from github mapping)
+    if (task?.estimateUnitOptions) {
+      Object.keys(task.estimateUnitOptions).forEach(name => optionsSet.add(name));
+    }
+
+    // 4. Global project fields options
+    const globalOptions = projectFields.find(f => f.id === dateSettings.estimateUnitFieldId)?.options;
+    if (globalOptions && globalOptions.length > 0) {
+      globalOptions.forEach(opt => optionsSet.add(opt.name));
+    }
+
+    // 5. All unique values currently used in the project (only for text fields)
+    const isSingleSelect = projectFields.find(f => f.id === dateSettings.estimateUnitFieldId)?.__typename === 'ProjectV2SingleSelectField';
+    if (!isSingleSelect) {
+      tasks.forEach(t => {
+        if (t.estimateUnit) optionsSet.add(t.estimateUnit);
+      });
+    }
+
+    // 6. Fallback defaults if list is still empty or has very few items
+    if (optionsSet.size === 0 || (optionsSet.size === 1 && !globalOptions)) {
+      ['hours', 'days', 'points'].forEach(opt => optionsSet.add(opt));
+    }
+
+    return Array.from(optionsSet);
+  };
+
+  const mergedEstimateUnitOptions = getMergedEstimateUnitOptions();
+
 
 
   const handleSaveTitle = async () => {
@@ -176,11 +237,16 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
     setEditingCommentId(null);
   };
 
-  const handleDeleteComment = async (commentId: string) => {
-    if (!task) return;
-    if (window.confirm(t('common.confirmDelete'))) {
-      await deleteTaskComment(task, commentId);
-    }
+  const handleDeleteComment = (commentId: string) => {
+    setCommentToDelete(commentId);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteComment = async () => {
+    if (!task || !commentToDelete) return;
+    await deleteTaskComment(task, commentToDelete);
+    setIsDeleteConfirmOpen(false);
+    setCommentToDelete(null);
   };
 
   const handleAddComment = async () => {
@@ -193,6 +259,14 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
     setIsSubmittingComment(false);
   };
 
+  const handleSaveEstimate = async () => {
+    if (!task) return;
+    const val = parseFloat(draftEstimate) || 0;
+    if (val !== task.estimate) {
+      await updateTaskDates(task, undefined, undefined, val);
+    }
+  };
+
   const onHandleCreate = async () => {
     if (!newTitle.trim()) return;
     setIsCreating(true);
@@ -201,7 +275,9 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       body: newDesc,
       status: newStatus,
       startDate: newStartDate,
-      endDate: newEndDate,
+      targetDate: newTargetDate,
+      estimate: parseFloat(newEstimate) || 0,
+      estimateUnit: newEstimateUnit,
       assigneeIds: newAssignees.map(a => a.id).filter(id => id !== 'unassigned')
     });
     setIsCreating(false);
@@ -247,20 +323,20 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.status')}</label>
           <div
             className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
-            onClick={() => setIsStatusSelectorOpen(true)}
+            onClick={() => setIsStatusPickerOpen(true)}
           >
             <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${getStatusColor(newStatus)}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(newStatus)}`}></span>
               <span className="text-sm font-medium">{newStatus}</span>
             </div>
           </div>
-          {isStatusSelectorOpen && (
-            <StatusSelector
+          {isStatusPickerOpen && (
+            <StatusPicker
               task={null}
-              onClose={() => setIsStatusSelectorOpen(false)}
+              onClose={() => setIsStatusPickerOpen(false)}
               onSelect={(status) => {
                 setNewStatus(status);
-                setIsStatusSelectorOpen(false);
+                setIsStatusPickerOpen(false);
               }}
             />
           )}
@@ -271,7 +347,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.assignees')}</label>
           <div
             className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
-            onClick={() => setIsAssigneeSelectorOpen(true)}
+            onClick={() => setIsAssigneePickerOpen(true)}
           >
             {newAssignees.length > 0 ? newAssignees.map(user => (
               <div key={user.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${user.avatarColor}`}>
@@ -286,36 +362,61 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               <span className="text-sm text-slate-500">{t('dashboard.unassigned')}</span>
             )}
           </div>
-          {isAssigneeSelectorOpen && (
-            <AssigneeSelector
+          {isAssigneePickerOpen && (
+            <AssigneePicker
               taskId="new"
               currentAssignees={newAssignees}
               repository={projectRepository}
-              onClose={() => setIsAssigneeSelectorOpen(false)}
+              onClose={() => setIsAssigneePickerOpen(false)}
               onSelect={(users) => setNewAssignees(users)}
             />
           )}
         </div>
 
         {/* Dates */}
-        <div className="border-t border-slate-200/60 pt-3 grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
-            <input
-              type="date"
-              value={newStartDate}
-              onChange={(e) => setNewStartDate(e.target.value)}
-              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
-            />
+        <div className="border-t border-slate-200/60 pt-3 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
+              <input
+                type="date"
+                value={newStartDate}
+                onChange={(e) => setNewStartDate(e.target.value)}
+                className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
+              <input
+                type="date"
+                value={newTargetDate}
+                onChange={(e) => setNewTargetDate(e.target.value)}
+                className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+              />
+            </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.endDate')}</label>
-            <input
-              type="date"
-              value={newEndDate}
-              onChange={(e) => setNewEndDate(e.target.value)}
-              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
-            />
+            <label className="text-xs font-medium text-slate-600 block mb-2">
+              {t('createTask.estimate', 'Estimate')}
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={newEstimate}
+                onChange={(e) => setNewEstimate(e.target.value)}
+                placeholder="0"
+                className="w-24 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20"
+              />
+              <select
+                value={newEstimateUnit}
+                onChange={(e) => setNewEstimateUnit(e.target.value)}
+                className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20 cursor-pointer"
+              >
+                {mergedEstimateUnitOptions.map(opt => (
+                  <option key={opt} value={opt}>{t(`units.${opt}`, opt)}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -438,17 +539,17 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.status')}</label>
         <div
           className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
-          onClick={() => setIsStatusSelectorOpen(true)}
+          onClick={() => setIsStatusPickerOpen(true)}
         >
           <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${getStatusColor(task.status)}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(task.status)}`}></span>
             <span className="text-sm font-medium">{task.status}</span>
           </div>
         </div>
-        {isStatusSelectorOpen && (
-          <StatusSelector
+        {isStatusPickerOpen && (
+          <StatusPicker
             task={task}
-            onClose={() => setIsStatusSelectorOpen(false)}
+            onClose={() => setIsStatusPickerOpen(false)}
           />
         )}
       </div>
@@ -458,7 +559,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.assignees')}</label>
         <div
           className="flex flex-wrap gap-2 cursor-pointer p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
-          onClick={() => setIsAssigneeSelectorOpen(true)}
+          onClick={() => setIsAssigneePickerOpen(true)}
         >
           {task.assignees && task.assignees.length > 0 ? task.assignees.map(user => (
             <div key={user.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${user.avatarColor}`}>
@@ -473,12 +574,12 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             <span className="text-sm text-slate-500">{t('dashboard.unassigned')}</span>
           )}
         </div>
-        {isAssigneeSelectorOpen && (
-          <AssigneeSelector
+        {isAssigneePickerOpen && (
+          <AssigneePicker
             taskId={task.id}
             currentAssignees={task.assignees}
             repository={task.repository || projectRepository}
-            onClose={() => setIsAssigneeSelectorOpen(false)}
+            onClose={() => setIsAssigneePickerOpen(false)}
           />
         )}
       </div>
@@ -492,24 +593,55 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       )}
 
       {/* Dates */}
-      <div className="border-t border-slate-200/60 pt-3 grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
-          <input
-            type="date"
-            value={task.fullStartDate ? task.fullStartDate.split('T')[0] : ''}
-            onChange={(e) => updateTaskDates(task, e.target.value, undefined)}
-            className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
-          />
+      <div className="border-t border-slate-200/60 pt-3 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
+            <input
+              type="date"
+              value={task.startDate}
+              onChange={(e) => updateTaskDates(task, e.target.value, undefined)}
+              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
+            <input
+              type="date"
+              value={task.targetDate}
+              onChange={(e) => updateTaskDates(task, undefined, e.target.value)}
+              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+            />
+          </div>
         </div>
         <div>
-          <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.endDate')}</label>
-          <input
-            type="date"
-            value={task.fullEndDate ? task.fullEndDate.split('T')[0] : ''}
-            onChange={(e) => updateTaskDates(task, undefined, e.target.value)}
-            className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
-          />
+          <label className="text-xs font-medium text-slate-600 block mb-2">
+            {t('dashboard.estimate')}
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={draftEstimate}
+              onChange={(e) => setDraftEstimate(e.target.value)}
+              onBlur={handleSaveEstimate}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              placeholder="0"
+              className="w-24 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20"
+            />
+            <select
+              value={task.estimateUnit}
+              onChange={(e) => updateTaskDates(task, undefined, undefined, undefined, e.target.value)}
+              className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20 cursor-pointer"
+            >
+              {mergedEstimateUnitOptions.map(opt => (
+                <option key={opt} value={opt}>{t(`units.${opt}`, opt)}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -627,6 +759,19 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       </div>
       {/* Bottom spacer to prevent dropdown clipping in scrollable area */}
       <div className="h-40" />
+
+      <ConfirmationModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setCommentToDelete(null);
+        }}
+        onConfirm={confirmDeleteComment}
+        title={t('common.delete', 'Delete')}
+        message={t('common.confirmDelete', 'Are you sure you want to delete this comment?')}
+        confirmLabel={t('common.delete', 'Delete')}
+        variant="danger"
+      />
     </>
   );
 }

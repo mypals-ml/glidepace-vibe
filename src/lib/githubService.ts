@@ -5,7 +5,8 @@ import {
   CREATE_ISSUE_MUTATION, 
   ADD_PROJECT_ITEM_MUTATION,
   ADD_DRAFT_ISSUE_MUTATION,
-  UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION
+  UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION,
+  CREATE_PROJECT_V2_FIELD_MUTATION
 } from './githubQueries';
 
 export async function fetchGitHubGraphQL(query: string, variables: Record<string, unknown> = {}, token: string) {
@@ -87,5 +88,23 @@ export async function updateProjectV2ItemField(projectId: string, itemId: string
   } catch (e) {
     console.error('Update field failed:', e);
     return false;
+  }
+}
+
+export async function createProjectV2Field(projectId: string, name: string, dataType: string, token: string, singleSelectOptions?: { name: string; description: string; color: string }[]): Promise<string | null> {
+  try {
+    const variables: Record<string, unknown> = { projectId, name, dataType };
+    if (singleSelectOptions) {
+      variables.singleSelectOptions = singleSelectOptions;
+    }
+    const json = await fetchGitHubGraphQL(CREATE_PROJECT_V2_FIELD_MUTATION, variables, token);
+    if (json.errors) {
+      console.error('Create field failed:', json.errors);
+      return null;
+    }
+    return json.data?.createProjectV2Field?.projectV2Field?.id || null;
+  } catch (e) {
+    console.error('Create field failed:', e);
+    return null;
   }
 }

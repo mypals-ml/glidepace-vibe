@@ -1,27 +1,45 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../context/DashboardContext';
 import { DashboardProvider } from '../context/DashboardProvider';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { Header } from './Header/Header';
-import { Sidebar } from './Dashboard/Sidebar';
-import { Timeline } from './Dashboard/Timeline';
+import { TaskSidebar } from './Dashboard/TaskSidebar';
+import { GanttChart } from './Dashboard/Views/GanttChart';
+import { BurndownChart } from './Dashboard/Views/BurndownChart';
 import { EmptyState } from './Dashboard/EmptyState';
 import { useScrollSync } from '../hooks/useScrollSync';
+import { MissingFieldsPromptModal } from './Modals/MissingFieldsPromptModal';
+import { Toast } from './UI/Toast';
 
 const ConnectedAccountsModal = lazy(() => import('./Modals/ConnectedAccountsModal').then(m => ({ default: m.ConnectedAccountsModal })));
 const OpenProjectModal = lazy(() => import('./Modals/OpenProjectModal').then(m => ({ default: m.OpenProjectModal })));
 const PatAuthModal = lazy(() => import('./Modals/PatAuthModal').then(m => ({ default: m.PatAuthModal })));
 const TaskDetailsPanel = lazy(() => import('./Dashboard/TaskDetailsPanel').then(m => ({ default: m.TaskDetailsPanel })));
+const ProjectSettingsModal = lazy(() => import('./Modals/ProjectSettingsModal').then(m => ({ default: m.ProjectSettingsModal })));
 
 
 function DashboardLayout() {
   const { t } = useTranslation();
-  const { hasProject, isChartVisible, tasks, selectedTaskId, setSelectedTaskId } = useDashboard();
+  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, setSelectedTaskId, toast, hideToast } = useDashboard();
   const { width: sidebarWidth, isResizing, panelRef, onMouseDown } = useResizablePanel();
   const { sidebarRef, timelineRef, onSidebarScroll, onTimelineScroll } = useScrollSync();
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
+  const { setIsChartVisible } = useDashboard();
+
+  // Ensure charts are considered "visible" on desktop to sync state with layout
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsChartVisible(true);
+      }
+    };
+    
+    handleResize(); // Initial check
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [setIsChartVisible]);
 
   return (
     <div className="bg-background-main text-slate-800 font-sans h-full flex flex-col overflow-hidden relative">
@@ -43,7 +61,7 @@ function DashboardLayout() {
               style={{ width: window.innerWidth >= 768 ? `${sidebarWidth}px` : (isChartVisible ? '0' : '100%') }}
               aria-label={t('dashboard.issuesList')}
             >
-              <Sidebar scrollRef={sidebarRef} onScroll={onSidebarScroll} />
+              <TaskSidebar scrollRef={sidebarRef} onScroll={onSidebarScroll} />
             </aside>
 
             {/* Resizer Handle */}
@@ -55,12 +73,18 @@ function DashboardLayout() {
               <div className="w-0.5 h-8 bg-slate-200 group-hover:bg-slate-400 rounded-full transition-colors"></div>
             </div>
 
-            {/* Timeline Region */}
-            <Timeline 
-              className={isChartVisible ? 'flex' : 'hidden md:flex'} 
-              scrollRef={timelineRef} 
-              onScroll={onTimelineScroll} 
-            />
+            {/* Main View Area */}
+            {dashboardView === 'gantt' ? (
+              <GanttChart 
+                className={isChartVisible ? 'flex' : 'hidden md:flex'} 
+                scrollRef={timelineRef} 
+                onScroll={onTimelineScroll} 
+              />
+            ) : (
+              <BurndownChart 
+                className={isChartVisible ? 'flex' : 'hidden md:flex'} 
+              />
+            )}
           </>
         ) : (
           <EmptyState />
@@ -73,13 +97,22 @@ function DashboardLayout() {
         <OpenProjectModal />
         <ConnectedAccountsModal />
         <PatAuthModal />
+        <ProjectSettingsModal />
+        <MissingFieldsPromptModal />
+        {toast && (
+          <Toast 
+            message={toast.message} 
+            type={toast.type} 
+            onClose={hideToast} 
+          />
+        )}
       </Suspense>
 
     </div>
   );
 }
 
-export function GanttDashboard() {
+export function ProjectDashboard() {
   return (
     <DashboardProvider>
       <DashboardLayout />

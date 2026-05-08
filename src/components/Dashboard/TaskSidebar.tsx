@@ -1,22 +1,34 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
-import { AssigneeSelector } from './AssigneeSelector';
-import { StatusSelector } from './StatusSelector';
-import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
+import { AssigneePicker } from './AssigneePicker';
+import { StatusPicker } from './StatusPicker';
+import { getStatusDotColor } from '../../utils/statusColors';
 import type { User } from '../../types';
 import { useState } from 'react';
 import { IconButton } from '../UI/IconButton';
 
-export interface SidebarProps {
+export interface TaskSidebarProps {
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   onScroll?: React.UIEventHandler<HTMLDivElement>;
 }
 
-export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
+export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const { t } = useTranslation();
-  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId, setIsCreateMode, apiError } = useDashboard();
-  const [openSelectorTaskId, setOpenSelectorTaskId] = useState<string | null>(null);
-  const [openStatusSelectorTaskId, setOpenStatusSelectorTaskId] = useState<string | null>(null);
+  const { 
+    filteredTasks, 
+    tasks, 
+    isLoadingTasks, 
+    searchQuery, 
+    setSearchQuery, 
+    selectedTaskId, 
+    setSelectedTaskId, 
+    setIsCreateMode, 
+    apiError,
+    fieldsProgress,
+    mappingStatus
+  } = useDashboard();
+  const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
+  const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
@@ -84,28 +96,28 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
                   <span className={`text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
                     {task.title}
                   </span>
-                  <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{task.startDate} - {task.endDate}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{task.startDate} - {task.targetDate}</div>
                 </div>
 
                 {/* Status Column */}
                 <div className="group/status relative h-full flex items-center min-w-0">
                   <div
-                    className="flex items-center cursor-pointer hover:opacity-80 transition-opacity max-w-full"
+                    className="flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors py-1 h-full w-full"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenStatusSelectorTaskId(openStatusSelectorTaskId === task.id ? null : task.id);
+                      setOpenStatusPickerTaskId(openStatusPickerTaskId === task.id ? null : task.id);
                     }}
                     title="Update status"
                   >
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors max-w-full ${getStatusColor(task.status)}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 mr-1.5 ${getStatusDotColor(task.status)}`} />
-                      <span className="truncate">{task.status}</span>
+                    <span className={`w-2.5 h-2.5 rounded-full ring-2 ring-white shadow-sm mb-1 ${getStatusDotColor(task.status)}`}></span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[40px]">
+                      {task.status}
                     </span>
                   </div>
-                  {openStatusSelectorTaskId === task.id && (
-                    <StatusSelector
+                  {openStatusPickerTaskId === task.id && (
+                    <StatusPicker
                       task={task}
-                      onClose={() => setOpenStatusSelectorTaskId(null)}
+                      onClose={() => setOpenStatusPickerTaskId(null)}
                     />
                   )}
                 </div>
@@ -116,7 +128,7 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
                     className="flex -space-x-1.5 cursor-pointer hover:scale-110 transition-transform p-1"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenSelectorTaskId(openSelectorTaskId === task.id ? null : task.id);
+                      setOpenPickerTaskId(openPickerTaskId === task.id ? null : task.id);
                     }}
                     title="Update assignees"
                   >
@@ -141,12 +153,12 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
                       </div>
                     )}
                   </div>
-                  {openSelectorTaskId === task.id && (
-                    <AssigneeSelector
+                  {openPickerTaskId === task.id && (
+                    <AssigneePicker
                       taskId={task.id}
                       currentAssignees={task.assignees}
                       repository={task.repository}
-                      onClose={() => setOpenSelectorTaskId(null)}
+                      onClose={() => setOpenPickerTaskId(null)}
                     />
                   )}
                 </div>
@@ -156,8 +168,48 @@ export function Sidebar({ scrollRef, onScroll }: SidebarProps) {
         </div>
       </div>
 
-      {/* Bottom Search Box with Add Task Button */}
-      <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md absolute bottom-0 left-0 right-0 z-10">
+      {/* Bottom Search Box with Add Task Button and Progress Bar */}
+      <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md absolute bottom-0 left-0 right-0 z-10 space-y-2.5">
+        {/* Progress Bar for Field Checking/Mapping */}
+        {(fieldsProgress.isFetching || mappingStatus !== 'idle' && mappingStatus !== 'complete') && (
+          <div className="px-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <div className="flex space-x-1">
+                  <div className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="w-1 h-1 bg-primary rounded-full animate-bounce"></div>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  {fieldsProgress.isFetching ? t('dashboard.scanningFields', 'Scanning GitHub fields...') : t('dashboard.mappingFields', 'Analyzing field mappings...')}
+                </span>
+              </div>
+              {fieldsProgress.total > 0 && (
+                <span className="text-[10px] font-bold text-primary tabular-nums bg-primary/10 px-1.5 py-0.5 rounded">
+                  {Math.round((fieldsProgress.current / fieldsProgress.total) * 100)}%
+                </span>
+              )}
+            </div>
+            <div className="h-1.5 w-full bg-slate-200/50 rounded-full overflow-hidden border border-slate-200/30">
+              <div 
+                className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(var(--primary-rgb),0.4)]"
+                style={{ 
+                  width: fieldsProgress.total > 0 
+                    ? `${(fieldsProgress.current / fieldsProgress.total) * 100}%` 
+                    : '30%',
+                  animation: fieldsProgress.total === 0 ? 'shimmer 1.5s infinite linear' : 'none'
+                }}
+              />
+            </div>
+            <style dangerouslySetInnerHTML={{ __html: `
+              @keyframes shimmer {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(330%); }
+              }
+            `}} />
+          </div>
+        )}
+
         <div className="flex gap-2 items-center">
           <div className="relative flex-1">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]" aria-hidden="true">search</span>
