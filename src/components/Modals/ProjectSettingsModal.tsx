@@ -269,7 +269,7 @@ export function ProjectSettingsModal() {
               </p>
             </div>
           </div>
-        </div>
+
 
 
         {/* Footer */}
@@ -278,7 +278,7 @@ export function ProjectSettingsModal() {
             {t('common.done', 'Done')}
           </Button>
         </div>
-      </div>
+
 
       <ConfirmationModal 
         isOpen={isConfirmModalOpen}
