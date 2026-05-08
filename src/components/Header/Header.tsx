@@ -8,7 +8,7 @@ import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { DashboardViewSwitcher } from '../Dashboard/Views/DashboardViewSwitcher';
 import { HeaderOverflowMenu } from './HeaderOverflowMenu';
 import { Button } from '../UI/Button';
-import { Overflow, OverflowItem, useIsOverflowItemVisible } from '@fluentui/react-overflow';
+import { Overflow, OverflowItem } from '@fluentui/react-overflow';
 
 /**
  * Priority+ responsive header.
@@ -34,7 +34,6 @@ export function Header() {
   const [hasOverflow, setHasOverflow] = useState(false);
   
   // Track account visibility to handle right-anchor transition
-  const isAccountVisible = useIsOverflowItemVisible('account');
 
   return (
     <header className={`glass-panel border-b border-surface-border z-20 sticky top-0 bg-white/70 shadow-sm px-4 md:px-6 py-3 transition-all duration-300 ${hasOverflow ? 'header-compressed' : ''}`}>
