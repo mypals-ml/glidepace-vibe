@@ -474,7 +474,7 @@ export function useDashboardTasks({
       console.error('Error creating task:', error);
       return false;
     }
-  }, [selectedProject?.id, githubToken, tasks, fetchProjectTasks, updateSyncTime, updateTaskStatus, updateTaskDates, updateTaskAssignees, setIsCreateMode]);
+  }, [selectedProject?.id, githubToken, tasks, fetchSingleProjectItem, updateSyncTime, updateTaskStatus, updateTaskDates, updateTaskAssignees, setIsCreateMode]);
 
   const updateTaskTitle = useCallback(async (task: Task, title: string): Promise<boolean> => {
     if (!task.contentId || !githubToken) return false;
