@@ -35,6 +35,7 @@ export interface Task {
   progress: number;
   estimate?: number;
   estimateUnit?: string;
+  estimateUnitOptions?: Record<string, string>;
   repository?: string;
   itemId?: string;
   contentId?: string;

@@ -144,13 +144,13 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   const unitField = dateSettings?.estimateUnitFieldId
     ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.estimateUnitFieldId)
     : fieldValues.find((f: GitHubFieldValue) => 
-        f.__typename === 'ProjectV2ItemFieldTextValue' && 
+        (f.__typename === 'ProjectV2ItemFieldTextValue' || f.__typename === 'ProjectV2ItemFieldSingleSelectValue') && 
         (f.field?.name?.toLowerCase().includes('estimate unit') || 
          f.field?.name?.toLowerCase().includes('unit') || 
          f.field?.name?.toLowerCase().includes('category'))
       );
 
-  const estimateUnit = unitField?.text || dateSettings?.estimateUnit || 'days';
+  const estimateUnit = unitField?.name || unitField?.text || dateSettings?.estimateUnit || 'days';
 
   // Extract assignees from either the content (Issues/PRs) or the User field (Drafts)
   let assigneeNodes = content?.assignees?.nodes || [];
@@ -186,10 +186,10 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     createdAt: comment.createdAt,
   }));
 
-  // Extract Field IDs for mutations
   const projectFieldIds: Record<string, string> = {};
   const statusOptions: Record<string, string> = {};
   const statusColorMap: Record<string, string> = {};
+  const estimateUnitOptions: Record<string, string> = {};
   
   if (statusField?.field?.id) projectFieldIds.status = statusField.field.id;
   if (startDateField?.field?.id) projectFieldIds.startDate = startDateField.field.id;
@@ -201,6 +201,12 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     statusField.field.options.forEach((opt: { id: string, name: string, color?: string }) => {
       statusOptions[opt.name] = opt.id;
       if (opt.color) statusColorMap[opt.name] = opt.color;
+    });
+  }
+
+  if (unitField?.field?.options) {
+    unitField.field.options.forEach((opt: { id: string, name: string }) => {
+      estimateUnitOptions[opt.name] = opt.id;
     });
   }
 
@@ -217,6 +223,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     targetDate,
     estimate,
     estimateUnit,
+    estimateUnitOptions,
     status: status || 'Todo',
     assignees: assignees,
     comments: comments,

@@ -308,7 +308,25 @@ export function useDashboardTasks({
       }
       if (estimateUnit !== undefined) {
         const fieldId = dateSettings.estimateUnitFieldId || task.projectFieldIds?.estimateUnit;
-        await updateField(fieldId, { text: estimateUnit });
+        if (fieldId) {
+          let optionId = task.estimateUnitOptions?.[estimateUnit];
+          
+          if (!optionId) {
+            const globalField = projectFields.find(f => f.id === fieldId);
+            if (globalField?.options) {
+              const globalOption = globalField.options.find(o => o.name === estimateUnit);
+              if (globalOption) {
+                optionId = globalOption.id;
+              }
+            }
+          }
+
+          if (optionId) {
+            await updateField(fieldId, { singleSelectOptionId: optionId });
+          } else {
+            await updateField(fieldId, { text: estimateUnit });
+          }
+        }
       }
 
       if (anySuccess) fetchSingleProjectItem(task.itemId, githubToken);
@@ -317,7 +335,7 @@ export function useDashboardTasks({
       console.error(e);
       return false;
     }
-  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, dateSettings]);
+  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, dateSettings, projectFields]);
 
   const handleCreateTask = useCallback(async (taskData: {
     title: string;

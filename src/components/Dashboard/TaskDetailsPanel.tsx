@@ -129,7 +129,7 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
 }
 
 function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: TFunction; isCreateMode?: boolean }) {
-  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, dateSettings } = useDashboard();
+  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, dateSettings, projectFields } = useDashboard();
 
   // Derive a repository from existing tasks so the AssigneePicker can fetch assignable users
   const projectRepository = tasks.find(t => t.repository)?.repository;
@@ -142,6 +142,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [newStartDate, setNewStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [newTargetDate, setNewTargetDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [newEstimate, setNewEstimate] = useState<string>('');
+  const [newEstimateUnit, setNewEstimateUnit] = useState<string>(dateSettings.estimateUnit || 'hours');
   const [isCreating, setIsCreating] = useState(false);
 
   // Edit Mode state
@@ -163,6 +164,40 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [newCommentBody, setNewCommentBody] = useState('');
   const [draftEstimate, setDraftEstimate] = useState<string>(task?.estimate?.toString() || '');
 
+  // Derived estimate unit options (merged and deduplicated)
+  const getMergedEstimateUnitOptions = () => {
+    const optionsSet = new Set<string>();
+
+    // 1. Task's current value (for edit mode)
+    if (task?.estimateUnit) {
+      optionsSet.add(task.estimateUnit);
+    }
+
+    // 2. newEstimateUnit (for create mode)
+    if (isCreateMode && newEstimateUnit) {
+      optionsSet.add(newEstimateUnit);
+    }
+
+    // 3. Task's specific options (from github mapping)
+    if (task?.estimateUnitOptions) {
+      Object.keys(task.estimateUnitOptions).forEach(name => optionsSet.add(name));
+    }
+
+    // 4. Global project fields options
+    const globalOptions = projectFields.find(f => f.id === dateSettings.estimateUnitFieldId)?.options;
+    if (globalOptions && globalOptions.length > 0) {
+      globalOptions.forEach(opt => optionsSet.add(opt.name));
+    }
+
+    // 5. Fallback defaults if list is still empty or has very few items
+    if (optionsSet.size === 0 || (optionsSet.size === 1 && !globalOptions)) {
+      ['hours', 'days', 'points'].forEach(opt => optionsSet.add(opt));
+    }
+
+    return Array.from(optionsSet);
+  };
+
+  const mergedEstimateUnitOptions = getMergedEstimateUnitOptions();
 
 
 
@@ -224,6 +259,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       startDate: newStartDate,
       targetDate: newTargetDate,
       estimate: parseFloat(newEstimate) || 0,
+      estimateUnit: newEstimateUnit,
       assigneeIds: newAssignees.map(a => a.id).filter(id => id !== 'unassigned')
     });
     setIsCreating(false);
@@ -351,11 +387,17 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                 value={newEstimate}
                 onChange={(e) => setNewEstimate(e.target.value)}
                 placeholder="0"
-                className="w-32 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20"
+                className="w-24 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20"
               />
-              {dateSettings.estimateUnit && (
-                <span className="text-xs text-slate-500">({dateSettings.estimateUnit})</span>
-              )}
+              <select
+                value={newEstimateUnit}
+                onChange={(e) => setNewEstimateUnit(e.target.value)}
+                className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20 cursor-pointer"
+              >
+                {mergedEstimateUnitOptions.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -570,11 +612,17 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                 }
               }}
               placeholder="0"
-              className="w-32 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20"
+              className="w-24 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20"
             />
-            {dateSettings.estimateUnit && (
-              <span className="text-xs text-slate-500">({dateSettings.estimateUnit})</span>
-            )}
+            <select
+              value={task.estimateUnit}
+              onChange={(e) => updateTaskDates(task, undefined, undefined, undefined, e.target.value)}
+              className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20 cursor-pointer"
+            >
+              {mergedEstimateUnitOptions.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
