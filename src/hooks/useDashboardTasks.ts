@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchGitHubGraphQL, getRepositoryId, createGitHubIssue, addProjectV2Item, addProjectV2DraftIssue, updateProjectV2ItemField } from '../lib/githubService';
 import { mapProjectItemToTask } from '../lib/githubTaskMapper';
+import { formatToGitHubDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
 import { 
   GET_SINGLE_ITEM_QUERY, 
@@ -311,11 +312,11 @@ export function useDashboardTasks({
 
       if (startDate) {
         const fieldId = dateSettings.startDateFieldId || task.projectFieldIds?.startDate;
-        await updateField(fieldId, { date: new Date(startDate).toISOString() });
+        await updateField(fieldId, { date: formatToGitHubDate(startDate) });
       }
       if (targetDate) {
         const fieldId = dateSettings.targetDateFieldId || task.projectFieldIds?.targetDate;
-        await updateField(fieldId, { date: new Date(targetDate).toISOString() });
+        await updateField(fieldId, { date: formatToGitHubDate(targetDate) });
       }
       if (estimate !== undefined) {
         const fieldId = dateSettings.estimateFieldId || task.projectFieldIds?.estimate;

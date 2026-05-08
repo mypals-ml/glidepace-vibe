@@ -1,5 +1,6 @@
 import i18n from '../i18n';
 import type { Task, GitHubProjectItem, GitHubFieldValue, ProjectDateSettings, GitHubAssignee, GitHubComment } from '../types';
+import { formatToGitHubDate } from './dateUtils';
 
 export const PROJECT_ITEM_FRAGMENT = `
   id
@@ -121,7 +122,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   // Also check Iteration fields if start/target dates are missing
   const iterationField = fieldValues.find((f: GitHubFieldValue) => f.__typename === 'ProjectV2ItemFieldIterationValue');
 
-  const startDate = startDateField?.date || iterationField?.startDate || new Date().toISOString().split('T')[0];
+  const startDate = startDateField?.date || iterationField?.startDate || formatToGitHubDate(new Date());
   const iterationEnd = (iterationField && iterationField.startDate) 
     ? new Date(new Date(iterationField.startDate).getTime() + (iterationField.duration || 0) * 86400000).toISOString().split('T')[0]
     : startDate;

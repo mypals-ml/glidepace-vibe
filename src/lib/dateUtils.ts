@@ -22,3 +22,23 @@ export function shiftDateByDays(date: string, shiftDays: number): string {
   
   return d.toISOString().split('T')[0];
 }
+
+/**
+ * Formats a date or string to GitHub's required YYYY-MM-DD format.
+ * Uses UTC extraction to avoid timezone-induced day shifts.
+ */
+export function formatToGitHubDate(date: Date | string): string {
+  if (!date) return '';
+  
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return '';
+    
+    // toISOString always returns UTC time, giving us the pure calendar date
+    // for GitHub Project V2 date fields without local timezone offsets.
+    return d.toISOString().split('T')[0];
+  } catch (e) {
+    console.error('Error formatting date for GitHub:', e);
+    return '';
+  }
+}
