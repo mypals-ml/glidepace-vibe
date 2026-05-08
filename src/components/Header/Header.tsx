@@ -8,7 +8,7 @@ import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { DashboardViewSwitcher } from '../Dashboard/Views/DashboardViewSwitcher';
 import { HeaderOverflowMenu } from './HeaderOverflowMenu';
 import { Button } from '../UI/Button';
-import { Overflow, OverflowItem, useIsOverflowItemVisible } from '@fluentui/react-overflow';
+import { Overflow, OverflowItem } from '@fluentui/react-overflow';
 
 /**
  * Priority+ responsive header.

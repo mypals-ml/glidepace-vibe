@@ -14,7 +14,19 @@ export interface TaskSidebarProps {
 
 export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const { t } = useTranslation();
-  const { filteredTasks, tasks, isLoadingTasks, searchQuery, setSearchQuery, selectedTaskId, setSelectedTaskId, setIsCreateMode, apiError } = useDashboard();
+  const { 
+    filteredTasks, 
+    tasks, 
+    isLoadingTasks, 
+    searchQuery, 
+    setSearchQuery, 
+    selectedTaskId, 
+    setSelectedTaskId, 
+    setIsCreateMode, 
+    apiError,
+    fieldsProgress,
+    mappingStatus
+  } = useDashboard();
   const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
 
@@ -159,7 +171,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       {/* Bottom Search Box with Add Task Button and Progress Bar */}
       <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md absolute bottom-0 left-0 right-0 z-10 space-y-2.5">
         {/* Progress Bar for Field Checking/Mapping */}
-        {(useDashboard().fieldsProgress.isFetching || useDashboard().mappingStatus !== 'idle' && useDashboard().mappingStatus !== 'complete') && (
+        {(fieldsProgress.isFetching || mappingStatus !== 'idle' && mappingStatus !== 'complete') && (
           <div className="px-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
@@ -169,12 +181,12 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                   <div className="w-1 h-1 bg-primary rounded-full animate-bounce"></div>
                 </div>
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                  {useDashboard().fieldsProgress.isFetching ? t('dashboard.scanningFields', 'Scanning GitHub fields...') : t('dashboard.mappingFields', 'Analyzing field mappings...')}
+                  {fieldsProgress.isFetching ? t('dashboard.scanningFields', 'Scanning GitHub fields...') : t('dashboard.mappingFields', 'Analyzing field mappings...')}
                 </span>
               </div>
-              {useDashboard().fieldsProgress.total > 0 && (
+              {fieldsProgress.total > 0 && (
                 <span className="text-[10px] font-bold text-primary tabular-nums bg-primary/10 px-1.5 py-0.5 rounded">
-                  {Math.round((useDashboard().fieldsProgress.current / useDashboard().fieldsProgress.total) * 100)}%
+                  {Math.round((fieldsProgress.current / fieldsProgress.total) * 100)}%
                 </span>
               )}
             </div>
@@ -182,10 +194,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               <div 
                 className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(var(--primary-rgb),0.4)]"
                 style={{ 
-                  width: useDashboard().fieldsProgress.total > 0 
-                    ? `${(useDashboard().fieldsProgress.current / useDashboard().fieldsProgress.total) * 100}%` 
+                  width: fieldsProgress.total > 0 
+                    ? `${(fieldsProgress.current / fieldsProgress.total) * 100}%` 
                     : '30%',
-                  animation: useDashboard().fieldsProgress.total === 0 ? 'shimmer 1.5s infinite linear' : 'none'
+                  animation: fieldsProgress.total === 0 ? 'shimmer 1.5s infinite linear' : 'none'
                 }}
               />
             </div>

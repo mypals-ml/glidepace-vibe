@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useDashboard } from '../../context/DashboardContext';
@@ -163,9 +163,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [newCommentBody, setNewCommentBody] = useState('');
   const [draftEstimate, setDraftEstimate] = useState<string>(task?.estimate?.toString() || '');
 
-  useEffect(() => {
-    setDraftEstimate(task?.estimate?.toString() || '');
-  }, [task?.estimate, task?.id]);
+
 
 
   const handleSaveTitle = async () => {
