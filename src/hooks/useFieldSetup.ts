@@ -24,7 +24,8 @@ export function useFieldSetup({
   updateDateSettings,
   createProjectV2Field,
   selectedProjectId,
-  showToast
+  showToast,
+  isLoadingTasks
 }: {
   projectFields: GitHubProjectV2Field[];
   dateSettings: ProjectDateSettings;

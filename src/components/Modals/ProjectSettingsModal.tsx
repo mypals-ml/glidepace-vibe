@@ -278,7 +278,7 @@ export function ProjectSettingsModal() {
             {t('common.done', 'Done')}
           </Button>
         </div>
-
+      </div>
 
       <ConfirmationModal 
         isOpen={isConfirmModalOpen}
