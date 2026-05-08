@@ -94,17 +94,16 @@ export function useDashboardTasks({
           contentId: updatedTask.contentId
         });
         setTasks(prevTasks => {
-          const match = prevTasks.find(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
-          if (!match) {
-            console.warn(`[DashboardTasks] ⚠️ Received task update for ${itemId} but couldn't find it in local state.`, {
-              receivedItemId: updatedTask.itemId,
-              receivedContentId: updatedTask.contentId,
-              existingIds: prevTasks.map(t => ({ itemId: t.itemId, contentId: t.contentId }))
-            });
+          const index = prevTasks.findIndex(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
+          if (index !== -1) {
+            // Update existing task
+            const newTasks = [...prevTasks];
+            newTasks[index] = updatedTask;
+            return newTasks;
           }
-          return prevTasks.map(t =>
-            (t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId) ? updatedTask : t
-          );
+          // Append new task to the bottom
+          console.log(`[DashboardTasks] ➕ Adding new task to state: ${updatedTask.itemId}`);
+          return [...prevTasks, updatedTask];
         });
         updateSyncTime();
       } else {
@@ -210,7 +209,7 @@ export function useDashboardTasks({
     }
   }, [updateSyncTime, t, projectAccountId, dateSettings]);
 
-  const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[]) => {
+  const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[], skipRefresh = false) => {
     const task = tasks.find(t => t.id === taskId || t.itemId === taskId);
     if (!task || !task.contentId || !githubToken) return false;
 
@@ -218,7 +217,7 @@ export function useDashboardTasks({
       try {
         const res = await fetchGitHubGraphQL(UPDATE_DRAFT_ASSIGNEES_MUTATION, { id: task.contentId, assigneeIds: userIds }, githubToken);
         if (res.errors) throw new Error(res.errors[0]?.message);
-        if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
+        if (task.itemId && !skipRefresh) await fetchSingleProjectItem(task.itemId, githubToken);
         return true;
       } catch (e) {
         console.error('Update draft assignees failed:', e);
@@ -261,7 +260,7 @@ export function useDashboardTasks({
         ));
       }
 
-      if (task.itemId) {
+      if (task.itemId && !skipRefresh) {
         await fetchSingleProjectItem(task.itemId, githubToken);
       }
       return true;
@@ -271,13 +270,13 @@ export function useDashboardTasks({
     }
   }, [tasks, githubToken, fetchSingleProjectItem]);
 
-  const updateTaskStatus = useCallback(async (task: Task, status: TaskStatus): Promise<boolean> => {
+  const updateTaskStatus = useCallback(async (task: Task, status: TaskStatus, skipRefresh = false): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !task.projectFieldIds?.status || !task.statusOptions || !githubToken) return false;
     try {
       const optionId = task.statusOptions[status];
       if (!optionId) return false;
       const success = await updateProjectV2ItemField(selectedProject.id, task.itemId, task.projectFieldIds.status, { singleSelectOptionId: optionId }, githubToken);
-      if (success) fetchSingleProjectItem(task.itemId, githubToken);
+      if (success && !skipRefresh) fetchSingleProjectItem(task.itemId, githubToken);
       return success;
     } catch (e) {
       console.error(e);
@@ -285,7 +284,7 @@ export function useDashboardTasks({
     }
   }, [selectedProject?.id, githubToken, fetchSingleProjectItem]);
 
-  const updateTaskDates = useCallback(async (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string): Promise<boolean> => {
+  const updateTaskDates = useCallback(async (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string, skipRefresh = false): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;
     
     // Optimistic Update
@@ -372,9 +371,9 @@ export function useDashboardTasks({
         }
       }
 
-      if (anySuccess) {
+      if (anySuccess && !skipRefresh) {
         fetchSingleProjectItem(task.itemId, githubToken);
-      } else {
+      } else if (!anySuccess) {
         // Rollback if nothing succeeded
         setTasks(prev => prev.map(t => 
           (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) ? oldTask : t
@@ -455,16 +454,18 @@ export function useDashboardTasks({
       };
 
       if (status && tempTask.statusOptions) {
-        await updateTaskStatus(tempTask, status);
+        await updateTaskStatus(tempTask, status, true);
       }
       if (startDate || targetDate || estimate !== undefined || estimateUnit !== undefined) {
-        await updateTaskDates(tempTask, startDate, targetDate, estimate, estimateUnit);
+        await updateTaskDates(tempTask, startDate, targetDate, estimate, estimateUnit, true);
       }
       if (assigneeIds && assigneeIds.length > 0 && contentId) {
-        await updateTaskAssignees(itemId, assigneeIds);
+        await updateTaskAssignees(itemId, assigneeIds, true);
       }
 
-      await fetchProjectTasks(selectedProject.id, githubToken);
+      console.log(`[DashboardTasks] 🚀 Creation sequence complete, performing final fetch for: ${itemId}`);
+      await fetchSingleProjectItem(itemId, githubToken);
+      
       updateSyncTime();
       setIsCreateMode(false);
 
