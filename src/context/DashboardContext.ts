@@ -42,6 +42,7 @@ export interface DashboardContextValue {
   // Tasks
   tasks: Task[];
   isLoadingTasks: boolean;
+  fieldsProgress: { current: number; total: number; isFetching: boolean };
   fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
   handleCreateTask: (taskData: { 
     title: string; 
@@ -91,6 +92,7 @@ export interface DashboardContextValue {
   createSingleFieldNow: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId') => Promise<void>;
   handleCreateMissingFields: () => Promise<void>;
   isCreatingFields: boolean;
+  mappingStatus: 'idle' | 'scanning' | 'mapping' | 'complete';
 
   // UI state
   isChartVisible: boolean;

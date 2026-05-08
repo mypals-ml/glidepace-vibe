@@ -50,6 +50,7 @@ export function useDashboardTasks({
   const [searchQuery, setSearchQuery] = useState('');
   const [projectStatusOptions, setProjectStatusOptions] = useState<string[]>([]);
   const [projectFields, setProjectFields] = useState<GitHubProjectV2Field[]>([]);
+  const [fieldsProgress, setFieldsProgress] = useState<{ current: number; total: number; isFetching: boolean }>({ current: 0, total: 0, isFetching: false });
   const [apiError, setApiError] = useState<string | null>(null);
 
   const availableUsers = useMemo<User[]>(() => {
@@ -115,6 +116,7 @@ export function useDashboardTasks({
 
   const fetchProjectTasks = useCallback(async (projectId: string, token: string) => {
     setIsLoadingTasks(true);
+    setFieldsProgress({ current: 0, total: 0, isFetching: true });
     console.log('[Tasks] Fetching items for project:', projectId, 'using account:', projectAccountId);
     try {
       let hasNextFields = true;
@@ -139,12 +141,30 @@ export function useDashboardTasks({
           return;
         }
 
-        const projectNode = json.data?.node as { fields?: { nodes: GitHubProjectV2Field[], pageInfo: { hasNextPage: boolean, endCursor: string } }, items?: { nodes: GitHubProjectItem[], pageInfo: { hasNextPage: boolean, endCursor: string } } };
+        const projectNode = json.data?.node as { 
+          fields?: { 
+            totalCount: number,
+            nodes: GitHubProjectV2Field[], 
+            pageInfo: { hasNextPage: boolean, endCursor: string } 
+          }, 
+          items?: { 
+            nodes: GitHubProjectItem[], 
+            pageInfo: { hasNextPage: boolean, endCursor: string } 
+          } 
+        };
 
         if (hasNextFields) {
           const fieldsConn = projectNode?.fields;
           if (fieldsConn) {
-            allFields.push(...(fieldsConn.nodes || []));
+            const newFields = fieldsConn.nodes || [];
+            allFields.push(...newFields);
+            
+            setFieldsProgress(prev => ({
+              ...prev,
+              total: fieldsConn.totalCount || prev.total,
+              current: allFields.length
+            }));
+
             hasNextFields = fieldsConn.pageInfo?.hasNextPage || false;
             fieldsCursor = fieldsConn.pageInfo?.endCursor;
           } else {
@@ -185,6 +205,7 @@ export function useDashboardTasks({
       setApiError(error.message || t('dashboard.unknownError'));
     } finally {
       setIsLoadingTasks(false);
+      setFieldsProgress(prev => ({ ...prev, isFetching: false }));
     }
   }, [updateSyncTime, t, projectAccountId, dateSettings]);
 
@@ -557,6 +578,7 @@ export function useDashboardTasks({
     projectStatusOptions,
     setProjectStatusOptions,
     projectFields,
+    fieldsProgress,
     apiError,
     availableUsers,
     filteredTasks,

@@ -32,11 +32,13 @@ export function useFieldSetup({
   createProjectV2Field: (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => Promise<string | null>;
   selectedProjectId?: string;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  isLoadingTasks?: boolean;
 }) {
   const { t } = useTranslation();
   const [isMissingFieldsPromptOpen, setIsMissingFieldsPromptOpen] = useState(false);
   const [missingFieldsList, setMissingFieldsList] = useState<MissingFieldDef[]>([]);
   const [isCreatingFields, setIsCreatingFields] = useState(false);
+  const [mappingStatus, setMappingStatus] = useState<'idle' | 'scanning' | 'mapping' | 'complete'>('idle');
   const hasPromptedForProject = useRef<string | null>(null);
 
   // Filter helpers
@@ -53,11 +55,19 @@ export function useFieldSetup({
   const triggerFieldDetection = useCallback((forcePrompt: boolean = false) => {
     if (!selectedProjectId || projectFields.length === 0) return;
     
-    // Only auto-prompt once per project
-    if (!forcePrompt && hasPromptedForProject.current === selectedProjectId) {
+    // If we're already loading tasks, we'll wait for the projectFields update
+    if (isLoadingTasks) {
+      setMappingStatus('scanning');
       return;
     }
 
+    // Only auto-prompt once per project
+    if (!forcePrompt && hasPromptedForProject.current === selectedProjectId) {
+      setMappingStatus('complete');
+      return;
+    }
+
+    setMappingStatus('mapping');
     let changedSettings = false;
     const newSettings = { ...dateSettings };
     const missing: MissingFieldDef[] = [];
@@ -102,7 +112,8 @@ export function useFieldSetup({
       // If forced but none missing, show success toast
       showToast(t('settings.allFieldsDetected'), 'success');
     }
-  }, [projectFields, dateSettings, selectedProjectId, updateDateSettings, showToast, t, getFieldsByType]);
+    setMappingStatus('complete');
+  }, [projectFields, dateSettings, selectedProjectId, updateDateSettings, showToast, t, getFieldsByType, isLoadingTasks]);
 
   // Run auto-detection when fields load
   useEffect(() => {
@@ -195,6 +206,7 @@ export function useFieldSetup({
     promptCreateSingleField,
     createSingleFieldNow,
     handleCreateMissingFields,
-    isCreatingFields
+    isCreatingFields,
+    mappingStatus
   };
 }
