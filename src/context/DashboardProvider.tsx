@@ -116,7 +116,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     updateDateSettings,
     createProjectV2Field: handleCreateProjectV2Field,
     selectedProjectId: projects.selectedProject?.id,
-    showToast
+    showToast,
+    isLoadingTasks: tasks.isLoadingTasks
   });
 
   // 5. Assign Refs to capture the actual implementations

@@ -20,7 +20,8 @@ export function ProjectSettingsModal() {
     promptCreateSingleField,
     createSingleFieldNow,
     isCreatingFields,
-    isLoadingTasks
+    isLoadingTasks,
+    mappingStatus
   } = useDashboard();
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const pendingActionRef = useRef<(() => void) | null>(null);
@@ -234,20 +235,27 @@ export function ProjectSettingsModal() {
               </div>
             </div>
             
-            <div className="flex items-center gap-3 ml-[44px]">
               <Button 
                 variant="primary" 
                 size="sm" 
                 onClick={() => triggerFieldDetection(true)} 
-                disabled={isCreatingFields || isLoadingTasks}
+                disabled={isCreatingFields || isLoadingTasks || mappingStatus === 'mapping'}
                 className="font-semibold px-6 h-9 shadow-sm disabled:opacity-50"
               >
-                {isCreatingFields || isLoadingTasks ? '...' : t('settings.triggerDetection', 'Re-scan')}
+                {isCreatingFields || isLoadingTasks || mappingStatus === 'mapping' ? '...' : t('settings.triggerDetection', 'Re-scan')}
               </Button>
-              {anyFieldsMissing && (
-                <span className="flex items-center gap-1.5 text-[10px] font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100 uppercase tracking-wider">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                  Missing Fields
+              {(anyFieldsMissing || mappingStatus !== 'idle' && mappingStatus !== 'complete') && (
+                <span className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wider ${
+                  mappingStatus === 'scanning' || mappingStatus === 'mapping'
+                    ? 'text-primary bg-primary/5 border-primary/10'
+                    : 'text-amber-600 bg-amber-50 border-amber-100'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    mappingStatus === 'scanning' || mappingStatus === 'mapping' ? 'bg-primary animate-pulse' : 'bg-amber-500'
+                  }`}></span>
+                  {mappingStatus === 'scanning' ? t('dashboard.scanningFields', 'Scanning...') : 
+                   mappingStatus === 'mapping' ? t('dashboard.mappingFields', 'Checking...') : 
+                   t('settings.missingFields', 'Missing Fields')}
                 </span>
               )}
             </div>

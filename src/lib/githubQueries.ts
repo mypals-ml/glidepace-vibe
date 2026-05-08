@@ -16,6 +16,7 @@ export const GET_PROJECT_TASKS_QUERY = `
       ... on ProjectV2 {
         public
         fields(first: 50, after: $fieldsCursor) {
+          totalCount
           pageInfo {
             hasNextPage
             endCursor
