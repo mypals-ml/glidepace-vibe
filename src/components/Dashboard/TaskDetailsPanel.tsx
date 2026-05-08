@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useDashboard } from '../../context/DashboardContext';
@@ -161,6 +161,11 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const [newCommentBody, setNewCommentBody] = useState('');
+  const [draftEstimate, setDraftEstimate] = useState<string>(task?.estimate?.toString() || '');
+
+  useEffect(() => {
+    setDraftEstimate(task?.estimate?.toString() || '');
+  }, [task?.estimate, task?.id]);
 
 
   const handleSaveTitle = async () => {
@@ -201,6 +206,14 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       setNewCommentBody('');
     }
     setIsSubmittingComment(false);
+  };
+
+  const handleSaveEstimate = async () => {
+    if (!task) return;
+    const val = parseFloat(draftEstimate) || 0;
+    if (val !== task.estimate) {
+      await updateTaskDates(task, undefined, undefined, val);
+    }
   };
 
   const onHandleCreate = async () => {
@@ -550,8 +563,14 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           <div className="flex items-center gap-2">
             <input
               type="number"
-              value={task.estimate || ''}
-              onChange={(e) => updateTaskDates(task, undefined, undefined, parseFloat(e.target.value) || 0)}
+              value={draftEstimate}
+              onChange={(e) => setDraftEstimate(e.target.value)}
+              onBlur={handleSaveEstimate}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
               placeholder="0"
               className="w-32 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20"
             />
