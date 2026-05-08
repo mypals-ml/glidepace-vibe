@@ -9,18 +9,16 @@ export const supabase = (supabaseUrl && supabaseAnonKey)
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        lock: {
-          acquire: async (name, callback) => {
-            if (typeof navigator !== 'undefined' && navigator.locks) {
-              try {
-                return await navigator.locks.request(name, callback);
-              } catch (e) {
-                console.warn('@supabase/gotrue-js: lock acquisition failed, falling back', e);
-                return await callback();
-              }
+        lock: async <R>(name: string, _acquireTimeout: number, fn: () => Promise<R>): Promise<R> => {
+          if (typeof navigator !== 'undefined' && navigator.locks) {
+            try {
+              return await navigator.locks.request(name, fn);
+            } catch (e) {
+              console.warn('@supabase/auth-js: lock acquisition failed, falling back', e);
+              return await fn();
             }
-            return await callback();
-          },
+          }
+          return await fn();
         },
       },
     })
