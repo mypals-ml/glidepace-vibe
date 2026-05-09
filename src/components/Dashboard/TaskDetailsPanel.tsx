@@ -15,6 +15,7 @@ import { getStartDateForCal } from '../../lib/githubTaskMapper';
 interface TaskDetailsPanelProps {
   task: Task | null;
   onClose: () => void;
+  isInline?: boolean;
 }
 
 function CopyButton({ text, t }: { text: string; t: TFunction }) {
@@ -63,7 +64,7 @@ function CopyButton({ text, t }: { text: string; t: TFunction }) {
 }
 
 
-export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
+export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetailsPanelProps) {
   const { t } = useTranslation();
   const { isCreateMode, setIsCreateMode, centerGanttOnDate, setIsChartVisible, setDashboardView } = useDashboard();
 
@@ -95,18 +96,22 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
 
   return (
     <>
-      <div
-        className={`fixed inset-0 z-40 transition-all duration-300 ${
-          isCreateMode ? 'bg-slate-900/5 cursor-default' : 'bg-slate-900/20 backdrop-blur-[1px] cursor-pointer'
-        }`}
-        onClick={handleBackdropClick}
-      ></div>
-      <div className="fixed md:absolute inset-0 md:inset-auto md:right-4 md:top-4 md:bottom-4 md:w-[26rem] md:rounded-xl md:shadow-lg z-50 flex flex-col">
+      {!isInline && (
+        <div
+          className={`fixed inset-0 z-40 transition-all duration-300 ${isCreateMode ? 'bg-slate-900/5 cursor-default' : 'bg-slate-900/20 backdrop-blur-[1px] cursor-pointer'
+            }`}
+          onClick={handleBackdropClick}
+        ></div>
+      )}
+      <div 
+        className={`${isInline ? 'relative h-full w-full flex flex-col' : 'fixed md:absolute inset-0 md:inset-auto md:right-4 md:top-4 md:bottom-4 md:w-[26rem] md:rounded-xl md:shadow-lg'
+          } z-50 flex flex-col`}
+      >
         {/* Mobile View */}
-        <div className="md:hidden bg-white h-full rounded-t-2xl flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/60">
-            <h2 className="text-lg font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
-            <div className="flex items-center gap-2">
+        <div className="md:hidden bg-white/90 backdrop-blur-md h-full rounded-t-2xl flex flex-col overflow-hidden shadow-2xl">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 bg-slate-50/50">
+            <h2 className="text-base font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
+            <div className="flex items-center gap-1">
               {!isCreateMode && task && (
                 <IconButton
                   icon="center_focus_strong"
@@ -126,14 +131,14 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-6 space-y-6">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-6 pt-4 space-y-6">
             <TaskContent key={isCreateMode ? 'new-task' : task?.id} task={task} t={t} isCreateMode={isCreateMode} />
           </div>
         </div>
 
         {/* Desktop View */}
-        <div className="hidden md:flex flex-col bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/60 h-full overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-slate-200/60">
+        <div className={`hidden md:flex flex-col bg-white/95 backdrop-blur-sm ${isInline ? '' : 'rounded-xl shadow-lg border border-slate-200/60'} h-full overflow-hidden`}>
+          <div className="flex items-center justify-between p-4 border-b border-slate-200/60 bg-slate-50/50">
             <h2 className="text-sm font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
             <div className="flex items-center gap-1">
               {!isCreateMode && task && (
