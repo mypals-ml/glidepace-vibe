@@ -34,12 +34,6 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     return d;
   }, [today]);
 
-  const getDateAtPosition = (pos: number) => {
-    const d = new Date(baseDate);
-    d.setDate(d.getDate() + Math.floor(pos / DAY_WIDTH));
-    return formatToGitHubDate(d);
-  };
-
   const getPositionForDate = (dateStr: string) => {
     if (!dateStr) return 0;
     const d = new Date(dateStr);

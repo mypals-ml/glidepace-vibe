@@ -21,7 +21,7 @@ const ProjectSettingsModal = lazy(() => import('./Modals/ProjectSettingsModal').
 
 function DashboardLayout() {
   const { t } = useTranslation();
-  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, setSelectedTaskId, isTaskDetailsOpen, setIsTaskDetailsOpen, toast, hideToast } = useDashboard();
+  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, isTaskDetailsOpen, setIsTaskDetailsOpen, toast, hideToast } = useDashboard();
   const { width: sidebarWidth, isResizing, panelRef, onMouseDown } = useResizablePanel();
   const { sidebarRef, timelineRef, onSidebarScroll, onTimelineScroll } = useScrollSync();
 

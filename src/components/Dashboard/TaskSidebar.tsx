@@ -182,6 +182,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       if (startDate) centerGanttOnDate(startDate);
                     }}
                     title={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                    aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
                   />
                 </div>
               </div>
