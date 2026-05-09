@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
 
 /**
  * Custom hook that tracks the state of a media query.
@@ -6,34 +6,24 @@ import { useState, useEffect } from 'react';
  * @returns boolean true if the media query matches, false otherwise
  */
 export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
-
-  useEffect(() => {
+  const subscribe = (callback: () => void) => {
     const mediaQueryList = window.matchMedia(query);
     
-    // Update state when the media query changes
-    const listener = (event: MediaQueryListEvent) => {
-      setMatches(event.matches);
-    };
-
-    // Use the modern addEventListener if available, fallback to addListener
+    // Modern browser support
     if (mediaQueryList.addEventListener) {
-      mediaQueryList.addEventListener('change', listener);
-    } else {
-      mediaQueryList.addListener(listener);
-    }
+      mediaQueryList.addEventListener('change', callback);
+      return () => mediaQueryList.removeEventListener('change', callback);
+    } 
+    
+    // Fallback for older browsers
+    mediaQueryList.addListener(callback);
+    return () => mediaQueryList.removeListener(callback);
+  };
 
-    // Set initial value (handles case where query might have changed between initial state and effect)
-    setMatches(mediaQueryList.matches);
+  const getSnapshot = () => window.matchMedia(query).matches;
 
-    return () => {
-      if (mediaQueryList.removeEventListener) {
-        mediaQueryList.removeEventListener('change', listener);
-      } else {
-        mediaQueryList.removeListener(listener);
-      }
-    };
-  }, [query]);
+  // For Server Side Rendering, if needed. Default to false or some reasonable value.
+  const getServerSnapshot = () => false;
 
-  return matches;
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

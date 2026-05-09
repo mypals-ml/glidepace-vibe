@@ -25,7 +25,7 @@ function DashboardLayout() {
   const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, isTaskDetailsOpen, setIsTaskDetailsOpen, toast, hideToast } = useDashboard();
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const { width: sidebarWidth, isResizing, panelRef, onMouseDown } = useResizablePanel();
-  const { width: detailsWidth, isResizing: isResizingDetails, panelRef: detailsPanelRef, onMouseDown: onMouseDownDetails } = useResizablePanel({
+  const { width: detailsWidth, panelRef: detailsPanelRef, onMouseDown: onMouseDownDetails } = useResizablePanel({
     direction: 'right',
     initialWidth: 416, // Approx 26rem
     minWidth: 320,
