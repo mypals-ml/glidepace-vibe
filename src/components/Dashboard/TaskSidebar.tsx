@@ -186,7 +186,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 </div>
 
                 {/* Hovering Toolbar */}
-                <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5">
+                <div className="absolute right-2 bottom-full mb-[3px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5">
                   <IconButton
                     icon="link"
                     variant="ghost"
