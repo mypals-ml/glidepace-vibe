@@ -71,10 +71,11 @@ export function useDashboardTasks({
       if (!searchQuery) return true;
       const query = searchQuery.toLowerCase();
       const matchesTitle = task.title.toLowerCase().includes(query);
+      const matchesId = task.displayId.toLowerCase().includes(query);
       const matchesAssignee = (task.assignees || []).some(
         a => a.name.toLowerCase().includes(query) || (a.login && a.login.toLowerCase().includes(query))
       );
-      return matchesTitle || matchesAssignee;
+      return matchesTitle || matchesId || matchesAssignee;
     });
   }, [tasks, searchQuery]);
 
@@ -512,6 +513,7 @@ export function useDashboardTasks({
 
       const tempTask: Task = {
         id: itemId,
+        displayId: itemId.slice(-6),
         itemId: itemId,
         contentId: contentId || undefined,
         title,

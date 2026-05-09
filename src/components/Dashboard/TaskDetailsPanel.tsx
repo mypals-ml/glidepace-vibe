@@ -509,7 +509,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       {/* Title */}
       <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
         <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
-          <span className="text-xs font-mono text-slate-500">{task.id}</span>
+          <span className="text-xs font-mono text-slate-500">{task.displayId}</span>
           <div className="flex items-center gap-1">
             {!editingTitle && (
               <>

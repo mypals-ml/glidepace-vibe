@@ -25,6 +25,7 @@ export interface TaskComment {
 
 export interface Task {
   id: string;
+  displayId: string;
   title: string;
   startDate: string;
   targetDate: string;

@@ -123,7 +123,7 @@ export const PROJECT_ITEM_FRAGMENT = `
 `;
 
 export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: ProjectDateSettings): Task {
-  if (!item) return { id: 'error', title: i18n.t('dashboard.invalidItem'), startDate: '', targetDate: '', status: 'Todo', assignees: [], progress: 0 };
+  if (!item) return { id: 'error', displayId: 'error', title: i18n.t('dashboard.invalidItem'), startDate: '', targetDate: '', status: 'Todo', assignees: [], progress: 0 };
   
   const content = item.content;
   const fieldValues = item.fieldValues?.nodes || [];
@@ -302,7 +302,8 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   }
 
   return {
-    id: idPrefix,
+    id: item.id,
+    displayId: idPrefix,
     itemId: item.id,
     contentId: content?.id,
     title: content?.title || i18n.t('dashboard.noTitle'),
