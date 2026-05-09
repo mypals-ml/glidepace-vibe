@@ -100,23 +100,31 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   });
 
   // Persist selectedTaskId per project
+  // Load saved task when project changes
   useEffect(() => {
     if (projects.selectedProject?.id) {
       const saved = localStorage.getItem(`selected_task_${projects.selectedProject.id}`);
+      // Only set if different to avoid unnecessary updates
       if (saved && saved !== ui.selectedTaskId) {
         ui.setSelectedTaskId(saved);
       }
     } else {
-      ui.setSelectedTaskId(null);
+      // Only clear if not already null to avoid loop
+      if (ui.selectedTaskId !== null) {
+        ui.setSelectedTaskId(null);
+      }
     }
-  }, [projects.selectedProject?.id, ui]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.selectedProject?.id]); // ONLY run when project ID changes
 
-
+  // Save task selection when it changes
   useEffect(() => {
-    if (projects.selectedProject?.id && ui.selectedTaskId) {
-      localStorage.setItem(`selected_task_${projects.selectedProject.id}`, ui.selectedTaskId);
-    } else if (projects.selectedProject?.id && !ui.selectedTaskId) {
-      localStorage.removeItem(`selected_task_${projects.selectedProject.id}`);
+    if (projects.selectedProject?.id) {
+      if (ui.selectedTaskId) {
+        localStorage.setItem(`selected_task_${projects.selectedProject.id}`, ui.selectedTaskId);
+      } else {
+        localStorage.removeItem(`selected_task_${projects.selectedProject.id}`);
+      }
     }
   }, [ui.selectedTaskId, projects.selectedProject?.id]);
 

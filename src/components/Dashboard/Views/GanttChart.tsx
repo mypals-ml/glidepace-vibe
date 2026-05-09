@@ -40,6 +40,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
   });
   const [totalDays, setTotalDays] = useState(INITIAL_BUFFER_DAYS_LEFT + INITIAL_BUFFER_DAYS_RIGHT);
   const pendingScrollAdjustment = useRef<number>(0);
+  const isProgrammaticScroll = useRef(false);
 
   const getPositionForDate = useCallback((dateStr: string) => {
     if (!dateStr) return 0;
@@ -54,6 +55,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       const anchorDateStr = selectedTask ? (getStartDateForCal(selectedTask) || todayStr) : todayStr;
       const pos = getPositionForDate(anchorDateStr);
       const halfViewport = activeScrollRef.current.clientWidth / 2;
+      isProgrammaticScroll.current = true;
       activeScrollRef.current.scrollLeft = pos - halfViewport + (DAY_WIDTH / 2);
       
       setViewportInfo({
@@ -62,11 +64,12 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       });
     }
     // Only on mount or when anchor context changes fundamentally
-  }, [activeScrollRef, selectedTask, todayStr, getPositionForDate]);
+  }, [activeScrollRef, selectedTaskId, todayStr, getPositionForDate]); // Use selectedTaskId instead of selectedTask object
 
   // Adjust scrollLeft when timelineStart shifts (infinite scroll left)
   useEffect(() => {
     if (pendingScrollAdjustment.current !== 0 && activeScrollRef.current) {
+      isProgrammaticScroll.current = true;
       activeScrollRef.current.scrollLeft += pendingScrollAdjustment.current;
       pendingScrollAdjustment.current = 0;
       
@@ -112,6 +115,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
       const pos = getPositionForDate(requestedCenterDate);
       const halfViewport = activeScrollRef.current.clientWidth / 2;
+      isProgrammaticScroll.current = true;
       activeScrollRef.current.scrollTo({
         left: pos - halfViewport + (DAY_WIDTH / 2),
         behavior: 'smooth'
@@ -128,6 +132,13 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       scrollLeft,
       clientWidth
     });
+
+    // If this is a programmatic scroll (centering), don't trigger expansion logic 
+    // to avoid recursion. The centering logic itself handles range issues.
+    if (isProgrammaticScroll.current) {
+      isProgrammaticScroll.current = false;
+      return;
+    }
 
     // Expansion logic (Infinite Scroll)
     if (scrollLeft + clientWidth > scrollWidth - EXPANSION_THRESHOLD_PX) {
