@@ -109,7 +109,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     } else {
       ui.setSelectedTaskId(null);
     }
-  }, [projects.selectedProject?.id]);
+  }, [projects.selectedProject?.id, ui]);
+
 
   useEffect(() => {
     if (projects.selectedProject?.id && ui.selectedTaskId) {
