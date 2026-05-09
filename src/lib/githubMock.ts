@@ -112,7 +112,8 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
   });
 
   return {
-    id: `#${id}`,
+    id: `item-${id}`,
+    displayId: `#${id}`,
     title: `Task ${id}: ${titles[i % titles.length]}`,
     startDate,
     targetDate,
@@ -132,7 +133,8 @@ const MOCK_TASKS_BUG_TRACKER: Task[] = Array.from({ length: 15 }, (_, i) => {
   const assignees = [MOCK_USER_POOL[2], MOCK_USER_POOL[3], MOCK_USER_POOL[4]].slice(0, (i % 3) + 1);
 
   return {
-    id: `#${id}`,
+    id: `item-bug-${id}`,
+    displayId: `#${id}`,
     title: `Bug ${id}: ${['Memory leak in sidebar', 'Incorrect alignment', 'API timeout', 'Console warning'][i % 4]}`,
     startDate: 'Apr 10',
     targetDate: 'Apr 12',
@@ -148,7 +150,8 @@ const MOCK_TASKS_BUG_TRACKER: Task[] = Array.from({ length: 15 }, (_, i) => {
 
 const CONNECTED_TASKS_TASKS: Task[] = [
   {
-    id: '#101',
+    id: 'item-pat-support',
+    displayId: '#101',
     title: 'Implement manual GitHub PAT support',
     startDate: 'Apr 05',
     targetDate: 'Apr 06',
@@ -174,7 +177,8 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     ],
   },
   {
-    id: '#102',
+    id: 'item-z-index-fix',
+    displayId: '#102',
     title: 'Fix modal stacking order (z-index)',
     startDate: 'Apr 05',
     targetDate: 'Apr 05',
@@ -206,7 +210,8 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     ],
   },
   {
-    id: '#103',
+    id: 'item-mock-data',
+    displayId: '#103',
     title: 'Add "Connected GitHub Tasks" mock project',
     startDate: 'Apr 05',
     targetDate: 'Apr 05',
@@ -670,7 +675,8 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     const newId = projectTasks.length + 501; // Start high for draft issues
     
     const newTask: Task = {
-      id: `#${newId}`,
+      id: `item-${newId}`,
+      displayId: `#${newId}`,
       itemId: `item-${newId}`,
       contentId: `content-${newId}`,
       title: title || 'New Task',

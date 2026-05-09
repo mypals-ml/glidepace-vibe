@@ -110,7 +110,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                     className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3 rounded-full ${getStatusDotColor(task.status).replace(' animate-pulse', '')}`}
                     aria-hidden="true"
                   />
-                  {task.id}
+                  {task.displayId}
                 </div>
 
                 {/* Title Column */}
