@@ -6,6 +6,7 @@ import { getStatusDotColor } from '../../utils/statusColors';
 import type { User } from '../../types';
 import { useState } from 'react';
 import { IconButton } from '../UI/IconButton';
+import { getStartDateForCal } from '../../lib/githubTaskMapper';
 
 export interface TaskSidebarProps {
   scrollRef?: React.RefObject<HTMLDivElement | null>;
@@ -25,7 +26,9 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setIsCreateMode, 
     apiError,
     fieldsProgress,
-    mappingStatus
+    mappingStatus,
+    setIsTaskDetailsOpen,
+    centerGanttOnDate
   } = useDashboard();
   const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
@@ -74,7 +77,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
                   selectedTaskId === task.id ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
                 }`} 
-                onClick={() => setSelectedTaskId(task.id)}
+                onClick={() => {
+                  setSelectedTaskId(task.id);
+                  setIsTaskDetailsOpen(true);
+                }}
               >
                 {/* Selection Accent Bar */}
                 {selectedTaskId === task.id && (
@@ -96,7 +102,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                   <span className={`text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
                     {task.title}
                   </span>
-                  <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{task.startDate} - {task.targetDate}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{task.startDate || task.tempStartDate} - {task.targetDate || task.tempTargetDate}</div>
                 </div>
 
                 {/* Status Column */}
@@ -123,7 +129,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 </div>
 
                 {/* Assignees Column */}
-                <div className="group/assignee relative h-full flex items-center justify-center">
+                <div className="group/assignee relative h-full flex items-center justify-center pr-2">
                   <div
                     className="flex -space-x-1.5 cursor-pointer hover:scale-110 transition-transform p-1"
                     onClick={(e) => {
@@ -161,6 +167,22 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       onClose={() => setOpenPickerTaskId(null)}
                     />
                   )}
+                </div>
+
+                {/* Center In Gantt Button - Visible on Hover */}
+                <div className="absolute right-0 top-0 bottom-0 flex items-center pr-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                  <IconButton
+                    icon="center_focus_strong"
+                    variant="primary"
+                    size="xs"
+                    className="pointer-events-auto !bg-transparent !text-primary hover:!bg-primary/10 !shadow-none !border-none !rounded-none !outline-none focus:!ring-0 focus:!ring-offset-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const startDate = getStartDateForCal(task);
+                      if (startDate) centerGanttOnDate(startDate);
+                    }}
+                    title={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                  />
                 </div>
               </div>
             ))

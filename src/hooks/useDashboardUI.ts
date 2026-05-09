@@ -8,6 +8,7 @@ export function useDashboardUI() {
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [isChartVisible, setIsChartVisible] = useState(false);
   const [dashboardView, setDashboardView] = useState<'gantt' | 'burndown'>('gantt');
+  const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   return {
@@ -25,6 +26,8 @@ export function useDashboardUI() {
     setIsChartVisible,
     dashboardView,
     setDashboardView,
+    isTaskDetailsOpen,
+    setIsTaskDetailsOpen,
     selectedTaskId,
     setSelectedTaskId,
   };

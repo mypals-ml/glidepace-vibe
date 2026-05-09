@@ -22,6 +22,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [requestedCenterDate, setRequestedCenterDate] = useState<string | null>(null);
+
+  const centerGanttOnDate = useCallback((date: string | null) => {
+    setRequestedCenterDate(date);
+    // Reset after a short delay so it can be re-triggered for the same date if needed
+    if (date) {
+      setTimeout(() => setRequestedCenterDate(null), 100);
+    }
+  }, []);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type });
@@ -89,6 +98,26 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setIsCreateMode: ui.setIsCreateMode,
     dateSettings,
   });
+
+  // Persist selectedTaskId per project
+  useEffect(() => {
+    if (projects.selectedProject?.id) {
+      const saved = localStorage.getItem(`selected_task_${projects.selectedProject.id}`);
+      if (saved && saved !== ui.selectedTaskId) {
+        ui.setSelectedTaskId(saved);
+      }
+    } else {
+      ui.setSelectedTaskId(null);
+    }
+  }, [projects.selectedProject?.id]);
+
+  useEffect(() => {
+    if (projects.selectedProject?.id && ui.selectedTaskId) {
+      localStorage.setItem(`selected_task_${projects.selectedProject.id}`, ui.selectedTaskId);
+    } else if (projects.selectedProject?.id && !ui.selectedTaskId) {
+      localStorage.removeItem(`selected_task_${projects.selectedProject.id}`);
+    }
+  }, [ui.selectedTaskId, projects.selectedProject?.id]);
 
   // 5. Sync Hook (Needs Bridge to Tasks)
   const sync = useDashboardSync({
@@ -281,7 +310,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     ...fieldSetup,
     toast,
     showToast,
-    hideToast
+    hideToast,
+    requestedCenterDate,
+    centerGanttOnDate
   };
 
   return (

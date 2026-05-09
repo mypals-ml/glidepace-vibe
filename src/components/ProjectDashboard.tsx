@@ -21,7 +21,7 @@ const ProjectSettingsModal = lazy(() => import('./Modals/ProjectSettingsModal').
 
 function DashboardLayout() {
   const { t } = useTranslation();
-  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, setSelectedTaskId, toast, hideToast } = useDashboard();
+  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, setSelectedTaskId, isTaskDetailsOpen, setIsTaskDetailsOpen, toast, hideToast } = useDashboard();
   const { width: sidebarWidth, isResizing, panelRef, onMouseDown } = useResizablePanel();
   const { sidebarRef, timelineRef, onSidebarScroll, onTimelineScroll } = useScrollSync();
 
@@ -93,7 +93,9 @@ function DashboardLayout() {
 
       {/* Modals */}
       <Suspense fallback={null}>
-        <TaskDetailsPanel task={selectedTask} onClose={() => setSelectedTaskId(null)} />
+        {isTaskDetailsOpen && (
+          <TaskDetailsPanel task={selectedTask} onClose={() => setIsTaskDetailsOpen(false)} />
+        )}
         <OpenProjectModal />
         <ConnectedAccountsModal />
         <PatAuthModal />

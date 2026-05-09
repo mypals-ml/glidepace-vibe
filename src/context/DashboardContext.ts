@@ -99,6 +99,8 @@ export interface DashboardContextValue {
   setIsChartVisible: (visible: boolean) => void;
   dashboardView: 'gantt' | 'burndown';
   setDashboardView: (view: 'gantt' | 'burndown') => void;
+  isTaskDetailsOpen: boolean;
+  setIsTaskDetailsOpen: (open: boolean) => void;
   selectedTaskId: string | null;
   setSelectedTaskId: (id: string | null) => void;
 
@@ -120,6 +122,10 @@ export interface DashboardContextValue {
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   hideToast: () => void;
+
+  // Timeline / Gantt navigation
+  requestedCenterDate: string | null;
+  centerGanttOnDate: (date: string | null) => void;
 }
 
 export const DashboardContext = createContext<DashboardContextValue | null>(null);

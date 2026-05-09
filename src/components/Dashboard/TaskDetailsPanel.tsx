@@ -10,6 +10,7 @@ import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
 import { ConfirmationModal } from '../UI/ConfirmationModal';
 import { formatToGitHubDate, calculateTargetDate } from '../../lib/dateUtils';
+import { getStartDateForCal } from '../../lib/githubTaskMapper';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -64,7 +65,7 @@ function CopyButton({ text, t }: { text: string; t: TFunction }) {
 
 export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
   const { t } = useTranslation();
-  const { isCreateMode, setIsCreateMode } = useDashboard();
+  const { isCreateMode, setIsCreateMode, centerGanttOnDate, setIsChartVisible, setDashboardView } = useDashboard();
 
   if (!task && !isCreateMode) return null;
 
@@ -73,7 +74,18 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
     setIsCreateMode(false);
   };
 
-
+  const handleCenterInGantt = () => {
+    if (!task) return;
+    const startDate = getStartDateForCal(task);
+    if (startDate) {
+      // Ensure the chart is visible and set to Gantt view (important for mobile)
+      setIsChartVisible(true);
+      setDashboardView('gantt');
+      
+      centerGanttOnDate(startDate);
+      handleClose();
+    }
+  };
 
   const handleBackdropClick = () => {
     if (!isCreateMode) {
@@ -94,13 +106,25 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
         <div className="md:hidden bg-white h-full rounded-t-2xl flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/60">
             <h2 className="text-lg font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
-            <IconButton
-              icon="close"
-              variant="ghost"
-              size="md"
-              onClick={handleClose}
-              aria-label="Close"
-            />
+            <div className="flex items-center gap-2">
+              {!isCreateMode && task && (
+                <IconButton
+                  icon="center_focus_strong"
+                  variant="ghost"
+                  size="md"
+                  onClick={handleCenterInGantt}
+                  title={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                  aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                />
+              )}
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="md"
+                onClick={handleClose}
+                aria-label="Close"
+              />
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-6 space-y-6">
             <TaskContent key={isCreateMode ? 'new-task' : task?.id} task={task} t={t} isCreateMode={isCreateMode} />
@@ -111,13 +135,25 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
         <div className="hidden md:flex flex-col bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/60 h-full overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-slate-200/60">
             <h2 className="text-sm font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
-            <IconButton
-              icon="close"
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              aria-label="Close"
-            />
+            <div className="flex items-center gap-1">
+              {!isCreateMode && task && (
+                <IconButton
+                  icon="center_focus_strong"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCenterInGantt}
+                  title={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                  aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                />
+              )}
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="sm"
+                onClick={handleClose}
+                aria-label="Close"
+              />
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 pt-4 space-y-4">
             <TaskContent key={isCreateMode ? 'new-task' : task?.id} task={task} t={t} isCreateMode={isCreateMode} />
