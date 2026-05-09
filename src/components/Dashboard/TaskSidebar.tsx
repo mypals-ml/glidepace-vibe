@@ -89,6 +89,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       prev.includes(task.id) ? prev.filter(id => id !== task.id) : [...prev, task.id]
                     );
                   } else {
+                    setIsCreateMode(false);
                     setSelectedTaskId(task.id);
                     setIsTaskDetailsOpen(true);
                   }
@@ -277,7 +278,11 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             icon="add"
             variant="success"
             size="sm"
-            onClick={() => setIsCreateMode(true)}
+            onClick={() => {
+              setSelectedTaskId(null);
+              setIsCreateMode(true);
+              setIsTaskDetailsOpen(true);
+            }}
             title={t('createTask.addButton') || 'Add new task'}
             aria-label={t('createTask.addButton') || 'Add new task'}
           />
