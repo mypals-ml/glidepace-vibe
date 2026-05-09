@@ -28,7 +28,11 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     fieldsProgress,
     mappingStatus,
     setIsTaskDetailsOpen,
-    centerGanttOnDate
+    centerGanttOnDate,
+    isLinkMode,
+    setIsLinkMode,
+    selectedLinkTaskIds,
+    setSelectedLinkTaskIds,
   } = useDashboard();
   const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
@@ -75,15 +79,26 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               <div 
                 key={task.id} 
                 className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
-                  selectedTaskId === task.id ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
+                  isLinkMode 
+                    ? selectedLinkTaskIds.includes(task.id) ? 'bg-primary/10 ring-1 ring-primary/30 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
+                    : selectedTaskId === task.id ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
                 }`} 
                 onClick={() => {
-                  setSelectedTaskId(task.id);
-                  setIsTaskDetailsOpen(true);
+                  if (isLinkMode) {
+                    setSelectedLinkTaskIds(prev => 
+                      prev.includes(task.id) ? prev.filter(id => id !== task.id) : [...prev, task.id]
+                    );
+                  } else {
+                    setSelectedTaskId(task.id);
+                    setIsTaskDetailsOpen(true);
+                  }
                 }}
               >
                 {/* Selection Accent Bar */}
-                {selectedTaskId === task.id && (
+                {(!isLinkMode && selectedTaskId === task.id) && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full z-10" />
+                )}
+                {(isLinkMode && selectedLinkTaskIds.includes(task.id)) && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full z-10" />
                 )}
 
@@ -169,13 +184,26 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                   )}
                 </div>
 
-                {/* Center In Gantt Button - Visible on Hover */}
-                <div className="absolute right-0 top-0 bottom-0 flex items-center pr-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                {/* Hovering Toolbar */}
+                <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5">
+                  <IconButton
+                    icon="link"
+                    variant="ghost"
+                    size="xs"
+                    className="pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsLinkMode(true);
+                      setSelectedLinkTaskIds([task.id]);
+                    }}
+                    title={t('dashboard.linkTasks') || "Link Tasks"}
+                    aria-label={t('dashboard.linkTasks') || "Link Tasks"}
+                  />
                   <IconButton
                     icon="center_focus_strong"
-                    variant="primary"
+                    variant="ghost"
                     size="xs"
-                    className="pointer-events-auto !bg-transparent !text-primary hover:!bg-primary/10 !shadow-none !border-none !rounded-none !outline-none focus:!ring-0 focus:!ring-offset-0"
+                    className="pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
                     onClick={(e) => {
                       e.stopPropagation();
                       const startDate = getStartDateForCal(task);

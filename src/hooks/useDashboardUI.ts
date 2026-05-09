@@ -10,6 +10,8 @@ export function useDashboardUI() {
   const [dashboardView, setDashboardView] = useState<'gantt' | 'burndown'>('gantt');
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isLinkMode, setIsLinkMode] = useState(false);
+  const [selectedLinkTaskIds, setSelectedLinkTaskIds] = useState<string[]>([]);
 
   return {
     isProjectModalOpen,
@@ -30,5 +32,9 @@ export function useDashboardUI() {
     setIsTaskDetailsOpen,
     selectedTaskId,
     setSelectedTaskId,
+    isLinkMode,
+    setIsLinkMode,
+    selectedLinkTaskIds,
+    setSelectedLinkTaskIds,
   };
 }

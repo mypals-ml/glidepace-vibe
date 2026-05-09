@@ -12,6 +12,7 @@ import { useScrollSync } from '../hooks/useScrollSync';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { MissingFieldsPromptModal } from './Modals/MissingFieldsPromptModal';
 import { Toast } from './UI/Toast';
+import { FloatingSequenceBuilder } from './Dashboard/FloatingSequenceBuilder';
 
 const ConnectedAccountsModal = lazy(() => import('./Modals/ConnectedAccountsModal').then(m => ({ default: m.ConnectedAccountsModal })));
 const OpenProjectModal = lazy(() => import('./Modals/OpenProjectModal').then(m => ({ default: m.OpenProjectModal })));
@@ -146,6 +147,8 @@ function DashboardLayout() {
           />
         )}
       </Suspense>
+
+      <FloatingSequenceBuilder />
 
     </div>
   );

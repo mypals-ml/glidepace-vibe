@@ -62,6 +62,7 @@ export interface DashboardContextValue {
   addTaskComment: (task: Task, body: string) => Promise<boolean>;
   updateTaskStatus: (task: Task, status: TaskStatus) => Promise<boolean>;
   updateTaskDates: (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string) => Promise<boolean>;
+  updateTaskSuccessors: (taskId: string, successorIds: string[]) => Promise<boolean>;
   createProjectV2Field: (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => Promise<string | null>;
 
   // Sync
@@ -88,8 +89,8 @@ export interface DashboardContextValue {
   setIsMissingFieldsPromptOpen: (open: boolean) => void;
   missingFieldsList: MissingFieldDef[];
   triggerFieldDetection: (forcePrompt?: boolean) => void;
-  promptCreateSingleField: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId') => void;
-  createSingleFieldNow: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId') => Promise<void>;
+  promptCreateSingleField: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId' | 'successorFieldId') => void;
+  createSingleFieldNow: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId' | 'successorFieldId') => Promise<void>;
   handleCreateMissingFields: () => Promise<void>;
   isCreatingFields: boolean;
   mappingStatus: 'idle' | 'scanning' | 'mapping' | 'complete';
@@ -103,6 +104,10 @@ export interface DashboardContextValue {
   setIsTaskDetailsOpen: (open: boolean) => void;
   selectedTaskId: string | null;
   setSelectedTaskId: (id: string | null) => void;
+  isLinkMode: boolean;
+  setIsLinkMode: (mode: boolean) => void;
+  selectedLinkTaskIds: string[];
+  setSelectedLinkTaskIds: (tasks: string[] | ((prev: string[]) => string[])) => void;
 
   // Status
   projectStatusOptions: string[];

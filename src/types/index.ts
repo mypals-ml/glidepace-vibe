@@ -51,6 +51,7 @@ export interface Task {
   tempTargetDate?: string;
   closedAt?: string;
   updatedAt?: string;
+  successorIds?: string[];
 }
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---
@@ -184,6 +185,7 @@ export interface ProjectDateSettings {
   estimateFieldId?: string;
   estimateUnitFieldId?: string;
   estimateUnit?: string;
+  successorFieldId?: string;
 }
 
 export interface GitHubProjectV2 {

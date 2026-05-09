@@ -7,7 +7,7 @@ export interface MissingFieldDef {
   keywords: string[];
   defaultName: string;
   statusLabel: string;
-  settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId';
+  settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId' | 'successorFieldId';
   usageKey: string;
 }
 
@@ -15,7 +15,8 @@ const REQUIRED_FIELDS: MissingFieldDef[] = [
   { type: 'date', keywords: ['start'], defaultName: 'Start Date', statusLabel: 'Start Date', settingsKey: 'startDateFieldId', usageKey: 'settings.usageStartDate' },
   { type: 'date', keywords: ['target', 'end'], defaultName: 'Target Date', statusLabel: 'Target Date', settingsKey: 'targetDateFieldId', usageKey: 'settings.usageTargetDate' },
   { type: 'number', keywords: ['estimate', 'duration', 'days', 'hours'], defaultName: 'Estimate', statusLabel: 'Estimate', settingsKey: 'estimateFieldId', usageKey: 'settings.usageEstimate' },
-  { type: 'single_select', keywords: ['estimate unit', 'unit', 'category'], defaultName: 'Estimate Unit', statusLabel: 'Estimate Unit', settingsKey: 'estimateUnitFieldId', usageKey: 'settings.usageEstimateUnit' }
+  { type: 'single_select', keywords: ['estimate unit', 'unit', 'category'], defaultName: 'Estimate Unit', statusLabel: 'Estimate Unit', settingsKey: 'estimateUnitFieldId', usageKey: 'settings.usageEstimateUnit' },
+  { type: 'text', keywords: ['successor', 'dependency', 'link'], defaultName: 'Successors', statusLabel: 'Successors', settingsKey: 'successorFieldId', usageKey: 'settings.usageSuccessors' }
 ];
 
 export function useFieldSetup({
@@ -123,7 +124,7 @@ export function useFieldSetup({
     }
   }, [selectedProjectId, projectFields.length, triggerFieldDetection]); 
 
-  const promptCreateSingleField = useCallback((settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId') => {
+  const promptCreateSingleField = useCallback((settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId' | 'successorFieldId') => {
     const fieldDef = REQUIRED_FIELDS.find(f => f.settingsKey === settingsKey);
     if (fieldDef) {
       setMissingFieldsList([fieldDef]);
@@ -170,7 +171,7 @@ export function useFieldSetup({
     setMissingFieldsList([]);
   }, [missingFieldsList, dateSettings, createProjectV2Field, updateDateSettings]);
 
-  const createSingleFieldNow = useCallback(async (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId') => {
+  const createSingleFieldNow = useCallback(async (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId' | 'successorFieldId') => {
     const req = REQUIRED_FIELDS.find(f => f.settingsKey === settingsKey);
     if (!req) return;
 

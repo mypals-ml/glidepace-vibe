@@ -424,6 +424,45 @@ export function useDashboardTasks({
     }
   }, [selectedProject?.id, githubToken, fetchSingleProjectItem, dateSettings, projectFields, setTasks]);
 
+  const updateTaskSuccessors = useCallback(async (taskId: string, successorIds: string[], skipRefresh = false): Promise<boolean> => {
+    if (!selectedProject?.id || !githubToken || !dateSettings.successorFieldId) return false;
+    
+    // Optimistic Update
+    const task = tasks.find(t => t.itemId === taskId || t.id === taskId);
+    if (!task || !task.itemId) return false;
+
+    const oldTask = { ...task };
+    setTasks(prev => prev.map(t => 
+      (t.itemId === task.itemId) ? { ...t, successorIds } : t
+    ));
+
+    try {
+      const textValue = successorIds.join(',');
+      const success = await updateProjectV2ItemField(
+        selectedProject.id, 
+        task.itemId, 
+        dateSettings.successorFieldId, 
+        { text: textValue }, 
+        githubToken
+      );
+
+      if (success && !skipRefresh) {
+        fetchSingleProjectItem(task.itemId, githubToken);
+      } else if (!success) {
+        setTasks(prev => prev.map(t => 
+          (t.itemId === task.itemId) ? oldTask : t
+        ));
+      }
+      return success;
+    } catch (e) {
+      console.error(e);
+      setTasks(prev => prev.map(t => 
+        (t.itemId === task.itemId) ? oldTask : t
+      ));
+      return false;
+    }
+  }, [selectedProject?.id, githubToken, dateSettings.successorFieldId, tasks, fetchSingleProjectItem]);
+
   const handleCreateTask = useCallback(async (taskData: {
     title: string;
     body?: string;
@@ -696,6 +735,7 @@ export function useDashboardTasks({
     updateTaskAssignees,
     updateTaskStatus,
     updateTaskDates,
+    updateTaskSuccessors,
     handleCreateTask,
     updateTaskTitle,
     updateTaskDescription,

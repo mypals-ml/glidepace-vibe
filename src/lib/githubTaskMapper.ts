@@ -178,6 +178,19 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
 
   const estimateUnit = unitField?.name || unitField?.text || dateSettings?.estimateUnit || 'days';
 
+  // Find Successors
+  const successorField = dateSettings?.successorFieldId
+    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.successorFieldId)
+    : fieldValues.find((f: GitHubFieldValue) => 
+        (f.__typename === 'ProjectV2ItemFieldTextValue') && 
+        (f.field?.name?.toLowerCase().includes('successor') || 
+         f.field?.name?.toLowerCase().includes('dependency') || 
+         f.field?.name?.toLowerCase().includes('link'))
+      );
+
+  const successorsText = successorField?.text || '';
+  const successorIds = successorsText.split(',').map(s => s.trim()).filter(Boolean);
+
   // Extract assignees from either the content (Issues/PRs) or the User field (Drafts)
   let assigneeNodes = content?.assignees?.nodes || [];
   if (assigneeNodes.length === 0) {
@@ -247,6 +260,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     targetDate: actualTargetDate,
     estimate: actualEstimate,
     estimateUnit: estimateUnit,
+    successorIds: successorIds,
   };
 
   // 1. Estimate Unit
@@ -304,6 +318,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     closedAt: partialTask.closedAt,
     updatedAt: partialTask.updatedAt,
     estimateUnitOptions,
+    successorIds: partialTask.successorIds,
     status: status || 'Todo',
     assignees: assignees,
     comments: comments,
