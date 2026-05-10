@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings, AutoUpdateStartDateMode } from '../types';
 import type { MissingFieldDef } from '../hooks/useFieldSetup';
 
 export interface DashboardContextValue {
@@ -52,6 +52,7 @@ export interface DashboardContextValue {
     targetDate?: string; 
     estimate?: number;
     estimateUnit?: string;
+    autoUpdateStartDate?: AutoUpdateStartDateMode;
     assigneeIds?: string[];
   }) => Promise<boolean>;
 

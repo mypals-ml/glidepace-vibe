@@ -22,7 +22,7 @@ import {
   DELETE_ISSUE_COMMENT_MUTATION,
   ADD_ISSUE_COMMENT_MUTATION
 } from '../lib/githubQueries';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode } from '../types';
 
 interface UseDashboardTasksProps {
   githubToken: string;
@@ -322,7 +322,8 @@ export function useDashboardTasks({
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;
     
     // Optimistic Update
-    const oldTask = { ...task };
+    const oldTasks = [...tasks];
+    let nextTasks: Task[] = [];
     setTasks(prev => {
       const updated = prev.map(t => 
         (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) 
@@ -342,7 +343,8 @@ export function useDashboardTasks({
             } 
           : t
       );
-      return cascadeTaskDates(updated, task.itemId!);
+      nextTasks = cascadeTaskDates(updated, task.itemId!, new Set(), true);
+      return nextTasks;
     });
 
     let anySuccess = false;
@@ -359,7 +361,6 @@ export function useDashboardTasks({
       const effectiveEstimate = estimate !== undefined ? estimate : (task.estimate || 0);
       const effectiveUnit = estimateUnit !== undefined ? estimateUnit : (task.estimateUnit || 'days');
       
-      // If any of the inputs changed, recalculate the target date
       if (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined) {
         const calculated = calculateTargetDate(effectiveStartDate, effectiveEstimate, effectiveUnit);
         if (calculated !== task.targetDate) {
@@ -394,36 +395,48 @@ export function useDashboardTasks({
               const globalOption = globalField.options.find(o => o.name === estimateUnit);
               if (globalOption) optionId = globalOption.id;
             }
-            
-            if (optionId) {
-              await updateField(fieldId, { singleSelectOptionId: optionId });
-            } else {
-              console.warn(`[Tasks] Option '${estimateUnit}' not found for single-select field ${fieldId}. Skipping update.`);
-              // If we can't find the option, this part of the optimistic update was "wrong" or unsupported
-              // but we might not want to rollback everything if other fields succeeded.
-            }
+            if (optionId) await updateField(fieldId, { singleSelectOptionId: optionId });
           } else {
-            // Treat as text field
             await updateField(fieldId, { text: estimateUnit });
           }
         }
       }
 
-      if (anySuccess && !skipRefresh) {
-        fetchSingleProjectItem(task.itemId, githubToken);
-      } else if (!anySuccess) {
-        // Rollback if nothing succeeded
-        setTasks(prev => prev.map(t => 
-          (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) ? oldTask : t
-        ));
+      // Handle autoUpdateStartDate persistence if a field is configured
+      if (autoUpdateStartDate !== undefined) {
+        const fieldId = dateSettings.autoUpdateStartDateFieldId; // New setting
+        if (fieldId) {
+          await updateField(fieldId, { text: autoUpdateStartDate });
+        }
+      }
+
+      if (anySuccess) {
+        // Persist cascaded changes
+        const shiftedTasks = nextTasks.filter(t => {
+          const old = oldTasks.find(ot => ot.id === t.id);
+          // Skip the source task itself which we already updated
+          if (t.id === task.id) return false;
+          return old && (old.startDate !== t.startDate || old.targetDate !== t.targetDate);
+        });
+
+        for (const st of shiftedTasks) {
+          const fIds = st.projectFieldIds;
+          if (fIds?.startDate && st.startDate) {
+            await updateProjectV2ItemField(selectedProject.id, st.itemId!, fIds.startDate, { date: formatToGitHubDate(st.startDate) }, githubToken);
+          }
+          if (fIds?.targetDate && st.targetDate) {
+            await updateProjectV2ItemField(selectedProject.id, st.itemId!, fIds.targetDate, { date: formatToGitHubDate(st.targetDate) }, githubToken);
+          }
+        }
+
+        if (!skipRefresh) fetchSingleProjectItem(task.itemId, githubToken);
+      } else {
+        setTasks(oldTasks);
       }
       return anySuccess;
     } catch (e) {
       console.error(e);
-      // Rollback on error
-      setTasks(prev => prev.map(t => 
-        (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) ? oldTask : t
-      ));
+      setTasks(oldTasks);
       return false;
     }
   }, [selectedProject?.id, githubToken, fetchSingleProjectItem, dateSettings, projectFields, setTasks]);
@@ -448,7 +461,8 @@ export function useDashboardTasks({
     }
 
     // Optimistic Update
-    const oldTask = { ...task };
+    const oldTasks = [...tasks];
+    let nextTasks: Task[] = [];
     setTasks(prev => {
       // Update successors for the source task
       let updated = prev.map(t => 
@@ -464,7 +478,9 @@ export function useDashboardTasks({
         );
       }
       
-      return cascadeTaskDates(updated, task.itemId!);
+      // Use real dates for persistence-bound operations
+      nextTasks = cascadeTaskDates(updated, task.itemId!, new Set(), true);
+      return nextTasks;
     });
 
     try {
@@ -477,22 +493,35 @@ export function useDashboardTasks({
         githubToken
       );
 
-      if (success && !skipRefresh) {
-        fetchSingleProjectItem(task.itemId, githubToken);
-      } else if (!success) {
-        setTasks(prev => prev.map(t => 
-          (t.itemId === task.itemId) ? oldTask : t
-        ));
+      if (success) {
+        // Persist cascaded date changes for successors
+        // Find tasks that changed their dates during the cascade
+        const shiftedTasks = nextTasks.filter(t => {
+          const old = oldTasks.find(ot => ot.id === t.id);
+          return old && (old.startDate !== t.startDate || old.targetDate !== t.targetDate);
+        });
+
+        for (const st of shiftedTasks) {
+          const fieldIds = st.projectFieldIds;
+          if (fieldIds?.startDate && st.startDate) {
+            await updateProjectV2ItemField(selectedProject.id, st.itemId!, fieldIds.startDate, { date: formatToGitHubDate(st.startDate) }, githubToken);
+          }
+          if (fieldIds?.targetDate && st.targetDate) {
+            await updateProjectV2ItemField(selectedProject.id, st.itemId!, fieldIds.targetDate, { date: formatToGitHubDate(st.targetDate) }, githubToken);
+          }
+        }
+
+        if (!skipRefresh) fetchSingleProjectItem(task.itemId, githubToken);
+      } else {
+        setTasks(oldTasks);
       }
       return success;
     } catch (e) {
       console.error(e);
-      setTasks(prev => prev.map(t => 
-        (t.itemId === task.itemId) ? oldTask : t
-      ));
+      setTasks(oldTasks);
       return false;
     }
-  }, [selectedProject?.id, githubToken, dateSettings.successorFieldId, tasks, fetchSingleProjectItem]);
+  }, [selectedProject?.id, githubToken, dateSettings.successorFieldId, tasks, fetchSingleProjectItem, requestStartDateDecision]);
 
   const handleCreateTask = useCallback(async (taskData: {
     title: string;

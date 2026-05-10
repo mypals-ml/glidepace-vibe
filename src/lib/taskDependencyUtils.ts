@@ -60,7 +60,7 @@ export function diffWorkdays(startDateStr: string, endDateStr: string): number {
  * Cascades date changes through the task dependency tree.
  * Uses a path-based visited set to detect and break infinite loops.
  */
-export function cascadeTaskDates(tasks: Task[], startTaskId: string, pathSet = new Set<string>()): Task[] {
+export function cascadeTaskDates(tasks: Task[], startTaskId: string, pathSet = new Set<string>(), useRealDates = false): Task[] {
   const tasksCopy = [...tasks];
   const startTaskIndex = tasksCopy.findIndex(t => t.itemId === startTaskId || t.id === startTaskId);
   
@@ -95,28 +95,30 @@ export function cascadeTaskDates(tasks: Task[], startTaskId: string, pathSet = n
       // Successor starts the workday AFTER predecessor finishes
       const newStartDate = addWorkdays(predTargetDate, 1);
       
-      if (newStartDate !== successor.tempStartDate) {
-        // Update temp dates
-        const updatedSuccessor = { ...successor, tempStartDate: newStartDate };
-        
-        // Calculate new temp target date based on estimate
+      const currentStart = useRealDates ? successor.startDate : successor.tempStartDate;
+      
+      if (newStartDate !== currentStart) {
+        // Calculate new target date based on estimate
         const estimate = successor.estimate !== undefined ? successor.estimate : (successor.tempEstimate || 1);
         const unit = successor.estimateUnit || successor.tempEstimateUnit || 'days';
-        
-        // Workday-aware target date calculation
-        // For simplicity, we use the existing calculateTargetDate but we'll need to make it workday-aware eventually
-        // For now, let's at least ensure the cascade continues
         const newTargetDate = calculateTargetDate(newStartDate, estimate, unit);
-        updatedSuccessor.tempTargetDate = newTargetDate;
+
+        // Update dates
+        const updatedSuccessor = { ...successor };
+        if (useRealDates) {
+          updatedSuccessor.startDate = newStartDate;
+          updatedSuccessor.targetDate = newTargetDate;
+        } else {
+          updatedSuccessor.tempStartDate = newStartDate;
+          updatedSuccessor.tempTargetDate = newTargetDate;
+        }
         
         tasksCopy[successorIndex] = updatedSuccessor;
-
-        // Recursive cascade to this successor's own children
-        const recursiveResult = cascadeTaskDates(tasksCopy, successorId, new Set(pathSet));
-        // Update our copy with results from recursion
-        recursiveResult.forEach(updatedTask => {
-          const idx = tasksCopy.findIndex(t => t.id === updatedTask.id);
-          if (idx !== -1) tasksCopy[idx] = updatedTask;
+        
+        // Recurse to update this task's successors
+        const cascadedTasks = cascadeTaskDates(tasksCopy, successorId, new Set(pathSet), useRealDates);
+        cascadedTasks.forEach((t, idx) => {
+          tasksCopy[idx] = t;
         });
       }
     }
@@ -126,17 +128,23 @@ export function cascadeTaskDates(tasks: Task[], startTaskId: string, pathSet = n
 }
 
 /**
- * Runs a full cascade pass across the entire project.
- * Useful for initial loads and manual syncs.
+ * Cascades dates for all tasks in the project.
  */
-export function cascadeAllTasks(tasks: Task[]): Task[] {
-  let currentTasks = [...tasks];
+export function cascadeAllTasks(tasks: Task[], useRealDates = false): Task[] {
+  let result = [...tasks];
   
-  // Find "root" tasks (those without predecessors) to start the cascade
-  // Or just iterate and cascade from each task (loop detection handles efficiency)
-  tasks.forEach(task => {
-    currentTasks = cascadeTaskDates(currentTasks, (task.itemId || task.id)!);
+  // Find roots (tasks with no predecessors)
+  const hasPredecessor = new Set<string>();
+  
+  tasks.forEach(t => {
+    (t.successorIds || []).forEach(sid => hasPredecessor.add(sid));
   });
   
-  return currentTasks;
+  const roots = tasks.filter(t => !hasPredecessor.has(t.itemId!));
+  
+  roots.forEach(root => {
+    result = cascadeTaskDates(result, root.itemId!, new Set(), useRealDates);
+  });
+  
+  return result;
 }

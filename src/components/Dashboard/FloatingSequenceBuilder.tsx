@@ -71,6 +71,7 @@ export function FloatingSequenceBuilder() {
     setSelectedLinkTaskIds,
     tasks,
     updateTaskSuccessors,
+    requestStartDateDecision,
   } = useDashboard();
 
   const [orderedTasks, setOrderedTasks] = useState<{ id: string; title: string }[]>([]);

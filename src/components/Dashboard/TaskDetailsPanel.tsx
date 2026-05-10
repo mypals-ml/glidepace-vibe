@@ -5,12 +5,12 @@ import { useDashboard } from '../../context/DashboardContext';
 import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
-import type { Task, User } from '../../types';
+import type { Task, User, AutoUpdateStartDateMode } from '../../types';
 import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
 import { ConfirmationModal } from '../UI/ConfirmationModal';
 import { calculateTargetDate } from '../../lib/dateUtils';
-import { getStartDateForCal } from '../../lib/githubTaskMapper';
+import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -693,7 +693,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
             <input
               type="date"
-              value={task.startDate}
+              value={getStartDateForCal(task)}
               onChange={(e) => updateTaskDates(task, e.target.value, undefined)}
               className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
             />
@@ -702,7 +702,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
             <input
               type="date"
-              value={task.targetDate}
+              value={getTargetDateForCal(task)}
               readOnly
               className="w-full text-sm text-slate-400 bg-slate-100 border border-slate-200 rounded p-1.5 cursor-not-allowed outline-none"
               title={t('dashboard.targetDateAutoCalc', 'Target date is calculated based on start date and estimate')}

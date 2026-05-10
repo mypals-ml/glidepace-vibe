@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { DashboardContext } from './DashboardContext';
 import type { DashboardContextValue } from './DashboardContext';
-import type { ProjectDateSettings } from '../types';
+import type { ProjectDateSettings, Task } from '../types';
 
 // Hooks
 import { useDashboardAuth } from '../hooks/useDashboardAuth';

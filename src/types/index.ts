@@ -189,6 +189,7 @@ export interface ProjectDateSettings {
   targetDateFieldId?: string;
   estimateFieldId?: string;
   estimateUnitFieldId?: string;
+  autoUpdateStartDateFieldId?: string;
   estimateUnit?: string;
   successorFieldId?: string;
 }
