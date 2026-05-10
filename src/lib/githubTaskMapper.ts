@@ -34,6 +34,7 @@ export const PROJECT_ITEM_FRAGMENT = `
       number
       state
       body
+      url
       closedAt
       updatedAt
       repository { nameWithOwner }
@@ -60,6 +61,7 @@ export const PROJECT_ITEM_FRAGMENT = `
       number
       state
       body
+      url
       closedAt
       updatedAt
       repository { nameWithOwner }
@@ -306,6 +308,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     displayId: idPrefix,
     itemId: item.id,
     contentId: content?.id,
+    url: content?.url,
     title: content?.title || i18n.t('dashboard.noTitle'),
     body: content?.body || '',
     startDate: actualStartDate,

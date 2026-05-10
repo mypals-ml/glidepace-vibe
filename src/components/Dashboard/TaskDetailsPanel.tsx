@@ -113,14 +113,26 @@ export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetail
             <h2 className="text-base font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
             <div className="flex items-center gap-1">
               {!isCreateMode && task && (
-                <IconButton
-                  icon="center_focus_strong"
-                  variant="ghost"
-                  size="md"
-                  onClick={handleCenterInGantt}
-                  title={t('dashboard.centerInGantt') || 'Center in Gantt'}
-                  aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
-                />
+                <>
+                  {task.url && (
+                    <IconButton
+                      icon="open_in_new"
+                      variant="ghost"
+                      size="md"
+                      onClick={() => window.open(task.url, '_blank')}
+                      title={t('dashboard.viewOnGitHub') || 'View on GitHub'}
+                      aria-label={t('dashboard.viewOnGitHub') || 'View on GitHub'}
+                    />
+                  )}
+                  <IconButton
+                    icon="center_focus_strong"
+                    variant="ghost"
+                    size="md"
+                    onClick={handleCenterInGantt}
+                    title={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                    aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                  />
+                </>
               )}
               <IconButton
                 icon="close"
@@ -142,14 +154,26 @@ export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetail
             <h2 className="text-sm font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
             <div className="flex items-center gap-1">
               {!isCreateMode && task && (
-                <IconButton
-                  icon="center_focus_strong"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCenterInGantt}
-                  title={t('dashboard.centerInGantt') || 'Center in Gantt'}
-                  aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
-                />
+                <>
+                  {task.url && (
+                    <IconButton
+                      icon="open_in_new"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(task.url, '_blank')}
+                      title={t('dashboard.viewOnGitHub') || 'View on GitHub'}
+                      aria-label={t('dashboard.viewOnGitHub') || 'View on GitHub'}
+                    />
+                  )}
+                  <IconButton
+                    icon="center_focus_strong"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCenterInGantt}
+                    title={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                    aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                  />
+                </>
               )}
               <IconButton
                 icon="close"

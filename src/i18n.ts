@@ -120,7 +120,8 @@ const resources = {
         dragToLink: "Drag to link to successor",
         breakLink: "Break link",
         linkTasks: "Link Tasks",
-        close: "Close"
+        close: "Close",
+        viewOnGitHub: "View on GitHub"
       },
       createTask: {
         title: "Create New Task",
@@ -338,7 +339,8 @@ const resources = {
         dragToLink: "ドラッグして後続タスクにリンク",
         breakLink: "リンクを解除",
         linkTasks: "タスクをリンク",
-        close: "閉じる"
+        close: "閉じる",
+        viewOnGitHub: "GitHubで表示"
       },
       createTask: {
         title: "新しいタスクを作成",
@@ -556,7 +558,8 @@ const resources = {
         dragToLink: "拖动以链接到后继任务",
         breakLink: "断开链接",
         linkTasks: "链接任务",
-        close: "关闭"
+        close: "关闭",
+        viewOnGitHub: "在 GitHub 上查看"
       },
       createTask: {
         title: "创建新任务",
@@ -774,7 +777,8 @@ const resources = {
         dragToLink: "拖動以連結到後繼任務",
         breakLink: "斷開連結",
         linkTasks: "連結任務",
-        close: "關閉"
+        close: "關閉",
+        viewOnGitHub: "在 GitHub 上查看"
       },
       createTask: {
         title: "建立新任務",

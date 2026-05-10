@@ -53,6 +53,7 @@ export interface Task {
   closedAt?: string;
   updatedAt?: string;
   successorIds?: string[];
+  url?: string;
 }
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---
@@ -123,6 +124,7 @@ export interface GitHubProjectContent {
   number?: number;
   state?: string;
   body?: string;
+  url?: string;
   repository?: GitHubRepository;
   closedAt?: string;
   updatedAt?: string;
