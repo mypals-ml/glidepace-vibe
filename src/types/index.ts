@@ -30,6 +30,7 @@ export interface Task {
   title: string;
   startDate: string;
   targetDate: string;
+  localUpdateTimestamp?: number;
   fullStartDate?: string;
   fullTargetDate?: string;
   status: TaskStatus;

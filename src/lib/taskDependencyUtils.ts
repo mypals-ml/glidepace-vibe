@@ -108,6 +108,7 @@ export function cascadeTaskDates(tasks: Task[], startTaskId: string, pathSet = n
         if (useRealDates) {
           updatedSuccessor.startDate = newStartDate;
           updatedSuccessor.targetDate = newTargetDate;
+          updatedSuccessor.localUpdateTimestamp = Date.now();
           // Clear temp dates so the real ones take precedence in the UI
           delete updatedSuccessor.tempStartDate;
           delete updatedSuccessor.tempTargetDate;
