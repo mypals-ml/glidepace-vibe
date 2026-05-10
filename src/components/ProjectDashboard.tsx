@@ -42,6 +42,9 @@ function DashboardLayout() {
   useEffect(() => {
     if (isDesktop) {
       setIsChartVisible(true);
+    } else {
+      // When narrowing to mobile mode, default to the task list view
+      setIsChartVisible(false);
     }
   }, [isDesktop, setIsChartVisible]);
 
