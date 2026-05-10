@@ -6,7 +6,7 @@ import { getStatusDotColor } from '../../utils/statusColors';
 import type { User } from '../../types';
 import { useState } from 'react';
 import { IconButton } from '../UI/IconButton';
-import { getStartDateForCal } from '../../lib/githubTaskMapper';
+import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 
 export interface TaskSidebarProps {
   scrollRef?: React.RefObject<HTMLDivElement | null>;
@@ -118,7 +118,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                   <span className={`text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
                     {task.title}
                   </span>
-                  <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{task.startDate || task.tempStartDate} - {task.targetDate || task.tempTargetDate}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
                 </div>
 
                 {/* Status Column */}

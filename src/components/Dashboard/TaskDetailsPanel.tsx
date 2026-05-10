@@ -9,7 +9,7 @@ import type { Task, User } from '../../types';
 import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
 import { ConfirmationModal } from '../UI/ConfirmationModal';
-import { formatToGitHubDate, calculateTargetDate } from '../../lib/dateUtils';
+import { calculateTargetDate } from '../../lib/dateUtils';
 import { getStartDateForCal } from '../../lib/githubTaskMapper';
 
 interface TaskDetailsPanelProps {
@@ -205,8 +205,8 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [newDesc, setNewDesc] = useState('');
   const [newStatus, setNewStatus] = useState<string>(projectStatusOptions[0] || 'Todo');
   const [newAssignees, setNewAssignees] = useState<User[]>([]);
-  const [newStartDate, setNewStartDate] = useState<string>(formatToGitHubDate(new Date()));
-  const [newTargetDate, setNewTargetDate] = useState<string>(formatToGitHubDate(new Date()));
+  const [newStartDate, setNewStartDate] = useState<string>('');
+  const [newTargetDate, setNewTargetDate] = useState<string>('');
   const [newEstimate, setNewEstimate] = useState<string>('');
   const [newEstimateUnit, setNewEstimateUnit] = useState<string>(dateSettings.estimateUnit || 'hours');
   const [isCreating, setIsCreating] = useState(false);

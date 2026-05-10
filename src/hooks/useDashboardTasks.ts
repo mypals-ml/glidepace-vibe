@@ -4,6 +4,7 @@ import { fetchGitHubGraphQL, getRepositoryId, createGitHubIssue, addProjectV2Ite
 import { mapProjectItemToTask } from '../lib/githubTaskMapper';
 import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
+import { cascadeTaskDates, cascadeAllTasks } from '../lib/taskDependencyUtils';
 import { 
   GET_SINGLE_ITEM_QUERY, 
   GET_PROJECT_TASKS_QUERY, 
@@ -96,15 +97,11 @@ export function useDashboardTasks({
         });
         setTasks(prevTasks => {
           const index = prevTasks.findIndex(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
-          if (index !== -1) {
-            // Update existing task
-            const newTasks = [...prevTasks];
-            newTasks[index] = updatedTask;
-            return newTasks;
-          }
-          // Append new task to the bottom
-          console.log(`[DashboardTasks] ➕ Adding new task to state: ${updatedTask.itemId}`);
-          return [...prevTasks, updatedTask];
+          const result = index !== -1 
+            ? prevTasks.map((t, i) => i === index ? updatedTask : t)
+            : [...prevTasks, updatedTask];
+          
+          return cascadeTaskDates(result, updatedTask.itemId || updatedTask.id);
         });
         updateSyncTime();
 
@@ -214,7 +211,7 @@ export function useDashboardTasks({
       }
 
       setProjectFields(allFields);
-      setTasks(mappedTasks);
+      setTasks(cascadeAllTasks(mappedTasks));
       updateSyncTime();
 
       // Auto-sync missing values for Done tasks
@@ -324,23 +321,26 @@ export function useDashboardTasks({
     
     // Optimistic Update
     const oldTask = { ...task };
-    setTasks(prev => prev.map(t => 
-      (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) 
-        ? { 
-            ...t, 
-            startDate: startDate !== undefined ? startDate : t.startDate,
-            targetDate: (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined)
-              ? calculateTargetDate(
-                  startDate !== undefined ? startDate : t.startDate,
-                  estimate !== undefined ? estimate : (t.estimate || 0),
-                  estimateUnit !== undefined ? estimateUnit : (t.estimateUnit || 'days')
-                )
-              : t.targetDate,
-            estimate: estimate !== undefined ? estimate : t.estimate,
-            estimateUnit: estimateUnit !== undefined ? estimateUnit : t.estimateUnit 
-          } 
-        : t
-    ));
+    setTasks(prev => {
+      const updated = prev.map(t => 
+        (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) 
+          ? { 
+              ...t, 
+              startDate: startDate !== undefined ? startDate : t.startDate,
+              targetDate: (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined)
+                ? calculateTargetDate(
+                    startDate !== undefined ? startDate : t.startDate,
+                    estimate !== undefined ? estimate : (t.estimate || 0),
+                    estimateUnit !== undefined ? estimateUnit : (t.estimateUnit || 'days')
+                  )
+                : t.targetDate,
+              estimate: estimate !== undefined ? estimate : t.estimate,
+              estimateUnit: estimateUnit !== undefined ? estimateUnit : t.estimateUnit 
+            } 
+          : t
+      );
+      return cascadeTaskDates(updated, task.itemId!);
+    });
 
     let anySuccess = false;
     try {
@@ -433,9 +433,12 @@ export function useDashboardTasks({
     if (!task || !task.itemId) return false;
 
     const oldTask = { ...task };
-    setTasks(prev => prev.map(t => 
-      (t.itemId === task.itemId) ? { ...t, successorIds } : t
-    ));
+    setTasks(prev => {
+      const updated = prev.map(t => 
+        (t.itemId === task.itemId) ? { ...t, successorIds } : t
+      );
+      return cascadeTaskDates(updated, task.itemId!);
+    });
 
     try {
       const textValue = successorIds.join(',');

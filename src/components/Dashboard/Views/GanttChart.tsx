@@ -123,7 +123,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
         clientWidth: activeScrollRef.current.clientWidth
       });
     }
-  }, [activeScrollRef, selectedTaskId, todayStr, centerOnDate, selectedTask]);
+  }, [activeScrollRef, selectedTaskId, todayStr, centerOnDate, selectedTask, filteredTasks]);
 
   // Handle external scroll requests (e.g. from Sidebar)
   useEffect(() => {
@@ -253,8 +253,8 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                 dragState={linkDragState}
               />
               {filteredTasks.map((task, index) => {
-                const start = getStartDateForCal(task);
-                const end = getTargetDateForCal(task);
+                  const start = getStartDateForCal(task);
+                  const end = getTargetDateForCal(task);
                 
                 if (!start || !end) return null;
 

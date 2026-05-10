@@ -1,6 +1,6 @@
 import i18n from '../i18n';
 import type { Task, GitHubProjectItem, GitHubFieldValue, ProjectDateSettings, GitHubAssignee, GitHubComment } from '../types';
-import { formatToGitHubDate, calculateTargetDate, calculateStartDate, diffDays } from './dateUtils';
+import { calculateTargetDate, calculateStartDate, diffDays } from './dateUtils';
 
 export function getEstimateUnitForCal(task: Partial<Task>): string {
   return task.estimateUnit || task.tempEstimateUnit || 'days';
@@ -270,21 +270,14 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     partialTask.tempEstimateUnit = dateSettings?.estimateUnit || 'days';
   }
 
-  // 2. Start Date
-  const isDone = partialTask.progress === 100;
-  let fallbackDate = formatToGitHubDate(new Date());
-  if (isDone) {
-    if (partialTask.closedAt) fallbackDate = partialTask.closedAt.split('T')[0];
-    else if (partialTask.updatedAt) fallbackDate = partialTask.updatedAt.split('T')[0];
-  }
-
   if (!partialTask.startDate) {
     if (partialTask.targetDate && partialTask.estimate !== undefined) {
       partialTask.tempStartDate = calculateStartDate(partialTask.targetDate, partialTask.estimate, getEstimateUnitForCal(partialTask));
     } else if (partialTask.targetDate && partialTask.estimate === undefined) {
       partialTask.tempStartDate = calculateStartDate(partialTask.targetDate, getDefaultEstimateForCal(partialTask), getEstimateUnitForCal(partialTask));
     } else {
-      partialTask.tempStartDate = fallbackDate;
+      // User requested to keep it empty if not set
+      partialTask.tempStartDate = '';
     }
   }
 
@@ -294,13 +287,18 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
       const calcEst = diffDays(partialTask.startDate, partialTask.targetDate);
       partialTask.tempEstimate = calcEst === 0 ? getDefaultEstimateForCal(partialTask) : calcEst;
     } else {
-      partialTask.tempEstimate = getDefaultEstimateForCal(partialTask);
+      // Don't auto-fill estimate if dates are missing, use default for cal only
+      partialTask.tempEstimate = undefined;
     }
   }
 
   // 4. Target Date
   if (!partialTask.targetDate) {
-    partialTask.tempTargetDate = calculateTargetDate(getStartDateForCal(partialTask), getEstimateForCal(partialTask), getEstimateUnitForCal(partialTask));
+    if (partialTask.startDate) {
+      partialTask.tempTargetDate = calculateTargetDate(partialTask.startDate, getEstimateForCal(partialTask), getEstimateUnitForCal(partialTask));
+    } else {
+      partialTask.tempTargetDate = '';
+    }
   }
 
   return {
