@@ -33,6 +33,7 @@ interface UseDashboardTasksProps {
   updateSyncTime: () => void;
   setIsCreateMode: (val: boolean) => void;
   dateSettings: ProjectDateSettings;
+  requestStartDateDecision: (tasks: Task[]) => Promise<'auto' | 'locked' | 'ask'>;
 }
 
 export function useDashboardTasks({
@@ -44,6 +45,7 @@ export function useDashboardTasks({
   updateSyncTime,
   setIsCreateMode,
   dateSettings,
+  requestStartDateDecision,
 }: UseDashboardTasksProps) {
   const { t } = useTranslation();
 
@@ -316,7 +318,7 @@ export function useDashboardTasks({
     }
   }, [selectedProject?.id, githubToken, fetchSingleProjectItem]);
 
-  const updateTaskDates = useCallback(async (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string, skipRefresh = false): Promise<boolean> => {
+  const updateTaskDates = useCallback(async (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode, skipRefresh = false): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;
     
     // Optimistic Update
@@ -335,7 +337,8 @@ export function useDashboardTasks({
                   )
                 : t.targetDate,
               estimate: estimate !== undefined ? estimate : t.estimate,
-              estimateUnit: estimateUnit !== undefined ? estimateUnit : t.estimateUnit 
+              estimateUnit: estimateUnit !== undefined ? estimateUnit : t.estimateUnit,
+              autoUpdateStartDate: autoUpdateStartDate !== undefined ? autoUpdateStartDate : t.autoUpdateStartDate
             } 
           : t
       );
@@ -425,18 +428,42 @@ export function useDashboardTasks({
     }
   }, [selectedProject?.id, githubToken, fetchSingleProjectItem, dateSettings, projectFields, setTasks]);
 
-  const updateTaskSuccessors = useCallback(async (taskId: string, successorIds: string[], skipRefresh = false): Promise<boolean> => {
+  const updateTaskSuccessors = useCallback(async (taskId: string, successorIds: string[], skipRefresh = false, decision?: 'auto' | 'locked' | 'ask'): Promise<boolean> => {
     if (!selectedProject?.id || !githubToken || !dateSettings.successorFieldId) return false;
     
-    // Optimistic Update
+    // Identify the source task
     const task = tasks.find(t => t.itemId === taskId || t.id === taskId);
     if (!task || !task.itemId) return false;
 
+    // Check for successors that might need asking
+    let effectiveDecision = decision;
+    if (!effectiveDecision) {
+      const successorsToAsk = tasks.filter(t => 
+        successorIds.includes(t.itemId!) && 
+        (!t.autoUpdateStartDate || t.autoUpdateStartDate === 'ask')
+      );
+      if (successorsToAsk.length > 0) {
+        effectiveDecision = await requestStartDateDecision(successorsToAsk);
+      }
+    }
+
+    // Optimistic Update
     const oldTask = { ...task };
     setTasks(prev => {
-      const updated = prev.map(t => 
+      // Update successors for the source task
+      let updated = prev.map(t => 
         (t.itemId === task.itemId) ? { ...t, successorIds } : t
       );
+      
+      // If user chose 'auto', update flags for the affected successors
+      if (effectiveDecision === 'auto') {
+        updated = updated.map(t => 
+          (successorIds.includes(t.itemId!) && (!t.autoUpdateStartDate || t.autoUpdateStartDate === 'ask'))
+            ? { ...t, autoUpdateStartDate: 'auto' as const }
+            : t
+        );
+      }
+      
       return cascadeTaskDates(updated, task.itemId!);
     });
 
@@ -475,6 +502,7 @@ export function useDashboardTasks({
     targetDate?: string;
     estimate?: number;
     estimateUnit?: string;
+    autoUpdateStartDate?: AutoUpdateStartDateMode;
     assigneeIds?: string[];
   }): Promise<boolean> => {
     if (!selectedProject?.id || !githubToken) {
@@ -482,7 +510,7 @@ export function useDashboardTasks({
       return false;
     }
 
-    const { title, body, status, startDate, targetDate, estimate, estimateUnit, assigneeIds } = taskData;
+    const { title, body, status, startDate, targetDate, estimate, estimateUnit, autoUpdateStartDate, assigneeIds } = taskData;
 
     try {
       let repoNameWithOwner: string | null = null;
@@ -529,13 +557,14 @@ export function useDashboardTasks({
         progress: 0,
         projectFieldIds: tasks.length > 0 ? tasks[0].projectFieldIds : undefined,
         statusOptions: tasks.length > 0 ? tasks[0].statusOptions : undefined,
+        autoUpdateStartDate: autoUpdateStartDate,
       };
 
       if (status && tempTask.statusOptions) {
         await updateTaskStatus(tempTask, status, true);
       }
-      if (startDate || targetDate || estimate !== undefined || estimateUnit !== undefined) {
-        await updateTaskDates(tempTask, startDate, targetDate, estimate, estimateUnit, true);
+      if (startDate || targetDate || estimate !== undefined || estimateUnit !== undefined || autoUpdateStartDate !== undefined) {
+        await updateTaskDates(tempTask, startDate, targetDate, estimate, estimateUnit, autoUpdateStartDate, true);
       }
       if (assigneeIds && assigneeIds.length > 0 && contentId) {
         await updateTaskAssignees(itemId, assigneeIds, true);

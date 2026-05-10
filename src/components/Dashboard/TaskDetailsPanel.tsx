@@ -209,6 +209,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [newTargetDate, setNewTargetDate] = useState<string>('');
   const [newEstimate, setNewEstimate] = useState<string>('');
   const [newEstimateUnit, setNewEstimateUnit] = useState<string>(dateSettings.estimateUnit || 'hours');
+  const [newAutoUpdateMode, setNewAutoUpdateMode] = useState<AutoUpdateStartDateMode>('auto');
   const [isCreating, setIsCreating] = useState(false);
 
   // Sync new task's estimate unit with project settings default when it changes
@@ -356,6 +357,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       targetDate: newTargetDate,
       estimate: parseFloat(newEstimate) || 0,
       estimateUnit: newEstimateUnit,
+      autoUpdateStartDate: newAutoUpdateMode,
       assigneeIds: newAssignees.map(a => a.id).filter(id => id !== 'unassigned')
     });
     setIsCreating(false);
@@ -496,6 +498,19 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                 ))}
               </select>
             </div>
+          </div>
+          {/* Auto Update Start Date Toggle */}
+          <div className="pt-2">
+            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.autoUpdateStartDateLabel')}</label>
+            <select
+              value={newAutoUpdateMode}
+              onChange={(e) => setNewAutoUpdateMode(e.target.value as AutoUpdateStartDateMode)}
+              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20 cursor-pointer"
+            >
+              <option value="auto">{t('dashboard.modeAuto')}</option>
+              <option value="locked">{t('dashboard.modeLocked')}</option>
+              <option value="ask">{t('dashboard.modeAsk')}</option>
+            </select>
           </div>
         </div>
 
@@ -722,6 +737,21 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               ))}
             </select>
           </div>
+        </div>
+        {/* Auto Update Start Date Toggle */}
+        <div className="pt-2">
+          <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.autoUpdateStartDateLabel')}</label>
+          <select
+            value={task.autoUpdateStartDate || 'ask'}
+            onChange={(e) => {
+              updateTaskDates(task, undefined, undefined, undefined, undefined, e.target.value as AutoUpdateStartDateMode);
+            }}
+            className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20 cursor-pointer"
+          >
+            <option value="auto">{t('dashboard.modeAuto')}</option>
+            <option value="locked">{t('dashboard.modeLocked')}</option>
+            <option value="ask">{t('dashboard.modeAsk')}</option>
+          </select>
         </div>
       </div>
 

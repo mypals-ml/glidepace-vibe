@@ -6,6 +6,7 @@
 // --- Task-related types (previously in dummyData.ts) ---
 
 export type TaskStatus = string;
+export type AutoUpdateStartDateMode = 'auto' | 'locked' | 'ask';
 
 export interface User {
   id: string;
@@ -54,6 +55,7 @@ export interface Task {
   updatedAt?: string;
   successorIds?: string[];
   url?: string;
+  autoUpdateStartDate?: AutoUpdateStartDateMode;
 }
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---

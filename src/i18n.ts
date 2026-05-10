@@ -121,7 +121,16 @@ const resources = {
         breakLink: "Break link",
         linkTasks: "Link Tasks",
         close: "Close",
-        viewOnGitHub: "View on GitHub"
+        viewOnGitHub: "View on GitHub",
+        lockStartDateAsSuccessor: "Do not change the start date value automatically when set as successor of another task",
+        autoUpdateStartDateLabel: "Auto update start date as successor",
+        modeAuto: "Auto",
+        modeLocked: "Locked",
+        modeAsk: "Ask",
+        batchUpdatePromptTitle: "Update Start Dates?",
+        batchUpdatePromptDesc: "Some tasks are being set as successors. Should their start dates be updated automatically?",
+        batchUpdateAutoUpdateNonLocked: "Auto update except locked ones",
+        batchUpdateAskEveryTime: "Ask me every time"
       },
       createTask: {
         title: "Create New Task",
@@ -340,7 +349,16 @@ const resources = {
         breakLink: "リンクを解除",
         linkTasks: "タスクをリンク",
         close: "閉じる",
-        viewOnGitHub: "GitHubで表示"
+        viewOnGitHub: "GitHubで表示",
+        lockStartDateAsSuccessor: "後続タスクとして設定された際、開始日を自動的に変更しない",
+        autoUpdateStartDateLabel: "後続タスクとしての開始日自動更新",
+        modeAuto: "自動",
+        modeLocked: "ロック",
+        modeAsk: "確認",
+        batchUpdatePromptTitle: "開始日を更新しますか？",
+        batchUpdatePromptDesc: "いくつかのタスクが後続タスクとして設定されています。開始日を自動的に更新しますか？",
+        batchUpdateAutoUpdateNonLocked: "ロックされていないものを自動更新",
+        batchUpdateAskEveryTime: "毎回確認する"
       },
       createTask: {
         title: "新しいタスクを作成",
@@ -559,7 +577,16 @@ const resources = {
         breakLink: "断开链接",
         linkTasks: "链接任务",
         close: "关闭",
-        viewOnGitHub: "在 GitHub 上查看"
+        viewOnGitHub: "在 GitHub 上查看",
+        lockStartDateAsSuccessor: "当被设置为另一个任务的后继任务时，不要自动更改开始日期值",
+        autoUpdateStartDateLabel: "作为后继任务时自动更新开始日期",
+        modeAuto: "自动",
+        modeLocked: "锁定",
+        modeAsk: "询问",
+        batchUpdatePromptTitle: "更新开始日期？",
+        batchUpdatePromptDesc: "部分任务正被设置为后继任务。是否应自动更新它们的开始日期？",
+        batchUpdateAutoUpdateNonLocked: "自动更新（锁定任务除外）",
+        batchUpdateAskEveryTime: "每次都询问我"
       },
       createTask: {
         title: "创建新任务",
@@ -778,7 +805,16 @@ const resources = {
         breakLink: "斷開連結",
         linkTasks: "連結任務",
         close: "關閉",
-        viewOnGitHub: "在 GitHub 上查看"
+        viewOnGitHub: "在 GitHub 上查看",
+        lockStartDateAsSuccessor: "當被設置為另一個任務的後繼任務時，不要自動更改開始日期值",
+        autoUpdateStartDateLabel: "作為後繼任務時自動更新開始日期",
+        modeAuto: "自動",
+        modeLocked: "鎖定",
+        modeAsk: "詢問",
+        batchUpdatePromptTitle: "更新開始日期？",
+        batchUpdatePromptDesc: "部分任務正被設置為後繼任務。是否應自動更新它們的開始日期？",
+        batchUpdateAutoUpdateNonLocked: "自動更新（鎖定任務除外）",
+        batchUpdateAskEveryTime: "每次都詢問我"
       },
       createTask: {
         title: "建立新任務",

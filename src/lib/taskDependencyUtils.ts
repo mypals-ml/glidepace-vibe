@@ -87,8 +87,11 @@ export function cascadeTaskDates(tasks: Task[], startTaskId: string, pathSet = n
 
     const successor = tasksCopy[successorIndex];
     
-    // Only update temp dates if the successor doesn't have its own hard-set start date
-    if (!successor.startDate) {
+    // Determine if we should update the start date based on the mode
+    const mode = successor.autoUpdateStartDate || 'ask';
+    const shouldUpdate = mode === 'auto' || (mode === 'ask' && !successor.startDate);
+    
+    if (shouldUpdate) {
       // Successor starts the workday AFTER predecessor finishes
       const newStartDate = addWorkdays(predTargetDate, 1);
       

@@ -61,8 +61,8 @@ export interface DashboardContextValue {
   deleteTaskComment: (task: Task, commentId: string) => Promise<boolean>;
   addTaskComment: (task: Task, body: string) => Promise<boolean>;
   updateTaskStatus: (task: Task, status: TaskStatus) => Promise<boolean>;
-  updateTaskDates: (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string) => Promise<boolean>;
-  updateTaskSuccessors: (taskId: string, successorIds: string[]) => Promise<boolean>;
+  updateTaskDates: (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode) => Promise<boolean>;
+  updateTaskSuccessors: (taskId: string, successorIds: string[], skipRefresh?: boolean, decision?: 'auto' | 'locked' | 'ask') => Promise<boolean>;
   createProjectV2Field: (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => Promise<string | null>;
 
   // Sync
@@ -94,6 +94,13 @@ export interface DashboardContextValue {
   handleCreateMissingFields: () => Promise<void>;
   isCreatingFields: boolean;
   mappingStatus: 'idle' | 'scanning' | 'mapping' | 'complete';
+  
+  // Start Date Update Mode Prompt
+  isStartDatePromptOpen: boolean;
+  setIsStartDatePromptOpen: (open: boolean) => void;
+  startDatePromptTasks: Task[];
+  requestStartDateDecision: (tasks: Task[]) => Promise<'auto' | 'locked' | 'ask'>;
+  onStartDatePromptDecision: (decision: 'auto' | 'locked' | 'ask', tasks: Task[]) => void;
 
   // UI state
   isChartVisible: boolean;

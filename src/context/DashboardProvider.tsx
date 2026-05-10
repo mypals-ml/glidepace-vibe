@@ -23,6 +23,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [requestedCenterDate, setRequestedCenterDate] = useState<string | null>(null);
+  
+  const [isStartDatePromptOpen, setIsStartDatePromptOpen] = useState(false);
+  const [startDatePromptTasks, setStartDatePromptTasks] = useState<Task[]>([]);
+  const [pendingDecision, setPendingDecision] = useState<{
+    resolve: (decision: 'auto' | 'locked' | 'ask') => void;
+  } | null>(null);
 
   const centerGanttOnDate = useCallback((date: string | null) => {
     setRequestedCenterDate(date);
@@ -88,6 +94,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const projectToken = auth.getTokenById(projects.selectedProject?.accountId);
 
   // 4. Tasks Hook (Needs Auth, UI, and Project State)
+  const requestStartDateDecision = useCallback((affectedTasks: Task[]): Promise<'auto' | 'locked' | 'ask'> => {
+    setStartDatePromptTasks(affectedTasks);
+    setIsStartDatePromptOpen(true);
+    return new Promise((resolve) => {
+      setPendingDecision({ resolve });
+    });
+  }, []);
+
   const tasks = useDashboardTasks({
     githubToken: projectToken,
     selectedProject: projects.selectedProject,
@@ -97,6 +111,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     updateSyncTime: useCallback(() => updateSyncTimeRef.current(), []),
     setIsCreateMode: ui.setIsCreateMode,
     dateSettings,
+    requestStartDateDecision,
   });
 
   // Persist selectedTaskId per project
@@ -300,6 +315,24 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
     return result;
   }, [auth, projects, ui, processAuthReturnContext]);
+  
+
+  const onStartDatePromptDecision = useCallback((decision: 'auto' | 'locked' | 'ask', tasksAffected: Task[]) => {
+    if (decision === 'auto') {
+      tasksAffected.forEach(task => {
+        if (task.autoUpdateStartDate !== 'locked') {
+          tasks.updateTaskDates(task, undefined, undefined, undefined, undefined, 'auto', true);
+        }
+      });
+    }
+    
+    setIsStartDatePromptOpen(false);
+    setStartDatePromptTasks([]);
+    if (pendingDecision) {
+      pendingDecision.resolve(decision);
+      setPendingDecision(null);
+    }
+  }, [tasks, pendingDecision]);
 
   const value: DashboardContextValue = {
     ...auth,
@@ -321,7 +354,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     showToast,
     hideToast,
     requestedCenterDate,
-    centerGanttOnDate
+    centerGanttOnDate,
+    isStartDatePromptOpen,
+    setIsStartDatePromptOpen,
+    startDatePromptTasks,
+    requestStartDateDecision,
+    onStartDatePromptDecision
   };
 
   return (
