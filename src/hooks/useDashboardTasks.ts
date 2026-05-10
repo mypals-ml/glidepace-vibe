@@ -52,6 +52,9 @@ export function useDashboardTasks({
   const [tasks, setTasksState] = useState<Task[]>([]);
   const tasksRef = useRef<Task[]>([]);
   const setTasks = useCallback((newTasksOrUpdater: Task[] | ((prev: Task[]) => Task[])) => {
+    if (Array.isArray(newTasksOrUpdater)) {
+      tasksRef.current = newTasksOrUpdater;
+    }
     setTasksState(prev => {
       const next = typeof newTasksOrUpdater === 'function' ? newTasksOrUpdater(prev) : newTasksOrUpdater;
       tasksRef.current = next;
@@ -113,9 +116,23 @@ export function useDashboardTasks({
         });
         setTasks(prevTasks => {
           const index = prevTasks.findIndex(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
-          const result = index !== -1 
-            ? prevTasks.map((t, i) => i === index ? updatedTask : t)
-            : [...prevTasks, updatedTask];
+          if (index === -1) return [...prevTasks, updatedTask];
+
+          const existing = prevTasks[index];
+          const result = [...prevTasks];
+          
+          // Protected Merge: If local change is very recent (< 30s) and GitHub hasn't caught up, 
+          // preserve our local dates and flags.
+          const isRecentlyUpdatedLocally = existing.localUpdateTimestamp && (Date.now() - existing.localUpdateTimestamp < 30000);
+          
+          result[index] = {
+            ...updatedTask,
+            // Keep local dates/flags if they were recently changed and GitHub might be stale
+            startDate: isRecentlyUpdatedLocally ? existing.startDate : updatedTask.startDate,
+            targetDate: isRecentlyUpdatedLocally ? existing.targetDate : updatedTask.targetDate,
+            autoUpdateStartDate: isRecentlyUpdatedLocally ? existing.autoUpdateStartDate : updatedTask.autoUpdateStartDate,
+            localUpdateTimestamp: existing.localUpdateTimestamp
+          };
           
           return cascadeTaskDates(result, updatedTask.itemId || updatedTask.id);
         });
@@ -353,7 +370,10 @@ export function useDashboardTasks({
                 : t.targetDate,
               estimate: estimate !== undefined ? estimate : t.estimate,
               estimateUnit: estimateUnit !== undefined ? estimateUnit : t.estimateUnit,
-              autoUpdateStartDate: autoUpdateStartDate !== undefined ? autoUpdateStartDate : t.autoUpdateStartDate
+              autoUpdateStartDate: autoUpdateStartDate !== undefined ? autoUpdateStartDate : t.autoUpdateStartDate,
+              localUpdateTimestamp: (startDate !== undefined || targetDate !== undefined) ? Date.now() : t.localUpdateTimestamp,
+              tempStartDate: startDate !== undefined ? undefined : t.tempStartDate,
+              tempTargetDate: (startDate !== undefined || targetDate !== undefined) ? undefined : t.tempTargetDate
             } 
           : t
       );
@@ -435,11 +455,13 @@ export function useDashboardTasks({
 
         for (const st of shiftedTasks) {
           const fIds = st.projectFieldIds;
-          if (fIds?.startDate && st.startDate) {
-            await updateProjectV2ItemField(selectedProject.id, st.itemId!, fIds.startDate, { date: formatToGitHubDate(st.startDate) }, githubToken);
+          const startDateFieldId = dateSettings.startDateFieldId || fIds?.startDate;
+          const targetDateFieldId = dateSettings.targetDateFieldId || fIds?.targetDate;
+          if (startDateFieldId && st.startDate) {
+            await updateProjectV2ItemField(selectedProject.id, st.itemId!, startDateFieldId, { date: formatToGitHubDate(st.startDate) }, githubToken);
           }
-          if (fIds?.targetDate && st.targetDate) {
-            await updateProjectV2ItemField(selectedProject.id, st.itemId!, fIds.targetDate, { date: formatToGitHubDate(st.targetDate) }, githubToken);
+          if (targetDateFieldId && st.targetDate) {
+            await updateProjectV2ItemField(selectedProject.id, st.itemId!, targetDateFieldId, { date: formatToGitHubDate(st.targetDate) }, githubToken);
           }
         }
 
@@ -475,31 +497,30 @@ export function useDashboardTasks({
       }
     }
 
-    // 3. Atomic State Transformation
+    // 3. Synchronous State Calculation
     const oldTasks = [...tasksRef.current];
-    let nextTasks: Task[] = [];
     
-    setTasks(prev => {
-      // a. Update successors for the source task
-      let updated = prev.map(t => 
-        (t.itemId === task.itemId) ? { ...t, successorIds } : t
+    // a. Update successors for the source task
+    let updated = oldTasks.map(t => 
+      (t.itemId === task.itemId) ? { ...t, successorIds } : t
+    );
+    
+    // b. Apply flag changes based on decision
+    if (effectiveDecision === 'auto') {
+      updated = updated.map(t => 
+        (successorIds.includes(t.itemId!) && (!t.autoUpdateStartDate || t.autoUpdateStartDate === 'ask'))
+          ? { ...t, autoUpdateStartDate: 'auto' as const }
+          : t
       );
-      
-      // b. Apply flag changes based on decision
-      if (effectiveDecision === 'auto') {
-        updated = updated.map(t => 
-          (successorIds.includes(t.itemId!) && (!t.autoUpdateStartDate || t.autoUpdateStartDate === 'ask'))
-            ? { ...t, autoUpdateStartDate: 'auto' as const }
-            : t
-        );
-      }
-      
-      // c. Cascade dates (using real fields)
-      nextTasks = cascadeTaskDates(updated, task.itemId!, new Set(), true);
-      return nextTasks;
-    });
+    }
+    
+    // c. Cascade dates (using real fields)
+    const nextTasks = cascadeTaskDates(updated, task.itemId!, new Set(), true);
+    
+    // 4. Atomic Update (synchronous to the ref via our wrapper)
+    setTasks(nextTasks);
 
-    // 4. Persistence
+    // 5. Persistence
     try {
       // a. Persist successor field for the main task
       const textValue = successorIds.join(',');
@@ -525,13 +546,15 @@ export function useDashboardTasks({
         // c. Sequential persistence to avoid racing
         for (const st of changedTasks) {
           const fieldIds = st.projectFieldIds;
+          const startDateFieldId = dateSettings.startDateFieldId || fieldIds?.startDate;
+          const targetDateFieldId = dateSettings.targetDateFieldId || fieldIds?.targetDate;
           
           // Dates
-          if (fieldIds?.startDate && st.startDate) {
-            await updateProjectV2ItemField(selectedProject.id, st.itemId!, fieldIds.startDate, { date: formatToGitHubDate(st.startDate) }, githubToken);
+          if (startDateFieldId && st.startDate) {
+            await updateProjectV2ItemField(selectedProject.id, st.itemId!, startDateFieldId, { date: formatToGitHubDate(st.startDate) }, githubToken);
           }
-          if (fieldIds?.targetDate && st.targetDate) {
-            await updateProjectV2ItemField(selectedProject.id, st.itemId!, fieldIds.targetDate, { date: formatToGitHubDate(st.targetDate) }, githubToken);
+          if (targetDateFieldId && st.targetDate) {
+            await updateProjectV2ItemField(selectedProject.id, st.itemId!, targetDateFieldId, { date: formatToGitHubDate(st.targetDate) }, githubToken);
           }
           
           // Flag (if mapped to a field)
