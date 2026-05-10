@@ -270,22 +270,26 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     partialTask.tempEstimateUnit = dateSettings?.estimateUnit || 'days';
   }
 
+  // 2. Start Date
   if (!partialTask.startDate) {
     if (partialTask.targetDate && partialTask.estimate !== undefined) {
       partialTask.tempStartDate = calculateStartDate(partialTask.targetDate, partialTask.estimate, getEstimateUnitForCal(partialTask));
     } else if (partialTask.targetDate && partialTask.estimate === undefined) {
       partialTask.tempStartDate = calculateStartDate(partialTask.targetDate, getDefaultEstimateForCal(partialTask), getEstimateUnitForCal(partialTask));
     } else {
-      // User requested to keep it empty if not set
-      partialTask.tempStartDate = '';
+      // Default to Today so it appears in the Gantt chart
+      partialTask.tempStartDate = new Date().toISOString().split('T')[0];
     }
   }
 
   // 3. Estimate
   if (partialTask.estimate === undefined) {
-    if (partialTask.startDate && partialTask.targetDate) {
-      const calcEst = diffDays(partialTask.startDate, partialTask.targetDate);
-      partialTask.tempEstimate = calcEst === 0 ? getDefaultEstimateForCal(partialTask) : calcEst;
+    if ((partialTask.startDate || partialTask.tempStartDate) && partialTask.targetDate) {
+      const effectiveStart = partialTask.startDate || partialTask.tempStartDate;
+      if (effectiveStart) {
+        const calcEst = diffDays(effectiveStart, partialTask.targetDate);
+        partialTask.tempEstimate = calcEst === 0 ? getDefaultEstimateForCal(partialTask) : calcEst;
+      }
     } else {
       // Don't auto-fill estimate if dates are missing, use default for cal only
       partialTask.tempEstimate = undefined;
@@ -294,8 +298,9 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
 
   // 4. Target Date
   if (!partialTask.targetDate) {
-    if (partialTask.startDate) {
-      partialTask.tempTargetDate = calculateTargetDate(partialTask.startDate, getEstimateForCal(partialTask), getEstimateUnitForCal(partialTask));
+    const effectiveStart = partialTask.startDate || partialTask.tempStartDate;
+    if (effectiveStart) {
+      partialTask.tempTargetDate = calculateTargetDate(effectiveStart, getEstimateForCal(partialTask), getEstimateUnitForCal(partialTask));
     } else {
       partialTask.tempTargetDate = '';
     }

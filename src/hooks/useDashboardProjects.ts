@@ -175,7 +175,9 @@ export function useDashboardProjects({
                                selectedProject.title !== matchById.title || 
                                selectedProject.public !== matchById.public;
         
-        if (needsHydration || !selectedProject.accountId) {
+        const accountIdChanged = matchById.accountId && selectedProject.accountId !== matchById.accountId;
+        
+        if (needsHydration || accountIdChanged) {
           console.log('[Projects] Hydrating project details from list.');
           setSelectedProject({ 
             ...matchById, 
@@ -183,7 +185,7 @@ export function useDashboardProjects({
           });
         }
       } else if (matchByTitle) {
-        if (selectedProject.id !== matchByTitle.id || !selectedProject.accountId) {
+        if (selectedProject.id !== matchByTitle.id || (matchByTitle.accountId && selectedProject.accountId !== matchByTitle.accountId)) {
           console.log('[Projects] Syncing project by title. Setting accountId from list.');
           setSelectedProject({ ...matchByTitle, accountId: matchByTitle.accountId });
         }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchGitHubGraphQL, getRepositoryId, createGitHubIssue, addProjectV2Item, addProjectV2DraftIssue, updateProjectV2ItemField } from '../lib/githubService';
 import { mapProjectItemToTask } from '../lib/githubTaskMapper';
@@ -56,6 +56,16 @@ export function useDashboardTasks({
   const [projectFields, setProjectFields] = useState<GitHubProjectV2Field[]>([]);
   const [fieldsProgress, setFieldsProgress] = useState<{ current: number; total: number; isFetching: boolean }>({ current: 0, total: 0, isFetching: false });
   const [apiError, setApiError] = useState<string | null>(null);
+  
+  const dateSettingsRef = useRef(dateSettings);
+  useEffect(() => {
+    dateSettingsRef.current = dateSettings;
+  }, [dateSettings]);
+
+  const tasksRef = useRef(tasks);
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
 
   const availableUsers = useMemo<User[]>(() => {
     const userMap = new Map<string, User>();
@@ -90,7 +100,7 @@ export function useDashboardTasks({
       const itemData = json.data?.node as GitHubProjectItem;
 
       if (itemData) {
-        const updatedTask = mapProjectItemToTask(itemData, dateSettings);
+        const updatedTask = mapProjectItemToTask(itemData, dateSettingsRef.current);
         console.log(`[DashboardTasks] ✅ Mapped Task for ${itemId}:`, {
           title: updatedTask.title,
           status: updatedTask.status,
@@ -113,13 +123,13 @@ export function useDashboardTasks({
             if (fieldId) await updateProjectV2ItemField(selectedProject.id, updatedTask.itemId!, fieldId, value, token);
           };
           if (!updatedTask.startDate && updatedTask.tempStartDate) {
-            updateField(dateSettings.startDateFieldId || updatedTask.projectFieldIds?.startDate, { date: formatToGitHubDate(updatedTask.tempStartDate) });
+            updateField(dateSettingsRef.current.startDateFieldId || updatedTask.projectFieldIds?.startDate, { date: formatToGitHubDate(updatedTask.tempStartDate) });
           }
           if (!updatedTask.targetDate && updatedTask.tempTargetDate) {
-            updateField(dateSettings.targetDateFieldId || updatedTask.projectFieldIds?.targetDate, { date: formatToGitHubDate(updatedTask.tempTargetDate) });
+            updateField(dateSettingsRef.current.targetDateFieldId || updatedTask.projectFieldIds?.targetDate, { date: formatToGitHubDate(updatedTask.tempTargetDate) });
           }
           if (updatedTask.estimate === undefined && updatedTask.tempEstimate !== undefined) {
-            updateField(dateSettings.estimateFieldId || updatedTask.projectFieldIds?.estimate, { number: updatedTask.tempEstimate });
+            updateField(dateSettingsRef.current.estimateFieldId || updatedTask.projectFieldIds?.estimate, { number: updatedTask.tempEstimate });
           }
         }
       } else {
@@ -128,7 +138,7 @@ export function useDashboardTasks({
     } catch (e) {
       console.error('Failed to fetch single project item:', e);
     }
-  }, [updateSyncTime, dateSettings, selectedProject?.id]);
+  }, [updateSyncTime, selectedProject?.id]);
 
   const fetchProjectTasks = useCallback(async (projectId: string, token: string) => {
     setIsLoadingTasks(true);
@@ -201,8 +211,8 @@ export function useDashboardTasks({
       }
 
       setApiError(null);
-
-      const mappedTasks: Task[] = allItems.map(item => mapProjectItemToTask(item, dateSettings));
+  
+      const mappedTasks: Task[] = allItems.map(item => mapProjectItemToTask(item, dateSettingsRef.current));
 
       const statusField = allFields.find((f: GitHubProjectV2Field) => f.name?.toLowerCase() === 'status');
       const statusOptions = (statusField?.options || []) as Array<{ name: string, color?: string }>;
@@ -223,13 +233,13 @@ export function useDashboardTasks({
             if (fieldId) await updateProjectV2ItemField(selectedProject.id, task.itemId!, fieldId, value, token);
           };
           if (!task.startDate && task.tempStartDate) {
-            updateField(dateSettings.startDateFieldId || task.projectFieldIds?.startDate, { date: formatToGitHubDate(task.tempStartDate) });
+            updateField(dateSettingsRef.current.startDateFieldId || task.projectFieldIds?.startDate, { date: formatToGitHubDate(task.tempStartDate) });
           }
           if (!task.targetDate && task.tempTargetDate) {
-            updateField(dateSettings.targetDateFieldId || task.projectFieldIds?.targetDate, { date: formatToGitHubDate(task.tempTargetDate) });
+            updateField(dateSettingsRef.current.targetDateFieldId || task.projectFieldIds?.targetDate, { date: formatToGitHubDate(task.tempTargetDate) });
           }
           if (task.estimate === undefined && task.tempEstimate !== undefined) {
-            updateField(dateSettings.estimateFieldId || task.projectFieldIds?.estimate, { number: task.tempEstimate });
+            updateField(dateSettingsRef.current.estimateFieldId || task.projectFieldIds?.estimate, { number: task.tempEstimate });
           }
         }
       });
@@ -241,10 +251,10 @@ export function useDashboardTasks({
       setIsLoadingTasks(false);
       setFieldsProgress(prev => ({ ...prev, isFetching: false }));
     }
-  }, [updateSyncTime, t, projectAccountId, dateSettings, selectedProject?.id]);
+  }, [updateSyncTime, t, projectAccountId, selectedProject?.id]);
 
   const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[], skipRefresh = false) => {
-    const task = tasks.find(t => t.id === taskId || t.itemId === taskId);
+    const task = tasksRef.current.find(t => t.id === taskId || t.itemId === taskId);
     if (!task || !task.contentId || !githubToken) return false;
 
     if (task.isDraft) {
@@ -302,7 +312,7 @@ export function useDashboardTasks({
       console.error('Update task assignees failed:', e);
       return false;
     }
-  }, [tasks, githubToken, fetchSingleProjectItem]);
+  }, [githubToken, fetchSingleProjectItem]);
 
   const updateTaskStatus = useCallback(async (task: Task, status: TaskStatus, skipRefresh = false): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !task.projectFieldIds?.status || !task.statusOptions || !githubToken) return false;
@@ -322,7 +332,7 @@ export function useDashboardTasks({
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;
     
     // Optimistic Update
-    const oldTasks = [...tasks];
+    const oldTasks = [...tasksRef.current];
     let nextTasks: Task[] = [];
     setTasks(prev => {
       const updated = prev.map(t => 
@@ -445,13 +455,13 @@ export function useDashboardTasks({
     if (!selectedProject?.id || !githubToken || !dateSettings.successorFieldId) return false;
     
     // Identify the source task
-    const task = tasks.find(t => t.itemId === taskId || t.id === taskId);
+    const task = tasksRef.current.find(t => t.itemId === taskId || t.id === taskId);
     if (!task || !task.itemId) return false;
 
     // Check for successors that might need asking
     let effectiveDecision = decision;
     if (!effectiveDecision) {
-      const successorsToAsk = tasks.filter(t => 
+      const successorsToAsk = tasksRef.current.filter(t => 
         successorIds.includes(t.itemId!) && 
         (!t.autoUpdateStartDate || t.autoUpdateStartDate === 'ask')
       );
@@ -461,7 +471,7 @@ export function useDashboardTasks({
     }
 
     // Optimistic Update
-    const oldTasks = [...tasks];
+    const oldTasks = [...tasksRef.current];
     let nextTasks: Task[] = [];
     setTasks(prev => {
       // Update successors for the source task
@@ -521,7 +531,7 @@ export function useDashboardTasks({
       setTasks(oldTasks);
       return false;
     }
-  }, [selectedProject?.id, githubToken, dateSettings.successorFieldId, tasks, fetchSingleProjectItem, requestStartDateDecision]);
+  }, [selectedProject?.id, githubToken, dateSettings.successorFieldId, fetchSingleProjectItem, requestStartDateDecision]);
 
   const handleCreateTask = useCallback(async (taskData: {
     title: string;
@@ -543,8 +553,8 @@ export function useDashboardTasks({
 
     try {
       let repoNameWithOwner: string | null = null;
-      if (tasks.length > 0 && tasks[0].repository) {
-        repoNameWithOwner = tasks[0].repository;
+      if (tasksRef.current.length > 0 && tasksRef.current[0].repository) {
+        repoNameWithOwner = tasksRef.current[0].repository;
       }
 
       let itemId: string | null = null;
@@ -584,8 +594,8 @@ export function useDashboardTasks({
         estimateUnit: estimateUnit,
         assignees: [],
         progress: 0,
-        projectFieldIds: tasks.length > 0 ? tasks[0].projectFieldIds : undefined,
-        statusOptions: tasks.length > 0 ? tasks[0].statusOptions : undefined,
+        projectFieldIds: tasksRef.current.length > 0 ? tasksRef.current[0].projectFieldIds : undefined,
+        statusOptions: tasksRef.current.length > 0 ? tasksRef.current[0].statusOptions : undefined,
         autoUpdateStartDate: autoUpdateStartDate,
       };
 
@@ -602,15 +612,13 @@ export function useDashboardTasks({
       console.log(`[DashboardTasks] 🚀 Creation sequence complete, performing final fetch for: ${itemId}`);
       await fetchSingleProjectItem(itemId, githubToken);
       
-      updateSyncTime();
       setIsCreateMode(false);
-
       return true;
     } catch (error) {
       console.error('Error creating task:', error);
       return false;
     }
-  }, [selectedProject?.id, githubToken, tasks, fetchSingleProjectItem, updateSyncTime, updateTaskStatus, updateTaskDates, updateTaskAssignees, setIsCreateMode]);
+  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, updateTaskStatus, updateTaskDates, updateTaskAssignees, setIsCreateMode]);
 
   const updateTaskTitle = useCallback(async (task: Task, title: string): Promise<boolean> => {
     if (!task.contentId || !githubToken) return false;
