@@ -284,7 +284,14 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                       }}
                       onContextMenu={(e) => {
                         e.preventDefault();
-                        setContextMenu({ x: e.clientX, y: e.clientY, taskId: task.id });
+                        const rect = e.currentTarget.closest('main')?.getBoundingClientRect();
+                        if (rect) {
+                          setContextMenu({ 
+                            x: e.clientX - rect.left, 
+                            y: e.clientY - rect.top, 
+                            taskId: task.id 
+                          });
+                        }
                       }}
                     >
                       <div className="flex flex-col min-w-0 flex-1">
@@ -339,13 +346,17 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       {/* Context Menu Overlay */}
       {contextMenu && (
         <div 
-          className="fixed inset-0 z-[100]" 
+          className="absolute inset-0 z-[100]" 
           onClick={() => setContextMenu(null)}
           onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
         >
           <div 
-            className="absolute bg-white rounded shadow-lg border border-slate-200 py-1 min-w-[160px]"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
+            className="absolute bg-white/95 rounded-xl shadow-2xl border border-slate-200/60 py-1.5 min-w-[200px] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200"
+            style={{ 
+              left: contextMenu.x, 
+              top: contextMenu.y,
+              transform: (contextMenu.x > (viewportInfo.clientWidth - 220)) ? 'translateX(-100%)' : 'none'
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <button 
