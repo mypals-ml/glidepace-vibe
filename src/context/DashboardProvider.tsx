@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { DashboardContext } from './DashboardContext';
 import type { DashboardContextValue } from './DashboardContext';
-import type { ProjectDateSettings } from '../types';
+import type { ProjectDateSettings, Task } from '../types';
 
 // Hooks
 import { useDashboardAuth } from '../hooks/useDashboardAuth';
@@ -22,6 +22,21 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [requestedCenterDate, setRequestedCenterDate] = useState<string | null>(null);
+  
+  const [isStartDatePromptOpen, setIsStartDatePromptOpen] = useState(false);
+  const [startDatePromptTasks, setStartDatePromptTasks] = useState<Task[]>([]);
+  const [pendingDecision, setPendingDecision] = useState<{
+    resolve: (decision: 'auto' | 'locked' | 'ask') => void;
+  } | null>(null);
+
+  const centerGanttOnDate = useCallback((date: string | null) => {
+    setRequestedCenterDate(date);
+    // Reset after a short delay so it can be re-triggered for the same date if needed
+    if (date) {
+      setTimeout(() => setRequestedCenterDate(null), 100);
+    }
+  }, []);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type });
@@ -79,6 +94,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const projectToken = auth.getTokenById(projects.selectedProject?.accountId);
 
   // 4. Tasks Hook (Needs Auth, UI, and Project State)
+  const requestStartDateDecision = useCallback((affectedTasks: Task[]): Promise<'auto' | 'locked' | 'ask'> => {
+    setStartDatePromptTasks(affectedTasks);
+    setIsStartDatePromptOpen(true);
+    return new Promise((resolve) => {
+      setPendingDecision({ resolve });
+    });
+  }, []);
+
   const tasks = useDashboardTasks({
     githubToken: projectToken,
     selectedProject: projects.selectedProject,
@@ -88,7 +111,37 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     updateSyncTime: useCallback(() => updateSyncTimeRef.current(), []),
     setIsCreateMode: ui.setIsCreateMode,
     dateSettings,
+    requestStartDateDecision,
   });
+
+  // Persist selectedTaskId per project
+  // Load saved task when project changes
+  useEffect(() => {
+    if (projects.selectedProject?.id) {
+      const saved = localStorage.getItem(`selected_task_${projects.selectedProject.id}`);
+      // Only set if different to avoid unnecessary updates
+      if (saved && saved !== ui.selectedTaskId) {
+        ui.setSelectedTaskId(saved);
+      }
+    } else {
+      // Only clear if not already null to avoid loop
+      if (ui.selectedTaskId !== null) {
+        ui.setSelectedTaskId(null);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.selectedProject?.id]); // ONLY run when project ID changes
+
+  // Save task selection when it changes
+  useEffect(() => {
+    if (projects.selectedProject?.id) {
+      if (ui.selectedTaskId) {
+        localStorage.setItem(`selected_task_${projects.selectedProject.id}`, ui.selectedTaskId);
+      } else {
+        localStorage.removeItem(`selected_task_${projects.selectedProject.id}`);
+      }
+    }
+  }, [ui.selectedTaskId, projects.selectedProject?.id]);
 
   // 5. Sync Hook (Needs Bridge to Tasks)
   const sync = useDashboardSync({
@@ -262,6 +315,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
     return result;
   }, [auth, projects, ui, processAuthReturnContext]);
+  
+
+  const onStartDatePromptDecision = useCallback((decision: 'auto' | 'locked' | 'ask', _tasksAffected: Task[]) => {
+    void _tasksAffected;
+    setIsStartDatePromptOpen(false);
+    setStartDatePromptTasks([]);
+    if (pendingDecision) {
+      pendingDecision.resolve(decision);
+      setPendingDecision(null);
+    }
+  }, [pendingDecision]);
 
   const value: DashboardContextValue = {
     ...auth,
@@ -281,7 +345,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     ...fieldSetup,
     toast,
     showToast,
-    hideToast
+    hideToast,
+    requestedCenterDate,
+    centerGanttOnDate,
+    isStartDatePromptOpen,
+    setIsStartDatePromptOpen,
+    startDatePromptTasks,
+    requestStartDateDecision,
+    onStartDatePromptDecision
   };
 
   return (

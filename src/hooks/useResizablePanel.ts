@@ -4,12 +4,14 @@ interface UseResizablePanelOptions {
   initialWidth?: number;
   minWidth?: number;
   maxWidth?: number;
+  direction?: 'left' | 'right';
 }
 
 export function useResizablePanel({
   initialWidth = 450,
   minWidth = 250,
   maxWidth = 800,
+  direction = 'left',
 }: UseResizablePanelOptions = {}) {
   const [width, setWidth] = useState(initialWidth);
   const [isResizingState, setIsResizingState] = useState(false);
@@ -32,7 +34,13 @@ export function useResizablePanel({
     let currentMouseX = 0;
 
     const updateWidth = () => {
-      const newWidth = currentMouseX - 16;
+      let newWidth: number;
+      if (direction === 'left') {
+        newWidth = currentMouseX - 16; // 16 is an offset for padding/margin
+      } else {
+        newWidth = window.innerWidth - currentMouseX - 16;
+      }
+      
       if (newWidth >= minWidth && newWidth <= maxWidth) {
         if (panelRef.current) {
           panelRef.current.style.width = `${newWidth}px`;
@@ -64,7 +72,13 @@ export function useResizablePanel({
         document.body.classList.remove('is-resizing');
         
         // Sync final width to React state
-        const newWidth = e.clientX - 16;
+        let newWidth: number;
+        if (direction === 'left') {
+          newWidth = e.clientX - 16;
+        } else {
+          newWidth = window.innerWidth - e.clientX - 16;
+        }
+
         if (newWidth >= minWidth && newWidth <= maxWidth) {
            setWidth(newWidth);
         } else if (newWidth < minWidth) {
@@ -84,7 +98,7 @@ export function useResizablePanel({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [minWidth, maxWidth]);
+  }, [minWidth, maxWidth, direction]);
 
   return { width, isResizing: isResizingState, panelRef, onMouseDown };
 }

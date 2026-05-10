@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings, AutoUpdateStartDateMode } from '../types';
 import type { MissingFieldDef } from '../hooks/useFieldSetup';
 
 export interface DashboardContextValue {
@@ -52,6 +52,7 @@ export interface DashboardContextValue {
     targetDate?: string; 
     estimate?: number;
     estimateUnit?: string;
+    autoUpdateStartDate?: AutoUpdateStartDateMode;
     assigneeIds?: string[];
   }) => Promise<boolean>;
 
@@ -61,7 +62,8 @@ export interface DashboardContextValue {
   deleteTaskComment: (task: Task, commentId: string) => Promise<boolean>;
   addTaskComment: (task: Task, body: string) => Promise<boolean>;
   updateTaskStatus: (task: Task, status: TaskStatus) => Promise<boolean>;
-  updateTaskDates: (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string) => Promise<boolean>;
+  updateTaskDates: (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode) => Promise<boolean>;
+  updateTaskSuccessors: (taskId: string, successorIds: string[], skipRefresh?: boolean, decision?: 'auto' | 'locked' | 'ask') => Promise<boolean>;
   createProjectV2Field: (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => Promise<string | null>;
 
   // Sync
@@ -88,19 +90,32 @@ export interface DashboardContextValue {
   setIsMissingFieldsPromptOpen: (open: boolean) => void;
   missingFieldsList: MissingFieldDef[];
   triggerFieldDetection: (forcePrompt?: boolean) => void;
-  promptCreateSingleField: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId') => void;
-  createSingleFieldNow: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId') => Promise<void>;
+  promptCreateSingleField: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId' | 'successorFieldId') => void;
+  createSingleFieldNow: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId' | 'successorFieldId') => Promise<void>;
   handleCreateMissingFields: () => Promise<void>;
   isCreatingFields: boolean;
   mappingStatus: 'idle' | 'scanning' | 'mapping' | 'complete';
+  
+  // Start Date Update Mode Prompt
+  isStartDatePromptOpen: boolean;
+  setIsStartDatePromptOpen: (open: boolean) => void;
+  startDatePromptTasks: Task[];
+  requestStartDateDecision: (tasks: Task[]) => Promise<'auto' | 'locked' | 'ask'>;
+  onStartDatePromptDecision: (decision: 'auto' | 'locked' | 'ask', tasks: Task[]) => void;
 
   // UI state
   isChartVisible: boolean;
   setIsChartVisible: (visible: boolean) => void;
   dashboardView: 'gantt' | 'burndown';
   setDashboardView: (view: 'gantt' | 'burndown') => void;
+  isTaskDetailsOpen: boolean;
+  setIsTaskDetailsOpen: (open: boolean) => void;
   selectedTaskId: string | null;
   setSelectedTaskId: (id: string | null) => void;
+  isLinkMode: boolean;
+  setIsLinkMode: (mode: boolean) => void;
+  selectedLinkTaskIds: string[];
+  setSelectedLinkTaskIds: (tasks: string[] | ((prev: string[]) => string[])) => void;
 
   // Status
   projectStatusOptions: string[];
@@ -120,6 +135,10 @@ export interface DashboardContextValue {
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   hideToast: () => void;
+
+  // Timeline / Gantt navigation
+  requestedCenterDate: string | null;
+  centerGanttOnDate: (date: string | null) => void;
 }
 
 export const DashboardContext = createContext<DashboardContextValue | null>(null);

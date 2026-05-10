@@ -1,5 +1,27 @@
 import i18n from '../i18n';
 import type { Task, GitHubProjectItem, GitHubFieldValue, ProjectDateSettings, GitHubAssignee, GitHubComment } from '../types';
+import { calculateTargetDate, calculateStartDate, diffDays } from './dateUtils';
+
+export function getEstimateUnitForCal(task: Partial<Task>): string {
+  return task.estimateUnit || task.tempEstimateUnit || 'days';
+}
+
+export function getDefaultEstimateForCal(task: Partial<Task>): number {
+  const unit = getEstimateUnitForCal(task).toLowerCase();
+  return (unit === 'hours' || unit === 'hour') ? 8 : 1;
+}
+
+export function getStartDateForCal(task: Partial<Task>): string {
+  return task.startDate || task.tempStartDate || '';
+}
+
+export function getEstimateForCal(task: Partial<Task>): number {
+  return task.estimate !== undefined ? task.estimate : (task.tempEstimate !== undefined ? task.tempEstimate : getDefaultEstimateForCal(task));
+}
+
+export function getTargetDateForCal(task: Partial<Task>): string {
+  return task.targetDate || task.tempTargetDate || '';
+}
 
 export const PROJECT_ITEM_FRAGMENT = `
   id
@@ -12,6 +34,9 @@ export const PROJECT_ITEM_FRAGMENT = `
       number
       state
       body
+      url
+      closedAt
+      updatedAt
       repository { nameWithOwner }
       assignees(first: 20) {
         nodes { id login name avatarUrl }
@@ -36,6 +61,9 @@ export const PROJECT_ITEM_FRAGMENT = `
       number
       state
       body
+      url
+      closedAt
+      updatedAt
       repository { nameWithOwner }
       assignees(first: 20) {
         nodes { id login name avatarUrl }
@@ -97,7 +125,7 @@ export const PROJECT_ITEM_FRAGMENT = `
 `;
 
 export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: ProjectDateSettings): Task {
-  if (!item) return { id: 'error', title: i18n.t('dashboard.invalidItem'), startDate: '', targetDate: '', status: 'Todo', assignees: [], progress: 0 };
+  if (!item) return { id: 'error', displayId: 'error', title: i18n.t('dashboard.invalidItem'), startDate: '', targetDate: '', status: 'Todo', assignees: [], progress: 0 };
   
   const content = item.content;
   const fieldValues = item.fieldValues?.nodes || [];
@@ -121,11 +149,11 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   // Also check Iteration fields if start/target dates are missing
   const iterationField = fieldValues.find((f: GitHubFieldValue) => f.__typename === 'ProjectV2ItemFieldIterationValue');
 
-  const startDate = startDateField?.date || iterationField?.startDate || new Date().toISOString().split('T')[0];
-  const iterationEnd = (iterationField && iterationField.startDate) 
+  const actualStartDate = startDateField?.date || iterationField?.startDate || '';
+  const actualIterationEnd = (iterationField && iterationField.startDate) 
     ? new Date(new Date(iterationField.startDate).getTime() + (iterationField.duration || 0) * 86400000).toISOString().split('T')[0]
-    : startDate;
-  const targetDate = targetDateField?.date || iterationEnd;
+    : '';
+  const actualTargetDate = targetDateField?.date || actualIterationEnd;
   
   // Find Estimate
   const estimateField = dateSettings?.estimateFieldId
@@ -138,7 +166,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
          f.field?.name?.toLowerCase().includes('hours'))
       );
 
-  const estimate = estimateField?.number || iterationField?.duration;
+  const actualEstimate = estimateField?.number ?? iterationField?.duration;
 
   // Find Estimate Unit (Category)
   const unitField = dateSettings?.estimateUnitFieldId
@@ -151,6 +179,19 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
       );
 
   const estimateUnit = unitField?.name || unitField?.text || dateSettings?.estimateUnit || 'days';
+
+  // Find Successors
+  const successorField = dateSettings?.successorFieldId
+    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.successorFieldId)
+    : fieldValues.find((f: GitHubFieldValue) => 
+        (f.__typename === 'ProjectV2ItemFieldTextValue') && 
+        (f.field?.name?.toLowerCase().includes('successor') || 
+         f.field?.name?.toLowerCase().includes('dependency') || 
+         f.field?.name?.toLowerCase().includes('link'))
+      );
+
+  const successorsText = successorField?.text || '';
+  const successorIds = successorsText.split(',').map(s => s.trim()).filter(Boolean);
 
   // Extract assignees from either the content (Issues/PRs) or the User field (Drafts)
   let assigneeNodes = content?.assignees?.nodes || [];
@@ -213,21 +254,82 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   // Clean IDs
   const idPrefix = content?.number ? `#${content.number}` : (item.id ? item.id.slice(-6) : Math.random().toString(36).slice(-6));
 
+  const partialTask: Partial<Task> = {
+    progress: /^(done|closed|completed|merged)$/i.test(status) ? 100 : /^(todo|backlog|open|not started)$/i.test(status) ? 0 : 50,
+    closedAt: content?.closedAt,
+    updatedAt: content?.updatedAt,
+    startDate: actualStartDate,
+    targetDate: actualTargetDate,
+    estimate: actualEstimate,
+    estimateUnit: estimateUnit,
+    successorIds: successorIds,
+  };
+
+  // 1. Estimate Unit
+  if (!partialTask.estimateUnit) {
+    partialTask.tempEstimateUnit = dateSettings?.estimateUnit || 'days';
+  }
+
+  // 2. Start Date
+  if (!partialTask.startDate) {
+    if (partialTask.targetDate && partialTask.estimate !== undefined) {
+      partialTask.tempStartDate = calculateStartDate(partialTask.targetDate, partialTask.estimate, getEstimateUnitForCal(partialTask));
+    } else if (partialTask.targetDate && partialTask.estimate === undefined) {
+      partialTask.tempStartDate = calculateStartDate(partialTask.targetDate, getDefaultEstimateForCal(partialTask), getEstimateUnitForCal(partialTask));
+    } else {
+      // Default to Today so it appears in the Gantt chart
+      partialTask.tempStartDate = new Date().toISOString().split('T')[0];
+    }
+  }
+
+  // 3. Estimate
+  if (partialTask.estimate === undefined) {
+    if ((partialTask.startDate || partialTask.tempStartDate) && partialTask.targetDate) {
+      const effectiveStart = partialTask.startDate || partialTask.tempStartDate;
+      if (effectiveStart) {
+        const calcEst = diffDays(effectiveStart, partialTask.targetDate);
+        partialTask.tempEstimate = calcEst === 0 ? getDefaultEstimateForCal(partialTask) : calcEst;
+      }
+    } else {
+      // Don't auto-fill estimate if dates are missing, use default for cal only
+      partialTask.tempEstimate = undefined;
+    }
+  }
+
+  // 4. Target Date
+  if (!partialTask.targetDate) {
+    const effectiveStart = partialTask.startDate || partialTask.tempStartDate;
+    if (effectiveStart) {
+      partialTask.tempTargetDate = calculateTargetDate(effectiveStart, getEstimateForCal(partialTask), getEstimateUnitForCal(partialTask));
+    } else {
+      partialTask.tempTargetDate = '';
+    }
+  }
+
   return {
-    id: idPrefix,
+    id: item.id,
+    displayId: idPrefix,
     itemId: item.id,
     contentId: content?.id,
+    url: content?.url,
     title: content?.title || i18n.t('dashboard.noTitle'),
     body: content?.body || '',
-    startDate,
-    targetDate,
-    estimate,
-    estimateUnit,
+    startDate: actualStartDate,
+    targetDate: actualTargetDate,
+    estimate: actualEstimate,
+    estimateUnit: estimateUnit,
+    tempStartDate: partialTask.tempStartDate,
+    tempTargetDate: partialTask.tempTargetDate,
+    tempEstimate: partialTask.tempEstimate,
+    tempEstimateUnit: partialTask.tempEstimateUnit,
+    closedAt: partialTask.closedAt,
+    updatedAt: partialTask.updatedAt,
     estimateUnitOptions,
+    successorIds: partialTask.successorIds,
     status: status || 'Todo',
     assignees: assignees,
     comments: comments,
-    progress: /^(done|closed|completed|merged)$/i.test(status) ? 100 : /^(todo|backlog|open|not started)$/i.test(status) ? 0 : 50,
+    progress: partialTask.progress || 0,
     repository: content?.repository?.nameWithOwner,
     projectFieldIds,
     statusOptions,

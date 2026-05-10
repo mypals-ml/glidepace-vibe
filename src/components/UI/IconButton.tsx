@@ -1,7 +1,7 @@
 import React from 'react';
 
 type IconButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
-type IconButtonSize = 'sm' | 'md' | 'lg';
+type IconButtonSize = 'xs' | 'sm' | 'md' | 'lg';
 
 interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon: string;
@@ -33,12 +33,14 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(f
   };
 
   const sizeStyles: Record<IconButtonSize, string> = {
+    xs: 'h-6 w-6',
     sm: 'h-[var(--btn-h-sm)] w-[var(--btn-h-sm)]',
     md: 'h-[var(--btn-h-md)] w-[var(--btn-h-md)]',
     lg: 'h-[var(--btn-h-lg)] w-[var(--btn-h-lg)]',
   };
 
   const iconSizeStyles: Record<IconButtonSize, string> = {
+    xs: 'text-[14px]',
     sm: 'text-[var(--icon-size-sm)]',
     md: 'text-[var(--icon-size-md)]',
     lg: 'text-[var(--icon-size-lg)]',

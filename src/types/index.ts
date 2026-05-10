@@ -6,6 +6,7 @@
 // --- Task-related types (previously in dummyData.ts) ---
 
 export type TaskStatus = string;
+export type AutoUpdateStartDateMode = 'auto' | 'locked' | 'ask';
 
 export interface User {
   id: string;
@@ -25,9 +26,11 @@ export interface TaskComment {
 
 export interface Task {
   id: string;
+  displayId: string;
   title: string;
   startDate: string;
   targetDate: string;
+  localUpdateTimestamp?: number;
   fullStartDate?: string;
   fullTargetDate?: string;
   status: TaskStatus;
@@ -45,6 +48,15 @@ export interface Task {
   statusOptions?: Record<string, string>;
   statusColorMap?: Record<string, string>;
   isDraft?: boolean;
+  tempEstimateUnit?: string;
+  tempStartDate?: string;
+  tempEstimate?: number;
+  tempTargetDate?: string;
+  closedAt?: string;
+  updatedAt?: string;
+  successorIds?: string[];
+  url?: string;
+  autoUpdateStartDate?: AutoUpdateStartDateMode;
 }
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---
@@ -115,7 +127,10 @@ export interface GitHubProjectContent {
   number?: number;
   state?: string;
   body?: string;
+  url?: string;
   repository?: GitHubRepository;
+  closedAt?: string;
+  updatedAt?: string;
   assignees?: {
     nodes: GitHubAssignee[];
   };
@@ -175,7 +190,9 @@ export interface ProjectDateSettings {
   targetDateFieldId?: string;
   estimateFieldId?: string;
   estimateUnitFieldId?: string;
+  autoUpdateStartDateFieldId?: string;
   estimateUnit?: string;
+  successorFieldId?: string;
 }
 
 export interface GitHubProjectV2 {

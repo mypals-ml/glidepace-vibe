@@ -5,14 +5,17 @@ import { useDashboard } from '../../context/DashboardContext';
 import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
-import type { Task, User } from '../../types';
+import type { Task, User, AutoUpdateStartDateMode } from '../../types';
 import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
 import { ConfirmationModal } from '../UI/ConfirmationModal';
+import { calculateTargetDate } from '../../lib/dateUtils';
+import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
   onClose: () => void;
+  isInline?: boolean;
 }
 
 function CopyButton({ text, t }: { text: string; t: TFunction }) {
@@ -61,9 +64,9 @@ function CopyButton({ text, t }: { text: string; t: TFunction }) {
 }
 
 
-export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
+export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetailsPanelProps) {
   const { t } = useTranslation();
-  const { isCreateMode, setIsCreateMode } = useDashboard();
+  const { isCreateMode, setIsCreateMode, centerGanttOnDate, setIsChartVisible, setDashboardView } = useDashboard();
 
   if (!task && !isCreateMode) return null;
 
@@ -72,7 +75,18 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
     setIsCreateMode(false);
   };
 
-
+  const handleCenterInGantt = () => {
+    if (!task) return;
+    const startDate = getStartDateForCal(task);
+    if (startDate) {
+      // Ensure the chart is visible and set to Gantt view (important for mobile)
+      setIsChartVisible(true);
+      setDashboardView('gantt');
+      
+      centerGanttOnDate(startDate);
+      handleClose();
+    }
+  };
 
   const handleBackdropClick = () => {
     if (!isCreateMode) {
@@ -82,41 +96,93 @@ export function TaskDetailsPanel({ task, onClose }: TaskDetailsPanelProps) {
 
   return (
     <>
-      <div
-        className={`fixed inset-0 z-40 transition-all duration-300 ${
-          isCreateMode ? 'bg-slate-900/5 cursor-default' : 'bg-slate-900/20 backdrop-blur-[1px] cursor-pointer'
-        }`}
-        onClick={handleBackdropClick}
-      ></div>
-      <div className="fixed md:absolute inset-0 md:inset-auto md:right-4 md:top-4 md:bottom-4 md:w-[26rem] md:rounded-xl md:shadow-lg z-50 flex flex-col">
+      {!isInline && (
+        <div
+          className={`fixed inset-0 z-40 transition-all duration-300 ${isCreateMode ? 'bg-slate-900/5 cursor-default' : 'bg-slate-900/20 backdrop-blur-[1px] cursor-pointer'
+            }`}
+          onClick={handleBackdropClick}
+        ></div>
+      )}
+      <div 
+        className={`${isInline ? 'relative h-full w-full flex flex-col' : 'fixed md:absolute inset-0 md:inset-auto md:right-4 md:top-4 md:bottom-4 md:w-[26rem] md:rounded-xl md:shadow-lg'
+          } z-50 flex flex-col`}
+      >
         {/* Mobile View */}
-        <div className="md:hidden bg-white h-full rounded-t-2xl flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/60">
-            <h2 className="text-lg font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
-            <IconButton
-              icon="close"
-              variant="ghost"
-              size="md"
-              onClick={handleClose}
-              aria-label="Close"
-            />
+        <div className="md:hidden bg-white/90 backdrop-blur-md h-full rounded-t-2xl flex flex-col overflow-hidden shadow-2xl">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 bg-slate-50/50">
+            <h2 className="text-base font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
+            <div className="flex items-center gap-1">
+              {!isCreateMode && task && (
+                <>
+                  {task.url && (
+                    <IconButton
+                      icon="open_in_new"
+                      variant="ghost"
+                      size="md"
+                      onClick={() => window.open(task.url, '_blank')}
+                      title={t('dashboard.viewOnGitHub') || 'View on GitHub'}
+                      aria-label={t('dashboard.viewOnGitHub') || 'View on GitHub'}
+                    />
+                  )}
+                  <IconButton
+                    icon="center_focus_strong"
+                    variant="ghost"
+                    size="md"
+                    onClick={handleCenterInGantt}
+                    title={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                    aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                  />
+                </>
+              )}
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="md"
+                onClick={handleClose}
+                aria-label="Close"
+              />
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-6 space-y-6">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-6 pt-4 space-y-6">
             <TaskContent key={isCreateMode ? 'new-task' : task?.id} task={task} t={t} isCreateMode={isCreateMode} />
           </div>
         </div>
 
         {/* Desktop View */}
-        <div className="hidden md:flex flex-col bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200/60 h-full overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-slate-200/60">
+        <div className={`hidden md:flex flex-col bg-white/95 backdrop-blur-sm ${isInline ? '' : 'rounded-xl shadow-lg border border-slate-200/60'} h-full overflow-hidden`}>
+          <div className="flex items-center justify-between p-4 border-b border-slate-200/60 bg-slate-50/50">
             <h2 className="text-sm font-bold text-slate-900">{isCreateMode ? t('createTask.title', 'Create New Task') : t('dashboard.taskDetails')}</h2>
-            <IconButton
-              icon="close"
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              aria-label="Close"
-            />
+            <div className="flex items-center gap-1">
+              {!isCreateMode && task && (
+                <>
+                  {task.url && (
+                    <IconButton
+                      icon="open_in_new"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(task.url, '_blank')}
+                      title={t('dashboard.viewOnGitHub') || 'View on GitHub'}
+                      aria-label={t('dashboard.viewOnGitHub') || 'View on GitHub'}
+                    />
+                  )}
+                  <IconButton
+                    icon="center_focus_strong"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCenterInGantt}
+                    title={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                    aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
+                  />
+                </>
+              )}
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="sm"
+                onClick={handleClose}
+                aria-label="Close"
+              />
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 pt-4 space-y-4">
             <TaskContent key={isCreateMode ? 'new-task' : task?.id} task={task} t={t} isCreateMode={isCreateMode} />
@@ -139,10 +205,11 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [newDesc, setNewDesc] = useState('');
   const [newStatus, setNewStatus] = useState<string>(projectStatusOptions[0] || 'Todo');
   const [newAssignees, setNewAssignees] = useState<User[]>([]);
-  const [newStartDate, setNewStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [newTargetDate, setNewTargetDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [newStartDate, setNewStartDate] = useState<string>('');
+  const [newTargetDate, setNewTargetDate] = useState<string>('');
   const [newEstimate, setNewEstimate] = useState<string>('');
   const [newEstimateUnit, setNewEstimateUnit] = useState<string>(dateSettings.estimateUnit || 'hours');
+  const [newAutoUpdateMode, setNewAutoUpdateMode] = useState<AutoUpdateStartDateMode>('auto');
   const [isCreating, setIsCreating] = useState(false);
 
   // Sync new task's estimate unit with project settings default when it changes
@@ -152,6 +219,18 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
     setPrevEstimateUnitProp(dateSettings.estimateUnit);
     if (dateSettings.estimateUnit) {
       setNewEstimateUnit(dateSettings.estimateUnit);
+    }
+  }
+
+  // Auto-calculate new target date in create mode
+  const [prevCalcDeps, setPrevCalcDeps] = useState("");
+  const currentDeps = `${newStartDate}-${newEstimate}-${newEstimateUnit}`;
+  
+  if (isCreateMode && currentDeps !== prevCalcDeps) {
+    setPrevCalcDeps(currentDeps);
+    const calculated = calculateTargetDate(newStartDate, parseFloat(newEstimate) || 0, newEstimateUnit);
+    if (calculated !== newTargetDate) {
+      setNewTargetDate(calculated);
     }
   }
 
@@ -278,6 +357,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       targetDate: newTargetDate,
       estimate: parseFloat(newEstimate) || 0,
       estimateUnit: newEstimateUnit,
+      autoUpdateStartDate: newAutoUpdateMode,
       assigneeIds: newAssignees.map(a => a.id).filter(id => id !== 'unassigned')
     });
     setIsCreating(false);
@@ -390,8 +470,9 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               <input
                 type="date"
                 value={newTargetDate}
-                onChange={(e) => setNewTargetDate(e.target.value)}
-                className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+                readOnly
+                className="w-full text-sm text-slate-400 bg-slate-100 border border-slate-200 rounded p-1.5 cursor-not-allowed outline-none"
+                title={t('dashboard.targetDateAutoCalc', 'Target date is calculated based on start date and estimate')}
               />
             </div>
           </div>
@@ -417,6 +498,19 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                 ))}
               </select>
             </div>
+          </div>
+          {/* Auto Update Start Date Toggle */}
+          <div className="pt-2">
+            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.autoUpdateStartDateLabel')}</label>
+            <select
+              value={newAutoUpdateMode}
+              onChange={(e) => setNewAutoUpdateMode(e.target.value as AutoUpdateStartDateMode)}
+              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20 cursor-pointer"
+            >
+              <option value="auto">{t('dashboard.modeAuto')}</option>
+              <option value="locked">{t('dashboard.modeLocked')}</option>
+              <option value="ask">{t('dashboard.modeAsk')}</option>
+            </select>
           </div>
         </div>
 
@@ -454,7 +548,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       {/* Title */}
       <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
         <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
-          <span className="text-xs font-mono text-slate-500">{task.id}</span>
+          <span className="text-xs font-mono text-slate-500">{task.displayId}</span>
           <div className="flex items-center gap-1">
             {!editingTitle && (
               <>
@@ -599,7 +693,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
             <input
               type="date"
-              value={task.startDate}
+              value={getStartDateForCal(task)}
               onChange={(e) => updateTaskDates(task, e.target.value, undefined)}
               className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
             />
@@ -608,9 +702,10 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
             <input
               type="date"
-              value={task.targetDate}
-              onChange={(e) => updateTaskDates(task, undefined, e.target.value)}
-              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+              value={getTargetDateForCal(task)}
+              readOnly
+              className="w-full text-sm text-slate-400 bg-slate-100 border border-slate-200 rounded p-1.5 cursor-not-allowed outline-none"
+              title={t('dashboard.targetDateAutoCalc', 'Target date is calculated based on start date and estimate')}
             />
           </div>
         </div>
@@ -642,6 +737,21 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               ))}
             </select>
           </div>
+        </div>
+        {/* Auto Update Start Date Toggle */}
+        <div className="pt-2">
+          <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.autoUpdateStartDateLabel')}</label>
+          <select
+            value={task.autoUpdateStartDate || 'ask'}
+            onChange={(e) => {
+              updateTaskDates(task, undefined, undefined, undefined, undefined, e.target.value as AutoUpdateStartDateMode);
+            }}
+            className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 outline-none focus:ring focus:ring-primary/20 cursor-pointer"
+          >
+            <option value="auto">{t('dashboard.modeAuto')}</option>
+            <option value="locked">{t('dashboard.modeLocked')}</option>
+            <option value="ask">{t('dashboard.modeAsk')}</option>
+          </select>
         </div>
       </div>
 
