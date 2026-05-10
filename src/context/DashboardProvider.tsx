@@ -317,22 +317,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, [auth, projects, ui, processAuthReturnContext]);
   
 
-  const onStartDatePromptDecision = useCallback((decision: 'auto' | 'locked' | 'ask', tasksAffected: Task[]) => {
-    if (decision === 'auto') {
-      tasksAffected.forEach(task => {
-        if (task.autoUpdateStartDate !== 'locked') {
-          tasks.updateTaskDates(task, undefined, undefined, undefined, undefined, 'auto', true);
-        }
-      });
-    }
-    
+  const onStartDatePromptDecision = useCallback((decision: 'auto' | 'locked' | 'ask', _tasksAffected: Task[]) => {
+    void _tasksAffected;
     setIsStartDatePromptOpen(false);
     setStartDatePromptTasks([]);
     if (pendingDecision) {
       pendingDecision.resolve(decision);
       setPendingDecision(null);
     }
-  }, [tasks, pendingDecision]);
+  }, [pendingDecision]);
 
   const value: DashboardContextValue = {
     ...auth,
