@@ -26,3 +26,4 @@ dist-ssr
 .env*.local
 lint_output.json
 docs/demo/*
+*.patch
