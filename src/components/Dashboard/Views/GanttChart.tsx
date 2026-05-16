@@ -22,7 +22,7 @@ const EXPANSION_DAYS = 14;
 
 export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
   const { t } = useTranslation();
-  const { filteredTasks, isLoadingTasks, requestedCenterDate, centerGanttOnDate, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, setIsLinkMode, setSelectedLinkTaskIds } = useDashboard();
+  const { filteredTasks, isLoadingTasks, requestedCenterDate, centerGanttOnDate, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
   const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, clientWidth: 0 });
   const internalScrollRef = useRef<HTMLDivElement>(null);
   
@@ -62,6 +62,26 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
   // Handle external scroll requests (e.g. from Sidebar)
   const [linkDragState, setLinkDragState] = useState<{ sourceTaskId: string; startX: number; startY: number; currentX: number; currentY: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, taskId: string } | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressNextClickRef = useRef(false);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const openContextMenu = (clientX: number, clientY: number, taskId: string, anchor: HTMLElement) => {
+    const rect = anchor.closest('main')?.getBoundingClientRect();
+    if (rect) {
+      setContextMenu({
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+        taskId
+      });
+    }
+  };
 
   const handleBreakLink = async (sourceId: string, targetId: string) => {
     const sourceTask = filteredTasks.find(t => t.id === sourceId);
@@ -103,6 +123,18 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
         await updateTaskSuccessors(sourceTaskId, [...currentSuccessors, targetTask.itemId]);
       }
     }
+  };
+
+  const handleTaskActivate = (taskId: string) => {
+    if (isLinkMode) {
+      setSelectedLinkTaskIds(prev =>
+        prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+      );
+      return;
+    }
+
+    setSelectedTaskId(taskId);
+    setIsTaskDetailsOpen(true);
   };
 
   // Ref to track what was last centered to avoid redundant centering during expansions
@@ -279,18 +311,36 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                         width: `${Math.max(width, 100)}px`, // Min width for visibility
                       }}
                       onClick={() => {
-                        setSelectedTaskId(task.id);
-                        setIsTaskDetailsOpen(true);
+                        if (suppressNextClickRef.current) {
+                          suppressNextClickRef.current = false;
+                          return;
+                        }
+                        handleTaskActivate(task.id);
                       }}
                       onContextMenu={(e) => {
                         e.preventDefault();
-                        const rect = e.currentTarget.closest('main')?.getBoundingClientRect();
-                        if (rect) {
-                          setContextMenu({ 
-                            x: e.clientX - rect.left, 
-                            y: e.clientY - rect.top, 
-                            taskId: task.id 
-                          });
+                        openContextMenu(e.clientX, e.clientY, task.id, e.currentTarget);
+                      }}
+                      onPointerDown={(e) => {
+                        if (e.pointerType === 'mouse') return;
+                        clearLongPressTimer();
+                        const { clientX, clientY, currentTarget } = e;
+                        longPressTimerRef.current = setTimeout(() => {
+                          suppressNextClickRef.current = true;
+                          openContextMenu(clientX, clientY, task.id, currentTarget);
+                        }, 550);
+                      }}
+                      onPointerMove={clearLongPressTimer}
+                      onPointerUp={clearLongPressTimer}
+                      onPointerCancel={clearLongPressTimer}
+                      onPointerLeave={clearLongPressTimer}
+                      aria-pressed={isLinkMode ? selectedLinkTaskIds.includes(task.id) : undefined}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleTaskActivate(task.id);
                         }
                       }}
                     >

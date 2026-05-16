@@ -4,7 +4,7 @@ import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor } from '../../utils/statusColors';
 import type { User } from '../../types';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 
@@ -33,12 +33,49 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setIsLinkMode,
     selectedLinkTaskIds,
     setSelectedLinkTaskIds,
+    updateTaskSuccessors,
   } = useDashboard();
   const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; taskId: string; alignRight: boolean } | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressNextClickRef = useRef(false);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const openContextMenu = (clientX: number, clientY: number, taskId: string) => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    setContextMenu({
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+      taskId,
+      alignRight: clientX - rect.left > rect.width - 220
+    });
+  };
+
+  const handleTaskActivate = (taskId: string) => {
+    if (isLinkMode) {
+      setSelectedLinkTaskIds(prev =>
+        prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+      );
+      return;
+    }
+
+    setIsCreateMode(false);
+    setSelectedTaskId(taskId);
+    setIsTaskDetailsOpen(true);
+  };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden relative">
+    <div className="flex flex-col h-full overflow-hidden relative" ref={rootRef}>
       {/* Header - Moved outside scroll container for alignment */}
       <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[40px_1fr_64px_76px] gap-2 pl-4 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.id')}</div>
@@ -84,14 +121,36 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                     : selectedTaskId === task.id ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
                 }`} 
                 onClick={() => {
-                  if (isLinkMode) {
-                    setSelectedLinkTaskIds(prev => 
-                      prev.includes(task.id) ? prev.filter(id => id !== task.id) : [...prev, task.id]
-                    );
-                  } else {
-                    setIsCreateMode(false);
-                    setSelectedTaskId(task.id);
-                    setIsTaskDetailsOpen(true);
+                  if (suppressNextClickRef.current) {
+                    suppressNextClickRef.current = false;
+                    return;
+                  }
+                  handleTaskActivate(task.id);
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  openContextMenu(e.clientX, e.clientY, task.id);
+                }}
+                onPointerDown={(e) => {
+                  if (e.pointerType === 'mouse') return;
+                  clearLongPressTimer();
+                  const { clientX, clientY } = e;
+                  longPressTimerRef.current = setTimeout(() => {
+                    suppressNextClickRef.current = true;
+                    openContextMenu(clientX, clientY, task.id);
+                  }, 550);
+                }}
+                onPointerMove={clearLongPressTimer}
+                onPointerUp={clearLongPressTimer}
+                onPointerCancel={clearLongPressTimer}
+                onPointerLeave={clearLongPressTimer}
+                aria-pressed={isLinkMode ? selectedLinkTaskIds.includes(task.id) : undefined}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleTaskActivate(task.id);
                   }
                 }}
               >
@@ -219,6 +278,53 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
           )}
         </div>
       </div>
+
+      {/* Context Menu Overlay */}
+      {contextMenu && (
+        <div
+          className="absolute inset-0 z-[100]"
+          onClick={() => setContextMenu(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setContextMenu(null);
+          }}
+        >
+          <div
+            className="absolute bg-white/95 rounded-xl shadow-2xl border border-slate-200/60 py-1.5 min-w-[200px] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200"
+            style={{
+              left: contextMenu.x,
+              top: contextMenu.y,
+              transform: contextMenu.alignRight ? 'translateX(-100%)' : 'none'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+              onClick={() => {
+                setIsLinkMode(true);
+                setSelectedLinkTaskIds([contextMenu.taskId]);
+                setContextMenu(null);
+              }}
+            >
+              <span className="material-symbols-outlined text-[16px]">add_link</span>
+              {t('dashboard.addSuccessors')}
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+              onClick={() => {
+                const tObj = filteredTasks.find(tObj => tObj.id === contextMenu.taskId);
+                if (tObj?.successorIds?.length) {
+                  updateTaskSuccessors(contextMenu.taskId, []);
+                }
+                setContextMenu(null);
+              }}
+            >
+              <span className="material-symbols-outlined text-[16px]">link_off</span>
+              {t('dashboard.breakAllLinks')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Search Box with Add Task Button and Progress Bar */}
       <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md absolute bottom-0 left-0 right-0 z-10 space-y-2.5">
