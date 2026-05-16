@@ -306,6 +306,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                 const duration = diffDays(start, end);
                 const width = duration * DAY_WIDTH;
                 const isSelected = selectedTaskId === task.id;
+                const isLinkDropTarget = Boolean(linkDragState && linkDragState.sourceTaskId !== task.id);
 
                 return (
                   <div key={task.id} className={`relative h-[72px] w-full flex items-center group px-2 ${isSelected ? 'z-20' : 'z-10'}`}>
@@ -380,14 +381,26 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                     </div>
                     {/* Start Connector Node */}
                     <div 
-                      className="absolute left-0 w-3 h-3 rounded-full bg-indigo-200 border-2 border-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity z-40 cursor-crosshair hover:scale-125"
-                      style={{ left: `${left - 6}px`, top: '50%', transform: 'translateY(-50%)' }}
+                      className={`absolute z-40 flex items-center justify-center rounded-full cursor-crosshair transition-all ${
+                        isLinkDropTarget
+                          ? 'w-5 h-5 bg-indigo-100/80 opacity-100 ring-2 ring-indigo-300/60 shadow-md shadow-indigo-500/20'
+                          : 'w-7 h-7 opacity-0 group-hover:opacity-100'
+                      }`}
+                      style={{ left: `${left}px`, top: '50%', transform: 'translate(-50%, -50%)' }}
                       onMouseUp={(e) => {
                         e.stopPropagation();
                         handleLinkDrop(task.id);
                       }}
                       title={t('dashboard.dropToCreateLink') || "Drop to create link"}
-                    />
+                    >
+                      <span
+                        className={`rounded-full border-2 transition-all ${
+                          isLinkDropTarget
+                            ? 'w-2.5 h-2.5 bg-indigo-500 border-white'
+                            : 'w-3 h-3 bg-indigo-200 border-indigo-500 hover:scale-125'
+                        }`}
+                      />
+                    </div>
                     {/* End Connector Node */}
                     <div 
                       className="absolute w-3 h-3 rounded-full bg-indigo-500 border-2 border-white opacity-0 group-hover:opacity-100 transition-opacity z-40 cursor-grab active:cursor-grabbing hover:scale-125 shadow-sm"
