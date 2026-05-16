@@ -5,32 +5,46 @@ import { USE_MOCK_DATA, MOCK_ACCOUNTS } from '../lib/mockData';
 import { MOCK_ACCOUNTS_DATA, MOCK_TOKEN } from '../lib/githubMock';
 import type { GithubAccount } from '../types';
 
+function readSavedGithubAccounts(): GithubAccount[] {
+  try {
+    const saved = localStorage.getItem('github_accounts');
+    return JSON.parse(saved || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function mergeAccounts(...accountGroups: GithubAccount[][]): GithubAccount[] {
+  const accountsById = new Map<string, GithubAccount>();
+  accountGroups.flat().forEach(account => {
+    accountsById.set(account.id, account);
+  });
+  return Array.from(accountsById.values());
+}
+
 export function useDashboardAuth(options?: { showToast: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
   const { t } = useTranslation();
   const showToast = options?.showToast;
 
   const [githubAccounts, setGithubAccounts] = useState<GithubAccount[]>(() => {
+    const savedAccounts = readSavedGithubAccounts();
     if (USE_MOCK_DATA) {
-      console.log('[Auth] Initializing with MOCK accounts:', MOCK_ACCOUNTS.map(a => a.login));
-      return MOCK_ACCOUNTS;
+      const accounts = mergeAccounts(MOCK_ACCOUNTS, savedAccounts);
+      console.log('[Auth] Initializing with MOCK + SAVED accounts:', accounts.map(a => a.login));
+      return accounts;
     }
-    try {
-      const saved = localStorage.getItem('github_accounts');
-      const parsed = JSON.parse(saved || '[]');
-      console.log('[Auth] Initializing with SAVED accounts from localStorage:', parsed.map((a: GithubAccount) => a.login));
-      return parsed;
-    } catch {
-      console.log('[Auth] Initializing with EMPTY accounts (parse failed)');
-      return [];
-    }
+    console.log('[Auth] Initializing with SAVED accounts from localStorage:', savedAccounts.map(a => a.login));
+    return savedAccounts;
   });
 
   const [browsingAccountId, setBrowsingAccountId] = useState<string>(
     () => {
-      if (USE_MOCK_DATA) return MOCK_ACCOUNTS[0].id;
       const urlParams = new URLSearchParams(window.location.search);
       const urlAccount = urlParams.get('account');
-      return urlAccount || sessionStorage.getItem('browsing_github_account_id') || localStorage.getItem('browsing_github_account_id') || '';
+      if (urlAccount) return urlAccount;
+      if (USE_MOCK_DATA) return MOCK_ACCOUNTS[0].id;
+      const storedAccountId = sessionStorage.getItem('browsing_github_account_id') || localStorage.getItem('browsing_github_account_id') || '';
+      return storedAccountId;
     }
   );
 
