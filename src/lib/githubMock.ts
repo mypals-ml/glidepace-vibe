@@ -16,6 +16,8 @@ const MOCK_FIELD_IDS = {
   status: 'mock-status-field-id',
   startDate: 'mock-start-date-id',
   targetDate: 'mock-end-date-id',
+  estimate: 'mock-estimate-id',
+  successor: 'mock-successors-id',
 };
 
 export const MOCK_TOKEN = 'mock-token-123';
@@ -238,8 +240,76 @@ const CONNECTED_TASKS_TASKS: Task[] = [
   }
 ];
 
+type MockFieldValueInput = {
+  singleSelectOptionId?: string;
+  date?: string;
+  number?: number;
+  text?: string;
+};
+
+function getTextFieldValue(task: Task, field: GitHubProjectV2Field): string {
+  const fieldName = field.name.toLowerCase();
+  if (field.id === MOCK_FIELD_IDS.successor || fieldName.includes('successor') || fieldName.includes('dependency') || fieldName.includes('link')) {
+    return (task.successorIds || []).join(',');
+  }
+  if (fieldName.includes('auto') && fieldName.includes('start')) {
+    return task.autoUpdateStartDate || 'ask';
+  }
+  if (fieldName.includes('unit') || fieldName.includes('category')) {
+    return task.estimateUnit || task.tempEstimateUnit || 'days';
+  }
+  return '';
+}
+
+function applyMockFieldValue(task: Task, field: GitHubProjectV2Field | undefined, value: MockFieldValueInput) {
+  if (!field) return;
+
+  const fieldName = field.name.toLowerCase();
+
+  if (value.singleSelectOptionId) {
+    if (field.id === MOCK_FIELD_IDS.status || fieldName === 'status') {
+      const matched = MOCK_STATUS_OPTIONS.find(o => o.id === value.singleSelectOptionId);
+      if (matched) {
+        task.status = matched.name as TaskStatus;
+        task.progress = task.status === 'Done' ? 100 : (task.status === 'In Progress' ? 50 : 0);
+      }
+    } else if (fieldName.includes('unit') || fieldName.includes('category')) {
+      const matched = field.options?.find(o => o.id === value.singleSelectOptionId);
+      if (matched) task.estimateUnit = matched.name;
+    }
+  }
+
+  if (value.date) {
+    if (field.id === MOCK_FIELD_IDS.startDate || fieldName.includes('start')) {
+      task.fullStartDate = value.date;
+      task.startDate = new Date(value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    } else if (field.id === MOCK_FIELD_IDS.targetDate || fieldName.includes('target') || fieldName.includes('end')) {
+      task.fullTargetDate = value.date;
+      task.targetDate = new Date(value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+  }
+
+  if (value.number !== undefined) {
+    if (field.id === MOCK_FIELD_IDS.estimate || fieldName.includes('estimate') || fieldName.includes('duration')) {
+      task.estimate = value.number;
+    }
+  }
+
+  if (value.text !== undefined) {
+    if (field.id === MOCK_FIELD_IDS.successor || fieldName.includes('successor') || fieldName.includes('dependency') || fieldName.includes('link')) {
+      task.successorIds = value.text.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (fieldName.includes('auto') && fieldName.includes('start')) {
+      if (value.text === 'auto' || value.text === 'locked' || value.text === 'ask') {
+        task.autoUpdateStartDate = value.text;
+      }
+    } else if (fieldName.includes('unit') || fieldName.includes('category')) {
+      task.estimateUnit = value.text;
+    }
+  }
+}
+
 // Helper to map tasks back to GitHub GraphQL nodes
-function mapTaskToGraphQLNode(task: Task) {
+function mapTaskToGraphQLNode(task: Task, projectId = 'PVT_1') {
   const matchedOption = MOCK_STATUS_OPTIONS.find(o => o.name === task.status)
     ?? MOCK_STATUS_OPTIONS[0];
 
@@ -264,6 +334,34 @@ function mapTaskToGraphQLNode(task: Task) {
     date: task.fullTargetDate || new Date().toISOString(),
     field: { __typename: 'ProjectV2Field', id: MOCK_FIELD_IDS.targetDate, name: 'Target Date' },
   };
+  const customFieldValues = getFieldsForProject(projectId)
+    .filter(field => ![MOCK_FIELD_IDS.status, MOCK_FIELD_IDS.startDate, MOCK_FIELD_IDS.targetDate].includes(field.id))
+    .map(field => {
+      if (field.__typename === 'ProjectV2SingleSelectField') {
+        const selectedName = getTextFieldValue(task, field);
+        const selectedOption = field.options?.find(option => option.name === selectedName) || field.options?.[0];
+        return {
+          __typename: 'ProjectV2ItemFieldSingleSelectValue',
+          name: selectedOption?.name || '',
+          optionId: selectedOption?.id || '',
+          field,
+        };
+      }
+
+      if (field.dataType === 'NUMBER') {
+        return {
+          __typename: 'ProjectV2ItemFieldNumberValue',
+          number: task.estimate,
+          field,
+        };
+      }
+
+      return {
+        __typename: 'ProjectV2ItemFieldTextValue',
+        text: getTextFieldValue(task, field),
+        field,
+      };
+    });
 
   return {
     id: task.itemId,
@@ -298,7 +396,7 @@ function mapTaskToGraphQLNode(task: Task) {
       }
     },
     fieldValues: {
-      nodes: [statusField, startDateField, targetDateField]
+      nodes: [statusField, startDateField, targetDateField, ...customFieldValues]
     }
   };
 }
@@ -338,9 +436,15 @@ function getFieldsForProject(projectId: string) {
       },
       {
         __typename: 'ProjectV2Field',
-        id: 'mock-estimate-id',
+        id: MOCK_FIELD_IDS.estimate,
         name: 'Estimate',
         dataType: 'NUMBER'
+      },
+      {
+        __typename: 'ProjectV2Field',
+        id: MOCK_FIELD_IDS.successor,
+        name: 'Successors',
+        dataType: 'TEXT'
       }
     ];
 
@@ -380,6 +484,7 @@ export interface MockVariables {
   subjectId?: string;
   body?: string;
   fieldId?: string;
+  value?: MockFieldValueInput;
   input?: {
     id?: string;
     itemId?: string;
@@ -392,6 +497,8 @@ export interface MockVariables {
     value?: {
       singleSelectOptionId?: string;
       date?: string;
+      number?: number;
+      text?: string;
     };
   };
   assignableId?: string;
@@ -507,7 +614,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
             nodes: getFieldsForProject(projectId)
           },
           items: {
-            nodes: getTasksForProject(projectId).map(mapTaskToGraphQLNode)
+            nodes: getTasksForProject(projectId).map(task => mapTaskToGraphQLNode(task, projectId))
           }
         }
       }
@@ -519,10 +626,11 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     const itemId = variables.itemId;
     const task = getAllMockTasks().find(t => t.itemId === itemId);
     if (!task) return { errors: [{ message: 'Node not found' }] };
+    const projectId = variables.projectId || Object.keys(MOCK_PROJECT_TASKS_MAP).find(id => getTasksForProject(id).some(t => t.itemId === itemId));
 
     return {
       data: {
-        node: mapTaskToGraphQLNode(task)
+        node: mapTaskToGraphQLNode(task, projectId)
       }
     };
   }
@@ -703,30 +811,16 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   }
 
   if (query.includes('updateProjectV2ItemFieldValue(')) {
+    const projectId = getVar('projectId');
     const itemId = getVar('itemId');
     const task = getAllMockTasks().find(t => t.itemId === itemId);
     if (!task) return { errors: [{ message: 'Item not found' }] };
 
     const value = getVar('value');
-    if (value?.singleSelectOptionId) {
-      // Resolve status by option ID (real IDs from MOCK_STATUS_OPTIONS)
-      const optionId = value.singleSelectOptionId;
-      const matched = MOCK_STATUS_OPTIONS.find(o => o.id === optionId);
-      if (matched) {
-        task.status = matched.name as TaskStatus;
-        task.progress = task.status === 'Done' ? 100 : (task.status === 'In Progress' ? 50 : 0);
-      }
-    }
-    if (value?.date) {
-      const fieldId = getVar('fieldId');
-      if (fieldId === MOCK_FIELD_IDS.startDate) {
-        task.fullStartDate = value.date;
-        task.startDate = new Date(value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      } else if (fieldId === MOCK_FIELD_IDS.targetDate) {
-        task.fullTargetDate = value.date;
-        task.targetDate = new Date(value.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      }
-    }
+    const fieldId = getVar('fieldId');
+    const fields = projectId ? getFieldsForProject(projectId) : Object.values(MOCK_PROJECT_FIELDS_MAP).flat();
+    const field = fields.find(f => f.id === fieldId);
+    applyMockFieldValue(task, field, value || {});
 
     return { data: { updateProjectV2ItemFieldValue: { projectV2Item: { id: task.itemId } } } };
   }
@@ -759,4 +853,3 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
 
   return { errors: [{ message: 'Mock query not implemented' }] };
 }
-

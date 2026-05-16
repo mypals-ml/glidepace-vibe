@@ -9,7 +9,7 @@
 *   **Themes:** Supports Light and Dark mode toggling. The default interface is a polished Bright (Light) mode with a glassmorphism aesthetic.
 *   **MS Project Style Layout:** The main dashboard uses a resizable split-pane layout: the left panel lists issues (with assignees and status), while the wide right panel displays a horizontal Gantt chart.
 *   **Sync Status & Manual Sync:** Automatically tracks the last synchronization time with GitHub and displays it in the header (e.g., "Synced 5 minutes ago"). Users can hover over the status to reveal a "Sync Now" button for manual synchronization.
-*   **Robust Demo Mode:** Full functionality available offline via mock services (`githubMock.ts`) for testing and demonstration purposes. Supports simulated GraphQL queries and mutations.
+*   **Robust Demo Mode:** Full functionality available offline via mock services (`githubMock.ts`) for testing and demonstration purposes. Supports simulated GraphQL queries and mutations, with in-memory project field persistence for edits such as task dependency links until the app is quit.
 *   **Assignee Search Strategy:** 
     *   **Contextual Priority:** The search interface automatically prioritizes "Project Mates" — users already assigned to at least one task in the current project for quick access.
     *   **Smart Scoping:** For projects owned by an Organization, the system automatically scopes the GitHub user search to that organization (`org:LOGIN`) to find relevant teammates quickly.
@@ -22,4 +22,3 @@
 *   **Data Persistence (Custom Fields):** Saves the necessary information back in the project, including creating custom attributes for tasks.
 *   **Draft Issue Conversion & Setup:** Automated workflow to convert "Draft Issues" to full Issues to enable advanced metadata and dependencies.
 *   **Save Gantt Chart as View:** Ability to save the current Gantt configuration as a view in GitHub for easy sharing and persistence.
-
