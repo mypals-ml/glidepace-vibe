@@ -7,6 +7,7 @@ import type { User } from '../../types';
 import { useRef, useState } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
+import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
 
 export interface TaskSidebarProps {
   scrollRef?: React.RefObject<HTMLDivElement | null>;
@@ -352,71 +353,75 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       )}
 
       {/* Bottom Search Box with Add Task Button and Progress Bar */}
-      <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md absolute bottom-0 left-0 right-0 z-10 space-y-2.5">
-        {/* Progress Bar for Field Checking/Mapping */}
-        {(fieldsProgress.isFetching || mappingStatus !== 'idle' && mappingStatus !== 'complete') && (
-          <div className="px-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <div className="flex space-x-1">
-                  <div className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                  <div className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                  <div className="w-1 h-1 bg-primary rounded-full animate-bounce"></div>
+      <div className="border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md absolute bottom-0 left-0 right-0 z-10">
+        {isLinkMode && <FloatingSequenceBuilder variant="inline" className="md:hidden" />}
+
+        <div className={`p-3 space-y-2.5 ${isLinkMode ? 'hidden md:block' : ''}`}>
+          {/* Progress Bar for Field Checking/Mapping */}
+          {(fieldsProgress.isFetching || mappingStatus !== 'idle' && mappingStatus !== 'complete') && (
+            <div className="px-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex space-x-1">
+                    <div className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                    <div className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-1 h-1 bg-primary rounded-full animate-bounce"></div>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    {fieldsProgress.isFetching ? t('dashboard.scanningFields', 'Scanning GitHub fields...') : t('dashboard.mappingFields', 'Analyzing field mappings...')}
+                  </span>
                 </div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                  {fieldsProgress.isFetching ? t('dashboard.scanningFields', 'Scanning GitHub fields...') : t('dashboard.mappingFields', 'Analyzing field mappings...')}
-                </span>
+                {fieldsProgress.total > 0 && (
+                  <span className="text-[10px] font-bold text-primary tabular-nums bg-primary/10 px-1.5 py-0.5 rounded">
+                    {Math.round((fieldsProgress.current / fieldsProgress.total) * 100)}%
+                  </span>
+                )}
               </div>
-              {fieldsProgress.total > 0 && (
-                <span className="text-[10px] font-bold text-primary tabular-nums bg-primary/10 px-1.5 py-0.5 rounded">
-                  {Math.round((fieldsProgress.current / fieldsProgress.total) * 100)}%
-                </span>
-              )}
+              <div className="h-1.5 w-full bg-slate-200/50 rounded-full overflow-hidden border border-slate-200/30">
+                <div
+                  className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(var(--primary-rgb),0.4)]"
+                  style={{
+                    width: fieldsProgress.total > 0
+                      ? `${(fieldsProgress.current / fieldsProgress.total) * 100}%`
+                      : '30%',
+                    animation: fieldsProgress.total === 0 ? 'shimmer 1.5s infinite linear' : 'none'
+                  }}
+                />
+              </div>
+              <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes shimmer {
+                  0% { transform: translateX(-100%); }
+                  100% { transform: translateX(330%); }
+                }
+              `}} />
             </div>
-            <div className="h-1.5 w-full bg-slate-200/50 rounded-full overflow-hidden border border-slate-200/30">
-              <div 
-                className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(var(--primary-rgb),0.4)]"
-                style={{ 
-                  width: fieldsProgress.total > 0 
-                    ? `${(fieldsProgress.current / fieldsProgress.total) * 100}%` 
-                    : '30%',
-                  animation: fieldsProgress.total === 0 ? 'shimmer 1.5s infinite linear' : 'none'
-                }}
+          )}
+
+          <div className="flex gap-2 items-center">
+            <div className="relative flex-1">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]" aria-hidden="true">search</span>
+              <input
+                className="w-full h-9 bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-3 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                placeholder={t('dashboard.filterPlaceholder')}
+                aria-label={t('dashboard.filterPlaceholder')}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <style dangerouslySetInnerHTML={{ __html: `
-              @keyframes shimmer {
-                0% { transform: translateX(-100%); }
-                100% { transform: translateX(330%); }
-              }
-            `}} />
-          </div>
-        )}
-
-        <div className="flex gap-2 items-center">
-          <div className="relative flex-1">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]" aria-hidden="true">search</span>
-            <input
-              className="w-full h-9 bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-3 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
-              placeholder={t('dashboard.filterPlaceholder')}
-              aria-label={t('dashboard.filterPlaceholder')}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+            <IconButton
+              icon="add"
+              variant="success"
+              size="sm"
+              onClick={() => {
+                setSelectedTaskId(null);
+                setIsCreateMode(true);
+                setIsTaskDetailsOpen(true);
+              }}
+              title={t('createTask.addButton') || 'Add new task'}
+              aria-label={t('createTask.addButton') || 'Add new task'}
             />
           </div>
-          <IconButton
-            icon="add"
-            variant="success"
-            size="sm"
-            onClick={() => {
-              setSelectedTaskId(null);
-              setIsCreateMode(true);
-              setIsTaskDetailsOpen(true);
-            }}
-            title={t('createTask.addButton') || 'Add new task'}
-            aria-label={t('createTask.addButton') || 'Add new task'}
-          />
         </div>
       </div>
     </div>

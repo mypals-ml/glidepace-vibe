@@ -7,6 +7,7 @@ import { formatToGitHubDate, diffDays } from '../../../lib/dateUtils';
 import { IconButton } from '../../UI/IconButton';
 import { useGanttTimeline } from '../../../hooks/useGanttTimeline';
 import { DependencyLines } from './DependencyLines';
+import { FloatingSequenceBuilder } from '../FloatingSequenceBuilder';
 
 export interface GanttChartProps {
   className?: string;
@@ -445,6 +446,12 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
               {t('dashboard.breakAllLinks')}
             </button>
           </div>
+        </div>
+      )}
+
+      {isLinkMode && (
+        <div className="md:hidden border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md absolute bottom-0 left-0 right-0 z-30">
+          <FloatingSequenceBuilder variant="inline" />
         </div>
       )}
     </main>
