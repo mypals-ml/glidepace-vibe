@@ -20,6 +20,11 @@ import { CSS } from '@dnd-kit/utilities';
 import { useDashboard } from '../../context/DashboardContext';
 import { IconButton } from '../UI/IconButton';
 
+interface FloatingSequenceBuilderProps {
+  variant?: 'floating' | 'inline';
+  className?: string;
+}
+
 interface SortableTaskItemProps {
   id: string;
   title: string;
@@ -62,7 +67,7 @@ function SortableTaskItem({ id, title }: SortableTaskItemProps) {
   );
 }
 
-export function FloatingSequenceBuilder() {
+export function FloatingSequenceBuilder({ variant = 'floating', className = '' }: FloatingSequenceBuilderProps) {
   const { t } = useTranslation();
   const {
     isLinkMode,
@@ -156,8 +161,16 @@ export function FloatingSequenceBuilder() {
 
   if (!isLinkMode) return null;
 
+  const isInline = variant === 'inline';
+  const containerClassName = isInline
+    ? `w-full bg-white flex flex-col overflow-hidden ${className}`
+    : `fixed bottom-6 right-6 w-80 bg-white/90 backdrop-blur-md shadow-2xl rounded-xl border border-indigo-100 flex flex-col overflow-hidden z-50 ${className}`;
+  const bodyClassName = isInline
+    ? 'p-3 flex-1 overflow-y-auto max-h-56 bg-slate-50/50'
+    : 'p-4 flex-1 overflow-y-auto max-h-[60vh] bg-slate-50/50';
+
   return (
-    <div className="fixed bottom-6 right-6 w-80 bg-white/90 backdrop-blur-md shadow-2xl rounded-xl border border-indigo-100 flex flex-col overflow-hidden z-50">
+    <div className={containerClassName}>
       <div className="bg-indigo-50 px-4 py-3 border-b border-indigo-100 flex items-center justify-between">
         <h3 className="font-semibold text-indigo-900 flex items-center gap-2">
           <span className="material-symbols-outlined text-[18px]">account_tree</span>
@@ -176,7 +189,7 @@ export function FloatingSequenceBuilder() {
         />
       </div>
 
-      <div className="p-4 flex-1 overflow-y-auto max-h-[60vh] bg-slate-50/50">
+      <div className={bodyClassName}>
         {orderedTasks.length === 0 ? (
           <div className="text-center text-sm text-slate-400 py-4">
             {t('dashboard.sequenceBuilderEmpty')}

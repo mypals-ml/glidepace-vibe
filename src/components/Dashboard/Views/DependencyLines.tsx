@@ -16,6 +16,19 @@ export function DependencyLines({ tasks, getPositionForDate, dayWidth, onBreakLi
   const { t } = useTranslation();
   const ROW_HEIGHT = 72;
 
+  const getPathStr = (startX: number, startY: number, endX: number, endY: number) => {
+    let cp1X, cp2X;
+    if (endX > startX) {
+      const offset = Math.max(100, (endX - startX) / 2);
+      cp1X = startX + offset;
+      cp2X = endX - offset;
+    } else {
+      cp1X = startX + 100;
+      cp2X = endX - 100;
+    }
+    return `M ${startX} ${startY} C ${cp1X} ${startY}, ${cp2X} ${endY}, ${endX} ${endY}`;
+  };
+
   const lines = useMemo(() => {
     const result: React.ReactNode[] = [];
 
@@ -48,8 +61,7 @@ export function DependencyLines({ tasks, getPositionForDate, dayWidth, onBreakLi
           const endX = target.x1;
           const endY = target.y;
 
-          const midX = (startX + endX) / 2;
-          const pathStr = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
+          const pathStr = getPathStr(startX, startY, endX, endY);
 
           result.push(
             <g key={`${task.id}-${targetId}`} className="group/line cursor-pointer">
@@ -125,7 +137,7 @@ export function DependencyLines({ tasks, getPositionForDate, dayWidth, onBreakLi
       </g>
       {dragState && (
         <path
-          d={`M ${dragState.startX} ${dragState.startY} C ${(dragState.startX + dragState.currentX) / 2} ${dragState.startY}, ${(dragState.startX + dragState.currentX) / 2} ${dragState.currentY}, ${dragState.currentX} ${dragState.currentY}`}
+          d={getPathStr(dragState.startX, dragState.startY, dragState.currentX, dragState.currentY)}
           fill="none"
           stroke="#818cf8"
           strokeWidth="3"

@@ -152,7 +152,7 @@ function DashboardLayout() {
         )}
       </Suspense>
 
-      <FloatingSequenceBuilder />
+      <FloatingSequenceBuilder className="hidden md:flex" />
       <StartDateUpdatePromptModal />
 
     </div>

@@ -8,8 +8,10 @@
 *   **Localization (i18n):** Fully translated interface supporting English, Japanese, and Simplified Chinese.
 *   **Themes:** Supports Light and Dark mode toggling. The default interface is a polished Bright (Light) mode with a glassmorphism aesthetic.
 *   **MS Project Style Layout:** The main dashboard uses a resizable split-pane layout: the left panel lists issues (with assignees and status), while the wide right panel displays a horizontal Gantt chart.
+*   **Jump to Chart:** Long-pressing or right-clicking a task in the list opens a context menu with "Jump to Chart", switching to the Gantt chart and centering the selected task in view.
 *   **Sync Status & Manual Sync:** Automatically tracks the last synchronization time with GitHub and displays it in the header (e.g., "Synced 5 minutes ago"). Users can hover over the status to reveal a "Sync Now" button for manual synchronization.
-*   **Robust Demo Mode:** Full functionality available offline via mock services (`githubMock.ts`) for testing and demonstration purposes. Supports simulated GraphQL queries and mutations.
+*   **Robust Demo Mode:** Full functionality available offline via mock services (`githubMock.ts`) for testing and demonstration purposes. Supports simulated GraphQL queries and mutations, with in-memory project field persistence for edits such as task dependency links until the app is quit.
+*   **Task Dependencies:** Supports finish-to-start successor links between tasks, cascading successor start and target dates through dependency chains while preserving already-shifted predecessor dates during subsequent link edits. On mobile, the link tasks builder replaces the active view's bottom control bar instead of floating above the task list or Gantt chart.
 *   **Assignee Search Strategy:** 
     *   **Contextual Priority:** The search interface automatically prioritizes "Project Mates" — users already assigned to at least one task in the current project for quick access.
     *   **Smart Scoping:** For projects owned by an Organization, the system automatically scopes the GitHub user search to that organization (`org:LOGIN`) to find relevant teammates quickly.
@@ -18,8 +20,6 @@
 
 ## Roadmap & Upcoming Features
 *   **Task Grouping:** Group tasks by adding a parent task to them.
-*   **Task Dependencies:** Specify successor tasks for a task, and the successor tasks will automatically generate their own start and end dates based on the dependency graph.
 *   **Data Persistence (Custom Fields):** Saves the necessary information back in the project, including creating custom attributes for tasks.
 *   **Draft Issue Conversion & Setup:** Automated workflow to convert "Draft Issues" to full Issues to enable advanced metadata and dependencies.
 *   **Save Gantt Chart as View:** Ability to save the current Gantt configuration as a view in GitHub for easy sharing and persistence.
-
