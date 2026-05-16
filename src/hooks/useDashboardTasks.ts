@@ -5,6 +5,7 @@ import { mapProjectItemToTask } from '../lib/githubTaskMapper';
 import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
 import { cascadeTaskDates, cascadeAllTasks } from '../lib/taskDependencyUtils';
+import { mergeFetchedTaskWithLocalState } from '../lib/taskMergeUtils';
 import { 
   GET_SINGLE_ITEM_QUERY, 
   GET_PROJECT_TASKS_QUERY, 
@@ -121,18 +122,7 @@ export function useDashboardTasks({
           const existing = prevTasks[index];
           const result = [...prevTasks];
           
-          // Protected Merge: If local change is very recent (< 30s) and GitHub hasn't caught up, 
-          // preserve our local dates and flags.
-          const isRecentlyUpdatedLocally = existing.localUpdateTimestamp && (Date.now() - existing.localUpdateTimestamp < 30000);
-          
-          result[index] = {
-            ...updatedTask,
-            // Keep local dates/flags if they were recently changed and GitHub might be stale
-            startDate: isRecentlyUpdatedLocally ? existing.startDate : updatedTask.startDate,
-            targetDate: isRecentlyUpdatedLocally ? existing.targetDate : updatedTask.targetDate,
-            autoUpdateStartDate: isRecentlyUpdatedLocally ? existing.autoUpdateStartDate : updatedTask.autoUpdateStartDate,
-            localUpdateTimestamp: existing.localUpdateTimestamp
-          };
+          result[index] = mergeFetchedTaskWithLocalState(existing, updatedTask);
           
           return cascadeTaskDates(result, updatedTask.itemId || updatedTask.id);
         });
@@ -501,8 +491,11 @@ export function useDashboardTasks({
     const oldTasks = [...tasksRef.current];
     
     // a. Update successors for the source task
+    const dependencyEditTimestamp = Date.now();
     let updated = oldTasks.map(t => 
-      (t.itemId === task.itemId) ? { ...t, successorIds } : t
+      (t.itemId === task.itemId)
+        ? { ...t, successorIds, localUpdateTimestamp: dependencyEditTimestamp }
+        : t
     );
     
     // b. Apply flag changes based on decision
