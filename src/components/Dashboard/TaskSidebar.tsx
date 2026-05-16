@@ -24,6 +24,8 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     selectedTaskId, 
     setSelectedTaskId, 
     setIsCreateMode, 
+    setIsChartVisible,
+    setDashboardView,
     apiError,
     fieldsProgress,
     mappingStatus,
@@ -72,6 +74,22 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setIsCreateMode(false);
     setSelectedTaskId(taskId);
     setIsTaskDetailsOpen(true);
+  };
+
+  const handleJumpToChart = (taskId: string) => {
+    const task = filteredTasks.find(task => task.id === taskId);
+    setIsCreateMode(false);
+    setSelectedTaskId(taskId);
+    setIsTaskDetailsOpen(false);
+    setDashboardView('gantt');
+    setIsChartVisible(true);
+
+    const startDate = task ? getStartDateForCal(task) : null;
+    if (startDate) {
+      centerGanttOnDate(startDate);
+    }
+
+    setContextMenu(null);
   };
 
   return (
@@ -298,6 +316,13 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+              onClick={() => handleJumpToChart(contextMenu.taskId)}
+            >
+              <span className="material-symbols-outlined text-[16px]">center_focus_strong</span>
+              {t('dashboard.jumpToChart')}
+            </button>
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
               onClick={() => {

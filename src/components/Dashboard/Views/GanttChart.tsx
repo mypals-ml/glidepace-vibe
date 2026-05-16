@@ -148,6 +148,17 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
       const anchorDateStr = selectedTask ? (getStartDateForCal(selectedTask) || todayStr) : todayStr;
       centerOnDate(anchorDateStr, 'auto');
+      const selectedIndex = selectedTaskId
+        ? filteredTasks.findIndex(task => task.id === selectedTaskId)
+        : -1;
+      if (selectedIndex >= 0) {
+        const targetTop = selectedIndex * 72;
+        const halfViewport = activeScrollRef.current.clientHeight / 2;
+        activeScrollRef.current.scrollTo({
+          top: Math.max(0, targetTop - halfViewport + 36),
+          behavior: 'auto'
+        });
+      }
       lastCenteredId.current = currentSelectionKey;
       
       setViewportInfo({
