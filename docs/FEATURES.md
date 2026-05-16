@@ -12,6 +12,7 @@
 *   **Sync Status & Manual Sync:** Automatically tracks the last synchronization time with GitHub and displays it in the header (e.g., "Synced 5 minutes ago"). Users can hover over the status to reveal a "Sync Now" button for manual synchronization.
 *   **Robust Demo Mode:** Full functionality available offline via mock services (`githubMock.ts`) for testing and demonstration purposes. Supports simulated GraphQL queries and mutations, with in-memory project field persistence for edits such as task dependency links until the app is quit.
 *   **Task Dependencies:** Supports finish-to-start successor links between tasks, cascading successor start and target dates through dependency chains while preserving already-shifted predecessor dates during subsequent link edits. On mobile, the link tasks builder replaces the active view's bottom control bar instead of floating above the task list or Gantt chart.
+*   **Mobile Back Gesture Handling:** In mobile view, browser back gestures first dismiss the active dialog or task detail overlay. If no dialog is open and the user is viewing a chart, the gesture returns to the task list instead of leaving the app.
 *   **Assignee Search Strategy:** 
     *   **Contextual Priority:** The search interface automatically prioritizes "Project Mates" — users already assigned to at least one task in the current project for quick access.
     *   **Smart Scoping:** For projects owned by an Organization, the system automatically scopes the GitHub user search to that organization (`org:LOGIN`) to find relevant teammates quickly.

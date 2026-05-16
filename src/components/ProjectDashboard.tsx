@@ -10,6 +10,7 @@ import { BurndownChart } from './Dashboard/Views/BurndownChart';
 import { EmptyState } from './Dashboard/EmptyState';
 import { useScrollSync } from '../hooks/useScrollSync';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useMobileBackNavigation } from '../hooks/useMobileBackNavigation';
 import { MissingFieldsPromptModal } from './Modals/MissingFieldsPromptModal';
 import { Toast } from './UI/Toast';
 import { FloatingSequenceBuilder } from './Dashboard/FloatingSequenceBuilder';
@@ -34,6 +35,7 @@ function DashboardLayout() {
     maxWidth: 600
   });
   const { sidebarRef, timelineRef, onSidebarScroll, onTimelineScroll } = useScrollSync();
+  useMobileBackNavigation(!isDesktop);
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
   const { setIsChartVisible } = useDashboard();
