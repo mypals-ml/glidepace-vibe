@@ -4,7 +4,8 @@ import { fetchGitHubGraphQL, getRepositoryId, createGitHubIssue, addProjectV2Ite
 import { mapProjectItemToTask } from '../lib/githubTaskMapper';
 import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
-import { cascadeTaskDates, cascadeAllTasks } from '../lib/taskDependencyUtils';
+import { autoCorrectDependencyFields, cascadeTaskDates, cascadeAllTasks, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../lib/taskDependencyUtils';
+import type { DependencyFieldCorrection } from '../lib/taskDependencyUtils';
 import { mergeFetchedTaskWithLocalState } from '../lib/taskMergeUtils';
 import { 
   GET_SINGLE_ITEM_QUERY, 
@@ -23,7 +24,7 @@ import {
   DELETE_ISSUE_COMMENT_MUTATION,
   ADD_ISSUE_COMMENT_MUTATION
 } from '../lib/githubQueries';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode, FixedSuccessorStartDateMode } from '../types';
 
 interface UseDashboardTasksProps {
   githubToken: string;
@@ -35,6 +36,61 @@ interface UseDashboardTasksProps {
   setIsCreateMode: (val: boolean) => void;
   dateSettings: ProjectDateSettings;
   requestStartDateDecision: (tasks: Task[]) => Promise<'auto' | 'locked' | 'ask'>;
+}
+
+function uniqueTasks(tasks: Task[]): Task[] {
+  const seen = new Set<string>();
+  return tasks.filter(task => {
+    const id = task.itemId || task.id;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function getProjectFixedStartDateMode(dateSettings: ProjectDateSettings): FixedSuccessorStartDateMode {
+  return dateSettings.fixedSuccessorStartDateMode || 'ask';
+}
+
+function sortUniqueIds(ids: string[]): string[] {
+  return Array.from(new Set(ids.filter(Boolean))).sort();
+}
+
+function getExistingPredecessorIds(tasks: Task[], successorTask: Task): string[] {
+  if (successorTask.predecessorIds && successorTask.predecessorIds.length > 0) {
+    return successorTask.predecessorIds;
+  }
+
+  const successorTaskId = successorTask.itemId || successorTask.id;
+  return tasks
+    .filter(task => (task.successorIds || []).includes(successorTaskId))
+    .map(task => task.itemId || task.id);
+}
+
+async function persistDependencyFieldCorrections(
+  corrections: DependencyFieldCorrection[],
+  tasks: Task[],
+  selectedProjectId: string,
+  githubToken: string,
+  dateSettings: ProjectDateSettings
+) {
+  for (const correction of corrections) {
+    const task = tasks.find(t => (t.itemId || t.id) === correction.taskId);
+    if (!task?.itemId) continue;
+
+    const fieldId = correction.field === 'successor'
+      ? (dateSettings.successorFieldId || task.projectFieldIds?.successor)
+      : (dateSettings.predecessorFieldId || task.projectFieldIds?.predecessor);
+    if (!fieldId) continue;
+
+    await updateProjectV2ItemField(
+      selectedProjectId,
+      task.itemId,
+      fieldId,
+      { text: correction.ids.join(',') },
+      githubToken
+    );
+  }
 }
 
 export function useDashboardTasks({
@@ -115,17 +171,20 @@ export function useDashboardTasks({
           isDraft: updatedTask.isDraft,
           contentId: updatedTask.contentId
         });
-        setTasks(prevTasks => {
-          const index = prevTasks.findIndex(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
-          if (index === -1) return [...prevTasks, updatedTask];
-
-          const existing = prevTasks[index];
-          const result = [...prevTasks];
-          
-          result[index] = mergeFetchedTaskWithLocalState(existing, updatedTask);
-          
-          return cascadeTaskDates(result, updatedTask.itemId || updatedTask.id);
+        const currentTasks = tasksRef.current;
+        const index = currentTasks.findIndex(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
+        const mergedTasks = index === -1 ? [...currentTasks, updatedTask] : [...currentTasks];
+        if (index !== -1) {
+          mergedTasks[index] = mergeFetchedTaskWithLocalState(mergedTasks[index], updatedTask);
+        }
+        const dependencyRepair = autoCorrectDependencyFields(mergedTasks);
+        const cascadedTasks = cascadeTaskDates(dependencyRepair.tasks, updatedTask.itemId || updatedTask.id, new Set(), {
+          fixedStartDateMode: getProjectFixedStartDateMode(dateSettingsRef.current),
         });
+        setTasks(cascadedTasks);
+        if (selectedProject?.id) {
+          await persistDependencyFieldCorrections(dependencyRepair.corrections, cascadedTasks, selectedProject.id, token, dateSettingsRef.current);
+        }
         updateSyncTime();
 
         // Auto-sync missing values for Done tasks
@@ -133,12 +192,6 @@ export function useDashboardTasks({
           const updateField = async (fieldId: string | undefined, value: Record<string, string | number | boolean | undefined>) => {
             if (fieldId) await updateProjectV2ItemField(selectedProject.id, updatedTask.itemId!, fieldId, value, token);
           };
-          if (!updatedTask.startDate && updatedTask.tempStartDate) {
-            updateField(dateSettingsRef.current.startDateFieldId || updatedTask.projectFieldIds?.startDate, { date: formatToGitHubDate(updatedTask.tempStartDate) });
-          }
-          if (!updatedTask.targetDate && updatedTask.tempTargetDate) {
-            updateField(dateSettingsRef.current.targetDateFieldId || updatedTask.projectFieldIds?.targetDate, { date: formatToGitHubDate(updatedTask.tempTargetDate) });
-          }
           if (updatedTask.estimate === undefined && updatedTask.tempEstimate !== undefined) {
             updateField(dateSettingsRef.current.estimateFieldId || updatedTask.projectFieldIds?.estimate, { number: updatedTask.tempEstimate });
           }
@@ -233,8 +286,15 @@ export function useDashboardTasks({
         setProjectStatusOptions(statusOptions.map(o => o.name));
       }
 
+      const dependencyRepair = autoCorrectDependencyFields(mappedTasks);
+      const cascadedTasks = cascadeAllTasks(dependencyRepair.tasks, {
+        fixedStartDateMode: getProjectFixedStartDateMode(dateSettingsRef.current),
+      });
       setProjectFields(allFields);
-      setTasks(cascadeAllTasks(mappedTasks));
+      setTasks(cascadedTasks);
+      if (selectedProject?.id) {
+        await persistDependencyFieldCorrections(dependencyRepair.corrections, cascadedTasks, selectedProject.id, token, dateSettingsRef.current);
+      }
       updateSyncTime();
 
       // Auto-sync missing values for Done tasks
@@ -243,12 +303,6 @@ export function useDashboardTasks({
           const updateField = async (fieldId: string | undefined, value: Record<string, string | number | boolean | undefined>) => {
             if (fieldId) await updateProjectV2ItemField(selectedProject.id, task.itemId!, fieldId, value, token);
           };
-          if (!task.startDate && task.tempStartDate) {
-            updateField(dateSettingsRef.current.startDateFieldId || task.projectFieldIds?.startDate, { date: formatToGitHubDate(task.tempStartDate) });
-          }
-          if (!task.targetDate && task.tempTargetDate) {
-            updateField(dateSettingsRef.current.targetDateFieldId || task.projectFieldIds?.targetDate, { date: formatToGitHubDate(task.tempTargetDate) });
-          }
           if (task.estimate === undefined && task.tempEstimate !== undefined) {
             updateField(dateSettingsRef.current.estimateFieldId || task.projectFieldIds?.estimate, { number: task.tempEstimate });
           }
@@ -344,32 +398,45 @@ export function useDashboardTasks({
     
     // Optimistic Update
     const oldTasks = [...tasksRef.current];
+    const projectFixedMode = getProjectFixedStartDateMode(dateSettings);
     let nextTasks: Task[] = [];
-    setTasks(prev => {
-      const updated = prev.map(t => 
-        (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) 
-          ? { 
-              ...t, 
-              startDate: startDate !== undefined ? startDate : t.startDate,
-              targetDate: (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined)
-                ? calculateTargetDate(
-                    startDate !== undefined ? startDate : t.startDate,
-                    estimate !== undefined ? estimate : (t.estimate || 0),
-                    estimateUnit !== undefined ? estimateUnit : (t.estimateUnit || 'days')
-                  )
-                : t.targetDate,
-              estimate: estimate !== undefined ? estimate : t.estimate,
-              estimateUnit: estimateUnit !== undefined ? estimateUnit : t.estimateUnit,
-              autoUpdateStartDate: autoUpdateStartDate !== undefined ? autoUpdateStartDate : t.autoUpdateStartDate,
-              localUpdateTimestamp: (startDate !== undefined || targetDate !== undefined) ? Date.now() : t.localUpdateTimestamp,
-              tempStartDate: startDate !== undefined ? undefined : t.tempStartDate,
-              tempTargetDate: (startDate !== undefined || targetDate !== undefined) ? undefined : t.tempTargetDate
-            } 
-          : t
-      );
-      nextTasks = cascadeTaskDates(updated, task.itemId!, new Set(), true);
-      return nextTasks;
+    let effectiveFixedMode = projectFixedMode;
+    const updatedBeforeCascade = oldTasks.map(t => 
+      (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) 
+        ? { 
+            ...t, 
+            startDate: startDate !== undefined ? startDate : t.startDate,
+            targetDate: (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined)
+              ? calculateTargetDate(
+                  startDate !== undefined ? startDate : t.startDate,
+                  estimate !== undefined ? estimate : (t.estimate || 0),
+                  estimateUnit !== undefined ? estimateUnit : (t.estimateUnit || 'days')
+                )
+              : t.targetDate,
+            estimate: estimate !== undefined ? estimate : t.estimate,
+            estimateUnit: estimateUnit !== undefined ? estimateUnit : t.estimateUnit,
+            autoUpdateStartDate: autoUpdateStartDate !== undefined ? autoUpdateStartDate : t.autoUpdateStartDate,
+            localUpdateTimestamp: (startDate !== undefined || targetDate !== undefined) ? Date.now() : t.localUpdateTimestamp,
+            tempStartDate: startDate !== undefined ? undefined : t.tempStartDate,
+            tempTargetDate: (startDate !== undefined || targetDate !== undefined) ? undefined : t.tempTargetDate
+          } 
+        : t
+    );
+
+    if (projectFixedMode === 'ask') {
+      const fixedStartDateCandidates = uniqueTasks(getFixedStartDateUpdateCandidates(updatedBeforeCascade, task.itemId));
+      if (fixedStartDateCandidates.length > 0) {
+        const decision = await requestStartDateDecision(fixedStartDateCandidates);
+        effectiveFixedMode = decision === 'auto' ? 'auto' : 'ask';
+      }
+    }
+
+    nextTasks = cascadeTaskDates(updatedBeforeCascade, task.itemId!, new Set(), {
+      fixedStartDateMode: effectiveFixedMode,
     });
+    const dependencyRepair = autoCorrectDependencyFields(nextTasks);
+    nextTasks = dependencyRepair.tasks;
+    setTasks(nextTasks);
 
     let anySuccess = false;
     try {
@@ -435,26 +502,7 @@ export function useDashboardTasks({
       }
 
       if (anySuccess) {
-        // Persist cascaded changes
-        const shiftedTasks = nextTasks.filter(t => {
-          const old = oldTasks.find(ot => ot.id === t.id);
-          // Skip the source task itself which we already updated
-          if (t.id === task.id) return false;
-          return old && (old.startDate !== t.startDate || old.targetDate !== t.targetDate);
-        });
-
-        for (const st of shiftedTasks) {
-          const fIds = st.projectFieldIds;
-          const startDateFieldId = dateSettings.startDateFieldId || fIds?.startDate;
-          const targetDateFieldId = dateSettings.targetDateFieldId || fIds?.targetDate;
-          if (startDateFieldId && st.startDate) {
-            await updateProjectV2ItemField(selectedProject.id, st.itemId!, startDateFieldId, { date: formatToGitHubDate(st.startDate) }, githubToken);
-          }
-          if (targetDateFieldId && st.targetDate) {
-            await updateProjectV2ItemField(selectedProject.id, st.itemId!, targetDateFieldId, { date: formatToGitHubDate(st.targetDate) }, githubToken);
-          }
-        }
-
+        await persistDependencyFieldCorrections(dependencyRepair.corrections, nextTasks, selectedProject.id, githubToken, dateSettings);
         if (!skipRefresh) fetchSingleProjectItem(task.itemId, githubToken);
       } else {
         setTasks(oldTasks);
@@ -465,7 +513,7 @@ export function useDashboardTasks({
       setTasks(oldTasks);
       return false;
     }
-  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, dateSettings, projectFields, setTasks]);
+  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, dateSettings, projectFields, requestStartDateDecision, setTasks]);
 
   const updateTaskSuccessors = useCallback(async (taskId: string, successorIds: string[], skipRefresh = false, decision?: 'auto' | 'locked' | 'ask'): Promise<boolean> => {
     if (!selectedProject?.id || !githubToken || !dateSettings.successorFieldId) return false;
@@ -474,16 +522,27 @@ export function useDashboardTasks({
     const currentTasks = tasksRef.current;
     const task = currentTasks.find(t => t.itemId === taskId || t.id === taskId);
     if (!task || !task.itemId) return false;
+    const sourceTaskId = task.itemId;
+    const oldSuccessorIds = task.successorIds || [];
+    const nextSuccessorIds = sortUniqueIds(successorIds);
+    const addedSuccessorIds = nextSuccessorIds.filter(successorId => !oldSuccessorIds.includes(successorId));
+    const removedSuccessorIds = oldSuccessorIds.filter(successorId => !nextSuccessorIds.includes(successorId));
+    const affectedSuccessorIds = sortUniqueIds([...addedSuccessorIds, ...removedSuccessorIds]);
 
     // 2. Resolve prompt if needed
-    let effectiveDecision = decision;
-    if (!effectiveDecision) {
-      const successorsToAsk = currentTasks.filter(t => 
-        successorIds.includes(t.itemId!) && 
-        (!t.autoUpdateStartDate || t.autoUpdateStartDate === 'ask')
+    const projectFixedMode = getProjectFixedStartDateMode(dateSettings);
+    let effectiveFixedMode: FixedSuccessorStartDateMode = decision === 'auto'
+      ? 'auto'
+      : (decision === 'ask' || decision === 'locked') ? 'ask' : projectFixedMode;
+
+    if (!decision && projectFixedMode === 'ask') {
+      const successorsToAsk = currentTasks.filter(successor => 
+        addedSuccessorIds.includes(successor.itemId || successor.id) &&
+        shouldAskToUpdateFixedSuccessorStartDate(task, successor)
       );
       if (successorsToAsk.length > 0) {
-        effectiveDecision = await requestStartDateDecision(successorsToAsk);
+        const promptDecision = await requestStartDateDecision(successorsToAsk);
+        effectiveFixedMode = promptDecision === 'auto' ? 'auto' : 'ask';
       }
     }
 
@@ -492,71 +551,75 @@ export function useDashboardTasks({
     
     // a. Update successors for the source task
     const dependencyEditTimestamp = Date.now();
-    let updated = oldTasks.map(t => 
-      (t.itemId === task.itemId)
-        ? { ...t, successorIds, localUpdateTimestamp: dependencyEditTimestamp }
-        : t
-    );
-    
-    // b. Apply flag changes based on decision
-    if (effectiveDecision === 'auto') {
-      updated = updated.map(t => 
-        (successorIds.includes(t.itemId!) && (!t.autoUpdateStartDate || t.autoUpdateStartDate === 'ask'))
-          ? { ...t, autoUpdateStartDate: 'auto' as const }
-          : t
-      );
+    const updated = oldTasks.map(t => {
+      const currentTaskId = t.itemId || t.id;
+      if (currentTaskId === sourceTaskId) {
+        return { ...t, successorIds: nextSuccessorIds, localUpdateTimestamp: dependencyEditTimestamp };
+      }
+      if (affectedSuccessorIds.includes(currentTaskId)) {
+        const existingPredecessorIds = getExistingPredecessorIds(oldTasks, t);
+        const predecessorIds = addedSuccessorIds.includes(currentTaskId)
+          ? sortUniqueIds([...existingPredecessorIds, sourceTaskId])
+          : existingPredecessorIds.filter(predecessorId => predecessorId !== sourceTaskId);
+        return {
+          ...withUpdatedPredecessorIds(t, predecessorIds),
+          localUpdateTimestamp: dependencyEditTimestamp,
+        };
+      }
+      return t;
+    });
+
+    // b. Cascade dependency-derived dates into temp display fields.
+    let nextTasks = cascadeTaskDates(updated, sourceTaskId, new Set(), {
+      fixedStartDateMode: effectiveFixedMode,
+    });
+
+    for (const affectedSuccessorId of affectedSuccessorIds) {
+      nextTasks = recalculateFloatingSuccessorDates(nextTasks, affectedSuccessorId, new Set(), effectiveFixedMode);
     }
-    
-    // c. Cascade dates (using real fields)
-    const nextTasks = cascadeTaskDates(updated, task.itemId!, new Set(), true);
+
+    const dependencyRepair = removedSuccessorIds.length === 0
+      ? autoCorrectDependencyFields(nextTasks)
+      : { tasks: nextTasks, corrections: [] };
+    nextTasks = dependencyRepair.tasks;
     
     // 4. Atomic Update (synchronous to the ref via our wrapper)
     setTasks(nextTasks);
 
     // 5. Persistence
     try {
-      // a. Persist successor field for the main task
-      const textValue = successorIds.join(',');
-      const success = await updateProjectV2ItemField(
+      const sourceSuccessorsTextValue = nextSuccessorIds.join(',');
+      let success = await updateProjectV2ItemField(
         selectedProject.id, 
-        task.itemId, 
+        sourceTaskId, 
         dateSettings.successorFieldId, 
-        { text: textValue }, 
+        { text: sourceSuccessorsTextValue }, 
         githubToken
       );
 
-      if (success) {
-        // b. Identify all tasks that moved OR had their flags changed
-        const changedTasks = nextTasks.filter(t => {
-          const old = oldTasks.find(ot => ot.id === t.id);
-          return old && (
-            old.startDate !== t.startDate || 
-            old.targetDate !== t.targetDate || 
-            old.autoUpdateStartDate !== t.autoUpdateStartDate
+      const predecessorFieldId = dateSettings.predecessorFieldId;
+      if (success && predecessorFieldId) {
+        for (const affectedSuccessorId of affectedSuccessorIds) {
+          const affectedTask = nextTasks.find(t => (t.itemId || t.id) === affectedSuccessorId);
+          if (!affectedTask?.itemId) continue;
+          const predecessorsTextValue = (affectedTask.predecessorIds || []).join(',');
+          const predecessorSuccess = await updateProjectV2ItemField(
+            selectedProject.id,
+            affectedTask.itemId,
+            predecessorFieldId,
+            { text: predecessorsTextValue },
+            githubToken
           );
-        });
-
-        // c. Sequential persistence to avoid racing
-        for (const st of changedTasks) {
-          const fieldIds = st.projectFieldIds;
-          const startDateFieldId = dateSettings.startDateFieldId || fieldIds?.startDate;
-          const targetDateFieldId = dateSettings.targetDateFieldId || fieldIds?.targetDate;
-          
-          // Dates
-          if (startDateFieldId && st.startDate) {
-            await updateProjectV2ItemField(selectedProject.id, st.itemId!, startDateFieldId, { date: formatToGitHubDate(st.startDate) }, githubToken);
-          }
-          if (targetDateFieldId && st.targetDate) {
-            await updateProjectV2ItemField(selectedProject.id, st.itemId!, targetDateFieldId, { date: formatToGitHubDate(st.targetDate) }, githubToken);
-          }
-          
-          // Flag (if mapped to a field)
-          if (dateSettings.autoUpdateStartDateFieldId) {
-            await updateProjectV2ItemField(selectedProject.id, st.itemId!, dateSettings.autoUpdateStartDateFieldId, { text: st.autoUpdateStartDate || 'ask' }, githubToken);
-          }
+          success = success && predecessorSuccess;
         }
+      }
 
-        if (!skipRefresh) fetchSingleProjectItem(task.itemId, githubToken);
+      if (success) {
+        await persistDependencyFieldCorrections(dependencyRepair.corrections, nextTasks, selectedProject.id, githubToken, dateSettings);
+      }
+
+      if (success) {
+        if (!skipRefresh) fetchSingleProjectItem(sourceTaskId, githubToken);
       } else {
         // Rollback to precisely what we had before this specific operation started
         setTasks(oldTasks);

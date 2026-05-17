@@ -18,6 +18,7 @@ const MOCK_FIELD_IDS = {
   targetDate: 'mock-end-date-id',
   estimate: 'mock-estimate-id',
   successor: 'mock-successors-id',
+  predecessor: 'mock-predecessors-id',
 };
 
 export const MOCK_TOKEN = 'mock-token-123';
@@ -249,8 +250,11 @@ type MockFieldValueInput = {
 
 function getTextFieldValue(task: Task, field: GitHubProjectV2Field): string {
   const fieldName = field.name.toLowerCase();
-  if (field.id === MOCK_FIELD_IDS.successor || fieldName.includes('successor') || fieldName.includes('dependency') || fieldName.includes('link')) {
+  if (field.id === MOCK_FIELD_IDS.successor || fieldName.includes('successor')) {
     return (task.successorIds || []).join(',');
+  }
+  if (field.id === MOCK_FIELD_IDS.predecessor || fieldName.includes('predecessor')) {
+    return (task.predecessorIds || []).join(',');
   }
   if (fieldName.includes('auto') && fieldName.includes('start')) {
     return task.autoUpdateStartDate || 'ask';
@@ -296,8 +300,10 @@ function applyMockFieldValue(task: Task, field: GitHubProjectV2Field | undefined
   }
 
   if (value.text !== undefined) {
-    if (field.id === MOCK_FIELD_IDS.successor || fieldName.includes('successor') || fieldName.includes('dependency') || fieldName.includes('link')) {
+    if (field.id === MOCK_FIELD_IDS.successor || fieldName.includes('successor')) {
       task.successorIds = value.text.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (field.id === MOCK_FIELD_IDS.predecessor || fieldName.includes('predecessor')) {
+      task.predecessorIds = value.text.split(',').map(s => s.trim()).filter(Boolean);
     } else if (fieldName.includes('auto') && fieldName.includes('start')) {
       if (value.text === 'auto' || value.text === 'locked' || value.text === 'ask') {
         task.autoUpdateStartDate = value.text;
@@ -444,6 +450,12 @@ function getFieldsForProject(projectId: string) {
         __typename: 'ProjectV2Field',
         id: MOCK_FIELD_IDS.successor,
         name: 'Successors',
+        dataType: 'TEXT'
+      },
+      {
+        __typename: 'ProjectV2Field',
+        id: MOCK_FIELD_IDS.predecessor,
+        name: 'Predecessors',
         dataType: 'TEXT'
       }
     ];

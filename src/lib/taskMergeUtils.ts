@@ -10,7 +10,11 @@ export function mergeFetchedTaskWithLocalState(existing: Task, fetched: Task, no
     ...fetched,
     startDate: isRecentlyUpdatedLocally ? existing.startDate : fetched.startDate,
     targetDate: isRecentlyUpdatedLocally ? existing.targetDate : fetched.targetDate,
+    tempStartDate: isRecentlyUpdatedLocally ? existing.tempStartDate : fetched.tempStartDate,
+    tempTargetDate: isRecentlyUpdatedLocally ? existing.tempTargetDate : fetched.tempTargetDate,
     autoUpdateStartDate: isRecentlyUpdatedLocally ? existing.autoUpdateStartDate : fetched.autoUpdateStartDate,
+    successorIds: isRecentlyUpdatedLocally ? existing.successorIds : fetched.successorIds,
+    predecessorIds: isRecentlyUpdatedLocally ? existing.predecessorIds : fetched.predecessorIds,
     localUpdateTimestamp: existing.localUpdateTimestamp,
   };
 }

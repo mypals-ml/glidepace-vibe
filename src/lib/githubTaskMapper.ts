@@ -12,7 +12,7 @@ export function getDefaultEstimateForCal(task: Partial<Task>): number {
 }
 
 export function getStartDateForCal(task: Partial<Task>): string {
-  return task.startDate || task.tempStartDate || '';
+  return task.tempStartDate || task.startDate || '';
 }
 
 export function getEstimateForCal(task: Partial<Task>): number {
@@ -20,7 +20,7 @@ export function getEstimateForCal(task: Partial<Task>): number {
 }
 
 export function getTargetDateForCal(task: Partial<Task>): string {
-  return task.targetDate || task.tempTargetDate || '';
+  return task.tempTargetDate || task.targetDate || '';
 }
 
 export const PROJECT_ITEM_FRAGMENT = `
@@ -185,13 +185,22 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.successorFieldId)
     : fieldValues.find((f: GitHubFieldValue) => 
         (f.__typename === 'ProjectV2ItemFieldTextValue') && 
-        (f.field?.name?.toLowerCase().includes('successor') || 
-         f.field?.name?.toLowerCase().includes('dependency') || 
-         f.field?.name?.toLowerCase().includes('link'))
+        f.field?.name?.toLowerCase().includes('successor')
       );
 
   const successorsText = successorField?.text || '';
   const successorIds = successorsText.split(',').map(s => s.trim()).filter(Boolean);
+
+  // Find Predecessors
+  const predecessorField = dateSettings?.predecessorFieldId
+    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.predecessorFieldId)
+    : fieldValues.find((f: GitHubFieldValue) => 
+        (f.__typename === 'ProjectV2ItemFieldTextValue') && 
+        f.field?.name?.toLowerCase().includes('predecessor')
+      );
+
+  const predecessorsText = predecessorField?.text || '';
+  const predecessorIds = predecessorsText.split(',').map(s => s.trim()).filter(Boolean);
 
   // Extract assignees from either the content (Issues/PRs) or the User field (Drafts)
   let assigneeNodes = content?.assignees?.nodes || [];
@@ -237,6 +246,8 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   if (targetDateField?.field?.id) projectFieldIds.targetDate = targetDateField.field.id;
   if (estimateField?.field?.id) projectFieldIds.estimate = estimateField.field.id;
   if (unitField?.field?.id) projectFieldIds.estimateUnit = unitField.field.id;
+  if (successorField?.field?.id) projectFieldIds.successor = successorField.field.id;
+  if (predecessorField?.field?.id) projectFieldIds.predecessor = predecessorField.field.id;
   
   if (statusField?.field?.options) {
     statusField.field.options.forEach((opt: { id: string, name: string, color?: string }) => {
@@ -263,6 +274,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     estimate: actualEstimate,
     estimateUnit: estimateUnit,
     successorIds: successorIds,
+    predecessorIds: predecessorIds,
   };
 
   // 1. Estimate Unit
@@ -326,6 +338,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     updatedAt: partialTask.updatedAt,
     estimateUnitOptions,
     successorIds: partialTask.successorIds,
+    predecessorIds: partialTask.predecessorIds,
     status: status || 'Todo',
     assignees: assignees,
     comments: comments,

@@ -76,7 +76,6 @@ export function FloatingSequenceBuilder({ variant = 'floating', className = '' }
     setSelectedLinkTaskIds,
     tasks,
     updateTaskSuccessors,
-    requestStartDateDecision,
   } = useDashboard();
 
   const [orderedTasks, setOrderedTasks] = useState<{ id: string; title: string }[]>([]);
@@ -121,22 +120,7 @@ export function FloatingSequenceBuilder({ variant = 'floating', className = '' }
     setIsProcessing(true);
 
     try {
-      // 1. Pre-check for any successors that need asking to avoid multiple prompts
-      const allSuccessorsToAsk = [];
-      for (let i = 0; i < orderedTasks.length - 1; i++) {
-        const nextTaskId = orderedTasks[i + 1].id;
-        const nextTask = tasks.find(t => t.id === nextTaskId);
-        if (nextTask && (!nextTask.autoUpdateStartDate || nextTask.autoUpdateStartDate === 'ask')) {
-          allSuccessorsToAsk.push(nextTask);
-        }
-      }
-
-      let decision: 'auto' | 'locked' | 'ask' | undefined;
-      if (allSuccessorsToAsk.length > 0) {
-        decision = await requestStartDateDecision(allSuccessorsToAsk);
-      }
-
-      // 2. Create Finish-to-Start chain
+      // Create Finish-to-Start chain
       for (let i = 0; i < orderedTasks.length - 1; i++) {
         const currentTask = tasks.find(t => t.id === orderedTasks[i].id);
         const nextTaskId = orderedTasks[i + 1].id;
@@ -145,8 +129,7 @@ export function FloatingSequenceBuilder({ variant = 'floating', className = '' }
         if (currentTask && currentTask.itemId && nextTask && nextTask.itemId) {
           const currentSuccessors = currentTask.successorIds || [];
           if (!currentSuccessors.includes(nextTask.itemId)) {
-            // Pass the decision down to prevent redundant prompts
-            await updateTaskSuccessors(currentTask.id, [...currentSuccessors, nextTask.itemId], false, decision);
+            await updateTaskSuccessors(currentTask.id, [...currentSuccessors, nextTask.itemId]);
           }
         }
       }

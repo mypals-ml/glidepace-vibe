@@ -53,6 +53,7 @@ export function MissingFieldsPromptModal() {
                     <span className="text-slate-500 font-medium italic">
                       {field.type === 'date' && t('settings.typeDate', 'Type: Date')}
                       {field.type === 'number' && t('settings.typeNumber', 'Type: Number')}
+                      {field.type === 'text' && t('settings.typeText', 'Type: Text')}
                       {field.type === 'single_select' && t('settings.typeSingleSelect', 'Type: Single Select (Options: hours, days, points)')}
                     </span>
                   </div>

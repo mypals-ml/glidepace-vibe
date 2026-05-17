@@ -47,7 +47,7 @@ async function resolveMockGraphQL(query: string, variables: Parameters<typeof ha
 }
 
 describe('githubMock in-memory project fields', () => {
-  it('persists task successor links across project and item fetches', async () => {
+  it('persists task dependency links across project and item fetches', async () => {
     vi.useFakeTimers();
 
     const projectId = 'PVT_3';
@@ -56,9 +56,12 @@ describe('githubMock in-memory project fields', () => {
 
     const initialProject = await resolveMockGraphQL(GET_PROJECT_TASKS_QUERY, { projectId }) as MockProjectResponse;
     const successorField = initialProject.data.node.fields.nodes.find(field => field.name === 'Successors');
+    const predecessorField = initialProject.data.node.fields.nodes.find(field => field.name === 'Predecessors');
 
     expect(successorField).toBeDefined();
     expect(successorField?.id).toBeTruthy();
+    expect(predecessorField).toBeDefined();
+    expect(predecessorField?.id).toBeTruthy();
 
     await resolveMockGraphQL(UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION, {
       projectId,
@@ -66,12 +69,21 @@ describe('githubMock in-memory project fields', () => {
       fieldId: successorField?.id,
       value: { text: targetItemId },
     });
+    await resolveMockGraphQL(UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION, {
+      projectId,
+      itemId: targetItemId,
+      fieldId: predecessorField?.id,
+      value: { text: sourceItemId },
+    });
 
     const refetchedProject = await resolveMockGraphQL(GET_PROJECT_TASKS_QUERY, { projectId }) as MockProjectResponse;
     const refetchedSource = refetchedProject.data.node.items.nodes.find(item => item.id === sourceItemId);
+    const refetchedTarget = refetchedProject.data.node.items.nodes.find(item => item.id === targetItemId);
     const refetchedSuccessors = refetchedSource?.fieldValues.nodes.find(fieldValue => fieldValue.field.id === successorField?.id);
+    const refetchedPredecessors = refetchedTarget?.fieldValues.nodes.find(fieldValue => fieldValue.field.id === predecessorField?.id);
 
     expect(refetchedSuccessors?.text).toBe(targetItemId);
+    expect(refetchedPredecessors?.text).toBe(sourceItemId);
 
     const refetchedItem = await resolveMockGraphQL(GET_SINGLE_ITEM_QUERY, { itemId: sourceItemId }) as MockItemResponse;
     const itemSuccessors = refetchedItem.data.node.fieldValues.nodes.find(fieldValue => fieldValue.field.id === successorField?.id);

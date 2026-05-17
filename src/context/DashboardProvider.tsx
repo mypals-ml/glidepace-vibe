@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { DashboardContext } from './DashboardContext';
 import type { DashboardContextValue } from './DashboardContext';
-import type { ProjectDateSettings, Task } from '../types';
+import type { FixedSuccessorStartDateMode, ProjectDateSettings, Task } from '../types';
 
 // Hooks
 import { useDashboardAuth } from '../hooks/useDashboardAuth';
@@ -83,11 +83,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [projects.selectedProject?.id]);
 
-  const updateDateSettings = (settings: ProjectDateSettings) => {
+  const updateDateSettings = useCallback((settings: ProjectDateSettings) => {
     if (!projects.selectedProject?.id) return;
     setDateSettings(settings);
     localStorage.setItem(`date_settings_${projects.selectedProject.id}`, JSON.stringify(settings));
-  };
+  }, [projects.selectedProject?.id]);
 
 
   // 3. Compute effective tokens (Must be after projects hook)
@@ -321,11 +321,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     void _tasksAffected;
     setIsStartDatePromptOpen(false);
     setStartDatePromptTasks([]);
+    const fixedSuccessorStartDateMode: FixedSuccessorStartDateMode = decision === 'auto' ? 'auto' : 'ask';
+    updateDateSettings({
+      ...dateSettings,
+      fixedSuccessorStartDateMode,
+    });
     if (pendingDecision) {
       pendingDecision.resolve(decision);
       setPendingDecision(null);
     }
-  }, [pendingDecision]);
+  }, [dateSettings, pendingDecision, updateDateSettings]);
 
   const value: DashboardContextValue = {
     ...auth,
