@@ -34,7 +34,12 @@ export function useDashboardProjects({
         return { id: urlProjectId, title: 'Loading...', public: false, accountId: urlAccountId || undefined };
       }
       const saved = sessionStorage.getItem('selected_project') || localStorage.getItem('selected_project');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (USE_MOCK_DATA && parsed?.accountId && parsed.accountId !== 'mock-1') {
+        return null;
+      }
+      return parsed;
     } catch {
       return null;
     }
@@ -151,6 +156,12 @@ export function useDashboardProjects({
       }
     } catch (e) {
       console.error('Failed to fetch user projects:', e);
+      const error = e as Error;
+      if (error.message.includes('401')) {
+        setApiError('GitHub rejected this saved credential. Disconnect and reconnect this account, or add a fresh token.');
+      } else {
+        setApiError(error.message || 'Failed to fetch GitHub projects.');
+      }
     } finally {
       setIsRefreshing(prev => ({ ...prev, [accountId]: false }));
     }

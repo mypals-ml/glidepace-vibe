@@ -60,7 +60,7 @@ export function ProjectSettingsModal() {
     setIsProjectSettingsModalOpen(false);
   };
 
-  const handleFieldChange = (type: 'start' | 'end' | 'estimate' | 'unitField' | 'unitValue', fieldId: string) => {
+  const handleFieldChange = (type: 'start' | 'end' | 'estimate' | 'unitField' | 'unitValue' | 'fixedStartMode', fieldId: string) => {
     if (fieldId === '__create_new__') {
       if (type === 'start') promptCreateSingleField('startDateFieldId');
       else if (type === 'end') promptCreateSingleField('targetDateFieldId');
@@ -82,6 +82,8 @@ export function ProjectSettingsModal() {
       newSettings.estimateUnitFieldId = fieldId || undefined;
     } else if (type === 'unitValue') {
       newSettings.estimateUnit = fieldId || undefined;
+    } else if (type === 'fixedStartMode') {
+      newSettings.fixedSuccessorStartDateMode = fieldId === 'auto' ? 'auto' : 'ask';
     }
     updateDateSettings(newSettings);
   };
@@ -102,6 +104,11 @@ export function ProjectSettingsModal() {
     { id: 'points', name: t('units.points', 'points') }
   ];
 
+  const fixedStartModeOptions = [
+    { id: 'ask', name: t('settings.fixedStartModeAsk', 'Ask before moving fixed start dates') },
+    { id: 'auto', name: t('settings.fixedStartModeAuto', 'Auto move fixed start dates for display') }
+  ];
+
   const autoStartLabel = autoStartField ? `"${autoStartField.name}"` : '...';
   const autoTargetLabel = autoTargetField ? `"${autoTargetField.name}"` : '...';
   const autoEstimateLabel = autoEstimateField ? `"${autoEstimateField.name}"` : '...';
@@ -115,7 +122,7 @@ export function ProjectSettingsModal() {
     ? (selectedUnitField.options || []).map((opt: { id: string; name: string; color?: string }) => ({ id: opt.name, name: opt.name }))
     : unitOptions;
 
-  const anyFieldsMissing = !dateSettings.startDateFieldId || !dateSettings.targetDateFieldId || !dateSettings.estimateFieldId || !dateSettings.estimateUnitFieldId;
+  const anyFieldsMissing = !dateSettings.startDateFieldId || !dateSettings.targetDateFieldId || !dateSettings.estimateFieldId || !dateSettings.estimateUnitFieldId || !dateSettings.successorFieldId || !dateSettings.predecessorFieldId;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
@@ -217,6 +224,14 @@ export function ProjectSettingsModal() {
                 (dateSettings.targetDateFieldId && !dateFields.find(f => f.id === dateSettings.targetDateFieldId)) ? t('settings.fieldNotFound', 'Not found') :
                 t('settings.autoDetected', { name: autoTargetLabel })
               }
+            />
+
+            <CustomSelect
+              label={t('settings.fixedStartModeLabel', 'Fixed Successor Start Dates')}
+              options={fixedStartModeOptions}
+              value={dateSettings.fixedSuccessorStartDateMode || 'ask'}
+              onChange={(val) => handleFieldChange('fixedStartMode', val)}
+              placeholder={t('settings.fixedStartModeAsk', 'Ask before moving fixed start dates')}
             />
           </div>
 

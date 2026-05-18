@@ -90,8 +90,8 @@ export interface DashboardContextValue {
   setIsMissingFieldsPromptOpen: (open: boolean) => void;
   missingFieldsList: MissingFieldDef[];
   triggerFieldDetection: (forcePrompt?: boolean) => void;
-  promptCreateSingleField: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId' | 'successorFieldId') => void;
-  createSingleFieldNow: (settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId' | 'successorFieldId') => Promise<void>;
+  promptCreateSingleField: (settingsKey: MissingFieldDef['settingsKey']) => void;
+  createSingleFieldNow: (settingsKey: MissingFieldDef['settingsKey']) => Promise<void>;
   handleCreateMissingFields: () => Promise<void>;
   isCreatingFields: boolean;
   mappingStatus: 'idle' | 'scanning' | 'mapping' | 'complete';

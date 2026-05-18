@@ -9,11 +9,14 @@ const makeTask = (overrides: Partial<Task>): Task => ({
   title: overrides.title || overrides.id || 'B',
   startDate: overrides.startDate || '2026-03-23',
   targetDate: overrides.targetDate || '2026-03-23',
+  tempStartDate: overrides.tempStartDate,
+  tempTargetDate: overrides.tempTargetDate,
   status: overrides.status || 'Todo',
   assignees: overrides.assignees || [],
   progress: overrides.progress || 0,
   autoUpdateStartDate: overrides.autoUpdateStartDate,
   successorIds: overrides.successorIds,
+  predecessorIds: overrides.predecessorIds,
   localUpdateTimestamp: overrides.localUpdateTimestamp,
 });
 
@@ -23,7 +26,10 @@ describe('mergeFetchedTaskWithLocalState', () => {
     const existing = makeTask({
       startDate: '2026-03-24',
       targetDate: '2026-03-24',
+      tempStartDate: '2026-03-25',
+      tempTargetDate: '2026-03-25',
       successorIds: ['C'],
+      predecessorIds: ['A'],
       autoUpdateStartDate: 'auto',
       localUpdateTimestamp: now,
     });
@@ -31,6 +37,7 @@ describe('mergeFetchedTaskWithLocalState', () => {
       startDate: '2026-03-23',
       targetDate: '2026-03-23',
       successorIds: ['C'],
+      predecessorIds: [],
       autoUpdateStartDate: 'ask',
     });
 
@@ -38,6 +45,10 @@ describe('mergeFetchedTaskWithLocalState', () => {
 
     expect(merged.startDate).toBe('2026-03-24');
     expect(merged.targetDate).toBe('2026-03-24');
+    expect(merged.tempStartDate).toBe('2026-03-25');
+    expect(merged.tempTargetDate).toBe('2026-03-25');
+    expect(merged.successorIds).toEqual(['C']);
+    expect(merged.predecessorIds).toEqual(['A']);
     expect(merged.autoUpdateStartDate).toBe('auto');
   });
 });

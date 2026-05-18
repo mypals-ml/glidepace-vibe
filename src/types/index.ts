@@ -7,6 +7,7 @@
 
 export type TaskStatus = string;
 export type AutoUpdateStartDateMode = 'auto' | 'locked' | 'ask';
+export type FixedSuccessorStartDateMode = 'auto' | 'ask';
 
 export interface User {
   id: string;
@@ -55,6 +56,7 @@ export interface Task {
   closedAt?: string;
   updatedAt?: string;
   successorIds?: string[];
+  predecessorIds?: string[];
   url?: string;
   autoUpdateStartDate?: AutoUpdateStartDateMode;
 }
@@ -191,8 +193,10 @@ export interface ProjectDateSettings {
   estimateFieldId?: string;
   estimateUnitFieldId?: string;
   autoUpdateStartDateFieldId?: string;
+  fixedSuccessorStartDateMode?: FixedSuccessorStartDateMode;
   estimateUnit?: string;
   successorFieldId?: string;
+  predecessorFieldId?: string;
 }
 
 export interface GitHubProjectV2 {
