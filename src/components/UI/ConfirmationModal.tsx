@@ -52,7 +52,7 @@ export function ConfirmationModal({
           <Button variant="ghost" onClick={onClose} disabled={isConfirming}>
             {cancelLabel}
           </Button>
-          <Button variant={variant === 'danger' ? 'secondary' : 'primary'} onClick={onConfirm} disabled={isConfirming}>
+          <Button variant={variant === 'danger' ? 'danger' : 'primary'} onClick={onConfirm} disabled={isConfirming}>
             {isConfirming ? '...' : confirmLabel}
           </Button>
         </div>

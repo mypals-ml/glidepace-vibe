@@ -185,6 +185,27 @@ export const ADD_PROJECT_ITEM_MUTATION = `
   }
 `;
 
+export const DELETE_PROJECT_ITEM_MUTATION = `
+  mutation DeleteProjectItem($projectId: ID!, $itemId: ID!) {
+    deleteProjectV2Item(input: {
+      projectId: $projectId
+      itemId: $itemId
+    }) {
+      deletedItemId
+    }
+  }
+`;
+
+export const DELETE_ISSUE_MUTATION = `
+  mutation DeleteIssue($issueId: ID!) {
+    deleteIssue(input: { issueId: $issueId }) {
+      repository {
+        id
+      }
+    }
+  }
+`;
+
 export const ADD_DRAFT_ISSUE_MUTATION = `
   mutation AddDraftItem($projectId: ID!, $title: String!, $body: String) {
     addProjectV2DraftIssue(input: {
