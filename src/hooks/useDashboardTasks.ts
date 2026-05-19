@@ -22,7 +22,9 @@ import {
   UPDATE_DRAFT_ASSIGNEES_MUTATION,
   UPDATE_ISSUE_COMMENT_MUTATION,
   DELETE_ISSUE_COMMENT_MUTATION,
-  ADD_ISSUE_COMMENT_MUTATION
+  ADD_ISSUE_COMMENT_MUTATION,
+  DELETE_PROJECT_ITEM_MUTATION,
+  DELETE_ISSUE_MUTATION
 } from '../lib/githubQueries';
 import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode, FixedSuccessorStartDateMode } from '../types';
 
@@ -786,6 +788,42 @@ export function useDashboardTasks({
     }
   }, [githubToken, fetchSingleProjectItem]);
 
+  const deleteTask = useCallback(async (task: Task): Promise<boolean> => {
+    if (!selectedProject?.id || !task.itemId || !githubToken) return false;
+
+    const oldTasks = [...tasksRef.current];
+    try {
+      if (task.contentId && !task.isDraft) {
+        const issueRes = await fetchGitHubGraphQL(
+          DELETE_ISSUE_MUTATION,
+          { issueId: task.contentId },
+          githubToken
+        );
+        if (issueRes.errors) throw new Error(issueRes.errors[0]?.message);
+      }
+
+      const projectItemRes = await fetchGitHubGraphQL(
+        DELETE_PROJECT_ITEM_MUTATION,
+        { projectId: selectedProject.id, itemId: task.itemId },
+        githubToken
+      );
+      if (projectItemRes.errors) {
+        const message = projectItemRes.errors[0]?.message || '';
+        if (!message.toLowerCase().includes('not found') && !message.toLowerCase().includes('could not resolve')) {
+          throw new Error(message);
+        }
+      }
+
+      setTasks(prev => prev.filter(t => t.itemId !== task.itemId && t.id !== task.id));
+      updateSyncTime();
+      return true;
+    } catch (e) {
+      console.error('Delete task failed:', e);
+      setTasks(oldTasks);
+      return false;
+    }
+  }, [selectedProject?.id, githubToken, setTasks, updateSyncTime]);
+
   const fetchSearchUsers = useCallback(async (searchTerm: string, repository?: string): Promise<User[]> => {
     if (!githubToken) return [];
 
@@ -912,6 +950,7 @@ export function useDashboardTasks({
     updateTaskComment,
     deleteTaskComment,
     addTaskComment,
+    deleteTask,
     fetchSearchUsers,
   };
 }

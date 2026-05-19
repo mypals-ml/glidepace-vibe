@@ -195,7 +195,7 @@ export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetail
 }
 
 function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: TFunction; isCreateMode?: boolean }) {
-  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, dateSettings, projectFields } = useDashboard();
+  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, deleteTask, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, setIsTaskDetailsOpen, setSelectedTaskId, showToast, dateSettings, projectFields } = useDashboard();
 
   // Derive a repository from existing tasks so the AssigneePicker can fetch assignable users
   const projectRepository = tasks.find(t => t.repository)?.repository;
@@ -250,6 +250,8 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [isTaskDeleteConfirmOpen, setIsTaskDeleteConfirmOpen] = useState(false);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
   const [newCommentBody, setNewCommentBody] = useState('');
   const [draftEstimate, setDraftEstimate] = useState<string>(task?.estimate?.toString() || '');
 
@@ -326,6 +328,22 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
     await deleteTaskComment(task, commentToDelete);
     setIsDeleteConfirmOpen(false);
     setCommentToDelete(null);
+  };
+
+  const confirmDeleteTask = async () => {
+    if (!task) return;
+    setIsDeletingTask(true);
+    const success = await deleteTask(task);
+    setIsDeletingTask(false);
+    setIsTaskDeleteConfirmOpen(false);
+
+    if (success) {
+      setSelectedTaskId(null);
+      setIsTaskDetailsOpen(false);
+      showToast(t('dashboard.taskDeleted', 'Task deleted.'), 'success');
+    } else {
+      showToast(t('dashboard.taskDeleteFailed', 'Failed to delete task.'), 'error');
+    }
   };
 
   const handleAddComment = async () => {
@@ -867,8 +885,23 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           </>
         )}
       </div>
+
+      <div className="border-t border-red-100 pt-4">
+        <Button
+          variant="danger"
+          size="md"
+          fullWidth
+          leftIcon="delete"
+          onClick={() => setIsTaskDeleteConfirmOpen(true)}
+          disabled={isDeletingTask}
+          isLoading={isDeletingTask}
+        >
+          {t('dashboard.deleteTask', 'Delete Task')}
+        </Button>
+      </div>
+
       {/* Bottom spacer to prevent dropdown clipping in scrollable area */}
-      <div className="h-40" />
+      <div className="h-24" />
 
       <ConfirmationModal
         isOpen={isDeleteConfirmOpen}
@@ -881,6 +914,17 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         message={t('common.confirmDelete', 'Are you sure you want to delete this comment?')}
         confirmLabel={t('common.delete', 'Delete')}
         variant="danger"
+      />
+      <ConfirmationModal
+        isOpen={isTaskDeleteConfirmOpen}
+        onClose={() => setIsTaskDeleteConfirmOpen(false)}
+        onConfirm={confirmDeleteTask}
+        title={t('dashboard.deleteTask', 'Delete Task')}
+        message={t('dashboard.confirmDeleteTask', 'Delete this task from the GitHub project and delete the linked repository issue? This cannot be undone.')}
+        confirmLabel={t('dashboard.deleteTask', 'Delete Task')}
+        cancelLabel={t('common.cancel', 'Cancel')}
+        variant="danger"
+        isConfirming={isDeletingTask}
       />
     </>
   );

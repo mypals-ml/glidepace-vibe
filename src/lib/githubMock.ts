@@ -822,6 +822,28 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     };
   }
 
+  if (query.includes('deleteProjectV2Item(')) {
+    const projectId = getVar('projectId');
+    const itemId = getVar('itemId');
+    if (!projectId || !itemId) return { errors: [{ message: 'ProjectId and itemId are required' }] };
+
+    const projectTasks = getTasksForProject(projectId);
+    const itemIndex = projectTasks.findIndex(task => task.itemId === itemId || task.id === itemId);
+    if (itemIndex === -1) return { errors: [{ message: 'Item not found' }] };
+
+    projectTasks.splice(itemIndex, 1);
+    return { data: { deleteProjectV2Item: { deletedItemId: itemId } } };
+  }
+
+  if (query.includes('deleteIssue(')) {
+    const issueId = getVar('issueId');
+    const task = getAllMockTasks().find(t => t.contentId === issueId);
+    if (!task) return { errors: [{ message: 'Issue not found' }] };
+
+    task.contentId = undefined;
+    return { data: { deleteIssue: { repository: { id: 'mock-repository-id' } } } };
+  }
+
   if (query.includes('updateProjectV2ItemFieldValue(')) {
     const projectId = getVar('projectId');
     const itemId = getVar('itemId');
