@@ -1,10 +1,11 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchGitHubGraphQL, getRepositoryId, createGitHubIssue, addProjectV2Item, addProjectV2DraftIssue, updateProjectV2ItemField } from '../lib/githubService';
+import { fetchGitHubGraphQL, getRepositoryId, createGitHubIssue, addProjectV2Item, addProjectV2DraftIssue, updateProjectV2ItemField, updateProjectV2ItemPosition } from '../lib/githubService';
 import { mapProjectItemToTask } from '../lib/githubTaskMapper';
 import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
 import { autoCorrectDependencyFields, cascadeTaskDates, cascadeAllTasks, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../lib/taskDependencyUtils';
+import { getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter } from '../lib/taskOrderUtils';
 import type { DependencyFieldCorrection } from '../lib/taskDependencyUtils';
 import { mergeFetchedTaskWithLocalState } from '../lib/taskMergeUtils';
 import { 
@@ -26,7 +27,7 @@ import {
   DELETE_PROJECT_ITEM_MUTATION,
   DELETE_ISSUE_MUTATION
 } from '../lib/githubQueries';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode, FixedSuccessorStartDateMode } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode, FixedSuccessorStartDateMode, TaskInsertPosition } from '../types';
 
 interface UseDashboardTasksProps {
   githubToken: string;
@@ -38,6 +39,7 @@ interface UseDashboardTasksProps {
   setIsCreateMode: (val: boolean) => void;
   dateSettings: ProjectDateSettings;
   requestStartDateDecision: (tasks: Task[]) => Promise<'auto' | 'locked' | 'ask'>;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 function uniqueTasks(tasks: Task[]): Task[] {
@@ -105,6 +107,7 @@ export function useDashboardTasks({
   setIsCreateMode,
   dateSettings,
   requestStartDateDecision,
+  showToast,
 }: UseDashboardTasksProps) {
   const { t } = useTranslation();
 
@@ -634,6 +637,30 @@ export function useDashboardTasks({
     }
   }, [selectedProject?.id, githubToken, dateSettings, requestStartDateDecision, fetchSingleProjectItem, setTasks]);
 
+  const reorderTask = useCallback(async (taskId: string, afterTaskId: string | null): Promise<boolean> => {
+    if (!selectedProject?.id || !githubToken) return false;
+
+    const oldTasks = [...tasksRef.current];
+    const task = oldTasks.find(t => t.id === taskId || getTaskOrderId(t) === taskId);
+    if (!task?.itemId) return false;
+
+    const nextTasks = moveTaskAfter(oldTasks, getTaskOrderId(task), afterTaskId);
+    const oldOrder = oldTasks.map(getTaskOrderId).join('|');
+    const nextOrder = nextTasks.map(getTaskOrderId).join('|');
+    if (oldOrder === nextOrder) return true;
+
+    setTasks(nextTasks);
+    const success = await updateProjectV2ItemPosition(selectedProject.id, task.itemId, afterTaskId, githubToken);
+    if (success) {
+      updateSyncTime();
+      return true;
+    }
+
+    setTasks(oldTasks);
+    showToast(t('dashboard.taskReorderFailed', 'Failed to reorder task.'), 'error');
+    return false;
+  }, [selectedProject?.id, githubToken, setTasks, updateSyncTime, showToast, t]);
+
   const handleCreateTask = useCallback(async (taskData: {
     title: string;
     body?: string;
@@ -644,13 +671,14 @@ export function useDashboardTasks({
     estimateUnit?: string;
     autoUpdateStartDate?: AutoUpdateStartDateMode;
     assigneeIds?: string[];
+    insertPosition?: TaskInsertPosition | null;
   }): Promise<boolean> => {
     if (!selectedProject?.id || !githubToken) {
       console.error('No project selected or token available');
       return false;
     }
 
-    const { title, body, status, startDate, targetDate, estimate, estimateUnit, autoUpdateStartDate, assigneeIds } = taskData;
+    const { title, body, status, startDate, targetDate, estimate, estimateUnit, autoUpdateStartDate, assigneeIds, insertPosition } = taskData;
 
     try {
       let repoNameWithOwner: string | null = null;
@@ -710,8 +738,22 @@ export function useDashboardTasks({
         await updateTaskAssignees(itemId, assigneeIds, true);
       }
 
+      let positionedAfterId: string | null | undefined;
+      if (insertPosition) {
+        const afterId = getAfterIdForInsertPosition(tasksRef.current, insertPosition);
+        const moved = await updateProjectV2ItemPosition(selectedProject.id, itemId, afterId, githubToken);
+        if (!moved) {
+          showToast(t('dashboard.taskInsertPositionFailed', 'Task was created, but could not be moved to the requested position.'), 'error');
+        } else {
+          positionedAfterId = afterId;
+        }
+      }
+
       console.log(`[DashboardTasks] 🚀 Creation sequence complete, performing final fetch for: ${itemId}`);
       await fetchSingleProjectItem(itemId, githubToken);
+      if (positionedAfterId !== undefined) {
+        setTasks(prev => moveTaskAfter(prev, itemId, positionedAfterId));
+      }
       
       setIsCreateMode(false);
       return true;
@@ -719,7 +761,7 @@ export function useDashboardTasks({
       console.error('Error creating task:', error);
       return false;
     }
-  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, updateTaskStatus, updateTaskDates, updateTaskAssignees, setIsCreateMode]);
+  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, updateTaskStatus, updateTaskDates, updateTaskAssignees, setTasks, setIsCreateMode, showToast, t]);
 
   const updateTaskTitle = useCallback(async (task: Task, title: string): Promise<boolean> => {
     if (!task.contentId || !githubToken) return false;
@@ -944,6 +986,7 @@ export function useDashboardTasks({
     updateTaskStatus,
     updateTaskDates,
     updateTaskSuccessors,
+    reorderTask,
     handleCreateTask,
     updateTaskTitle,
     updateTaskDescription,

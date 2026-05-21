@@ -53,6 +53,11 @@
   --icon-size-lg: 24px;
 
   --breakpoint-xs: 480px;
+
+  /* Drag handle backgrounds matching row states */
+  --color-drag-handle-selected: #f5f6fe;
+  --color-drag-handle-selected-link: #edf0fe;
+  --color-drag-handle-hovered: #f8fafc;
 }
 
 @layer components {
@@ -83,6 +88,40 @@
 
   .animate-spin-slow {
     animation: spin 3s linear infinite;
+  }
+
+  /* Drag handle visibility rules */
+  .task-drag-handle {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .task-drag-handle.is-dragging,
+  .task-drag-handle:focus,
+  .task-drag-handle:focus-visible,
+  .task-drag-handle:active {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  @media (pointer: coarse) {
+    /* Show only when the row is in moving mode on touch devices */
+    [data-task-moving="true"] .task-drag-handle {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
+  @media (pointer: fine) {
+    /* Show on row hover on pointer devices */
+    .group:hover .task-drag-handle {
+      opacity: 1;
+      pointer-events: auto;
+    }
   }
 }
 

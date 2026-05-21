@@ -34,6 +34,7 @@ export function useMobileBackNavigation(isMobile: boolean) {
     setIsTaskDetailsOpen,
     isCreateMode,
     setIsCreateMode,
+    setPendingTaskInsertPosition,
     isChartVisible,
     setIsChartVisible,
   } = useDashboard();
@@ -136,6 +137,7 @@ export function useMobileBackNavigation(isMobile: boolean) {
         onStartDatePromptDecision('ask', current.startDatePromptTasks);
       } else if (current.isTaskDetailsOpen || current.isCreateMode) {
         setIsTaskDetailsOpen(false);
+        setPendingTaskInsertPosition(null);
         setIsCreateMode(false);
       } else if (current.isChartVisible) {
         setIsChartVisible(false);
@@ -151,6 +153,7 @@ export function useMobileBackNavigation(isMobile: boolean) {
     setIsAccountModalOpen,
     setIsChartVisible,
     setIsCreateMode,
+    setPendingTaskInsertPosition,
     setIsMissingFieldsPromptOpen,
     setIsPatModalOpen,
     setIsProjectModalOpen,

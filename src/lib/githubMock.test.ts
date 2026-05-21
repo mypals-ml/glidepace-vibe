@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { handleMockGraphQL } from './githubMock';
-import { GET_PROJECT_TASKS_QUERY, GET_SINGLE_ITEM_QUERY, UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION } from './githubQueries';
+import { GET_PROJECT_TASKS_QUERY, GET_SINGLE_ITEM_QUERY, UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION, UPDATE_PROJECT_ITEM_POSITION_MUTATION } from './githubQueries';
 
 interface MockField {
   id: string;
@@ -89,6 +89,40 @@ describe('githubMock in-memory project fields', () => {
     const itemSuccessors = refetchedItem.data.node.fieldValues.nodes.find(fieldValue => fieldValue.field.id === successorField?.id);
 
     expect(itemSuccessors?.text).toBe(targetItemId);
+
+    vi.useRealTimers();
+  });
+
+  it('persists project item position changes across project fetches', async () => {
+    vi.useFakeTimers();
+
+    const projectId = 'PVT_3';
+    const movedItemId = 'item-mock-data';
+    const afterItemId = 'item-pat-support';
+
+    await resolveMockGraphQL(UPDATE_PROJECT_ITEM_POSITION_MUTATION, {
+      projectId,
+      itemId: movedItemId,
+      afterId: afterItemId,
+    });
+
+    const refetchedProject = await resolveMockGraphQL(GET_PROJECT_TASKS_QUERY, { projectId }) as MockProjectResponse;
+    const itemIds = refetchedProject.data.node.items.nodes.map(item => item.id);
+
+    expect(itemIds.slice(0, 3)).toEqual([
+      'item-pat-support',
+      'item-mock-data',
+      'item-z-index-fix',
+    ]);
+
+    await resolveMockGraphQL(UPDATE_PROJECT_ITEM_POSITION_MUTATION, {
+      projectId,
+      itemId: movedItemId,
+      afterId: null,
+    });
+
+    const topRefetch = await resolveMockGraphQL(GET_PROJECT_TASKS_QUERY, { projectId }) as MockProjectResponse;
+    expect(topRefetch.data.node.items.nodes[0]?.id).toBe(movedItemId);
 
     vi.useRealTimers();
   });

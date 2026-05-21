@@ -199,6 +199,11 @@ export interface ProjectDateSettings {
   predecessorFieldId?: string;
 }
 
+export interface TaskInsertPosition {
+  targetTaskId: string;
+  placement: 'above' | 'below';
+}
+
 export interface GitHubProjectV2 {
   id: string;
   title: string;
