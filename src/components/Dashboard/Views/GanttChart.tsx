@@ -140,6 +140,8 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
   // Ref to track what was last centered to avoid redundant centering during expansions
   const lastCenteredId = useRef<string | null>(null);
+  // Ref to track if this is the initial mount to prevent vertical scrolling on start
+  const isInitialMount = useRef(true);
 
   // Handle initial centering
   useEffect(() => {
@@ -152,7 +154,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       const selectedIndex = selectedTaskId
         ? filteredTasks.findIndex(task => task.id === selectedTaskId)
         : -1;
-      if (selectedIndex >= 0) {
+      if (selectedIndex >= 0 && !isInitialMount.current) {
         const targetTop = selectedIndex * 72;
         const halfViewport = activeScrollRef.current.clientHeight / 2;
         activeScrollRef.current.scrollTo({
@@ -166,6 +168,9 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
         scrollLeft: activeScrollRef.current.scrollLeft,
         clientWidth: activeScrollRef.current.clientWidth
       });
+
+      // Mark initial mount as completed after the first layout centering has run
+      isInitialMount.current = false;
     }
   }, [activeScrollRef, selectedTaskId, todayStr, centerOnDate, selectedTask, filteredTasks]);
 

@@ -8,11 +8,12 @@ import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor } from '../../utils/statusColors';
 import type { Task, User } from '../../types';
-import { useRef, useState, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
+import { useRef, useState, useEffect, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
 import { getAfterIdForVisibleMove, getTaskOrderId } from '../../lib/taskOrderUtils';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 function eventTargetElement(target: EventTarget | null): HTMLElement | null {
   return target instanceof HTMLElement ? target : null;
@@ -34,7 +35,7 @@ class TaskTouchSensor extends TouchSensor {
     eventName: 'onTouchStart' as const,
     handler: (event: ReactTouchEvent, options: TouchSensorOptions) => {
       const target = eventTargetElement(event.nativeEvent.target);
-      if (!target?.closest('[data-task-sortable-row="true"]')) return false;
+      if (!target?.closest('[data-task-moving="true"]')) return false;
       return TouchSensor.activators[0].handler(event, options);
     },
   }];
@@ -71,6 +72,8 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     reorderTask,
     setPendingTaskInsertPosition,
   } = useDashboard();
+  const isMobile = !useMediaQuery('(min-width: 768px)');
+  const [movingTaskId, setMovingTaskId] = useState<string | null>(null);
   const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; taskId: string; alignRight: boolean } | null>(null);
@@ -78,6 +81,28 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const suppressNextClickRef = useRef(false);
   const dragHasMovedRef = useRef(false);
+
+  useEffect(() => {
+    if (!movingTaskId) return;
+
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest(`[data-task-id="${movingTaskId}"]`)) {
+        setMovingTaskId(null);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleOutsideClick);
+      document.addEventListener('touchstart', handleOutsideClick);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, [movingTaskId]);
 
   const openContextMenu = (clientX: number, clientY: number, taskId: string) => {
     if (activeDragTaskId && dragHasMovedRef.current) return;
@@ -131,7 +156,11 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
   const sensors = useSensors(
     useSensor(TaskMouseSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TaskTouchSensor, { activationConstraint: { delay: 550, tolerance: 8 } }),
+    useSensor(TaskTouchSensor, {
+      activationConstraint: movingTaskId
+        ? { distance: 5 }
+        : { delay: 550, tolerance: 8 }
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -159,6 +188,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       await reorderTask(String(active.id), afterTaskId);
     } finally {
       setActiveDragTaskId(null);
+      setMovingTaskId(null);
       dragHasMovedRef.current = false;
     }
   };
@@ -209,6 +239,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               onDragEnd={handleDragEnd}
               onDragCancel={() => {
                 setActiveDragTaskId(null);
+                setMovingTaskId(null);
                 dragHasMovedRef.current = false;
               }}
             >
@@ -221,6 +252,8 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                     isSelected={selectedTaskId === task.id}
                     isLinkSelected={selectedLinkTaskIds.includes(task.id)}
                     isDragActive={activeDragTaskId === getTaskOrderId(task)}
+                    isMobile={isMobile}
+                    movingTaskId={movingTaskId}
                     openPickerTaskId={openPickerTaskId}
                     openStatusPickerTaskId={openStatusPickerTaskId}
                     suppressNextClickRef={suppressNextClickRef}
@@ -273,6 +306,18 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               <span className="material-symbols-outlined text-[16px]">add</span>
               {t('dashboard.addTaskBelow', 'Add task below')}
             </button>
+            {isMobile && (
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                onClick={() => {
+                  setMovingTaskId(contextMenu.taskId);
+                  setContextMenu(null);
+                }}
+              >
+                <span className="material-symbols-outlined text-[16px]">drag_pan</span>
+                {t('dashboard.moveTask', 'Move task')}
+              </button>
+            )}
             <div className="my-1 border-t border-slate-100" />
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
@@ -391,6 +436,8 @@ interface SortableTaskRowProps {
   isSelected: boolean;
   isLinkSelected: boolean;
   isDragActive: boolean;
+  isMobile: boolean;
+  movingTaskId: string | null;
   openPickerTaskId: string | null;
   openStatusPickerTaskId: string | null;
   suppressNextClickRef: React.MutableRefObject<boolean>;
@@ -410,6 +457,8 @@ function SortableTaskRow({
   isSelected,
   isLinkSelected,
   isDragActive,
+  isMobile,
+  movingTaskId,
   openPickerTaskId,
   openStatusPickerTaskId,
   suppressNextClickRef,
@@ -430,9 +479,10 @@ function SortableTaskRow({
     transition,
     isDragging,
   } = useSortable({ id: getTaskOrderId(task) });
+  const isMovingThisTask = movingTaskId === task.id;
   const dragHandleFillClass = isLinkMode
-    ? isLinkSelected ? 'bg-indigo-50 hover:bg-indigo-50' : 'bg-slate-50 hover:bg-slate-50'
-    : isSelected ? 'bg-slate-50 hover:bg-slate-50' : 'bg-slate-50 hover:bg-slate-50';
+    ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-white group-hover:bg-drag-handle-hovered'
+    : isSelected ? 'bg-drag-handle-selected' : 'bg-white group-hover:bg-drag-handle-hovered';
 
   return (
     <div
@@ -440,8 +490,11 @@ function SortableTaskRow({
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
+        touchAction: isMobile && isMovingThisTask ? 'none' : undefined,
       }}
       data-task-sortable-row="true"
+      data-task-id={task.id}
+      data-task-moving={isMobile && isMovingThisTask ? "true" : undefined}
       className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
         isLinkMode
           ? isLinkSelected ? 'bg-primary/10 ring-1 ring-primary/30 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
@@ -476,7 +529,9 @@ function SortableTaskRow({
       <button
         type="button"
         data-task-drag-handle="true"
-        className={`pointer-events-auto absolute left-0 top-1/2 z-20 inline-flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-primary/20 ${dragHandleFillClass} ${isDragging || isDragActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+        className={`pointer-events-auto absolute left-0 top-1/2 z-20 inline-flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-primary/20 ${dragHandleFillClass} task-drag-handle ${
+          isDragging || isDragActive ? 'is-dragging' : ''
+        }`}
         onClick={(e) => e.stopPropagation()}
         title={t('dashboard.dragToReorder', 'Drag to reorder')}
         aria-label={t('dashboard.dragToReorder', 'Drag to reorder')}
