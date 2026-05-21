@@ -97,9 +97,15 @@
     transition: opacity 0.2s ease;
   }
 
-  .task-drag-handle.is-dragging {
+  .task-drag-handle.is-dragging,
+  .task-drag-handle:focus,
+  .task-drag-handle:focus-visible,
+  .task-drag-handle:active {
     opacity: 1 !important;
     pointer-events: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
   }
 
   @media (pointer: coarse) {

@@ -532,7 +532,7 @@ function SortableTaskRow({
       <button
         type="button"
         data-task-drag-handle="true"
-        className={`pointer-events-auto absolute left-0 top-1/2 z-20 inline-flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-primary/20 ${dragHandleFillClass} task-drag-handle ${
+        className={`pointer-events-auto absolute left-0 top-1/2 z-20 inline-flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} task-drag-handle ${
           isDragging || isDragActive ? 'is-dragging' : ''
         }`}
         onClick={(e) => e.stopPropagation()}
