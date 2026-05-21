@@ -81,6 +81,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const suppressNextClickRef = useRef(false);
   const dragHasMovedRef = useRef(false);
+  const justDroppedRef = useRef(false);
 
   useEffect(() => {
     if (!movingTaskId) return;
@@ -105,7 +106,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   }, [movingTaskId]);
 
   const openContextMenu = (clientX: number, clientY: number, taskId: string) => {
-    if (activeDragTaskId && dragHasMovedRef.current) return;
+    if (activeDragTaskId || justDroppedRef.current) return;
     const rect = rootRef.current?.getBoundingClientRect();
     if (!rect) return;
 
@@ -170,6 +171,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     dragHasMovedRef.current = false;
     setActiveDragTaskId(String(event.active.id));
     suppressNextClickRef.current = true;
+    setContextMenu(null);
   };
 
   const handleDragMove = () => {
@@ -190,6 +192,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       setActiveDragTaskId(null);
       setMovingTaskId(null);
       dragHasMovedRef.current = false;
+      justDroppedRef.current = true;
+      setTimeout(() => {
+        justDroppedRef.current = false;
+      }, 100);
     }
   };
 
@@ -241,6 +247,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 setActiveDragTaskId(null);
                 setMovingTaskId(null);
                 dragHasMovedRef.current = false;
+                justDroppedRef.current = true;
+                setTimeout(() => {
+                  justDroppedRef.current = false;
+                }, 100);
               }}
             >
               <SortableContext items={sortableTaskIds} strategy={verticalListSortingStrategy}>
@@ -253,6 +263,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                     isSelected={selectedTaskId === task.id}
                     isLinkSelected={selectedLinkTaskIds.includes(task.id)}
                     isDragActive={activeDragTaskId === getTaskOrderId(task)}
+                    isAnyDragging={activeDragTaskId !== null}
                     isMobile={isMobile}
                     movingTaskId={movingTaskId}
                     openPickerTaskId={openPickerTaskId}
@@ -438,6 +449,7 @@ interface SortableTaskRowProps {
   isSelected: boolean;
   isLinkSelected: boolean;
   isDragActive: boolean;
+  isAnyDragging: boolean;
   isMobile: boolean;
   movingTaskId: string | null;
   openPickerTaskId: string | null;
@@ -460,6 +472,7 @@ function SortableTaskRow({
   isSelected,
   isLinkSelected,
   isDragActive,
+  isAnyDragging,
   isMobile,
   movingTaskId,
   openPickerTaskId,
@@ -483,6 +496,7 @@ function SortableTaskRow({
     isDragging,
   } = useSortable({ id: getTaskOrderId(task) });
   const isMovingThisTask = movingTaskId === task.id;
+  const showHoverActions = !isDragging && !isDragActive && !isAnyDragging;
   const dragHandleFillClass = isLinkMode
     ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-white group-hover:bg-drag-handle-hovered'
     : isSelected ? 'bg-drag-handle-selected' : 'bg-white group-hover:bg-drag-handle-hovered';
@@ -532,10 +546,16 @@ function SortableTaskRow({
       <button
         type="button"
         data-task-drag-handle="true"
-        className={`pointer-events-auto absolute left-0 top-1/2 z-20 inline-flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} task-drag-handle ${
+        className={`pointer-events-auto absolute left-0 top-1/2 z-20 inline-flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
+          isAnyDragging && !isDragging && !isDragActive ? 'opacity-0 pointer-events-none' : 'task-drag-handle'
+        } ${
           isDragging || isDragActive ? 'is-dragging' : ''
         }`}
         onClick={(e) => e.stopPropagation()}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         title={t('dashboard.dragToReorder', 'Drag to reorder')}
         aria-label={t('dashboard.dragToReorder', 'Drag to reorder')}
         {...attributes}
@@ -621,7 +641,7 @@ function SortableTaskRow({
         )}
       </div>
 
-      <div className={`absolute right-2 ${isFirst ? 'top-full translate-y-[-60%]' : 'bottom-full translate-y-[60%]'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
+      <div className={`absolute right-2 ${isFirst ? 'top-full translate-y-[-60%]' : 'bottom-full translate-y-[60%]'} flex items-center gap-1 opacity-0 ${showHoverActions ? 'group-hover:opacity-100' : ''} transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
         <IconButton
           icon="link"
           variant="ghost"
