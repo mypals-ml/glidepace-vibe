@@ -244,8 +244,9 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               }}
             >
               <SortableContext items={sortableTaskIds} strategy={verticalListSortingStrategy}>
-                {filteredTasks.map(task => (
+                {filteredTasks.map((task, index) => (
                   <SortableTaskRow
+                    isFirst={index === 0}
                     key={task.id}
                     task={task}
                     isLinkMode={isLinkMode}
@@ -432,6 +433,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
 interface SortableTaskRowProps {
   task: Task;
+  isFirst: boolean;
   isLinkMode: boolean;
   isSelected: boolean;
   isLinkSelected: boolean;
@@ -453,6 +455,7 @@ interface SortableTaskRowProps {
 
 function SortableTaskRow({
   task,
+  isFirst,
   isLinkMode,
   isSelected,
   isLinkSelected,
@@ -618,12 +621,12 @@ function SortableTaskRow({
         )}
       </div>
 
-      <div className="absolute right-2 bottom-full mb-[3px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5">
+      <div className={`absolute right-2 ${isFirst ? 'top-full translate-y-[-60%]' : 'bottom-full translate-y-[60%]'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
         <IconButton
           icon="link"
           variant="ghost"
           size="xs"
-          className="pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
+          className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
           onClick={(e) => {
             e.stopPropagation();
             setIsLinkMode(true);
@@ -636,7 +639,7 @@ function SortableTaskRow({
           icon="center_focus_strong"
           variant="ghost"
           size="xs"
-          className="pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
+          className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
           onClick={(e) => {
             e.stopPropagation();
             const startDate = getStartDateForCal(task);
@@ -649,7 +652,7 @@ function SortableTaskRow({
           icon="more_horiz"
           variant="ghost"
           size="xs"
-          className="pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
+          className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
           onClick={(e) => {
             e.stopPropagation();
             openContextMenu(e.clientX, e.clientY, task.id);
