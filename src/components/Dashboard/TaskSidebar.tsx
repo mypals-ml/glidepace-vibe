@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent, type DragStartEvent, type MouseSensorOptions, type TouchSensorOptions } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDashboard } from '../../context/DashboardContext';
@@ -8,11 +8,37 @@ import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor } from '../../utils/statusColors';
 import type { Task, User } from '../../types';
-import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useRef, useState, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
 import { getAfterIdForVisibleMove, getTaskOrderId } from '../../lib/taskOrderUtils';
+
+function eventTargetElement(target: EventTarget | null): HTMLElement | null {
+  return target instanceof HTMLElement ? target : null;
+}
+
+class TaskMouseSensor extends MouseSensor {
+  static activators = [{
+    eventName: 'onMouseDown' as const,
+    handler: (event: ReactMouseEvent, options: MouseSensorOptions) => {
+      const target = eventTargetElement(event.nativeEvent.target);
+      if (!target?.closest('[data-task-drag-handle="true"]')) return false;
+      return MouseSensor.activators[0].handler(event, options);
+    },
+  }];
+}
+
+class TaskTouchSensor extends TouchSensor {
+  static activators = [{
+    eventName: 'onTouchStart' as const,
+    handler: (event: ReactTouchEvent, options: TouchSensorOptions) => {
+      const target = eventTargetElement(event.nativeEvent.target);
+      if (!target?.closest('[data-task-sortable-row="true"]')) return false;
+      return TouchSensor.activators[0].handler(event, options);
+    },
+  }];
+}
 
 export interface TaskSidebarProps {
   scrollRef?: React.RefObject<HTMLDivElement | null>;
@@ -48,18 +74,13 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; taskId: string; alignRight: boolean } | null>(null);
+  const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressNextClickRef = useRef(false);
-
-  const clearLongPressTimer = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
+  const dragHasMovedRef = useRef(false);
 
   const openContextMenu = (clientX: number, clientY: number, taskId: string) => {
+    if (activeDragTaskId && dragHasMovedRef.current) return;
     const rect = rootRef.current?.getBoundingClientRect();
     if (!rect) return;
 
@@ -109,20 +130,37 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TaskMouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TaskTouchSensor, { activationConstraint: { delay: 550, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const sortableTaskIds = filteredTasks.map(getTaskOrderId);
 
+  const handleDragStart = (event: DragStartEvent) => {
+    dragHasMovedRef.current = false;
+    setActiveDragTaskId(String(event.active.id));
+    suppressNextClickRef.current = true;
+  };
+
+  const handleDragMove = () => {
+    dragHasMovedRef.current = true;
+    setContextMenu(null);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over) return;
+    try {
+      const { active, over } = event;
+      if (!over) return;
 
-    const afterTaskId = getAfterIdForVisibleMove(filteredTasks, String(active.id), String(over.id));
-    if (afterTaskId === undefined) return;
+      const afterTaskId = getAfterIdForVisibleMove(filteredTasks, String(active.id), String(over.id));
+      if (afterTaskId === undefined) return;
 
-    await reorderTask(String(active.id), afterTaskId);
+      await reorderTask(String(active.id), afterTaskId);
+    } finally {
+      setActiveDragTaskId(null);
+      dragHasMovedRef.current = false;
+    }
   };
 
   return (
@@ -163,7 +201,17 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               {t('dashboard.noMatchingTasks')}
             </div>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
+              onDragCancel={() => {
+                setActiveDragTaskId(null);
+                dragHasMovedRef.current = false;
+              }}
+            >
               <SortableContext items={sortableTaskIds} strategy={verticalListSortingStrategy}>
                 {filteredTasks.map(task => (
                   <SortableTaskRow
@@ -172,11 +220,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                     isLinkMode={isLinkMode}
                     isSelected={selectedTaskId === task.id}
                     isLinkSelected={selectedLinkTaskIds.includes(task.id)}
+                    isDragActive={activeDragTaskId === getTaskOrderId(task)}
                     openPickerTaskId={openPickerTaskId}
                     openStatusPickerTaskId={openStatusPickerTaskId}
                     suppressNextClickRef={suppressNextClickRef}
-                    longPressTimerRef={longPressTimerRef}
-                    clearLongPressTimer={clearLongPressTimer}
                     openContextMenu={openContextMenu}
                     handleTaskActivate={handleTaskActivate}
                     setOpenPickerTaskId={setOpenPickerTaskId}
@@ -343,11 +390,10 @@ interface SortableTaskRowProps {
   isLinkMode: boolean;
   isSelected: boolean;
   isLinkSelected: boolean;
+  isDragActive: boolean;
   openPickerTaskId: string | null;
   openStatusPickerTaskId: string | null;
   suppressNextClickRef: React.MutableRefObject<boolean>;
-  longPressTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
-  clearLongPressTimer: () => void;
   openContextMenu: (clientX: number, clientY: number, taskId: string) => void;
   handleTaskActivate: (taskId: string) => void;
   setOpenPickerTaskId: Dispatch<SetStateAction<string | null>>;
@@ -363,11 +409,10 @@ function SortableTaskRow({
   isLinkMode,
   isSelected,
   isLinkSelected,
+  isDragActive,
   openPickerTaskId,
   openStatusPickerTaskId,
   suppressNextClickRef,
-  longPressTimerRef,
-  clearLongPressTimer,
   openContextMenu,
   handleTaskActivate,
   setOpenPickerTaskId,
@@ -385,6 +430,9 @@ function SortableTaskRow({
     transition,
     isDragging,
   } = useSortable({ id: getTaskOrderId(task) });
+  const dragHandleFillClass = isLinkMode
+    ? isLinkSelected ? 'bg-indigo-50 hover:bg-indigo-50' : 'bg-slate-50 hover:bg-slate-50'
+    : isSelected ? 'bg-slate-50 hover:bg-slate-50' : 'bg-slate-50 hover:bg-slate-50';
 
   return (
     <div
@@ -393,6 +441,7 @@ function SortableTaskRow({
         transform: CSS.Transform.toString(transform),
         transition,
       }}
+      data-task-sortable-row="true"
       className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
         isLinkMode
           ? isLinkSelected ? 'bg-primary/10 ring-1 ring-primary/30 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
@@ -409,30 +458,10 @@ function SortableTaskRow({
         e.preventDefault();
         openContextMenu(e.clientX, e.clientY, task.id);
       }}
-      onPointerDown={(e) => {
-        if (e.pointerType === 'mouse') return;
-        clearLongPressTimer();
-        const { clientX, clientY } = e;
-        longPressTimerRef.current = setTimeout(() => {
-          suppressNextClickRef.current = true;
-          openContextMenu(clientX, clientY, task.id);
-        }, 550);
-      }}
-      onPointerMove={() => {
-        clearLongPressTimer();
-      }}
-      onPointerUp={() => {
-        clearLongPressTimer();
-      }}
-      onPointerCancel={() => {
-        clearLongPressTimer();
-      }}
-      onPointerLeave={() => {
-        clearLongPressTimer();
-      }}
       aria-pressed={isLinkMode ? isLinkSelected : undefined}
       role="button"
       tabIndex={0}
+      {...listeners}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -443,6 +472,19 @@ function SortableTaskRow({
       {(isSelected || isLinkSelected) && (
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full z-10" />
       )}
+
+      <button
+        type="button"
+        data-task-drag-handle="true"
+        className={`pointer-events-auto absolute left-0 top-1/2 z-20 inline-flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-primary/20 ${dragHandleFillClass} ${isDragging || isDragActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+        onClick={(e) => e.stopPropagation()}
+        title={t('dashboard.dragToReorder', 'Drag to reorder')}
+        aria-label={t('dashboard.dragToReorder', 'Drag to reorder')}
+        {...attributes}
+        {...listeners}
+      >
+        <span className="material-symbols-outlined text-[14px]">drag_indicator</span>
+      </button>
 
       <div className="pl-3 text-xs text-slate-400 font-medium relative">
         <div
@@ -522,19 +564,6 @@ function SortableTaskRow({
       </div>
 
       <div className="absolute right-2 bottom-full mb-[3px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5">
-        <button
-          type="button"
-          className="pointer-events-auto inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 hover:text-primary hover:bg-primary/10 cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-primary/20"
-          onClick={(e) => e.stopPropagation()}
-          onPointerDownCapture={(e) => e.stopPropagation()}
-          onKeyDownCapture={(e) => e.stopPropagation()}
-          title={t('dashboard.dragToReorder', 'Drag to reorder')}
-          aria-label={t('dashboard.dragToReorder', 'Drag to reorder')}
-          {...attributes}
-          {...listeners}
-        >
-          <span className="material-symbols-outlined text-[14px]">drag_indicator</span>
-        </button>
         <IconButton
           icon="link"
           variant="ghost"
