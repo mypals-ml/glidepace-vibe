@@ -41,4 +41,4 @@ Glidelines bridges the gap between GitHub's robust task tracking and project man
 This project is a collaborative effort between human expertise and advanced AI intelligence.
 
 *   **Lead Developers:** [willwhui](https://github.com/willwhui)
-*   **AI Collaborators:** [Google Deepmind Antigravity](https://deepmind.google/technologies/gemini/), Jules, and Copilot.
+*   **AI Collaborators:** Google Antigravity, Google Jules, GitHub Copilot, and OpenAI Codex.

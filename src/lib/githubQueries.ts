@@ -150,6 +150,16 @@ export const UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION = `
   }
 `;
 
+export const UPDATE_PROJECT_ITEM_POSITION_MUTATION = `
+  mutation UpdateProjectV2ItemPosition($projectId: ID!, $itemId: ID!, $afterId: ID) {
+    updateProjectV2ItemPosition(input: { projectId: $projectId, itemId: $itemId, afterId: $afterId }) {
+      items(first: 1) {
+        nodes { id }
+      }
+    }
+  }
+`;
+
 export const GET_REPOSITORY_ID_QUERY = `
   query GetRepository($owner: String!, $name: String!) {
     repository(owner: $owner, name: $name) {

@@ -112,6 +112,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setIsCreateMode: ui.setIsCreateMode,
     dateSettings,
     requestStartDateDecision,
+    showToast,
   });
 
   // Persist selectedTaskId per project

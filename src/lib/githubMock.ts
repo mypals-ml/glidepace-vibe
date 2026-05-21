@@ -496,6 +496,7 @@ export interface MockVariables {
   subjectId?: string;
   body?: string;
   fieldId?: string;
+  afterId?: string | null;
   value?: MockFieldValueInput;
   input?: {
     id?: string;
@@ -512,6 +513,7 @@ export interface MockVariables {
       number?: number;
       text?: string;
     };
+    afterId?: string | null;
   };
   assignableId?: string;
   assigneeIds?: string[];
@@ -610,6 +612,39 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
       data: {
         search: {
           nodes: results
+        }
+      }
+    };
+  }
+
+  if (query.includes('updateProjectV2ItemPosition(')) {
+    const projectId = getVar('projectId');
+    const itemId = getVar('itemId');
+    const afterId = getVar('afterId') as string | null | undefined;
+    if (!projectId || !itemId) return { errors: [{ message: 'ProjectId and itemId are required' }] };
+
+    const projectTasks = getTasksForProject(projectId);
+    const currentIndex = projectTasks.findIndex(task => task.itemId === itemId || task.id === itemId);
+    if (currentIndex === -1) return { errors: [{ message: 'Item not found' }] };
+
+    const [movedTask] = projectTasks.splice(currentIndex, 1);
+    if (afterId === null || afterId === undefined) {
+      projectTasks.unshift(movedTask);
+    } else {
+      const afterIndex = projectTasks.findIndex(task => task.itemId === afterId || task.id === afterId);
+      if (afterIndex === -1) {
+        projectTasks.splice(currentIndex, 0, movedTask);
+        return { errors: [{ message: 'After item not found' }] };
+      }
+      projectTasks.splice(afterIndex + 1, 0, movedTask);
+    }
+
+    return {
+      data: {
+        updateProjectV2ItemPosition: {
+          items: {
+            nodes: projectTasks.slice(0, 1).map(task => ({ id: task.itemId }))
+          }
         }
       }
     };

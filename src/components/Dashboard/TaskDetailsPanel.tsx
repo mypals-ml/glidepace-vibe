@@ -66,12 +66,13 @@ function CopyButton({ text, t }: { text: string; t: TFunction }) {
 
 export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetailsPanelProps) {
   const { t } = useTranslation();
-  const { isCreateMode, setIsCreateMode, centerGanttOnDate, setIsChartVisible, setDashboardView } = useDashboard();
+  const { isCreateMode, setIsCreateMode, centerGanttOnDate, setIsChartVisible, setDashboardView, setPendingTaskInsertPosition } = useDashboard();
 
   if (!task && !isCreateMode) return null;
 
   const handleClose = () => {
     onClose();
+    setPendingTaskInsertPosition(null);
     setIsCreateMode(false);
   };
 
@@ -195,7 +196,7 @@ export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetail
 }
 
 function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: TFunction; isCreateMode?: boolean }) {
-  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, deleteTask, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, setIsTaskDetailsOpen, setSelectedTaskId, showToast, dateSettings, projectFields } = useDashboard();
+  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, deleteTask, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, setIsTaskDetailsOpen, setSelectedTaskId, showToast, dateSettings, projectFields, pendingTaskInsertPosition, setPendingTaskInsertPosition } = useDashboard();
 
   // Derive a repository from existing tasks so the AssigneePicker can fetch assignable users
   const projectRepository = tasks.find(t => t.repository)?.repository;
@@ -376,8 +377,10 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       estimate: parseFloat(newEstimate) || 0,
       estimateUnit: newEstimateUnit,
       autoUpdateStartDate: newAutoUpdateMode,
-      assigneeIds: newAssignees.map(a => a.id).filter(id => id !== 'unassigned')
+      assigneeIds: newAssignees.map(a => a.id).filter(id => id !== 'unassigned'),
+      insertPosition: pendingTaskInsertPosition
     });
+    setPendingTaskInsertPosition(null);
     setIsCreating(false);
   };
 
@@ -549,7 +552,10 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             variant="ghost"
             size="sm"
             fullWidth
-            onClick={() => setIsCreateMode(false)}
+            onClick={() => {
+              setPendingTaskInsertPosition(null);
+              setIsCreateMode(false);
+            }}
           >
             {t('common.cancel', 'Cancel')}
           </Button>

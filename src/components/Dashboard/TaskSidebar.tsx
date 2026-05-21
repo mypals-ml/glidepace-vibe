@@ -1,13 +1,18 @@
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useDashboard } from '../../context/DashboardContext';
 import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor } from '../../utils/statusColors';
-import type { User } from '../../types';
-import { useRef, useState } from 'react';
+import type { Task, User } from '../../types';
+import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
+import { getAfterIdForVisibleMove, getTaskOrderId } from '../../lib/taskOrderUtils';
 
 export interface TaskSidebarProps {
   scrollRef?: React.RefObject<HTMLDivElement | null>;
@@ -37,6 +42,8 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     selectedLinkTaskIds,
     setSelectedLinkTaskIds,
     updateTaskSuccessors,
+    reorderTask,
+    setPendingTaskInsertPosition,
   } = useDashboard();
   const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
@@ -62,6 +69,14 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       taskId,
       alignRight: clientX - rect.left > rect.width - 220
     });
+  };
+
+  const startCreateTaskAt = (taskId: string, placement: 'above' | 'below') => {
+    setPendingTaskInsertPosition({ targetTaskId: taskId, placement });
+    setIsCreateMode(true);
+    setSelectedTaskId(null);
+    setIsTaskDetailsOpen(true);
+    setContextMenu(null);
   };
 
   const handleTaskActivate = (taskId: string) => {
@@ -91,6 +106,23 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     }
 
     setContextMenu(null);
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const sortableTaskIds = filteredTasks.map(getTaskOrderId);
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const afterTaskId = getAfterIdForVisibleMove(filteredTasks, String(active.id), String(over.id));
+    if (afterTaskId === undefined) return;
+
+    await reorderTask(String(active.id), afterTaskId);
   };
 
   return (
@@ -131,169 +163,32 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               {t('dashboard.noMatchingTasks')}
             </div>
           ) : (
-            filteredTasks.map(task => (
-              <div 
-                key={task.id} 
-                className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
-                  isLinkMode 
-                    ? selectedLinkTaskIds.includes(task.id) ? 'bg-primary/10 ring-1 ring-primary/30 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
-                    : selectedTaskId === task.id ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
-                }`} 
-                onClick={() => {
-                  if (suppressNextClickRef.current) {
-                    suppressNextClickRef.current = false;
-                    return;
-                  }
-                  handleTaskActivate(task.id);
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  openContextMenu(e.clientX, e.clientY, task.id);
-                }}
-                onPointerDown={(e) => {
-                  if (e.pointerType === 'mouse') return;
-                  clearLongPressTimer();
-                  const { clientX, clientY } = e;
-                  longPressTimerRef.current = setTimeout(() => {
-                    suppressNextClickRef.current = true;
-                    openContextMenu(clientX, clientY, task.id);
-                  }, 550);
-                }}
-                onPointerMove={clearLongPressTimer}
-                onPointerUp={clearLongPressTimer}
-                onPointerCancel={clearLongPressTimer}
-                onPointerLeave={clearLongPressTimer}
-                aria-pressed={isLinkMode ? selectedLinkTaskIds.includes(task.id) : undefined}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleTaskActivate(task.id);
-                  }
-                }}
-              >
-                {/* Selection Accent Bar */}
-                {(!isLinkMode && selectedTaskId === task.id) && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full z-10" />
-                )}
-                {(isLinkMode && selectedLinkTaskIds.includes(task.id)) && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full z-10" />
-                )}
-
-                {/* ID Column */}
-                <div className="pl-3 text-xs text-slate-400 font-medium relative">
-                  {/* Status subtle indicator */}
-                  <div
-                    className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3 rounded-full ${getStatusDotColor(task.status).replace(' animate-pulse', '')}`}
-                    aria-hidden="true"
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={sortableTaskIds} strategy={verticalListSortingStrategy}>
+                {filteredTasks.map(task => (
+                  <SortableTaskRow
+                    key={task.id}
+                    task={task}
+                    isLinkMode={isLinkMode}
+                    isSelected={selectedTaskId === task.id}
+                    isLinkSelected={selectedLinkTaskIds.includes(task.id)}
+                    openPickerTaskId={openPickerTaskId}
+                    openStatusPickerTaskId={openStatusPickerTaskId}
+                    suppressNextClickRef={suppressNextClickRef}
+                    longPressTimerRef={longPressTimerRef}
+                    clearLongPressTimer={clearLongPressTimer}
+                    openContextMenu={openContextMenu}
+                    handleTaskActivate={handleTaskActivate}
+                    setOpenPickerTaskId={setOpenPickerTaskId}
+                    setOpenStatusPickerTaskId={setOpenStatusPickerTaskId}
+                    setIsLinkMode={setIsLinkMode}
+                    setSelectedLinkTaskIds={setSelectedLinkTaskIds}
+                    centerGanttOnDate={centerGanttOnDate}
+                    t={t}
                   />
-                  {task.displayId}
-                </div>
-
-                {/* Title Column */}
-                <div className="flex flex-col justify-center min-w-0 pr-1">
-                  <span className={`text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
-                    {task.title}
-                  </span>
-                  <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
-                </div>
-
-                {/* Status Column */}
-                <div className="group/status relative h-full flex items-center min-w-0">
-                  <div
-                    className="flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors py-1 h-full w-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenStatusPickerTaskId(openStatusPickerTaskId === task.id ? null : task.id);
-                    }}
-                    title="Update status"
-                  >
-                    <span className={`w-2.5 h-2.5 rounded-full ring-2 ring-white shadow-sm mb-1 ${getStatusDotColor(task.status)}`}></span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[40px]">
-                      {task.status}
-                    </span>
-                  </div>
-                  {openStatusPickerTaskId === task.id && (
-                    <StatusPicker
-                      task={task}
-                      onClose={() => setOpenStatusPickerTaskId(null)}
-                    />
-                  )}
-                </div>
-
-                {/* Assignees Column */}
-                <div className="group/assignee relative h-full flex items-center justify-center pr-2">
-                  <div
-                    className="flex -space-x-1.5 cursor-pointer hover:scale-110 transition-transform p-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenPickerTaskId(openPickerTaskId === task.id ? null : task.id);
-                    }}
-                    title="Update assignees"
-                  >
-                    {task.assignees.length > 0 ? (
-                      <>
-                        {task.assignees.slice(0, 3).map((user: User, idx: number) => (
-                          <div key={user.id} className={`w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
-                            {user.avatarUrl ? (
-                              <img src={user.avatarUrl} alt={user.initials} className="w-full h-full rounded-full object-cover" />
-                            ) : user.initials}
-                          </div>
-                        ))}
-                        {task.assignees.length > 3 && (
-                          <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[8px] font-bold bg-slate-100 text-slate-500" style={{ zIndex: 0 }}>
-                            +{task.assignees.length - 3}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="w-6 h-6 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300">
-                        <span className="material-symbols-outlined text-[14px]">person_add</span>
-                      </div>
-                    )}
-                  </div>
-                  {openPickerTaskId === task.id && (
-                    <AssigneePicker
-                      taskId={task.id}
-                      currentAssignees={task.assignees}
-                      repository={task.repository}
-                      onClose={() => setOpenPickerTaskId(null)}
-                    />
-                  )}
-                </div>
-
-                {/* Hovering Toolbar */}
-                <div className="absolute right-2 bottom-full mb-[3px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5">
-                  <IconButton
-                    icon="link"
-                    variant="ghost"
-                    size="xs"
-                    className="pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsLinkMode(true);
-                      setSelectedLinkTaskIds([task.id]);
-                    }}
-                    title={t('dashboard.linkTasks') || "Link Tasks"}
-                    aria-label={t('dashboard.linkTasks') || "Link Tasks"}
-                  />
-                  <IconButton
-                    icon="center_focus_strong"
-                    variant="ghost"
-                    size="xs"
-                    className="pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const startDate = getStartDateForCal(task);
-                      if (startDate) centerGanttOnDate(startDate);
-                    }}
-                    title={t('dashboard.centerInGantt') || 'Center in Gantt'}
-                    aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
-                  />
-                </div>
-              </div>
-            ))
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
@@ -317,6 +212,21 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+              onClick={() => startCreateTaskAt(contextMenu.taskId, 'above')}
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              {t('dashboard.addTaskAbove', 'Add task above')}
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+              onClick={() => startCreateTaskAt(contextMenu.taskId, 'below')}
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              {t('dashboard.addTaskBelow', 'Add task below')}
+            </button>
+            <div className="my-1 border-t border-slate-100" />
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
               onClick={() => handleJumpToChart(contextMenu.taskId)}
@@ -423,6 +333,246 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             />
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+interface SortableTaskRowProps {
+  task: Task;
+  isLinkMode: boolean;
+  isSelected: boolean;
+  isLinkSelected: boolean;
+  openPickerTaskId: string | null;
+  openStatusPickerTaskId: string | null;
+  suppressNextClickRef: React.MutableRefObject<boolean>;
+  longPressTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
+  clearLongPressTimer: () => void;
+  openContextMenu: (clientX: number, clientY: number, taskId: string) => void;
+  handleTaskActivate: (taskId: string) => void;
+  setOpenPickerTaskId: Dispatch<SetStateAction<string | null>>;
+  setOpenStatusPickerTaskId: Dispatch<SetStateAction<string | null>>;
+  setIsLinkMode: (mode: boolean) => void;
+  setSelectedLinkTaskIds: (tasks: string[] | ((prev: string[]) => string[])) => void;
+  centerGanttOnDate: (date: string | null) => void;
+  t: TFunction;
+}
+
+function SortableTaskRow({
+  task,
+  isLinkMode,
+  isSelected,
+  isLinkSelected,
+  openPickerTaskId,
+  openStatusPickerTaskId,
+  suppressNextClickRef,
+  longPressTimerRef,
+  clearLongPressTimer,
+  openContextMenu,
+  handleTaskActivate,
+  setOpenPickerTaskId,
+  setOpenStatusPickerTaskId,
+  setIsLinkMode,
+  setSelectedLinkTaskIds,
+  centerGanttOnDate,
+  t,
+}: SortableTaskRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: getTaskOrderId(task) });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
+        isLinkMode
+          ? isLinkSelected ? 'bg-primary/10 ring-1 ring-primary/30 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
+          : isSelected ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
+      } ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''}`}
+      onClick={() => {
+        if (suppressNextClickRef.current) {
+          suppressNextClickRef.current = false;
+          return;
+        }
+        handleTaskActivate(task.id);
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        openContextMenu(e.clientX, e.clientY, task.id);
+      }}
+      onPointerDown={(e) => {
+        if (e.pointerType === 'mouse') return;
+        clearLongPressTimer();
+        const { clientX, clientY } = e;
+        longPressTimerRef.current = setTimeout(() => {
+          suppressNextClickRef.current = true;
+          openContextMenu(clientX, clientY, task.id);
+        }, 550);
+      }}
+      onPointerMove={() => {
+        clearLongPressTimer();
+      }}
+      onPointerUp={() => {
+        clearLongPressTimer();
+      }}
+      onPointerCancel={() => {
+        clearLongPressTimer();
+      }}
+      onPointerLeave={() => {
+        clearLongPressTimer();
+      }}
+      aria-pressed={isLinkMode ? isLinkSelected : undefined}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleTaskActivate(task.id);
+        }
+      }}
+    >
+      {(isSelected || isLinkSelected) && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full z-10" />
+      )}
+
+      <div className="pl-3 text-xs text-slate-400 font-medium relative">
+        <div
+          className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3 rounded-full ${getStatusDotColor(task.status).replace(' animate-pulse', '')}`}
+          aria-hidden="true"
+        />
+        {task.displayId}
+      </div>
+
+      <div className="flex flex-col justify-center min-w-0 pr-1">
+        <span className={`text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
+          {task.title}
+        </span>
+        <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
+      </div>
+
+      <div className="group/status relative h-full flex items-center min-w-0">
+        <div
+          className="flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors py-1 h-full w-full"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpenStatusPickerTaskId(openStatusPickerTaskId === task.id ? null : task.id);
+          }}
+          title={t('dashboard.updateStatus', 'Update status')}
+        >
+          <span className={`w-2.5 h-2.5 rounded-full ring-2 ring-white shadow-sm mb-1 ${getStatusDotColor(task.status)}`}></span>
+          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[40px]">
+            {task.status}
+          </span>
+        </div>
+        {openStatusPickerTaskId === task.id && (
+          <StatusPicker
+            task={task}
+            onClose={() => setOpenStatusPickerTaskId(null)}
+          />
+        )}
+      </div>
+
+      <div className="group/assignee relative h-full flex items-center justify-center pr-2">
+        <div
+          className="flex -space-x-1.5 cursor-pointer hover:scale-110 transition-transform p-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpenPickerTaskId(openPickerTaskId === task.id ? null : task.id);
+          }}
+          title={t('dashboard.updateAssignees', 'Update assignees')}
+        >
+          {task.assignees.length > 0 ? (
+            <>
+              {task.assignees.slice(0, 3).map((user: User, idx: number) => (
+                <div key={user.id} className={`w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.initials} className="w-full h-full rounded-full object-cover" />
+                  ) : user.initials}
+                </div>
+              ))}
+              {task.assignees.length > 3 && (
+                <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[8px] font-bold bg-slate-100 text-slate-500" style={{ zIndex: 0 }}>
+                  +{task.assignees.length - 3}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="w-6 h-6 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300">
+              <span className="material-symbols-outlined text-[14px]">person_add</span>
+            </div>
+          )}
+        </div>
+        {openPickerTaskId === task.id && (
+          <AssigneePicker
+            taskId={task.id}
+            currentAssignees={task.assignees}
+            repository={task.repository}
+            onClose={() => setOpenPickerTaskId(null)}
+          />
+        )}
+      </div>
+
+      <div className="absolute right-2 bottom-full mb-[3px] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5">
+        <button
+          type="button"
+          className="pointer-events-auto inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 hover:text-primary hover:bg-primary/10 cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-primary/20"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDownCapture={(e) => e.stopPropagation()}
+          onKeyDownCapture={(e) => e.stopPropagation()}
+          title={t('dashboard.dragToReorder', 'Drag to reorder')}
+          aria-label={t('dashboard.dragToReorder', 'Drag to reorder')}
+          {...attributes}
+          {...listeners}
+        >
+          <span className="material-symbols-outlined text-[14px]">drag_indicator</span>
+        </button>
+        <IconButton
+          icon="link"
+          variant="ghost"
+          size="xs"
+          className="pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsLinkMode(true);
+            setSelectedLinkTaskIds([task.id]);
+          }}
+          title={t('dashboard.linkTasks') || 'Link Tasks'}
+          aria-label={t('dashboard.linkTasks') || 'Link Tasks'}
+        />
+        <IconButton
+          icon="center_focus_strong"
+          variant="ghost"
+          size="xs"
+          className="pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            const startDate = getStartDateForCal(task);
+            if (startDate) centerGanttOnDate(startDate);
+          }}
+          title={t('dashboard.centerInGantt') || 'Center in Gantt'}
+          aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
+        />
+        <IconButton
+          icon="more_horiz"
+          variant="ghost"
+          size="xs"
+          className="pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            openContextMenu(e.clientX, e.clientY, task.id);
+          }}
+          title={t('dashboard.moreActions', 'More actions')}
+          aria-label={t('dashboard.moreActions', 'More actions')}
+        />
       </div>
     </div>
   );

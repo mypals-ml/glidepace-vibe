@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings, AutoUpdateStartDateMode } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings, AutoUpdateStartDateMode, TaskInsertPosition } from '../types';
 import type { MissingFieldDef } from '../hooks/useFieldSetup';
 
 export interface DashboardContextValue {
@@ -54,6 +54,7 @@ export interface DashboardContextValue {
     estimateUnit?: string;
     autoUpdateStartDate?: AutoUpdateStartDateMode;
     assigneeIds?: string[];
+    insertPosition?: TaskInsertPosition | null;
   }) => Promise<boolean>;
 
   updateTaskTitle: (task: Task, title: string) => Promise<boolean>;
@@ -65,6 +66,7 @@ export interface DashboardContextValue {
   updateTaskStatus: (task: Task, status: TaskStatus) => Promise<boolean>;
   updateTaskDates: (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode) => Promise<boolean>;
   updateTaskSuccessors: (taskId: string, successorIds: string[], skipRefresh?: boolean, decision?: 'auto' | 'locked' | 'ask') => Promise<boolean>;
+  reorderTask: (taskId: string, afterTaskId: string | null) => Promise<boolean>;
   createProjectV2Field: (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => Promise<string | null>;
 
   // Sync
@@ -117,6 +119,8 @@ export interface DashboardContextValue {
   setIsLinkMode: (mode: boolean) => void;
   selectedLinkTaskIds: string[];
   setSelectedLinkTaskIds: (tasks: string[] | ((prev: string[]) => string[])) => void;
+  pendingTaskInsertPosition: TaskInsertPosition | null;
+  setPendingTaskInsertPosition: (position: TaskInsertPosition | null) => void;
 
   // Status
   projectStatusOptions: string[];

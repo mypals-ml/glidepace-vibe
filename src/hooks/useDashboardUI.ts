@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { TaskInsertPosition } from '../types';
 
 export function useDashboardUI() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -12,6 +13,7 @@ export function useDashboardUI() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isLinkMode, setIsLinkMode] = useState(false);
   const [selectedLinkTaskIds, setSelectedLinkTaskIds] = useState<string[]>([]);
+  const [pendingTaskInsertPosition, setPendingTaskInsertPosition] = useState<TaskInsertPosition | null>(null);
 
   return {
     isProjectModalOpen,
@@ -36,5 +38,7 @@ export function useDashboardUI() {
     setIsLinkMode,
     selectedLinkTaskIds,
     setSelectedLinkTaskIds,
+    pendingTaskInsertPosition,
+    setPendingTaskInsertPosition,
   };
 }
