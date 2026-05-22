@@ -8,6 +8,7 @@ import { IconButton } from '../../UI/IconButton';
 import { useGanttTimeline } from '../../../hooks/useGanttTimeline';
 import { DependencyLines } from './DependencyLines';
 import { FloatingSequenceBuilder } from '../FloatingSequenceBuilder';
+import { isTaskGroupBlock } from '../../../lib/taskGroupUtils';
 
 export interface GanttChartProps {
   className?: string;
@@ -23,7 +24,7 @@ const EXPANSION_DAYS = 14;
 
 export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
   const { t } = useTranslation();
-  const { filteredTasks, isLoadingTasks, requestedCenterDate, centerGanttOnDate, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
+  const { filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, centerGanttOnDate, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
   const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, clientWidth: 0 });
   const internalScrollRef = useRef<HTMLDivElement>(null);
   
@@ -152,7 +153,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       const anchorDateStr = selectedTask ? (getStartDateForCal(selectedTask) || todayStr) : todayStr;
       centerOnDate(anchorDateStr, 'auto');
       const selectedIndex = selectedTaskId
-        ? filteredTasks.findIndex(task => task.id === selectedTaskId)
+        ? dashboardItems.findIndex(item => !isTaskGroupBlock(item) && item.id === selectedTaskId)
         : -1;
       if (selectedIndex >= 0 && !isInitialMount.current) {
         const targetTop = selectedIndex * 72;
@@ -172,7 +173,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       // Mark initial mount as completed after the first layout centering has run
       isInitialMount.current = false;
     }
-  }, [activeScrollRef, selectedTaskId, todayStr, centerOnDate, selectedTask, filteredTasks]);
+  }, [activeScrollRef, selectedTaskId, todayStr, centerOnDate, selectedTask, dashboardItems]);
 
   // Handle external scroll requests (e.g. from Sidebar)
   useEffect(() => {
@@ -295,13 +296,50 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
           ) : (
             <div className="relative z-10">
               <DependencyLines 
-                tasks={filteredTasks} 
+                items={dashboardItems} 
                 getPositionForDate={getPositionForDate} 
                 dayWidth={DAY_WIDTH} 
                 onBreakLink={handleBreakLink}
                 dragState={linkDragState}
               />
-              {filteredTasks.map((task, index) => {
+              {dashboardItems.map((item, index) => {
+                if (isTaskGroupBlock(item)) {
+                  const groupStart = item.startDate;
+                  const groupEnd = item.targetDate;
+                  if (!groupStart || !groupEnd) {
+                    return (
+                      <div key={item.groupBlockId} className="relative h-[72px] w-full flex items-center px-2 bg-slate-50/40">
+                        <div className="sticky left-3 inline-flex items-center gap-2 text-xs font-bold text-slate-500">
+                          <span className="material-symbols-outlined text-[16px] text-primary/80">folder</span>
+                          {item.name}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const left = getPositionForDate(groupStart);
+                  const duration = diffDays(groupStart, groupEnd);
+                  const width = duration * DAY_WIDTH;
+
+                  return (
+                    <div key={item.groupBlockId} className="relative h-[72px] w-full flex items-center px-2 bg-slate-50/40">
+                      <div
+                        className={`absolute h-8 rounded-md border border-primary/20 bg-primary/10 text-primary flex items-center px-3 shadow-sm ${
+                          item.isSyntheticRoot ? 'bg-slate-200/80 border-slate-300 text-slate-700' : ''
+                        }`}
+                        style={{
+                          left: `${left}px`,
+                          width: `${Math.max(width, 120)}px`,
+                        }}
+                      >
+                        <span className="material-symbols-outlined text-[15px] mr-1.5">folder</span>
+                        <span className="text-xs font-bold truncate">{item.name}</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                const task = item;
                   const start = getStartDateForCal(task);
                   const end = getTargetDateForCal(task);
                 

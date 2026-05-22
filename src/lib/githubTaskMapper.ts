@@ -1,6 +1,7 @@
 import i18n from '../i18n';
 import type { Task, GitHubProjectItem, GitHubFieldValue, ProjectDateSettings, GitHubAssignee, GitHubComment } from '../types';
 import { calculateTargetDate, calculateStartDate, diffDays } from './dateUtils';
+import { parseGroupPath } from './taskGroupUtils';
 
 export function getEstimateUnitForCal(task: Partial<Task>): string {
   return task.estimateUnit || task.tempEstimateUnit || 'days';
@@ -83,7 +84,7 @@ export const PROJECT_ITEM_FRAGMENT = `
       }
     }
   }
-  fieldValues(first: 20) {
+  fieldValues(first: 30) {
     nodes {
       __typename
       ... on ProjectV2ItemFieldSingleSelectValue {
@@ -202,6 +203,15 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   const predecessorsText = predecessorField?.text || '';
   const predecessorIds = predecessorsText.split(',').map(s => s.trim()).filter(Boolean);
 
+  // Find Group Path
+  const groupPathField = dateSettings?.groupPathFieldId
+    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.groupPathFieldId)
+    : fieldValues.find((f: GitHubFieldValue) =>
+        f.__typename === 'ProjectV2ItemFieldTextValue' &&
+        (f.field?.name?.toLowerCase().includes('group path') || f.field?.name?.toLowerCase() === 'group')
+      );
+  const groupPath = parseGroupPath(groupPathField?.text);
+
   // Extract assignees from either the content (Issues/PRs) or the User field (Drafts)
   let assigneeNodes = content?.assignees?.nodes || [];
   if (assigneeNodes.length === 0) {
@@ -248,6 +258,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   if (unitField?.field?.id) projectFieldIds.estimateUnit = unitField.field.id;
   if (successorField?.field?.id) projectFieldIds.successor = successorField.field.id;
   if (predecessorField?.field?.id) projectFieldIds.predecessor = predecessorField.field.id;
+  if (groupPathField?.field?.id) projectFieldIds.groupPath = groupPathField.field.id;
   
   if (statusField?.field?.options) {
     statusField.field.options.forEach((opt: { id: string, name: string, color?: string }) => {
@@ -273,6 +284,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     targetDate: actualTargetDate,
     estimate: actualEstimate,
     estimateUnit: estimateUnit,
+    groupPath,
     successorIds: successorIds,
     predecessorIds: predecessorIds,
   };
@@ -330,6 +342,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     targetDate: actualTargetDate,
     estimate: actualEstimate,
     estimateUnit: estimateUnit,
+    groupPath,
     tempStartDate: partialTask.tempStartDate,
     tempTargetDate: partialTask.tempTargetDate,
     tempEstimate: partialTask.tempEstimate,

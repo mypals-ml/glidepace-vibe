@@ -6,6 +6,7 @@ import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
 import { autoCorrectDependencyFields, cascadeTaskDates, cascadeAllTasks, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../lib/taskDependencyUtils';
 import { getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter } from '../lib/taskOrderUtils';
+import { buildGroupBlocksFromOrderedTasks, renameGroupBlock as renameGroupBlockInTasks, serializeGroupPath, ungroupGroupBlock as ungroupGroupBlockInTasks, isTaskGroupBlock } from '../lib/taskGroupUtils';
 import type { DependencyFieldCorrection } from '../lib/taskDependencyUtils';
 import { mergeFetchedTaskWithLocalState } from '../lib/taskMergeUtils';
 import { 
@@ -27,7 +28,7 @@ import {
   DELETE_PROJECT_ITEM_MUTATION,
   DELETE_ISSUE_MUTATION
 } from '../lib/githubQueries';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode, FixedSuccessorStartDateMode, TaskInsertPosition } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode, FixedSuccessorStartDateMode, TaskInsertPosition, GroupPath } from '../types';
 
 interface UseDashboardTasksProps {
   githubToken: string;
@@ -130,6 +131,7 @@ export function useDashboardTasks({
   const [projectFields, setProjectFields] = useState<GitHubProjectV2Field[]>([]);
   const [fieldsProgress, setFieldsProgress] = useState<{ current: number; total: number; isFetching: boolean }>({ current: 0, total: 0, isFetching: false });
   const [apiError, setApiError] = useState<string | null>(null);
+  const [collapsedGroupBlockIds, setCollapsedGroupBlockIds] = useState<string[]>([]);
   
   const dateSettingsRef = useRef(dateSettings);
   useEffect(() => {
@@ -160,6 +162,50 @@ export function useDashboardTasks({
       return matchesTitle || matchesId || matchesAssignee;
     });
   }, [tasks, searchQuery]);
+
+  const dashboardItems = useMemo(
+    () => buildGroupBlocksFromOrderedTasks(
+      filteredTasks,
+      selectedProject?.title || t('dashboard.currentProject', 'Current Project'),
+      new Set(collapsedGroupBlockIds)
+    ),
+    [filteredTasks, selectedProject?.title, collapsedGroupBlockIds, t]
+  );
+
+  const toggleGroupBlockCollapsed = useCallback((groupBlockId: string) => {
+    setCollapsedGroupBlockIds(prev =>
+      prev.includes(groupBlockId)
+        ? prev.filter(id => id !== groupBlockId)
+        : [...prev, groupBlockId]
+    );
+  }, []);
+
+  const persistTaskGroupPath = useCallback(async (task: Task, groupPath: GroupPath) => {
+    if (!selectedProject?.id || !task.itemId || !githubToken) return false;
+    const fieldId = dateSettingsRef.current.groupPathFieldId || task.projectFieldIds?.groupPath;
+    if (!fieldId) return false;
+
+    return updateProjectV2ItemField(
+      selectedProject.id,
+      task.itemId,
+      fieldId,
+      { text: serializeGroupPath(groupPath) },
+      githubToken
+    );
+  }, [githubToken, selectedProject?.id]);
+
+  const persistChangedGroupPaths = useCallback(async (oldTasks: Task[], nextTasks: Task[]) => {
+    const changedTasks = nextTasks.filter((task, index) =>
+      serializeGroupPath(task.groupPath) !== serializeGroupPath(oldTasks[index]?.groupPath)
+    );
+
+    for (const task of changedTasks) {
+      const success = await persistTaskGroupPath(task, task.groupPath || []);
+      if (!success) return false;
+    }
+
+    return true;
+  }, [persistTaskGroupPath]);
 
   const fetchSingleProjectItem = useCallback(async (itemId: string, token: string) => {
     console.log(`[DashboardTasks] 📡 Fetching single item: ${itemId}`);
@@ -637,6 +683,81 @@ export function useDashboardTasks({
     }
   }, [selectedProject?.id, githubToken, dateSettings, requestStartDateDecision, fetchSingleProjectItem, setTasks]);
 
+  const updateTaskGroupPath = useCallback(async (taskId: string, groupPath: GroupPath): Promise<boolean> => {
+    const oldTasks = [...tasksRef.current];
+    const task = oldTasks.find(t => t.id === taskId || t.itemId === taskId);
+    if (!task) return false;
+
+    const nextTasks = oldTasks.map(t =>
+      (t.id === task.id || t.itemId === task.itemId)
+        ? { ...t, groupPath: [...groupPath], localUpdateTimestamp: Date.now() }
+        : t
+    );
+
+    setTasks(nextTasks);
+    const success = await persistTaskGroupPath(task, groupPath);
+    if (success) {
+      updateSyncTime();
+      return true;
+    }
+
+    setTasks(oldTasks);
+    showToast(t('dashboard.groupPathUpdateFailed', 'Failed to update task group.'), 'error');
+    return false;
+  }, [persistTaskGroupPath, setTasks, showToast, t, updateSyncTime]);
+
+  const renameGroupBlock = useCallback(async (groupBlockId: string, name: string): Promise<boolean> => {
+    const groupBlock = dashboardItems.find(item => isTaskGroupBlock(item) && item.groupBlockId === groupBlockId);
+    if (!groupBlock || !isTaskGroupBlock(groupBlock)) return false;
+    if (!groupBlock || groupBlock.isSyntheticRoot) return false;
+
+    const oldTasks = [...tasksRef.current];
+    const renamedTasks = renameGroupBlockInTasks(oldTasks, groupBlock, name);
+    const timestamp = Date.now();
+    const nextTasks = renamedTasks.map((task, index) =>
+      serializeGroupPath(task.groupPath) !== serializeGroupPath(oldTasks[index]?.groupPath)
+        ? { ...task, localUpdateTimestamp: timestamp }
+        : task
+    );
+
+    setTasks(nextTasks);
+    const success = await persistChangedGroupPaths(oldTasks, nextTasks);
+    if (success) {
+      updateSyncTime();
+      return true;
+    }
+
+    setTasks(oldTasks);
+    showToast(t('dashboard.groupPathUpdateFailed', 'Failed to update task group.'), 'error');
+    return false;
+  }, [dashboardItems, persistChangedGroupPaths, setTasks, showToast, t, updateSyncTime]);
+
+  const ungroupGroupBlock = useCallback(async (groupBlockId: string): Promise<boolean> => {
+    const groupBlock = dashboardItems.find(item => isTaskGroupBlock(item) && item.groupBlockId === groupBlockId);
+    if (!groupBlock || !isTaskGroupBlock(groupBlock)) return false;
+    if (!groupBlock || groupBlock.isSyntheticRoot) return false;
+
+    const oldTasks = [...tasksRef.current];
+    const ungroupedTasks = ungroupGroupBlockInTasks(oldTasks, groupBlock);
+    const timestamp = Date.now();
+    const nextTasks = ungroupedTasks.map((task, index) =>
+      serializeGroupPath(task.groupPath) !== serializeGroupPath(oldTasks[index]?.groupPath)
+        ? { ...task, localUpdateTimestamp: timestamp }
+        : task
+    );
+
+    setTasks(nextTasks);
+    const success = await persistChangedGroupPaths(oldTasks, nextTasks);
+    if (success) {
+      updateSyncTime();
+      return true;
+    }
+
+    setTasks(oldTasks);
+    showToast(t('dashboard.groupPathUpdateFailed', 'Failed to update task group.'), 'error');
+    return false;
+  }, [dashboardItems, persistChangedGroupPaths, setTasks, showToast, t, updateSyncTime]);
+
   const reorderTask = useCallback(async (taskId: string, afterTaskId: string | null): Promise<boolean> => {
     if (!selectedProject?.id || !githubToken) return false;
 
@@ -968,6 +1089,7 @@ export function useDashboardTasks({
 
   return {
     tasks,
+    dashboardItems,
     setTasks,
     isLoadingTasks,
     setIsLoadingTasks,
@@ -986,6 +1108,10 @@ export function useDashboardTasks({
     updateTaskStatus,
     updateTaskDates,
     updateTaskSuccessors,
+    updateTaskGroupPath,
+    renameGroupBlock,
+    ungroupGroupBlock,
+    toggleGroupBlockCollapsed,
     reorderTask,
     handleCreateTask,
     updateTaskTitle,

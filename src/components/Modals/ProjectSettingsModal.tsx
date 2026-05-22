@@ -60,10 +60,11 @@ export function ProjectSettingsModal() {
     setIsProjectSettingsModalOpen(false);
   };
 
-  const handleFieldChange = (type: 'start' | 'end' | 'estimate' | 'unitField' | 'unitValue' | 'fixedStartMode', fieldId: string) => {
+  const handleFieldChange = (type: 'start' | 'end' | 'estimate' | 'unitField' | 'unitValue' | 'fixedStartMode' | 'groupPath', fieldId: string) => {
     if (fieldId === '__create_new__') {
       if (type === 'start') promptCreateSingleField('startDateFieldId');
       else if (type === 'end') promptCreateSingleField('targetDateFieldId');
+      else if (type === 'groupPath') promptCreateSingleField('groupPathFieldId');
       else if (type === 'unitField') {
         pendingActionRef.current = () => createSingleFieldNow('estimateUnitFieldId');
         setIsConfirmModalOpen(true);
@@ -84,6 +85,8 @@ export function ProjectSettingsModal() {
       newSettings.estimateUnit = fieldId || undefined;
     } else if (type === 'fixedStartMode') {
       newSettings.fixedSuccessorStartDateMode = fieldId === 'auto' ? 'auto' : 'ask';
+    } else if (type === 'groupPath') {
+      newSettings.groupPathFieldId = fieldId || undefined;
     }
     updateDateSettings(newSettings);
   };
@@ -122,7 +125,7 @@ export function ProjectSettingsModal() {
     ? (selectedUnitField.options || []).map((opt: { id: string; name: string; color?: string }) => ({ id: opt.name, name: opt.name }))
     : unitOptions;
 
-  const anyFieldsMissing = !dateSettings.startDateFieldId || !dateSettings.targetDateFieldId || !dateSettings.estimateFieldId || !dateSettings.estimateUnitFieldId || !dateSettings.successorFieldId || !dateSettings.predecessorFieldId;
+  const anyFieldsMissing = !dateSettings.startDateFieldId || !dateSettings.targetDateFieldId || !dateSettings.estimateFieldId || !dateSettings.estimateUnitFieldId || !dateSettings.successorFieldId || !dateSettings.predecessorFieldId || !dateSettings.groupPathFieldId;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
@@ -232,6 +235,17 @@ export function ProjectSettingsModal() {
               value={dateSettings.fixedSuccessorStartDateMode || 'ask'}
               onChange={(val) => handleFieldChange('fixedStartMode', val)}
               placeholder={t('settings.fixedStartModeAsk', 'Ask before moving fixed start dates')}
+            />
+
+            <CustomSelect
+              label={t('settings.groupPathField', 'Group Path')}
+              options={getOptions(textFieldFields, dateSettings.groupPathFieldId)}
+              value={dateSettings.groupPathFieldId || ''}
+              onChange={(val) => handleFieldChange('groupPath', val)}
+              placeholder={
+                (dateSettings.groupPathFieldId && !textFieldFields.find(f => f.id === dateSettings.groupPathFieldId)) ? t('settings.fieldNotFound', 'Not found') :
+                t('settings.autoDetected', { name: dateSettings.groupPathFieldId ? `"${projectFields.find(f => f.id === dateSettings.groupPathFieldId)?.name || 'Group Path'}"` : '...' })
+              }
             />
           </div>
 

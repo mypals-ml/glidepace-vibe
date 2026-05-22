@@ -14,6 +14,9 @@ import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMap
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
 import { getAfterIdForVisibleMove, getTaskOrderId } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { isTaskGroupBlock, parseGroupPath, serializeGroupPath } from '../../lib/taskGroupUtils';
+import type { TaskGroupBlock } from '../../types';
+import { Button } from '../UI/Button';
 
 function eventTargetElement(target: EventTarget | null): HTMLElement | null {
   return target instanceof HTMLElement ? target : null;
@@ -50,6 +53,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const { t } = useTranslation();
   const { 
     filteredTasks, 
+    dashboardItems,
     tasks, 
     isLoadingTasks, 
     searchQuery, 
@@ -69,6 +73,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     selectedLinkTaskIds,
     setSelectedLinkTaskIds,
     updateTaskSuccessors,
+    updateTaskGroupPath,
+    renameGroupBlock,
+    ungroupGroupBlock,
+    toggleGroupBlockCollapsed,
     reorderTask,
     setPendingTaskInsertPosition,
   } = useDashboard();
@@ -78,6 +86,12 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; taskId: string; alignRight: boolean } | null>(null);
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
+  const [groupEditor, setGroupEditor] = useState<
+    | { mode: 'taskPath'; taskId: string; value: string }
+    | { mode: 'renameGroup'; groupBlockId: string; value: string }
+    | null
+  >(null);
+  const [isSavingGroupEditor, setIsSavingGroupEditor] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const suppressNextClickRef = useRef(false);
   const dragHasMovedRef = useRef(false);
@@ -153,6 +167,43 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     }
 
     setContextMenu(null);
+  };
+
+  const promptTaskGroupPath = async (taskId: string) => {
+    const task = filteredTasks.find(t => t.id === taskId || t.itemId === taskId);
+    if (!task) return;
+
+    setGroupEditor({
+      mode: 'taskPath',
+      taskId: task.id,
+      value: serializeGroupPath(task.groupPath),
+    });
+    setContextMenu(null);
+  };
+
+  const promptRenameGroup = async (group: TaskGroupBlock) => {
+    setGroupEditor({
+      mode: 'renameGroup',
+      groupBlockId: group.groupBlockId,
+      value: group.name,
+    });
+  };
+
+  const handleSaveGroupEditor = async () => {
+    if (!groupEditor || isSavingGroupEditor) return;
+
+    setIsSavingGroupEditor(true);
+    try {
+      const success = groupEditor.mode === 'taskPath'
+        ? await updateTaskGroupPath(groupEditor.taskId, parseGroupPath(groupEditor.value))
+        : await renameGroupBlock(groupEditor.groupBlockId, groupEditor.value);
+
+      if (success) {
+        setGroupEditor(null);
+      }
+    } finally {
+      setIsSavingGroupEditor(false);
+    }
   };
 
   const sensors = useSensors(
@@ -254,30 +305,42 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               }}
             >
               <SortableContext items={sortableTaskIds} strategy={verticalListSortingStrategy}>
-                {filteredTasks.map((task, index) => (
-                  <SortableTaskRow
-                    isFirst={index === 0}
-                    key={task.id}
-                    task={task}
-                    isLinkMode={isLinkMode}
-                    isSelected={selectedTaskId === task.id}
-                    isLinkSelected={selectedLinkTaskIds.includes(task.id)}
-                    isDragActive={activeDragTaskId === getTaskOrderId(task)}
-                    isAnyDragging={activeDragTaskId !== null}
-                    isMobile={isMobile}
-                    movingTaskId={movingTaskId}
-                    openPickerTaskId={openPickerTaskId}
-                    openStatusPickerTaskId={openStatusPickerTaskId}
-                    suppressNextClickRef={suppressNextClickRef}
-                    openContextMenu={openContextMenu}
-                    handleTaskActivate={handleTaskActivate}
-                    setOpenPickerTaskId={setOpenPickerTaskId}
-                    setOpenStatusPickerTaskId={setOpenStatusPickerTaskId}
-                    setIsLinkMode={setIsLinkMode}
-                    setSelectedLinkTaskIds={setSelectedLinkTaskIds}
-                    centerGanttOnDate={centerGanttOnDate}
-                    t={t}
-                  />
+                {dashboardItems.map((item, index) => (
+                  isTaskGroupBlock(item) ? (
+                    <TaskGroupRow
+                      key={item.groupBlockId}
+                      group={item}
+                      isFirst={index === 0}
+                      onToggle={() => toggleGroupBlockCollapsed(item.groupBlockId)}
+                      onRename={() => promptRenameGroup(item)}
+                      onUngroup={() => ungroupGroupBlock(item.groupBlockId)}
+                      t={t}
+                    />
+                  ) : (
+                    <SortableTaskRow
+                      isFirst={index === 0}
+                      key={item.id}
+                      task={item}
+                      isLinkMode={isLinkMode}
+                      isSelected={selectedTaskId === item.id}
+                      isLinkSelected={selectedLinkTaskIds.includes(item.id)}
+                      isDragActive={activeDragTaskId === getTaskOrderId(item)}
+                      isAnyDragging={activeDragTaskId !== null}
+                      isMobile={isMobile}
+                      movingTaskId={movingTaskId}
+                      openPickerTaskId={openPickerTaskId}
+                      openStatusPickerTaskId={openStatusPickerTaskId}
+                      suppressNextClickRef={suppressNextClickRef}
+                      openContextMenu={openContextMenu}
+                      handleTaskActivate={handleTaskActivate}
+                      setOpenPickerTaskId={setOpenPickerTaskId}
+                      setOpenStatusPickerTaskId={setOpenStatusPickerTaskId}
+                      setIsLinkMode={setIsLinkMode}
+                      setSelectedLinkTaskIds={setSelectedLinkTaskIds}
+                      centerGanttOnDate={centerGanttOnDate}
+                      t={t}
+                    />
+                  )
                 ))}
               </SortableContext>
             </DndContext>
@@ -333,6 +396,13 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             <div className="my-1 border-t border-slate-100" />
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+              onClick={() => promptTaskGroupPath(contextMenu.taskId)}
+            >
+              <span className="material-symbols-outlined text-[16px]">drive_file_move</span>
+              {t('dashboard.setGroupPath', 'Set group path')}
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
               onClick={() => handleJumpToChart(contextMenu.taskId)}
             >
               <span className="material-symbols-outlined text-[16px]">center_focus_strong</span>
@@ -363,6 +433,93 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               {t('dashboard.breakAllLinks')}
             </button>
           </div>
+        </div>
+      )}
+
+      {groupEditor && (
+        <div
+          className="absolute inset-0 z-[120] flex items-center justify-center bg-slate-900/25 backdrop-blur-sm p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="group-editor-title"
+          onClick={() => {
+            if (!isSavingGroupEditor) setGroupEditor(null);
+          }}
+        >
+          <form
+            className="w-full max-w-sm rounded-xl border border-slate-200 bg-white shadow-2xl"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSaveGroupEditor();
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <h3 id="group-editor-title" className="text-sm font-bold text-slate-800">
+                {groupEditor.mode === 'taskPath'
+                  ? t('dashboard.setGroupPath', 'Set group path')
+                  : t('dashboard.renameGroup', 'Rename group')}
+              </h3>
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="xs"
+                onClick={() => setGroupEditor(null)}
+                disabled={isSavingGroupEditor}
+                aria-label={t('dashboard.close', 'Close')}
+              />
+            </div>
+            <div className="space-y-2 px-4 py-4">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500" htmlFor="group-editor-value">
+                {groupEditor.mode === 'taskPath'
+                  ? t('settings.groupPathField', 'Group Path')
+                  : t('dashboard.groupLabel', 'Group')}
+              </label>
+              {groupEditor.mode === 'taskPath' ? (
+                <textarea
+                  id="group-editor-value"
+                  className="min-h-24 w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                  value={groupEditor.value}
+                  onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
+                  placeholder='["group1","group2"]'
+                  autoFocus
+                />
+              ) : (
+                <input
+                  id="group-editor-value"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                  value={groupEditor.value}
+                  onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
+                  autoFocus
+                />
+              )}
+              {groupEditor.mode === 'taskPath' && (
+                <p className="text-xs leading-relaxed text-slate-500">
+                  {t('dashboard.groupPathHelp', 'Use [] for the project root, or a JSON array such as ["group1","group2"].')}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 rounded-b-xl border-t border-slate-100 bg-slate-50 px-4 py-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setGroupEditor(null)}
+                disabled={isSavingGroupEditor}
+              >
+                {t('common.cancel', 'Cancel')}
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                isLoading={isSavingGroupEditor}
+                disabled={groupEditor.mode === 'renameGroup' && groupEditor.value.trim().length === 0}
+              >
+                {t('common.save', 'Save')}
+              </Button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -437,6 +594,75 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             />
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+interface TaskGroupRowProps {
+  group: TaskGroupBlock;
+  isFirst: boolean;
+  onToggle: () => void;
+  onRename: () => void;
+  onUngroup: () => void;
+  t: TFunction;
+}
+
+function TaskGroupRow({ group, isFirst, onToggle, onRename, onUngroup, t }: TaskGroupRowProps) {
+  const paddingLeft = Math.min(12 + group.depth * 16, 56);
+
+  return (
+    <div
+      className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pr-0 border-b border-slate-100/50 transition-colors relative ${
+        group.isSyntheticRoot ? 'bg-slate-100/80' : 'bg-slate-50/80'
+      } ${isFirst ? '' : ''}`}
+    >
+      <div className="pl-4 text-slate-400">
+        <button
+          type="button"
+          className="h-7 w-7 inline-flex items-center justify-center rounded hover:bg-white text-slate-500"
+          onClick={onToggle}
+          title={group.isExpanded ? t('dashboard.collapseGroup', 'Collapse group') : t('dashboard.expandGroup', 'Expand group')}
+          aria-label={group.isExpanded ? t('dashboard.collapseGroup', 'Collapse group') : t('dashboard.expandGroup', 'Expand group')}
+        >
+          <span className="material-symbols-outlined text-[18px]">
+            {group.isExpanded ? 'expand_more' : 'chevron_right'}
+          </span>
+        </button>
+      </div>
+      <div className="min-w-0" style={{ paddingLeft }}>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="material-symbols-outlined text-[16px] text-primary/80">folder</span>
+          <span className="text-sm font-bold text-slate-700 truncate">{group.name}</span>
+        </div>
+        <div className="text-[10px] text-slate-400 mt-0.5 font-medium">
+          {group.startDate && group.targetDate ? `${group.startDate} - ${group.targetDate}` : t('dashboard.noGroupDates', 'No dates')}
+        </div>
+      </div>
+      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+        {t('dashboard.groupLabel', 'Group')}
+      </div>
+      <div className="flex justify-center gap-1 pr-2">
+        {!group.isSyntheticRoot && (
+          <>
+            <IconButton
+              icon="edit"
+              variant="ghost"
+              size="xs"
+              onClick={onRename}
+              title={t('dashboard.renameGroup', 'Rename group')}
+              aria-label={t('dashboard.renameGroup', 'Rename group')}
+            />
+            <IconButton
+              icon="folder_off"
+              variant="ghost"
+              size="xs"
+              onClick={onUngroup}
+              title={t('dashboard.ungroup', 'Ungroup')}
+              aria-label={t('dashboard.ungroup', 'Ungroup')}
+            />
+          </>
+        )}
       </div>
     </div>
   );
@@ -572,7 +798,10 @@ function SortableTaskRow({
         {task.displayId}
       </div>
 
-      <div className="flex flex-col justify-center min-w-0 pr-1">
+      <div
+        className="flex flex-col justify-center min-w-0 pr-1"
+        style={{ paddingLeft: Math.min(Math.max((task.depth || 1) - 1, 0) * 16, 48) }}
+      >
         <span className={`text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
           {task.title}
         </span>

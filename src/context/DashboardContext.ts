@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings, AutoUpdateStartDateMode, TaskInsertPosition } from '../types';
+import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings, AutoUpdateStartDateMode, TaskInsertPosition, DashboardItem, GroupPath } from '../types';
 import type { MissingFieldDef } from '../hooks/useFieldSetup';
 
 export interface DashboardContextValue {
@@ -41,6 +41,7 @@ export interface DashboardContextValue {
 
   // Tasks
   tasks: Task[];
+  dashboardItems: DashboardItem[];
   isLoadingTasks: boolean;
   fieldsProgress: { current: number; total: number; isFetching: boolean };
   fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
@@ -66,6 +67,10 @@ export interface DashboardContextValue {
   updateTaskStatus: (task: Task, status: TaskStatus) => Promise<boolean>;
   updateTaskDates: (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode) => Promise<boolean>;
   updateTaskSuccessors: (taskId: string, successorIds: string[], skipRefresh?: boolean, decision?: 'auto' | 'locked' | 'ask') => Promise<boolean>;
+  updateTaskGroupPath: (taskId: string, groupPath: GroupPath) => Promise<boolean>;
+  renameGroupBlock: (groupBlockId: string, name: string) => Promise<boolean>;
+  ungroupGroupBlock: (groupBlockId: string) => Promise<boolean>;
+  toggleGroupBlockCollapsed: (groupBlockId: string) => void;
   reorderTask: (taskId: string, afterTaskId: string | null) => Promise<boolean>;
   createProjectV2Field: (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => Promise<string | null>;
 

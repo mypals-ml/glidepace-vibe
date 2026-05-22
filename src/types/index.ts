@@ -8,6 +8,7 @@
 export type TaskStatus = string;
 export type AutoUpdateStartDateMode = 'auto' | 'locked' | 'ask';
 export type FixedSuccessorStartDateMode = 'auto' | 'ask';
+export type GroupPath = string[];
 
 export interface User {
   id: string;
@@ -26,9 +27,12 @@ export interface TaskComment {
 }
 
 export interface Task {
+  kind?: 'task';
   id: string;
   displayId: string;
   title: string;
+  groupPath?: GroupPath;
+  depth?: number;
   startDate: string;
   targetDate: string;
   localUpdateTimestamp?: number;
@@ -60,6 +64,23 @@ export interface Task {
   url?: string;
   autoUpdateStartDate?: AutoUpdateStartDateMode;
 }
+
+export interface TaskGroupBlock {
+  kind: 'group';
+  groupBlockId: string;
+  name: string;
+  path: GroupPath;
+  depth: number;
+  startTaskIndex: number;
+  endTaskIndex: number;
+  startDate: string;
+  targetDate: string;
+  childTaskIds: string[];
+  isExpanded: boolean;
+  isSyntheticRoot?: boolean;
+}
+
+export type DashboardItem = Task | TaskGroupBlock;
 
 // --- GitHub / Project types (previously in GanttDashboard.tsx & mockData.ts) ---
 
@@ -197,6 +218,7 @@ export interface ProjectDateSettings {
   estimateUnit?: string;
   successorFieldId?: string;
   predecessorFieldId?: string;
+  groupPathFieldId?: string;
 }
 
 export interface TaskInsertPosition {

@@ -7,7 +7,7 @@ export interface MissingFieldDef {
   keywords: string[];
   defaultName: string;
   statusLabel: string;
-  settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId' | 'successorFieldId' | 'predecessorFieldId';
+  settingsKey: 'startDateFieldId' | 'targetDateFieldId' | 'estimateFieldId' | 'estimateUnitFieldId' | 'successorFieldId' | 'predecessorFieldId' | 'groupPathFieldId';
   usageKey: string;
 }
 
@@ -17,7 +17,8 @@ const REQUIRED_FIELDS: MissingFieldDef[] = [
   { type: 'number', keywords: ['estimate', 'duration', 'days', 'hours'], defaultName: 'Estimate', statusLabel: 'Estimate', settingsKey: 'estimateFieldId', usageKey: 'settings.usageEstimate' },
   { type: 'single_select', keywords: ['estimate unit', 'unit', 'category'], defaultName: 'Estimate Unit', statusLabel: 'Estimate Unit', settingsKey: 'estimateUnitFieldId', usageKey: 'settings.usageEstimateUnit' },
   { type: 'text', keywords: ['successor'], defaultName: 'Successors', statusLabel: 'Successors', settingsKey: 'successorFieldId', usageKey: 'settings.usageSuccessors' },
-  { type: 'text', keywords: ['predecessor'], defaultName: 'Predecessors', statusLabel: 'Predecessors', settingsKey: 'predecessorFieldId', usageKey: 'settings.usagePredecessors' }
+  { type: 'text', keywords: ['predecessor'], defaultName: 'Predecessors', statusLabel: 'Predecessors', settingsKey: 'predecessorFieldId', usageKey: 'settings.usagePredecessors' },
+  { type: 'text', keywords: ['group path', 'group'], defaultName: 'Group Path', statusLabel: 'Group Path', settingsKey: 'groupPathFieldId', usageKey: 'settings.usageGroupPath' }
 ];
 
 export function useFieldSetup({
