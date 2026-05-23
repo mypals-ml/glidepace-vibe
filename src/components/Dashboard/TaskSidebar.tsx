@@ -34,8 +34,9 @@ const TREE_DEPTH_COLORS = [
   '#65a30d',
 ] as const;
 
-const TREE_NODE_BASE_X = 18;
-const TREE_DEPTH_STEP = 24;
+const TREE_NODE_BASE_X = 12;
+const TREE_DEPTH_STEP = 20;
+const TREE_CONTENT_GAP = 18;
 const TREE_ELBOW_HEIGHT = 16;
 const TREE_LINE_MIX = 34;
 
@@ -447,8 +448,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   return (
     <div className="flex flex-col h-full overflow-hidden relative" ref={rootRef}>
       {/* Header - Moved outside scroll container for alignment */}
-      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[40px_1fr_64px_76px] gap-2 pl-4 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.id')}</div>
+      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[1fr_64px_76px] gap-1 pl-2 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.title')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">{t('table.assignees')}</div>
@@ -829,6 +829,7 @@ interface TreeTitleCellProps {
   onToggle?: () => void;
   toggleTitle?: string;
   toggleAriaLabel?: string;
+  nodeBadge?: ReactNode;
 }
 
 function TreeTitleCell({
@@ -839,13 +840,14 @@ function TreeTitleCell({
   onToggle,
   toggleTitle,
   toggleAriaLabel,
+  nodeBadge,
 }: TreeTitleCellProps) {
   const visualDepth = Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1);
   const nodeX = getTreeNodeX(visualDepth);
   const parentDepth = Math.max(visualDepth - 1, 0);
   const parentX = getTreeNodeX(parentDepth);
   const railColor = getTreeColor(visualDepth);
-  const contentPaddingLeft = nodeX + 24;
+  const contentPaddingLeft = nodeX + TREE_CONTENT_GAP;
   const parentLineColor = getTreeLineColor(parentDepth);
 
   const nodeCommonClassName = 'absolute top-1/2 z-[2] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white';
@@ -886,7 +888,7 @@ function TreeTitleCell({
       {nodeKind === 'group' ? (
         <button
           type="button"
-          className={`${nodeCommonClassName} pointer-events-auto inline-flex h-[22px] w-[22px] items-center justify-center border-2 shadow-[0_0_0_4px_#fff] transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30`}
+          className={`${nodeCommonClassName} pointer-events-auto inline-flex h-[18px] w-[18px] items-center justify-center border-2 shadow-[0_0_0_3px_#fff] transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30`}
           style={{
             ...nodeStyle,
             backgroundColor: isExpanded ? `color-mix(in srgb, ${railColor} 10%, white)` : '#fff',
@@ -900,20 +902,30 @@ function TreeTitleCell({
           aria-label={toggleAriaLabel}
           aria-expanded={isExpanded}
         >
-          <span className="h-0.5 w-2 rounded-full" style={{ backgroundColor: railColor }} />
+          <span className="h-0.5 w-1.5 rounded-full" style={{ backgroundColor: railColor }} />
           {!isExpanded && (
-            <span className="absolute h-2 w-0.5 rounded-full" style={{ backgroundColor: railColor }} />
+            <span className="absolute h-1.5 w-0.5 rounded-full" style={{ backgroundColor: railColor }} />
           )}
         </button>
       ) : (
-        <span
-          className={`${nodeCommonClassName} h-2.5 w-2.5 border-2 shadow-[0_0_0_3px_#fff]`}
-          style={{
-            ...nodeStyle,
-            borderColor: railColor,
-          }}
-          aria-hidden="true"
-        />
+        <>
+          <span
+            className={`${nodeCommonClassName} h-2.5 w-2.5 border-2 shadow-[0_0_0_3px_#fff]`}
+            style={{
+              ...nodeStyle,
+              borderColor: railColor,
+            }}
+            aria-hidden="true"
+          />
+          {nodeBadge && (
+            <span
+              className="absolute top-1/2 z-[2] mt-2 -translate-x-1/2 rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-[9px] font-bold leading-none text-slate-500 shadow-[0_0_0_2px_#fff]"
+              style={{ left: nodeX }}
+            >
+              {nodeBadge}
+            </span>
+          )}
+        </>
       )}
 
       <div
@@ -974,7 +986,7 @@ function TaskGroupRow({
       }}
       data-dashboard-sort-id={sortId}
       data-task-moving={isMobile && isMovingThisGroup ? "true" : undefined}
-      className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 transition-all duration-200 relative group overflow-visible ${
+      className={`grid grid-cols-[1fr_64px_76px] gap-1 items-center h-[72px] pl-2 pr-0 border-b border-slate-100/50 transition-all duration-200 relative group overflow-visible ${
         group.isSyntheticRoot ? 'bg-slate-100/80' : 'bg-slate-50/80'
       } ${!group.isSyntheticRoot ? 'cursor-pointer hover:bg-slate-50' : ''} ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''}`}
       onContextMenu={(e) => {
@@ -1006,7 +1018,6 @@ function TaskGroupRow({
         </button>
       )}
 
-      <div aria-hidden="true" />
       <TreeTitleCell
         treeMeta={treeMeta}
         nodeKind="group"
@@ -1025,7 +1036,7 @@ function TaskGroupRow({
       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
         {t('dashboard.groupLabel', 'Group')}
       </div>
-      <div className="flex justify-center gap-1 pr-2">
+      <div className="flex justify-center gap-1 pr-1">
         {!group.isSyntheticRoot && (
           <>
             <IconButton
@@ -1125,7 +1136,7 @@ function SortableTaskRow({
       data-dashboard-sort-id={sortId}
       data-task-id={task.id}
       data-task-moving={isMobile && isMovingThisTask ? "true" : undefined}
-      className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
+      className={`grid grid-cols-[1fr_64px_76px] gap-1 items-center h-[72px] pl-2 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
         isLinkMode
           ? isLinkSelected ? 'bg-primary/10 ring-1 ring-primary/30 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
           : isSelected ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
@@ -1177,15 +1188,7 @@ function SortableTaskRow({
         <span className="material-symbols-outlined text-[14px]">drag_indicator</span>
       </button>
 
-      <div className="pl-3 text-xs text-slate-400 font-medium relative">
-        <div
-          className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3 rounded-full ${getStatusDotColor(task.status).replace(' animate-pulse', '')}`}
-          aria-hidden="true"
-        />
-        {task.displayId}
-      </div>
-
-      <TreeTitleCell treeMeta={treeMeta} nodeKind="task">
+      <TreeTitleCell treeMeta={treeMeta} nodeKind="task" nodeBadge={task.displayId}>
         <span className={`block text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
           {task.title}
         </span>
@@ -1214,7 +1217,7 @@ function SortableTaskRow({
         )}
       </div>
 
-      <div className="group/assignee relative h-full flex items-center justify-center pr-2">
+      <div className="group/assignee relative h-full flex items-center justify-center pr-1">
         <div
           className="flex -space-x-1.5 cursor-pointer hover:scale-110 transition-transform p-1"
           onClick={(e) => {
