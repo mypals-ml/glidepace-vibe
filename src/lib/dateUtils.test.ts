@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculateTargetDate, shiftDateByDays } from './dateUtils';
 import { autoCorrectDependencyFields, cascadeTaskDates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate } from './taskDependencyUtils';
+import { defaultWorkCalendar, formatWorkCalendarDate, getCurrentTimeZone } from './workCalendar';
 import type { Task } from '../types';
 
 describe('Date Utilities Math Logic', () => {
@@ -11,6 +12,38 @@ describe('Date Utilities Math Logic', () => {
   it('shiftDateByDays shifts dates correctly', () => {
     expect(shiftDateByDays('2026-03-21', 10)).toBe('2026-03-31');
     expect(shiftDateByDays('2026-03-21', -5)).toBe('2026-03-16');
+  });
+});
+
+describe('Default work calendar', () => {
+  it('reports a local time zone', () => {
+    expect(getCurrentTimeZone()).toBeTruthy();
+    expect(defaultWorkCalendar.timeZone).toBeTruthy();
+  });
+
+  it('formats Date objects using the local work calendar date', () => {
+    expect(formatWorkCalendarDate(new Date(2026, 4, 24, 0, 30))).toBe('2026-05-24');
+  });
+
+  it('treats Monday through Friday as workdays', () => {
+    expect(defaultWorkCalendar.isWorkday('2026-03-23')).toBe(true);
+    expect(defaultWorkCalendar.isWorkday('2026-03-24')).toBe(true);
+    expect(defaultWorkCalendar.isWorkday('2026-03-25')).toBe(true);
+    expect(defaultWorkCalendar.isWorkday('2026-03-26')).toBe(true);
+    expect(defaultWorkCalendar.isWorkday('2026-03-27')).toBe(true);
+  });
+
+  it('treats Saturday and Sunday as non-workdays', () => {
+    expect(defaultWorkCalendar.isNonWorkday('2026-03-28')).toBe(true);
+    expect(defaultWorkCalendar.isNonWorkday('2026-03-29')).toBe(true);
+  });
+
+  it('adds workdays while skipping weekends', () => {
+    expect(defaultWorkCalendar.addWorkdays('2026-03-27', 1)).toBe('2026-03-30');
+  });
+
+  it('counts workdays while excluding weekends', () => {
+    expect(defaultWorkCalendar.diffWorkdays('2026-03-27', '2026-03-30')).toBe(2);
   });
 });
 

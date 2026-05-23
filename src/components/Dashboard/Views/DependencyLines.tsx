@@ -1,18 +1,19 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Task } from '../../../types';
+import type { DashboardItem } from '../../../types';
 import { getStartDateForCal, getTargetDateForCal } from '../../../lib/githubTaskMapper';
 import { diffDays } from '../../../lib/dateUtils';
+import { isTaskGroupBlock } from '../../../lib/taskGroupUtils';
 
 interface DependencyLinesProps {
-  tasks: Task[];
+  items: DashboardItem[];
   getPositionForDate: (dateStr: string) => number;
   dayWidth: number;
   onBreakLink: (taskId: string, targetId: string) => void;
   dragState: { startX: number; startY: number; currentX: number; currentY: number } | null;
 }
 
-export function DependencyLines({ tasks, getPositionForDate, dayWidth, onBreakLink, dragState }: DependencyLinesProps) {
+export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLink, dragState }: DependencyLinesProps) {
   const { t } = useTranslation();
   const ROW_HEIGHT = 72;
 
@@ -34,7 +35,8 @@ export function DependencyLines({ tasks, getPositionForDate, dayWidth, onBreakLi
 
     // Map task ids to their bounds
     const boundsMap = new Map<string, { x1: number; x2: number; y: number }>();
-    tasks.forEach((t, i) => {
+    items.forEach((t, i) => {
+      if (isTaskGroupBlock(t)) return;
       const start = getStartDateForCal(t);
       const end = getTargetDateForCal(t);
       if (start && end) {
@@ -47,7 +49,8 @@ export function DependencyLines({ tasks, getPositionForDate, dayWidth, onBreakLi
       }
     });
 
-    tasks.forEach(task => {
+    items.forEach(task => {
+      if (isTaskGroupBlock(task)) return;
       if (task.successorIds && task.successorIds.length > 0) {
         const source = boundsMap.get(task.itemId || task.id);
         if (!source) return;
@@ -93,7 +96,7 @@ export function DependencyLines({ tasks, getPositionForDate, dayWidth, onBreakLi
     });
 
     return result;
-  }, [tasks, getPositionForDate, dayWidth, onBreakLink, t]);
+  }, [items, getPositionForDate, dayWidth, onBreakLink, t]);
 
   return (
     <svg className="absolute inset-0 w-full h-full pointer-events-none z-20" style={{ minWidth: '100%', minHeight: '100%' }}>

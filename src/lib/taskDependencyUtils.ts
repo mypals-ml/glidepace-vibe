@@ -1,5 +1,6 @@
 import type { FixedSuccessorStartDateMode, Task } from '../types';
-import { calculateStartDate, calculateTargetDate, formatToGitHubDate } from './dateUtils';
+import { calculateStartDate, calculateTargetDate } from './dateUtils';
+import { defaultWorkCalendar } from './workCalendar';
 
 interface CascadeTaskDatesOptions {
   fixedStartDateMode?: FixedSuccessorStartDateMode;
@@ -52,7 +53,7 @@ function calculateFallbackFloatingStartDate(task: Task): string {
     if (fallback) return fallback;
   }
 
-  return formatToGitHubDate(new Date());
+  return defaultWorkCalendar.formatDate(new Date());
 }
 
 function calculateFloatingDatesFromPredecessors(tasks: Task[], successor: Task): { startDate: string; targetDate: string } {
@@ -76,7 +77,7 @@ function calculateFloatingDatesFromPredecessors(tasks: Task[], successor: Task):
   }
 
   const startDate = latestPredecessorEnd
-    ? addWorkdays(latestPredecessorEnd, 1)
+    ? defaultWorkCalendar.addWorkdays(latestPredecessorEnd, 1)
     : calculateFallbackFloatingStartDate(successor);
   const estimate = successor.estimate !== undefined ? successor.estimate : (successor.tempEstimate || 1);
   const unit = successor.estimateUnit || successor.tempEstimateUnit || 'days';
@@ -138,61 +139,6 @@ export function autoCorrectDependencyFields(tasks: Task[]): { tasks: Task[]; cor
   return { tasks: tasksCopy, corrections };
 }
 
-/**
- * Checks if a date is a weekend (Saturday or Sunday).
- */
-export function isWeekend(date: Date): boolean {
-  const day = date.getDay();
-  return day === 0 || day === 6; // 0 is Sunday, 6 is Saturday
-}
-
-/**
- * Adds workdays to a date, skipping weekends.
- */
-export function addWorkdays(startDateStr: string, days: number): string {
-  if (!startDateStr) return '';
-  if (days === 0) return startDateStr;
-
-  const date = new Date(startDateStr);
-  const remainingDays = days;
-  const direction = days > 0 ? 1 : -1;
-  const absRemaining = Math.abs(remainingDays);
-
-  let count = 0;
-  while (count < absRemaining) {
-    date.setDate(date.getDate() + direction);
-    if (!isWeekend(date)) {
-      count++;
-    }
-  }
-
-  return formatToGitHubDate(date);
-}
-
-/**
- * Calculates the number of workdays between two dates (inclusive).
- */
-export function diffWorkdays(startDateStr: string, endDateStr: string): number {
-  if (!startDateStr || !endDateStr) return 0;
-
-  const start = new Date(startDateStr);
-  const end = new Date(endDateStr);
-  
-  if (start > end) return 0;
-
-  let count = 0;
-  const current = new Date(start);
-  
-  while (current <= end) {
-    if (!isWeekend(current)) {
-      count++;
-    }
-    current.setDate(current.getDate() + 1);
-  }
-
-  return count;
-}
-
 export function shouldAskToUpdateFixedSuccessorStartDate(predecessor: Task, successor: Task): boolean {
   const predecessorEndDate = parseDateValue(getEffectiveTargetDate(predecessor));
   const successorStartDate = parseDateValue(successor.startDate);
@@ -229,7 +175,7 @@ export function getFixedStartDateUpdateCandidates(tasks: Task[], startTaskId: st
       continue;
     }
 
-    const newStartDate = addWorkdays(predTargetDate, 1);
+    const newStartDate = defaultWorkCalendar.addWorkdays(predTargetDate, 1);
     const estimate = successor.estimate !== undefined ? successor.estimate : (successor.tempEstimate || 1);
     const unit = successor.estimateUnit || successor.tempEstimateUnit || 'days';
     const updatedSuccessor = {
@@ -333,7 +279,7 @@ export function cascadeTaskDates(
       const dependencyDates = successor.predecessorIds?.length
         ? calculateFloatingDatesFromPredecessors(tasksCopy, successor)
         : undefined;
-      const newStartDate = dependencyDates?.startDate || addWorkdays(predTargetDate, 1);
+      const newStartDate = dependencyDates?.startDate || defaultWorkCalendar.addWorkdays(predTargetDate, 1);
       
       const currentStart = useRealDates ? successor.startDate : getEffectiveStartDate(successor);
       

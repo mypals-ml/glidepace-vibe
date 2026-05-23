@@ -19,6 +19,7 @@ const MOCK_FIELD_IDS = {
   estimate: 'mock-estimate-id',
   successor: 'mock-successors-id',
   predecessor: 'mock-predecessors-id',
+  groupPath: 'mock-group-path-id',
 };
 
 export const MOCK_TOKEN = 'mock-token-123';
@@ -100,6 +101,17 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
     'Design New Feature',
     'Deploy to Production'
   ];
+  const groupPath = i === 0
+    ? []
+    : i < 7
+      ? ['Planning']
+      : i < 13
+        ? ['Planning', 'Research']
+        : i < 18
+          ? []
+          : i < 24
+            ? ['Delivery']
+            : ['Planning'];
 
   // Generate comments - at least 1, up to 3 per task
   const numComments = (i % 3) + 1;
@@ -126,6 +138,7 @@ const MOCK_TASKS: Task[] = Array.from({ length: 30 }, (_, i) => {
     itemId: `item-${id}`,
     contentId: `content-${id}`,
     body: taskDescriptions[i % taskDescriptions.length],
+    groupPath,
     comments,
   };
 });
@@ -147,6 +160,7 @@ const MOCK_TASKS_BUG_TRACKER: Task[] = Array.from({ length: 15 }, (_, i) => {
     itemId: `item-bug-${id}`,
     contentId: `content-bug-${id}`,
     body: 'Investigation in progress. This bug affects the stability of the latest release candidate.',
+    groupPath: i < 5 ? ['Triage'] : i < 10 ? ['Fixes'] : ['Verification'],
     comments: [],
   };
 });
@@ -163,6 +177,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     progress: 50,
     itemId: 'item-pat-support',
     contentId: 'content-pat-support',
+    groupPath: ['Authentication'],
     body: 'Add support for users to authenticate using their own GitHub Personal Access Tokens. This will allow better privacy and control over permissions.',
     comments: [
       {
@@ -190,6 +205,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     progress: 100,
     itemId: 'item-z-index-fix',
     contentId: 'content-z-index-fix',
+    groupPath: ['Interface'],
     body: 'Multiple modals were appearing behind each other. Updated z-index values to ensure proper stacking order: base modal 40, overlay 50, top modal 60.',
     comments: [
       {
@@ -223,6 +239,7 @@ const CONNECTED_TASKS_TASKS: Task[] = [
     progress: 100,
     itemId: 'item-mock-data',
     contentId: 'content-mock-data',
+    groupPath: ['Interface'],
     body: 'Created a new mock project that simulates real GitHub task data. This helps with testing the connected GitHub tasks workflow.',
     comments: [
       {
@@ -255,6 +272,9 @@ function getTextFieldValue(task: Task, field: GitHubProjectV2Field): string {
   }
   if (field.id === MOCK_FIELD_IDS.predecessor || fieldName.includes('predecessor')) {
     return (task.predecessorIds || []).join(',');
+  }
+  if (field.id === MOCK_FIELD_IDS.groupPath || fieldName.includes('group path') || fieldName === 'group') {
+    return JSON.stringify(task.groupPath || []);
   }
   if (fieldName.includes('auto') && fieldName.includes('start')) {
     return task.autoUpdateStartDate || 'ask';
@@ -304,6 +324,15 @@ function applyMockFieldValue(task: Task, field: GitHubProjectV2Field | undefined
       task.successorIds = value.text.split(',').map(s => s.trim()).filter(Boolean);
     } else if (field.id === MOCK_FIELD_IDS.predecessor || fieldName.includes('predecessor')) {
       task.predecessorIds = value.text.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (field.id === MOCK_FIELD_IDS.groupPath || fieldName.includes('group path') || fieldName === 'group') {
+      try {
+        const parsed = JSON.parse(value.text);
+        task.groupPath = Array.isArray(parsed)
+          ? parsed.filter((segment): segment is string => typeof segment === 'string').map(segment => segment.trim()).filter(Boolean)
+          : [];
+      } catch {
+        task.groupPath = [];
+      }
     } else if (fieldName.includes('auto') && fieldName.includes('start')) {
       if (value.text === 'auto' || value.text === 'locked' || value.text === 'ask') {
         task.autoUpdateStartDate = value.text;
@@ -456,6 +485,12 @@ function getFieldsForProject(projectId: string) {
         __typename: 'ProjectV2Field',
         id: MOCK_FIELD_IDS.predecessor,
         name: 'Predecessors',
+        dataType: 'TEXT'
+      },
+      {
+        __typename: 'ProjectV2Field',
+        id: MOCK_FIELD_IDS.groupPath,
+        name: 'Group Path',
         dataType: 'TEXT'
       }
     ];
@@ -839,6 +874,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
       status: 'Todo',
       startDate: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
       targetDate: new Date(Date.now() + 86400000 * 2).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      groupPath: [],
       assignees: [],
       progress: 0,
       comments: [],
@@ -892,6 +928,26 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     applyMockFieldValue(task, field, value || {});
 
     return { data: { updateProjectV2ItemFieldValue: { projectV2Item: { id: task.itemId } } } };
+  }
+
+  if (query.includes('clearProjectV2ItemFieldValue(')) {
+    const projectId = getVar('projectId');
+    const itemId = getVar('itemId');
+    const task = getAllMockTasks().find(t => t.itemId === itemId);
+    if (!task) return { errors: [{ message: 'Item not found' }] };
+
+    const fieldId = getVar('fieldId');
+    const fields = projectId ? getFieldsForProject(projectId) : Object.values(MOCK_PROJECT_FIELDS_MAP).flat();
+    const field = fields.find(f => f.id === fieldId);
+    const fieldName = field?.name.toLowerCase() || '';
+    if (field?.id === MOCK_FIELD_IDS.startDate || fieldName.includes('start')) {
+      task.startDate = '';
+      task.fullStartDate = undefined;
+      task.tempStartDate = undefined;
+      task.tempTargetDate = undefined;
+    }
+
+    return { data: { clearProjectV2ItemFieldValue: { projectV2Item: { id: task.itemId } } } };
   }
 
   if (query.includes('createProjectV2Field(')) {

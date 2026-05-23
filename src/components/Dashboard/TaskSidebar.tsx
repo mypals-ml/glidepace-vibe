@@ -7,16 +7,153 @@ import { useDashboard } from '../../context/DashboardContext';
 import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor } from '../../utils/statusColors';
-import type { Task, User } from '../../types';
-import { useRef, useState, useEffect, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
+import type { DashboardItem, Task, TaskGroupBlock, User } from '../../types';
+import { useRef, useState, useEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
-import { getAfterIdForVisibleMove, getTaskOrderId } from '../../lib/taskOrderUtils';
+import { getDashboardItemSortId, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { isTaskGroupBlock, parseGroupPath, serializeGroupPath } from '../../lib/taskGroupUtils';
+import { Button } from '../UI/Button';
+
+type ContextMenuTarget =
+  | { kind: 'task'; taskId: string }
+  | { kind: 'group'; groupBlockId: string };
+
+const TREE_DEPTH_COLORS = [
+  '#4f46e5',
+  '#0891b2',
+  '#16a34a',
+  '#d97706',
+  '#dc2626',
+  '#9333ea',
+  '#0f766e',
+  '#2563eb',
+  '#be185d',
+  '#65a30d',
+] as const;
+
+const TREE_NODE_BASE_X = 12;
+const TREE_DEPTH_STEP = 20;
+const TREE_CONTENT_GAP = 18;
+const TREE_ELBOW_HEIGHT = 16;
+const TREE_ELBOW_RADIUS = 8;
+const TREE_ROW_HEIGHT = 72;
+const TREE_LINE_MIX = 34;
+const TREE_ROW_PADDING_LEFT = 8;
+
+interface TreeRowMeta {
+  depth: number;
+  guideSegments: TreeGuideSegment[];
+}
+
+interface TreeGuideSegment {
+  level: number;
+  startsAtNode: boolean;
+  endsAtJoint: boolean;
+}
+
+interface DashboardTreeRow {
+  item: DashboardItem;
+  treeMeta: TreeRowMeta;
+}
 
 function eventTargetElement(target: EventTarget | null): HTMLElement | null {
   return target instanceof HTMLElement ? target : null;
+}
+
+function blurActiveDragHandle() {
+  const activeElement = document.activeElement;
+  if (activeElement instanceof HTMLElement && activeElement.matches('[data-task-drag-handle="true"]')) {
+    activeElement.blur();
+  }
+}
+
+function getDashboardItemTreeDepth(item: DashboardItem): number {
+  if (isTaskGroupBlock(item)) return item.depth;
+  return item.depth ?? (item.groupPath?.length ?? 0) + 1;
+}
+
+function getTreeNodeX(depth: number): number {
+  return TREE_NODE_BASE_X + Math.min(Math.max(depth, 0), TREE_DEPTH_COLORS.length - 1) * TREE_DEPTH_STEP;
+}
+
+function getTreeDragHandleX(): number {
+  return TREE_ROW_PADDING_LEFT;
+}
+
+function getTreeColor(depth: number): string {
+  return TREE_DEPTH_COLORS[Math.min(Math.max(depth, 0), TREE_DEPTH_COLORS.length - 1)];
+}
+
+function getTreeLineColor(depth: number): string {
+  return `color-mix(in srgb, ${getTreeColor(depth)} ${TREE_LINE_MIX}%, white)`;
+}
+
+function getTreeRowDividerLeft(depth: number): number {
+  return TREE_ROW_PADDING_LEFT + getTreeNodeX(depth) + TREE_CONTENT_GAP;
+}
+
+function getTreeHandleHoverColor(depth: number): string {
+  return `color-mix(in srgb, ${getTreeColor(depth)} 82%, black)`;
+}
+
+function buildDashboardTreeRows(items: DashboardItem[]): DashboardTreeRow[] {
+  const depths = items.map(getDashboardItemTreeDepth);
+  const subtreeEndIndexes = depths.map((depth, index) => {
+    let endIndex = index;
+    for (let candidateIndex = index + 1; candidateIndex < depths.length; candidateIndex += 1) {
+      if (depths[candidateIndex] <= depth) break;
+      endIndex = candidateIndex;
+    }
+    return endIndex;
+  });
+  const hasNextSibling = depths.map((depth, index) => {
+    const nextIndexAfterSubtree = subtreeEndIndexes[index] + 1;
+    return depths[nextIndexAfterSubtree] === depth;
+  });
+  const branchStack: number[] = [];
+
+  return items.map((item, index) => {
+    const depth = depths[index];
+    const nextDepth = depths[index + 1] ?? null;
+    const hasChildren = nextDepth !== null && nextDepth > depth;
+
+    branchStack.length = depth + 1;
+    branchStack[depth] = index;
+
+    const guideSegments: TreeGuideSegment[] = [];
+    for (let level = 0; level < depth; level += 1) {
+      const childBranchIndex = branchStack[level + 1];
+      if (childBranchIndex === undefined) continue;
+
+      const isChildBranchRoot = childBranchIndex === index;
+      if (hasNextSibling[childBranchIndex] || isChildBranchRoot) {
+        guideSegments.push({
+          level,
+          startsAtNode: false,
+          endsAtJoint: !hasNextSibling[childBranchIndex] && isChildBranchRoot,
+        });
+      }
+    }
+
+    if (hasChildren) {
+      guideSegments.push({
+        level: depth,
+        startsAtNode: true,
+        endsAtJoint: false,
+      });
+    }
+
+    return {
+      item,
+      treeMeta: {
+        depth,
+        guideSegments,
+      },
+    };
+  });
 }
 
 class TaskMouseSensor extends MouseSensor {
@@ -50,6 +187,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const { t } = useTranslation();
   const { 
     filteredTasks, 
+    dashboardItems,
     tasks, 
     isLoadingTasks, 
     searchQuery, 
@@ -69,27 +207,38 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     selectedLinkTaskIds,
     setSelectedLinkTaskIds,
     updateTaskSuccessors,
+    updateTaskGroupPath,
+    renameGroupBlock,
+    ungroupGroupBlock,
+    toggleGroupBlockCollapsed,
     reorderTask,
+    reorderTaskBlock,
     setPendingTaskInsertPosition,
   } = useDashboard();
   const isMobile = !useMediaQuery('(min-width: 768px)');
-  const [movingTaskId, setMovingTaskId] = useState<string | null>(null);
+  const [movingItemSortId, setMovingItemSortId] = useState<string | null>(null);
   const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; taskId: string; alignRight: boolean } | null>(null);
-  const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; target: ContextMenuTarget; alignRight: boolean } | null>(null);
+  const [activeDragItemSortId, setActiveDragItemSortId] = useState<string | null>(null);
+  const [groupEditor, setGroupEditor] = useState<
+    | { mode: 'taskPath'; taskId: string; value: string }
+    | { mode: 'renameGroup'; groupBlockId: string; value: string }
+    | null
+  >(null);
+  const [isSavingGroupEditor, setIsSavingGroupEditor] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const suppressNextClickRef = useRef(false);
   const dragHasMovedRef = useRef(false);
   const justDroppedRef = useRef(false);
 
   useEffect(() => {
-    if (!movingTaskId) return;
+    if (!movingItemSortId) return;
 
     const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
       const target = e.target as HTMLElement | null;
-      if (!target?.closest(`[data-task-id="${movingTaskId}"]`)) {
-        setMovingTaskId(null);
+      if (!target?.closest(`[data-dashboard-sort-id="${movingItemSortId}"]`)) {
+        setMovingItemSortId(null);
       }
     };
 
@@ -103,23 +252,60 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       document.removeEventListener('click', handleOutsideClick);
       document.removeEventListener('touchstart', handleOutsideClick);
     };
-  }, [movingTaskId]);
+  }, [movingItemSortId]);
 
-  const openContextMenu = (clientX: number, clientY: number, taskId: string) => {
-    if (activeDragTaskId || justDroppedRef.current) return;
+  const openContextMenu = (clientX: number, clientY: number, target: ContextMenuTarget) => {
+    if (activeDragItemSortId || justDroppedRef.current) return;
     const rect = rootRef.current?.getBoundingClientRect();
     if (!rect) return;
 
     setContextMenu({
       x: clientX - rect.left,
       y: clientY - rect.top,
-      taskId,
+      target,
       alignRight: clientX - rect.left > rect.width - 220
     });
   };
 
-  const startCreateTaskAt = (taskId: string, placement: 'above' | 'below') => {
-    setPendingTaskInsertPosition({ targetTaskId: taskId, placement });
+  const findTaskByOrderId = (taskId: string): Task | undefined => {
+    return tasks.find(task => task.id === taskId || task.itemId === taskId || getTaskOrderId(task) === taskId);
+  };
+
+  const findGroupById = (groupBlockId: string): TaskGroupBlock | undefined => {
+    const item = dashboardItems.find(candidate => isTaskGroupBlock(candidate) && candidate.groupBlockId === groupBlockId);
+    return item && isTaskGroupBlock(item) ? item : undefined;
+  };
+
+  const getGroupBoundaryTasks = (group: TaskGroupBlock): { firstTask: Task; lastTask: Task } | null => {
+    const firstTaskId = group.childTaskIds[0];
+    const lastTaskId = group.childTaskIds[group.childTaskIds.length - 1];
+    const firstTask = firstTaskId ? findTaskByOrderId(firstTaskId) : undefined;
+    const lastTask = lastTaskId ? findTaskByOrderId(lastTaskId) : undefined;
+    return firstTask && lastTask ? { firstTask, lastTask } : null;
+  };
+
+  const getContextBoundaryTasks = (target: ContextMenuTarget): { firstTask: Task; lastTask: Task } | null => {
+    if (target.kind === 'task') {
+      const task = findTaskByOrderId(target.taskId);
+      return task ? { firstTask: task, lastTask: task } : null;
+    }
+
+    const group = findGroupById(target.groupBlockId);
+    return group ? getGroupBoundaryTasks(group) : null;
+  };
+
+  const getContextTargetSortId = (target: ContextMenuTarget): string | null => {
+    if (target.kind === 'group') return `group:${target.groupBlockId}`;
+
+    const task = findTaskByOrderId(target.taskId);
+    return task ? getDashboardItemSortId(task) : null;
+  };
+
+  const startCreateTaskAt = (target: ContextMenuTarget, placement: 'above' | 'below') => {
+    const boundaryTasks = getContextBoundaryTasks(target);
+    if (!boundaryTasks) return;
+    const targetTaskId = placement === 'above' ? boundaryTasks.firstTask.id : boundaryTasks.lastTask.id;
+    setPendingTaskInsertPosition({ targetTaskId, placement });
     setIsCreateMode(true);
     setSelectedTaskId(null);
     setIsTaskDetailsOpen(true);
@@ -140,9 +326,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   };
 
   const handleJumpToChart = (taskId: string) => {
-    const task = filteredTasks.find(task => task.id === taskId);
+    const task = findTaskByOrderId(taskId);
+    if (!task) return;
     setIsCreateMode(false);
-    setSelectedTaskId(taskId);
+    setSelectedTaskId(task.id);
     setIsTaskDetailsOpen(false);
     setDashboardView('gantt');
     setIsChartVisible(true);
@@ -155,21 +342,98 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setContextMenu(null);
   };
 
+  const handleJumpContextTargetToChart = (target: ContextMenuTarget) => {
+    const boundaryTasks = getContextBoundaryTasks(target);
+    if (!boundaryTasks) return;
+    handleJumpToChart(boundaryTasks.firstTask.id);
+  };
+
+  const handleAddSuccessorsFromContext = (target: ContextMenuTarget) => {
+    const boundaryTasks = getContextBoundaryTasks(target);
+    if (!boundaryTasks) return;
+
+    setIsLinkMode(true);
+    setSelectedLinkTaskIds([boundaryTasks.lastTask.id]);
+    setContextMenu(null);
+  };
+
+  const handleBreakLinksFromContext = async (target: ContextMenuTarget) => {
+    const boundaryTasks = getContextBoundaryTasks(target);
+    if (!boundaryTasks) return;
+
+    if (target.kind === 'group') {
+      const firstTaskOrderId = getTaskOrderId(boundaryTasks.firstTask);
+      const predecessorTasks = tasks.filter(task => (task.successorIds || []).includes(firstTaskOrderId));
+
+      for (const predecessorTask of predecessorTasks) {
+        const nextSuccessorIds = (predecessorTask.successorIds || []).filter(successorId => successorId !== firstTaskOrderId);
+        await updateTaskSuccessors(getTaskOrderId(predecessorTask), nextSuccessorIds, true);
+      }
+    }
+
+    if (boundaryTasks.lastTask.successorIds?.length) {
+      await updateTaskSuccessors(boundaryTasks.lastTask.id, [], true);
+    }
+
+    setContextMenu(null);
+  };
+
+  const promptTaskGroupPath = async (taskId: string) => {
+    const task = filteredTasks.find(t => t.id === taskId || t.itemId === taskId);
+    if (!task) return;
+
+    setGroupEditor({
+      mode: 'taskPath',
+      taskId: task.id,
+      value: serializeGroupPath(task.groupPath),
+    });
+    setContextMenu(null);
+  };
+
+  const promptRenameGroup = async (group: TaskGroupBlock) => {
+    setGroupEditor({
+      mode: 'renameGroup',
+      groupBlockId: group.groupBlockId,
+      value: group.name,
+    });
+    setContextMenu(null);
+  };
+
+  const handleSaveGroupEditor = async () => {
+    if (!groupEditor || isSavingGroupEditor) return;
+
+    setIsSavingGroupEditor(true);
+    try {
+      const success = groupEditor.mode === 'taskPath'
+        ? await updateTaskGroupPath(groupEditor.taskId, parseGroupPath(groupEditor.value))
+        : await renameGroupBlock(groupEditor.groupBlockId, groupEditor.value);
+
+      if (success) {
+        setGroupEditor(null);
+      }
+    } finally {
+      setIsSavingGroupEditor(false);
+    }
+  };
+
   const sensors = useSensors(
     useSensor(TaskMouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TaskTouchSensor, {
-      activationConstraint: movingTaskId
+      activationConstraint: movingItemSortId
         ? { distance: 5 }
         : { delay: 550, tolerance: 8 }
     }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const sortableTaskIds = filteredTasks.map(getTaskOrderId);
+  const sortableItemIds = dashboardItems
+    .filter(item => !isTaskGroupBlock(item) || !item.isSyntheticRoot)
+    .map(getDashboardItemSortId);
+  const dashboardRows = buildDashboardTreeRows(dashboardItems);
 
   const handleDragStart = (event: DragStartEvent) => {
     dragHasMovedRef.current = false;
-    setActiveDragTaskId(String(event.active.id));
+    setActiveDragItemSortId(String(event.active.id));
     suppressNextClickRef.current = true;
     setContextMenu(null);
   };
@@ -184,13 +448,18 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       const { active, over } = event;
       if (!over) return;
 
-      const afterTaskId = getAfterIdForVisibleMove(filteredTasks, String(active.id), String(over.id));
-      if (afterTaskId === undefined) return;
+      const movePlan = getVisibleDashboardMovePlan(dashboardItems, String(active.id), String(over.id));
+      if (!movePlan) return;
 
-      await reorderTask(String(active.id), afterTaskId);
+      if (movePlan.taskIds.length === 1) {
+        await reorderTask(movePlan.taskIds[0], movePlan.afterTaskId);
+      } else {
+        await reorderTaskBlock(movePlan.taskIds, movePlan.afterTaskId);
+      }
     } finally {
-      setActiveDragTaskId(null);
-      setMovingTaskId(null);
+      setActiveDragItemSortId(null);
+      setMovingItemSortId(null);
+      blurActiveDragHandle();
       dragHasMovedRef.current = false;
       justDroppedRef.current = true;
       setTimeout(() => {
@@ -202,8 +471,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   return (
     <div className="flex flex-col h-full overflow-hidden relative" ref={rootRef}>
       {/* Header - Moved outside scroll container for alignment */}
-      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[40px_1fr_64px_76px] gap-2 pl-4 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.id')}</div>
+      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[1fr_64px_76px] gap-1 pl-2 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.title')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">{t('table.assignees')}</div>
@@ -244,8 +512,9 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
               onDragCancel={() => {
-                setActiveDragTaskId(null);
-                setMovingTaskId(null);
+                setActiveDragItemSortId(null);
+                setMovingItemSortId(null);
+                blurActiveDragHandle();
                 dragHasMovedRef.current = false;
                 justDroppedRef.current = true;
                 setTimeout(() => {
@@ -253,31 +522,50 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 }, 100);
               }}
             >
-              <SortableContext items={sortableTaskIds} strategy={verticalListSortingStrategy}>
-                {filteredTasks.map((task, index) => (
-                  <SortableTaskRow
-                    isFirst={index === 0}
-                    key={task.id}
-                    task={task}
-                    isLinkMode={isLinkMode}
-                    isSelected={selectedTaskId === task.id}
-                    isLinkSelected={selectedLinkTaskIds.includes(task.id)}
-                    isDragActive={activeDragTaskId === getTaskOrderId(task)}
-                    isAnyDragging={activeDragTaskId !== null}
-                    isMobile={isMobile}
-                    movingTaskId={movingTaskId}
-                    openPickerTaskId={openPickerTaskId}
-                    openStatusPickerTaskId={openStatusPickerTaskId}
-                    suppressNextClickRef={suppressNextClickRef}
-                    openContextMenu={openContextMenu}
-                    handleTaskActivate={handleTaskActivate}
-                    setOpenPickerTaskId={setOpenPickerTaskId}
-                    setOpenStatusPickerTaskId={setOpenStatusPickerTaskId}
-                    setIsLinkMode={setIsLinkMode}
-                    setSelectedLinkTaskIds={setSelectedLinkTaskIds}
-                    centerGanttOnDate={centerGanttOnDate}
-                    t={t}
-                  />
+              <SortableContext items={sortableItemIds} strategy={verticalListSortingStrategy}>
+                {dashboardRows.map(({ item, treeMeta }, index) => (
+                  isTaskGroupBlock(item) ? (
+                    <TaskGroupRow
+                      key={item.groupBlockId}
+                      group={item}
+                      treeMeta={treeMeta}
+                      onToggle={() => toggleGroupBlockCollapsed(item.groupBlockId)}
+                      onRename={() => promptRenameGroup(item)}
+                      onUngroup={() => ungroupGroupBlock(item.groupBlockId)}
+                      isDragActive={activeDragItemSortId === getDashboardItemSortId(item)}
+                      isAnyDragging={activeDragItemSortId !== null}
+                      isMobile={isMobile}
+                      movingItemSortId={movingItemSortId}
+                      suppressNextClickRef={suppressNextClickRef}
+                      openContextMenu={openContextMenu}
+                      t={t}
+                    />
+                  ) : (
+                    <SortableTaskRow
+                      isFirst={index === 0}
+                      key={item.id}
+                      task={item}
+                      treeMeta={treeMeta}
+                      isLinkMode={isLinkMode}
+                      isSelected={selectedTaskId === item.id}
+                      isLinkSelected={selectedLinkTaskIds.includes(item.id)}
+                      isDragActive={activeDragItemSortId === getDashboardItemSortId(item)}
+                      isAnyDragging={activeDragItemSortId !== null}
+                      isMobile={isMobile}
+                      movingItemSortId={movingItemSortId}
+                      openPickerTaskId={openPickerTaskId}
+                      openStatusPickerTaskId={openStatusPickerTaskId}
+                      suppressNextClickRef={suppressNextClickRef}
+                      openContextMenu={openContextMenu}
+                      handleTaskActivate={handleTaskActivate}
+                      setOpenPickerTaskId={setOpenPickerTaskId}
+                      setOpenStatusPickerTaskId={setOpenStatusPickerTaskId}
+                      setIsLinkMode={setIsLinkMode}
+                      setSelectedLinkTaskIds={setSelectedLinkTaskIds}
+                      centerGanttOnDate={centerGanttOnDate}
+                      t={t}
+                    />
+                  )
                 ))}
               </SortableContext>
             </DndContext>
@@ -306,14 +594,14 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
           >
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
-              onClick={() => startCreateTaskAt(contextMenu.taskId, 'above')}
+              onClick={() => startCreateTaskAt(contextMenu.target, 'above')}
             >
               <span className="material-symbols-outlined text-[16px]">add</span>
               {t('dashboard.addTaskAbove', 'Add task above')}
             </button>
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
-              onClick={() => startCreateTaskAt(contextMenu.taskId, 'below')}
+              onClick={() => startCreateTaskAt(contextMenu.target, 'below')}
             >
               <span className="material-symbols-outlined text-[16px]">add</span>
               {t('dashboard.addTaskBelow', 'Add task below')}
@@ -322,7 +610,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               <button
                 className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
                 onClick={() => {
-                  setMovingTaskId(contextMenu.taskId);
+                  setMovingItemSortId(getContextTargetSortId(contextMenu.target));
                   setContextMenu(null);
                 }}
               >
@@ -331,20 +619,53 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               </button>
             )}
             <div className="my-1 border-t border-slate-100" />
+            {contextMenu.target.kind === 'group' ? (
+              <>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                  onClick={() => {
+                    if (contextMenu.target.kind !== 'group') return;
+                    const group = findGroupById(contextMenu.target.groupBlockId);
+                    if (group) promptRenameGroup(group);
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[16px]">edit</span>
+                  {t('dashboard.renameGroup', 'Rename group')}
+                </button>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                  onClick={() => {
+                    if (contextMenu.target.kind !== 'group') return;
+                    ungroupGroupBlock(contextMenu.target.groupBlockId);
+                    setContextMenu(null);
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[16px]">folder_off</span>
+                  {t('dashboard.ungroup', 'Ungroup')}
+                </button>
+              </>
+            ) : (
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                onClick={() => {
+                  if (contextMenu.target.kind !== 'task') return;
+                  promptTaskGroupPath(contextMenu.target.taskId);
+                }}
+              >
+                <span className="material-symbols-outlined text-[16px]">drive_file_move</span>
+                {t('dashboard.setGroupPath', 'Set group path')}
+              </button>
+            )}
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
-              onClick={() => handleJumpToChart(contextMenu.taskId)}
+              onClick={() => handleJumpContextTargetToChart(contextMenu.target)}
             >
               <span className="material-symbols-outlined text-[16px]">center_focus_strong</span>
               {t('dashboard.jumpToChart')}
             </button>
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
-              onClick={() => {
-                setIsLinkMode(true);
-                setSelectedLinkTaskIds([contextMenu.taskId]);
-                setContextMenu(null);
-              }}
+              onClick={() => handleAddSuccessorsFromContext(contextMenu.target)}
             >
               <span className="material-symbols-outlined text-[16px]">add_link</span>
               {t('dashboard.addSuccessors')}
@@ -352,17 +673,100 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             <button
               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
               onClick={() => {
-                const tObj = filteredTasks.find(tObj => tObj.id === contextMenu.taskId);
-                if (tObj?.successorIds?.length) {
-                  updateTaskSuccessors(contextMenu.taskId, []);
-                }
-                setContextMenu(null);
+                handleBreakLinksFromContext(contextMenu.target);
               }}
             >
               <span className="material-symbols-outlined text-[16px]">link_off</span>
               {t('dashboard.breakAllLinks')}
             </button>
           </div>
+        </div>
+      )}
+
+      {groupEditor && (
+        <div
+          className="absolute inset-0 z-[120] flex items-center justify-center bg-slate-900/25 backdrop-blur-sm p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="group-editor-title"
+          onClick={() => {
+            if (!isSavingGroupEditor) setGroupEditor(null);
+          }}
+        >
+          <form
+            className="w-full max-w-sm rounded-xl border border-slate-200 bg-white shadow-2xl"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSaveGroupEditor();
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <h3 id="group-editor-title" className="text-sm font-bold text-slate-800">
+                {groupEditor.mode === 'taskPath'
+                  ? t('dashboard.setGroupPath', 'Set group path')
+                  : t('dashboard.renameGroup', 'Rename group')}
+              </h3>
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="xs"
+                onClick={() => setGroupEditor(null)}
+                disabled={isSavingGroupEditor}
+                aria-label={t('dashboard.close', 'Close')}
+              />
+            </div>
+            <div className="space-y-2 px-4 py-4">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500" htmlFor="group-editor-value">
+                {groupEditor.mode === 'taskPath'
+                  ? t('settings.groupPathField', 'Group Path')
+                  : t('dashboard.groupLabel', 'Group')}
+              </label>
+              {groupEditor.mode === 'taskPath' ? (
+                <textarea
+                  id="group-editor-value"
+                  className="min-h-24 w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                  value={groupEditor.value}
+                  onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
+                  placeholder='["group1","group2"]'
+                  autoFocus
+                />
+              ) : (
+                <input
+                  id="group-editor-value"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                  value={groupEditor.value}
+                  onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
+                  autoFocus
+                />
+              )}
+              {groupEditor.mode === 'taskPath' && (
+                <p className="text-xs leading-relaxed text-slate-500">
+                  {t('dashboard.groupPathHelp', 'Use [] for the project root, or a JSON array such as ["group1","group2"].')}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 rounded-b-xl border-t border-slate-100 bg-slate-50 px-4 py-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setGroupEditor(null)}
+                disabled={isSavingGroupEditor}
+              >
+                {t('common.cancel', 'Cancel')}
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                isLoading={isSavingGroupEditor}
+                disabled={groupEditor.mode === 'renameGroup' && groupEditor.value.trim().length === 0}
+              >
+                {t('common.save', 'Save')}
+              </Button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -442,20 +846,302 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   );
 }
 
+interface TreeTitleCellProps {
+  children: ReactNode;
+  treeMeta: TreeRowMeta;
+  nodeKind: 'group' | 'task';
+  isExpanded?: boolean;
+  onToggle?: () => void;
+  toggleTitle?: string;
+  toggleAriaLabel?: string;
+}
+
+function TreeTitleCell({
+  children,
+  treeMeta,
+  nodeKind,
+  isExpanded = false,
+  onToggle,
+  toggleTitle,
+  toggleAriaLabel,
+}: TreeTitleCellProps) {
+  const visualDepth = Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1);
+  const nodeX = getTreeNodeX(visualDepth);
+  const parentDepth = Math.max(visualDepth - 1, 0);
+  const parentX = getTreeNodeX(parentDepth);
+  const railColor = getTreeColor(visualDepth);
+  const contentPaddingLeft = nodeX + TREE_CONTENT_GAP;
+  const parentLineColor = getTreeLineColor(parentDepth);
+  const nodeCenterY = TREE_ROW_HEIGHT / 2;
+  const elbowCenterY = nodeCenterY - 1;
+  const elbowTopY = elbowCenterY - TREE_ELBOW_HEIGHT;
+  const elbowCurveStartY = elbowCenterY - TREE_ELBOW_RADIUS;
+  const elbowCurveEndX = parentX + TREE_ELBOW_RADIUS;
+
+  const nodeCommonClassName = 'absolute top-1/2 z-[2] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white';
+  const nodeStyle: CSSProperties = {
+    left: nodeX,
+    color: railColor,
+  };
+
+  return (
+    <div className="relative h-full min-w-0">
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        {treeMeta.guideSegments.map(segment => (
+          <span
+            key={segment.level}
+            className="absolute w-0.5 -translate-x-1/2 rounded-full"
+            style={{
+              left: getTreeNodeX(segment.level),
+              top: segment.startsAtNode ? '50%' : 0,
+              bottom: segment.endsAtJoint ? `calc(50% + ${TREE_ELBOW_HEIGHT}px)` : 0,
+              backgroundColor: getTreeLineColor(segment.level),
+            }}
+          />
+        ))}
+        {visualDepth > 0 && (
+          <svg className="absolute inset-0 overflow-visible" aria-hidden="true">
+            <path
+              d={`M ${parentX} ${elbowTopY} V ${elbowCurveStartY} Q ${parentX} ${elbowCenterY} ${elbowCurveEndX} ${elbowCenterY} H ${nodeX}`}
+              fill="none"
+              stroke={parentLineColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+      </div>
+
+      {nodeKind === 'group' ? (
+        <button
+          type="button"
+          className={`${nodeCommonClassName} pointer-events-auto inline-flex h-[18px] w-[18px] items-center justify-center border-2 transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30`}
+          style={{
+            ...nodeStyle,
+            backgroundColor: isExpanded ? `color-mix(in srgb, ${railColor} 10%, white)` : '#fff',
+            borderColor: railColor,
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle?.();
+          }}
+          title={toggleTitle}
+          aria-label={toggleAriaLabel}
+          aria-expanded={isExpanded}
+        >
+          <span className="h-0.5 w-1.5 rounded-full" style={{ backgroundColor: railColor }} />
+          {!isExpanded && (
+            <span className="absolute h-1.5 w-0.5 rounded-full" style={{ backgroundColor: railColor }} />
+          )}
+        </button>
+      ) : (
+        <span
+          className={`${nodeCommonClassName} h-2.5 w-2.5 border-2`}
+          style={{
+            ...nodeStyle,
+            borderColor: railColor,
+          }}
+          aria-hidden="true"
+        />
+      )}
+
+      <div
+        className="relative z-[1] flex h-full min-w-0 flex-col justify-center overflow-hidden pr-1"
+        style={{ paddingLeft: contentPaddingLeft }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+interface TaskGroupRowProps {
+  group: TaskGroupBlock;
+  treeMeta: TreeRowMeta;
+  onToggle: () => void;
+  onRename: () => void;
+  onUngroup: () => void;
+  isDragActive: boolean;
+  isAnyDragging: boolean;
+  isMobile: boolean;
+  movingItemSortId: string | null;
+  suppressNextClickRef: React.MutableRefObject<boolean>;
+  openContextMenu: (clientX: number, clientY: number, target: ContextMenuTarget) => void;
+  t: TFunction;
+}
+
+function TaskGroupRow({
+  group,
+  treeMeta,
+  onToggle,
+  onRename,
+  onUngroup,
+  isDragActive,
+  isAnyDragging,
+  isMobile,
+  movingItemSortId,
+  suppressNextClickRef,
+  openContextMenu,
+  t,
+}: TaskGroupRowProps) {
+  const sortId = getDashboardItemSortId(group);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: sortId, disabled: group.isSyntheticRoot });
+  const [isRowHovered, setIsRowHovered] = useState(false);
+  const [isDragHandleHovered, setIsDragHandleHovered] = useState(false);
+  const [isDragHandleFocused, setIsDragHandleFocused] = useState(false);
+  const isMovingThisGroup = movingItemSortId === sortId;
+  const showHoverActions = !group.isSyntheticRoot && !isDragging && !isDragActive && !isAnyDragging;
+  const dragHandleLeft = getTreeDragHandleX();
+  const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
+  const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
+  const dragHandleFillClass = isDragging || isDragActive ? 'bg-white' : 'bg-slate-100/80 group-hover:bg-indigo-50';
+  const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
+  const dividerLeft = getTreeRowDividerLeft(treeMeta.depth);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        touchAction: isMobile && isMovingThisGroup ? 'none' : undefined,
+        '--tree-row-divider-left': `${dividerLeft}px`,
+      } as CSSProperties}
+      data-dashboard-sort-id={sortId}
+      data-task-moving={isMobile && isMovingThisGroup ? "true" : undefined}
+      className={`grid grid-cols-[1fr_64px_76px] gap-1 items-center h-[72px] pl-2 pr-0 transition-all duration-200 relative group overflow-visible after:absolute after:bottom-0 after:left-[var(--tree-row-divider-left)] after:right-0 after:h-px after:bg-slate-100/50 after:content-[''] ${
+        group.isSyntheticRoot ? 'bg-slate-100/80' : 'bg-slate-50/80'
+      } ${!group.isSyntheticRoot ? 'cursor-pointer hover:bg-slate-50' : ''} ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''}`}
+      onClick={() => {
+        if (group.isSyntheticRoot) return;
+        if (suppressNextClickRef.current) {
+          suppressNextClickRef.current = false;
+          return;
+        }
+        onToggle();
+      }}
+      onContextMenu={(e) => {
+        if (group.isSyntheticRoot) return;
+        e.preventDefault();
+        openContextMenu(e.clientX, e.clientY, { kind: 'group', groupBlockId: group.groupBlockId });
+      }}
+      onMouseEnter={() => setIsRowHovered(true)}
+      onMouseLeave={() => setIsRowHovered(false)}
+      role={!group.isSyntheticRoot ? 'button' : undefined}
+      tabIndex={!group.isSyntheticRoot ? 0 : undefined}
+      aria-expanded={!group.isSyntheticRoot ? group.isExpanded : undefined}
+      onKeyDown={(e) => {
+        if (group.isSyntheticRoot) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+    >
+      {!group.isSyntheticRoot && (
+        <button
+          type="button"
+          data-task-drag-handle="true"
+          className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-[72px] w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-none text-slate-400 transition-[opacity,color,background-color] cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
+            isAnyDragging && !isDragging && !isDragActive ? 'opacity-0 pointer-events-none' : 'task-drag-handle'
+          } ${
+            isDragging || isDragActive ? 'is-dragging' : ''
+          }`}
+          style={{
+            left: dragHandleLeft,
+            color: dragHandleColor,
+          } as CSSProperties}
+          onMouseEnter={() => setIsDragHandleHovered(true)}
+          onMouseLeave={() => setIsDragHandleHovered(false)}
+          onFocus={() => setIsDragHandleFocused(true)}
+          onBlur={() => setIsDragHandleFocused(false)}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          title={t('dashboard.dragToReorder', 'Drag to reorder')}
+          aria-label={t('dashboard.dragToReorder', 'Drag to reorder')}
+          {...attributes}
+          {...listeners}
+        >
+          <span className="material-symbols-outlined text-[14px]">drag_indicator</span>
+        </button>
+      )}
+
+      <TreeTitleCell
+        treeMeta={treeMeta}
+        nodeKind="group"
+        isExpanded={group.isExpanded}
+        onToggle={onToggle}
+        toggleTitle={group.isExpanded ? t('dashboard.collapseGroup', 'Collapse group') : t('dashboard.expandGroup', 'Expand group')}
+        toggleAriaLabel={group.isExpanded ? t('dashboard.collapseGroup', 'Collapse group') : t('dashboard.expandGroup', 'Expand group')}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-bold text-slate-700 truncate">{group.name}</span>
+        </div>
+        <div className="mt-0.5 truncate text-[10px] font-medium text-slate-400">
+          {group.startDate && group.targetDate ? `${group.startDate} - ${group.targetDate}` : t('dashboard.noGroupDates', 'No dates')}
+        </div>
+      </TreeTitleCell>
+      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+        {t('dashboard.groupLabel', 'Group')}
+      </div>
+      <div aria-hidden="true" />
+
+      <div className={`absolute right-2 bottom-full translate-y-[60%] flex items-center gap-1 opacity-0 ${showHoverActions ? 'group-hover:opacity-100' : ''} transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
+        <IconButton
+          icon="edit"
+          variant="ghost"
+          size="xs"
+          className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRename();
+          }}
+          title={t('dashboard.renameGroup', 'Rename group')}
+          aria-label={t('dashboard.renameGroup', 'Rename group')}
+        />
+        <IconButton
+          icon="folder_off"
+          variant="ghost"
+          size="xs"
+          className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onUngroup();
+          }}
+          title={t('dashboard.ungroup', 'Ungroup')}
+          aria-label={t('dashboard.ungroup', 'Ungroup')}
+        />
+      </div>
+    </div>
+  );
+}
+
 interface SortableTaskRowProps {
   task: Task;
   isFirst: boolean;
+  treeMeta: TreeRowMeta;
   isLinkMode: boolean;
   isSelected: boolean;
   isLinkSelected: boolean;
   isDragActive: boolean;
   isAnyDragging: boolean;
   isMobile: boolean;
-  movingTaskId: string | null;
+  movingItemSortId: string | null;
   openPickerTaskId: string | null;
   openStatusPickerTaskId: string | null;
   suppressNextClickRef: React.MutableRefObject<boolean>;
-  openContextMenu: (clientX: number, clientY: number, taskId: string) => void;
+  openContextMenu: (clientX: number, clientY: number, target: ContextMenuTarget) => void;
   handleTaskActivate: (taskId: string) => void;
   setOpenPickerTaskId: Dispatch<SetStateAction<string | null>>;
   setOpenStatusPickerTaskId: Dispatch<SetStateAction<string | null>>;
@@ -468,13 +1154,14 @@ interface SortableTaskRowProps {
 function SortableTaskRow({
   task,
   isFirst,
+  treeMeta,
   isLinkMode,
   isSelected,
   isLinkSelected,
   isDragActive,
   isAnyDragging,
   isMobile,
-  movingTaskId,
+  movingItemSortId,
   openPickerTaskId,
   openStatusPickerTaskId,
   suppressNextClickRef,
@@ -494,12 +1181,22 @@ function SortableTaskRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: getTaskOrderId(task) });
-  const isMovingThisTask = movingTaskId === task.id;
+  } = useSortable({ id: getDashboardItemSortId(task) });
+  const [isRowHovered, setIsRowHovered] = useState(false);
+  const [isDragHandleHovered, setIsDragHandleHovered] = useState(false);
+  const [isDragHandleFocused, setIsDragHandleFocused] = useState(false);
+  const sortId = getDashboardItemSortId(task);
+  const isMovingThisTask = movingItemSortId === sortId;
   const showHoverActions = !isDragging && !isDragActive && !isAnyDragging;
+  const dragHandleLeft = getTreeDragHandleX();
   const dragHandleFillClass = isLinkMode
-    ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-white group-hover:bg-drag-handle-hovered'
-    : isSelected ? 'bg-drag-handle-selected' : 'bg-white group-hover:bg-drag-handle-hovered';
+    ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-slate-100/80 group-hover:bg-indigo-50'
+    : isSelected ? 'bg-indigo-100' : 'bg-slate-100/80 group-hover:bg-indigo-50';
+  const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
+  const treeLineColor = getTreeLineColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
+  const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
+  const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
+  const dividerLeft = getTreeRowDividerLeft(treeMeta.depth);
 
   return (
     <div
@@ -508,11 +1205,13 @@ function SortableTaskRow({
         transform: CSS.Transform.toString(transform),
         transition,
         touchAction: isMobile && isMovingThisTask ? 'none' : undefined,
-      }}
+        '--tree-row-divider-left': `${dividerLeft}px`,
+      } as CSSProperties}
       data-task-sortable-row="true"
+      data-dashboard-sort-id={sortId}
       data-task-id={task.id}
       data-task-moving={isMobile && isMovingThisTask ? "true" : undefined}
-      className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
+      className={`grid grid-cols-[1fr_64px_76px] gap-1 items-center h-[72px] pl-2 pr-0 cursor-pointer transition-all duration-200 relative group overflow-visible after:absolute after:bottom-0 after:left-[var(--tree-row-divider-left)] after:right-0 after:h-px after:bg-slate-100/50 after:content-[''] ${
         isLinkMode
           ? isLinkSelected ? 'bg-primary/10 ring-1 ring-primary/30 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
           : isSelected ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
@@ -526,8 +1225,10 @@ function SortableTaskRow({
       }}
       onContextMenu={(e) => {
         e.preventDefault();
-        openContextMenu(e.clientX, e.clientY, task.id);
+        openContextMenu(e.clientX, e.clientY, { kind: 'task', taskId: task.id });
       }}
+      onMouseEnter={() => setIsRowHovered(true)}
+      onMouseLeave={() => setIsRowHovered(false)}
       aria-pressed={isLinkMode ? isLinkSelected : undefined}
       role="button"
       tabIndex={0}
@@ -540,17 +1241,25 @@ function SortableTaskRow({
       }}
     >
       {(isSelected || isLinkSelected) && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full z-10" />
+        <div className="absolute left-0 top-0 h-full w-0.5 bg-primary rounded-r-full z-10" />
       )}
 
       <button
         type="button"
         data-task-drag-handle="true"
-        className={`pointer-events-auto absolute left-0 top-1/2 z-20 inline-flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
+        className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-[72px] w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-none text-slate-400 transition-[opacity,color,background-color] cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
           isAnyDragging && !isDragging && !isDragActive ? 'opacity-0 pointer-events-none' : 'task-drag-handle'
         } ${
           isDragging || isDragActive ? 'is-dragging' : ''
         }`}
+        style={{
+          left: dragHandleLeft,
+          color: dragHandleColor,
+        } as CSSProperties}
+        onMouseEnter={() => setIsDragHandleHovered(true)}
+        onMouseLeave={() => setIsDragHandleHovered(false)}
+        onFocus={() => setIsDragHandleFocused(true)}
+        onBlur={() => setIsDragHandleFocused(false)}
         onClick={(e) => e.stopPropagation()}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -564,20 +1273,13 @@ function SortableTaskRow({
         <span className="material-symbols-outlined text-[14px]">drag_indicator</span>
       </button>
 
-      <div className="pl-3 text-xs text-slate-400 font-medium relative">
-        <div
-          className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3 rounded-full ${getStatusDotColor(task.status).replace(' animate-pulse', '')}`}
-          aria-hidden="true"
-        />
-        {task.displayId}
-      </div>
-
-      <div className="flex flex-col justify-center min-w-0 pr-1">
-        <span className={`text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
+      <TreeTitleCell treeMeta={treeMeta} nodeKind="task">
+        <span className={`overflow-hidden text-ellipsis text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
+          <span style={{ color: treeLineColor }}>{task.displayId}</span>{' '}
           {task.title}
         </span>
-        <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
-      </div>
+        <div className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
+      </TreeTitleCell>
 
       <div className="group/status relative h-full flex items-center min-w-0">
         <div
@@ -601,7 +1303,7 @@ function SortableTaskRow({
         )}
       </div>
 
-      <div className="group/assignee relative h-full flex items-center justify-center pr-2">
+      <div className="group/assignee relative h-full flex items-center justify-center pr-1">
         <div
           className="flex -space-x-1.5 cursor-pointer hover:scale-110 transition-transform p-1"
           onClick={(e) => {
@@ -675,7 +1377,7 @@ function SortableTaskRow({
           className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
           onClick={(e) => {
             e.stopPropagation();
-            openContextMenu(e.clientX, e.clientY, task.id);
+            openContextMenu(e.clientX, e.clientY, { kind: 'task', taskId: task.id });
           }}
           title={t('dashboard.moreActions', 'More actions')}
           aria-label={t('dashboard.moreActions', 'More actions')}

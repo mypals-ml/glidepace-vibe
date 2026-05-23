@@ -11,6 +11,7 @@ import { IconButton } from '../UI/IconButton';
 import { ConfirmationModal } from '../UI/ConfirmationModal';
 import { calculateTargetDate } from '../../lib/dateUtils';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
+import { copyTextToClipboard } from '../../lib/clipboard';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -22,26 +23,12 @@ function CopyButton({ text, t }: { text: string; t: TFunction }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).blur();
     if (!text) return;
     try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        // Fallback for non-secure contexts (e.g. local IP access on mobile)
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-9999px";
-        textArea.style.top = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        const successful = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        if (!successful) throw new Error('copy command failed');
-      }
+      const successful = await copyTextToClipboard(text);
+      if (!successful) throw new Error('copy command failed');
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -714,13 +701,27 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       <div className="border-t border-slate-200/60 pt-3 space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.startDate')}</label>
-            <input
-              type="date"
-              value={getStartDateForCal(task)}
-              onChange={(e) => updateTaskDates(task, e.target.value, undefined)}
-              className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
-            />
+            <div className="flex h-4 items-center gap-2 mb-2">
+              <label className="text-xs font-medium text-slate-600">{t('dashboard.startDate')}</label>
+              <button
+                type="button"
+                onClick={() => updateTaskDates(task, null, undefined)}
+                disabled={!task.startDate}
+                aria-label={t('dashboard.resetStartDateToAuto', 'Reset to Auto')}
+                title={!task.startDate ? t('dashboard.startDateAlreadyAuto', 'Start date is already automatic') : undefined}
+                className="h-4 shrink-0 rounded border border-primary/20 bg-primary/10 px-1.5 text-[10px] font-medium leading-none text-primary transition-colors hover:bg-primary/15 hover:text-primary/80 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                {t('dashboard.resetStartDateToAuto', 'Reset to Auto')}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={getStartDateForCal(task)}
+                onChange={(e) => updateTaskDates(task, e.target.value || null, undefined)}
+                className="min-w-0 flex-1 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
+              />
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
