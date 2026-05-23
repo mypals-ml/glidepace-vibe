@@ -39,6 +39,7 @@ const TREE_DEPTH_STEP = 20;
 const TREE_CONTENT_GAP = 18;
 const TREE_ELBOW_HEIGHT = 16;
 const TREE_LINE_MIX = 34;
+const TREE_ROW_PADDING_LEFT = 8;
 
 interface TreeRowMeta {
   depth: number;
@@ -512,6 +513,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       isAnyDragging={activeDragItemSortId !== null}
                       isMobile={isMobile}
                       movingItemSortId={movingItemSortId}
+                      suppressNextClickRef={suppressNextClickRef}
                       openContextMenu={openContextMenu}
                       t={t}
                     />
@@ -948,6 +950,7 @@ interface TaskGroupRowProps {
   isAnyDragging: boolean;
   isMobile: boolean;
   movingItemSortId: string | null;
+  suppressNextClickRef: React.MutableRefObject<boolean>;
   openContextMenu: (clientX: number, clientY: number, target: ContextMenuTarget) => void;
   t: TFunction;
 }
@@ -962,6 +965,7 @@ function TaskGroupRow({
   isAnyDragging,
   isMobile,
   movingItemSortId,
+  suppressNextClickRef,
   openContextMenu,
   t,
 }: TaskGroupRowProps) {
@@ -975,6 +979,8 @@ function TaskGroupRow({
     isDragging,
   } = useSortable({ id: sortId, disabled: group.isSyntheticRoot });
   const isMovingThisGroup = movingItemSortId === sortId;
+  const showHoverActions = !group.isSyntheticRoot && !isDragging && !isDragActive && !isAnyDragging;
+  const dragHandleLeft = TREE_ROW_PADDING_LEFT + getTreeNodeX(treeMeta.depth);
 
   return (
     <div
@@ -989,21 +995,40 @@ function TaskGroupRow({
       className={`grid grid-cols-[1fr_64px_76px] gap-1 items-center h-[72px] pl-2 pr-0 border-b border-slate-100/50 transition-all duration-200 relative group overflow-visible ${
         group.isSyntheticRoot ? 'bg-slate-100/80' : 'bg-slate-50/80'
       } ${!group.isSyntheticRoot ? 'cursor-pointer hover:bg-slate-50' : ''} ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''}`}
+      onClick={() => {
+        if (group.isSyntheticRoot) return;
+        if (suppressNextClickRef.current) {
+          suppressNextClickRef.current = false;
+          return;
+        }
+        onToggle();
+      }}
       onContextMenu={(e) => {
         if (group.isSyntheticRoot) return;
         e.preventDefault();
         openContextMenu(e.clientX, e.clientY, { kind: 'group', groupBlockId: group.groupBlockId });
+      }}
+      role={!group.isSyntheticRoot ? 'button' : undefined}
+      tabIndex={!group.isSyntheticRoot ? 0 : undefined}
+      aria-expanded={!group.isSyntheticRoot ? group.isExpanded : undefined}
+      onKeyDown={(e) => {
+        if (group.isSyntheticRoot) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggle();
+        }
       }}
     >
       {!group.isSyntheticRoot && (
         <button
           type="button"
           data-task-drag-handle="true"
-          className={`pointer-events-auto absolute left-0 top-1/2 z-20 inline-flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm bg-white text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${
+          className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-7 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-sm bg-white text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${
             isAnyDragging && !isDragging && !isDragActive ? 'opacity-0 pointer-events-none' : 'task-drag-handle'
           } ${
             isDragging || isDragActive ? 'is-dragging' : ''
           }`}
+          style={{ left: dragHandleLeft }}
           onClick={(e) => e.stopPropagation()}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -1036,27 +1061,33 @@ function TaskGroupRow({
       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
         {t('dashboard.groupLabel', 'Group')}
       </div>
-      <div className="flex justify-center gap-1 pr-1">
-        {!group.isSyntheticRoot && (
-          <>
-            <IconButton
-              icon="edit"
-              variant="ghost"
-              size="xs"
-              onClick={onRename}
-              title={t('dashboard.renameGroup', 'Rename group')}
-              aria-label={t('dashboard.renameGroup', 'Rename group')}
-            />
-            <IconButton
-              icon="folder_off"
-              variant="ghost"
-              size="xs"
-              onClick={onUngroup}
-              title={t('dashboard.ungroup', 'Ungroup')}
-              aria-label={t('dashboard.ungroup', 'Ungroup')}
-            />
-          </>
-        )}
+      <div aria-hidden="true" />
+
+      <div className={`absolute right-2 bottom-full translate-y-[60%] flex items-center gap-1 opacity-0 ${showHoverActions ? 'group-hover:opacity-100' : ''} transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
+        <IconButton
+          icon="edit"
+          variant="ghost"
+          size="xs"
+          className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRename();
+          }}
+          title={t('dashboard.renameGroup', 'Rename group')}
+          aria-label={t('dashboard.renameGroup', 'Rename group')}
+        />
+        <IconButton
+          icon="folder_off"
+          variant="ghost"
+          size="xs"
+          className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onUngroup();
+          }}
+          title={t('dashboard.ungroup', 'Ungroup')}
+          aria-label={t('dashboard.ungroup', 'Ungroup')}
+        />
       </div>
     </div>
   );
@@ -1120,6 +1151,7 @@ function SortableTaskRow({
   const sortId = getDashboardItemSortId(task);
   const isMovingThisTask = movingItemSortId === sortId;
   const showHoverActions = !isDragging && !isDragActive && !isAnyDragging;
+  const dragHandleLeft = TREE_ROW_PADDING_LEFT + getTreeNodeX(treeMeta.depth);
   const dragHandleFillClass = isLinkMode
     ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-white group-hover:bg-drag-handle-hovered'
     : isSelected ? 'bg-drag-handle-selected' : 'bg-white group-hover:bg-drag-handle-hovered';
@@ -1170,11 +1202,12 @@ function SortableTaskRow({
       <button
         type="button"
         data-task-drag-handle="true"
-        className={`pointer-events-auto absolute left-0 top-1/2 z-20 inline-flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
+        className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-7 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
           isAnyDragging && !isDragging && !isDragActive ? 'opacity-0 pointer-events-none' : 'task-drag-handle'
         } ${
           isDragging || isDragActive ? 'is-dragging' : ''
         }`}
+        style={{ left: dragHandleLeft }}
         onClick={(e) => e.stopPropagation()}
         onContextMenu={(e) => {
           e.preventDefault();
