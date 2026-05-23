@@ -38,6 +38,8 @@ const TREE_NODE_BASE_X = 12;
 const TREE_DEPTH_STEP = 20;
 const TREE_CONTENT_GAP = 18;
 const TREE_ELBOW_HEIGHT = 16;
+const TREE_ELBOW_RADIUS = 8;
+const TREE_ROW_HEIGHT = 72;
 const TREE_LINE_MIX = 34;
 const TREE_ROW_PADDING_LEFT = 8;
 
@@ -76,6 +78,10 @@ function getTreeColor(depth: number): string {
 
 function getTreeLineColor(depth: number): string {
   return `color-mix(in srgb, ${getTreeColor(depth)} ${TREE_LINE_MIX}%, white)`;
+}
+
+function getTreeHandleHoverColor(depth: number): string {
+  return `color-mix(in srgb, ${getTreeColor(depth)} 82%, black)`;
 }
 
 function buildDashboardTreeRows(items: DashboardItem[]): DashboardTreeRow[] {
@@ -849,6 +855,11 @@ function TreeTitleCell({
   const railColor = getTreeColor(visualDepth);
   const contentPaddingLeft = nodeX + TREE_CONTENT_GAP;
   const parentLineColor = getTreeLineColor(parentDepth);
+  const nodeCenterY = TREE_ROW_HEIGHT / 2;
+  const elbowCenterY = nodeCenterY - 1;
+  const elbowTopY = elbowCenterY - TREE_ELBOW_HEIGHT;
+  const elbowCurveStartY = elbowCenterY - TREE_ELBOW_RADIUS;
+  const elbowCurveEndX = parentX + TREE_ELBOW_RADIUS;
 
   const nodeCommonClassName = 'absolute top-1/2 z-[2] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white';
   const nodeStyle: CSSProperties = {
@@ -862,7 +873,7 @@ function TreeTitleCell({
         {treeMeta.guideSegments.map(segment => (
           <span
             key={segment.level}
-            className="absolute w-0.5 rounded-full"
+            className="absolute w-0.5 -translate-x-1/2 rounded-full"
             style={{
               left: getTreeNodeX(segment.level),
               top: segment.startsAtNode ? '50%' : 0,
@@ -872,23 +883,23 @@ function TreeTitleCell({
           />
         ))}
         {visualDepth > 0 && (
-          <span
-            className="absolute rounded-bl-lg border-b-2 border-l-2"
-            style={{
-              left: parentX,
-              top: `calc(50% - ${TREE_ELBOW_HEIGHT}px)`,
-              width: nodeX - parentX,
-              height: TREE_ELBOW_HEIGHT,
-              borderColor: parentLineColor,
-            }}
-          />
+          <svg className="absolute inset-0 overflow-visible" aria-hidden="true">
+            <path
+              d={`M ${parentX} ${elbowTopY} V ${elbowCurveStartY} Q ${parentX} ${elbowCenterY} ${elbowCurveEndX} ${elbowCenterY} H ${nodeX}`}
+              fill="none"
+              stroke={parentLineColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         )}
       </div>
 
       {nodeKind === 'group' ? (
         <button
           type="button"
-          className={`${nodeCommonClassName} pointer-events-auto inline-flex h-[18px] w-[18px] items-center justify-center border-2 shadow-[0_0_0_3px_#fff] transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30`}
+          className={`${nodeCommonClassName} pointer-events-auto inline-flex h-[18px] w-[18px] items-center justify-center border-2 transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30`}
           style={{
             ...nodeStyle,
             backgroundColor: isExpanded ? `color-mix(in srgb, ${railColor} 10%, white)` : '#fff',
@@ -909,7 +920,7 @@ function TreeTitleCell({
         </button>
       ) : (
         <span
-          className={`${nodeCommonClassName} h-2.5 w-2.5 border-2 shadow-[0_0_0_3px_#fff]`}
+          className={`${nodeCommonClassName} h-2.5 w-2.5 border-2`}
           style={{
             ...nodeStyle,
             borderColor: railColor,
@@ -966,9 +977,16 @@ function TaskGroupRow({
     transition,
     isDragging,
   } = useSortable({ id: sortId, disabled: group.isSyntheticRoot });
+  const [isRowHovered, setIsRowHovered] = useState(false);
+  const [isDragHandleHovered, setIsDragHandleHovered] = useState(false);
+  const [isDragHandleFocused, setIsDragHandleFocused] = useState(false);
   const isMovingThisGroup = movingItemSortId === sortId;
   const showHoverActions = !group.isSyntheticRoot && !isDragging && !isDragActive && !isAnyDragging;
   const dragHandleLeft = TREE_ROW_PADDING_LEFT + getTreeNodeX(treeMeta.depth);
+  const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
+  const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
+  const dragHandleFillClass = isDragging || isDragActive ? 'bg-white' : 'bg-slate-50/80 group-hover:bg-slate-50';
+  const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
 
   return (
     <div
@@ -996,6 +1014,8 @@ function TaskGroupRow({
         e.preventDefault();
         openContextMenu(e.clientX, e.clientY, { kind: 'group', groupBlockId: group.groupBlockId });
       }}
+      onMouseEnter={() => setIsRowHovered(true)}
+      onMouseLeave={() => setIsRowHovered(false)}
       role={!group.isSyntheticRoot ? 'button' : undefined}
       tabIndex={!group.isSyntheticRoot ? 0 : undefined}
       aria-expanded={!group.isSyntheticRoot ? group.isExpanded : undefined}
@@ -1011,12 +1031,19 @@ function TaskGroupRow({
         <button
           type="button"
           data-task-drag-handle="true"
-          className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-7 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-sm bg-white text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${
+          className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-7 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-[opacity,color,background-color] cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
             isAnyDragging && !isDragging && !isDragActive ? 'opacity-0 pointer-events-none' : 'task-drag-handle'
           } ${
             isDragging || isDragActive ? 'is-dragging' : ''
           }`}
-          style={{ left: dragHandleLeft }}
+          style={{
+            left: dragHandleLeft,
+            color: dragHandleColor,
+          } as CSSProperties}
+          onMouseEnter={() => setIsDragHandleHovered(true)}
+          onMouseLeave={() => setIsDragHandleHovered(false)}
+          onFocus={() => setIsDragHandleFocused(true)}
+          onBlur={() => setIsDragHandleFocused(false)}
           onClick={(e) => e.stopPropagation()}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -1136,6 +1163,9 @@ function SortableTaskRow({
     transition,
     isDragging,
   } = useSortable({ id: getDashboardItemSortId(task) });
+  const [isRowHovered, setIsRowHovered] = useState(false);
+  const [isDragHandleHovered, setIsDragHandleHovered] = useState(false);
+  const [isDragHandleFocused, setIsDragHandleFocused] = useState(false);
   const sortId = getDashboardItemSortId(task);
   const isMovingThisTask = movingItemSortId === sortId;
   const showHoverActions = !isDragging && !isDragActive && !isAnyDragging;
@@ -1144,6 +1174,9 @@ function SortableTaskRow({
     ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-white group-hover:bg-drag-handle-hovered'
     : isSelected ? 'bg-drag-handle-selected' : 'bg-white group-hover:bg-drag-handle-hovered';
   const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
+  const treeLineColor = getTreeLineColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
+  const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
+  const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
 
   return (
     <div
@@ -1173,6 +1206,8 @@ function SortableTaskRow({
         e.preventDefault();
         openContextMenu(e.clientX, e.clientY, { kind: 'task', taskId: task.id });
       }}
+      onMouseEnter={() => setIsRowHovered(true)}
+      onMouseLeave={() => setIsRowHovered(false)}
       aria-pressed={isLinkMode ? isLinkSelected : undefined}
       role="button"
       tabIndex={0}
@@ -1191,12 +1226,19 @@ function SortableTaskRow({
       <button
         type="button"
         data-task-drag-handle="true"
-        className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-7 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
+        className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-7 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-[opacity,color,background-color] cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
           isAnyDragging && !isDragging && !isDragActive ? 'opacity-0 pointer-events-none' : 'task-drag-handle'
         } ${
           isDragging || isDragActive ? 'is-dragging' : ''
         }`}
-        style={{ left: dragHandleLeft }}
+        style={{
+          left: dragHandleLeft,
+          color: dragHandleColor,
+        } as CSSProperties}
+        onMouseEnter={() => setIsDragHandleHovered(true)}
+        onMouseLeave={() => setIsDragHandleHovered(false)}
+        onFocus={() => setIsDragHandleFocused(true)}
+        onBlur={() => setIsDragHandleFocused(false)}
         onClick={(e) => e.stopPropagation()}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -1212,7 +1254,7 @@ function SortableTaskRow({
 
       <TreeTitleCell treeMeta={treeMeta} nodeKind="task">
         <span className={`overflow-hidden text-ellipsis text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
-          <span style={{ color: treeNodeColor }}>{task.displayId}</span>{' '}
+          <span style={{ color: treeLineColor }}>{task.displayId}</span>{' '}
           {task.title}
         </span>
         <div className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
