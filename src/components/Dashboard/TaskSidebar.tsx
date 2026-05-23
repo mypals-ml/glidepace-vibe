@@ -12,11 +12,15 @@ import { useRef, useState, useEffect, type Dispatch, type MouseEvent as ReactMou
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
-import { getAfterIdForVisibleMove, getTaskOrderId } from '../../lib/taskOrderUtils';
+import { getDashboardItemSortId, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isTaskGroupBlock, parseGroupPath, serializeGroupPath } from '../../lib/taskGroupUtils';
 import type { TaskGroupBlock } from '../../types';
 import { Button } from '../UI/Button';
+
+type ContextMenuTarget =
+  | { kind: 'task'; taskId: string }
+  | { kind: 'group'; groupBlockId: string };
 
 function eventTargetElement(target: EventTarget | null): HTMLElement | null {
   return target instanceof HTMLElement ? target : null;
@@ -78,14 +82,15 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     ungroupGroupBlock,
     toggleGroupBlockCollapsed,
     reorderTask,
+    reorderTaskBlock,
     setPendingTaskInsertPosition,
   } = useDashboard();
   const isMobile = !useMediaQuery('(min-width: 768px)');
-  const [movingTaskId, setMovingTaskId] = useState<string | null>(null);
+  const [movingItemSortId, setMovingItemSortId] = useState<string | null>(null);
   const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; taskId: string; alignRight: boolean } | null>(null);
-  const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; target: ContextMenuTarget; alignRight: boolean } | null>(null);
+  const [activeDragItemSortId, setActiveDragItemSortId] = useState<string | null>(null);
   const [groupEditor, setGroupEditor] = useState<
     | { mode: 'taskPath'; taskId: string; value: string }
     | { mode: 'renameGroup'; groupBlockId: string; value: string }
@@ -98,12 +103,12 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const justDroppedRef = useRef(false);
 
   useEffect(() => {
-    if (!movingTaskId) return;
+    if (!movingItemSortId) return;
 
     const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
       const target = e.target as HTMLElement | null;
-      if (!target?.closest(`[data-task-id="${movingTaskId}"]`)) {
-        setMovingTaskId(null);
+      if (!target?.closest(`[data-dashboard-sort-id="${movingItemSortId}"]`)) {
+        setMovingItemSortId(null);
       }
     };
 
@@ -117,23 +122,60 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       document.removeEventListener('click', handleOutsideClick);
       document.removeEventListener('touchstart', handleOutsideClick);
     };
-  }, [movingTaskId]);
+  }, [movingItemSortId]);
 
-  const openContextMenu = (clientX: number, clientY: number, taskId: string) => {
-    if (activeDragTaskId || justDroppedRef.current) return;
+  const openContextMenu = (clientX: number, clientY: number, target: ContextMenuTarget) => {
+    if (activeDragItemSortId || justDroppedRef.current) return;
     const rect = rootRef.current?.getBoundingClientRect();
     if (!rect) return;
 
     setContextMenu({
       x: clientX - rect.left,
       y: clientY - rect.top,
-      taskId,
+      target,
       alignRight: clientX - rect.left > rect.width - 220
     });
   };
 
-  const startCreateTaskAt = (taskId: string, placement: 'above' | 'below') => {
-    setPendingTaskInsertPosition({ targetTaskId: taskId, placement });
+  const findTaskByOrderId = (taskId: string): Task | undefined => {
+    return tasks.find(task => task.id === taskId || task.itemId === taskId || getTaskOrderId(task) === taskId);
+  };
+
+  const findGroupById = (groupBlockId: string): TaskGroupBlock | undefined => {
+    const item = dashboardItems.find(candidate => isTaskGroupBlock(candidate) && candidate.groupBlockId === groupBlockId);
+    return item && isTaskGroupBlock(item) ? item : undefined;
+  };
+
+  const getGroupBoundaryTasks = (group: TaskGroupBlock): { firstTask: Task; lastTask: Task } | null => {
+    const firstTaskId = group.childTaskIds[0];
+    const lastTaskId = group.childTaskIds[group.childTaskIds.length - 1];
+    const firstTask = firstTaskId ? findTaskByOrderId(firstTaskId) : undefined;
+    const lastTask = lastTaskId ? findTaskByOrderId(lastTaskId) : undefined;
+    return firstTask && lastTask ? { firstTask, lastTask } : null;
+  };
+
+  const getContextBoundaryTasks = (target: ContextMenuTarget): { firstTask: Task; lastTask: Task } | null => {
+    if (target.kind === 'task') {
+      const task = findTaskByOrderId(target.taskId);
+      return task ? { firstTask: task, lastTask: task } : null;
+    }
+
+    const group = findGroupById(target.groupBlockId);
+    return group ? getGroupBoundaryTasks(group) : null;
+  };
+
+  const getContextTargetSortId = (target: ContextMenuTarget): string | null => {
+    if (target.kind === 'group') return `group:${target.groupBlockId}`;
+
+    const task = findTaskByOrderId(target.taskId);
+    return task ? getDashboardItemSortId(task) : null;
+  };
+
+  const startCreateTaskAt = (target: ContextMenuTarget, placement: 'above' | 'below') => {
+    const boundaryTasks = getContextBoundaryTasks(target);
+    if (!boundaryTasks) return;
+    const targetTaskId = placement === 'above' ? boundaryTasks.firstTask.id : boundaryTasks.lastTask.id;
+    setPendingTaskInsertPosition({ targetTaskId, placement });
     setIsCreateMode(true);
     setSelectedTaskId(null);
     setIsTaskDetailsOpen(true);
@@ -154,9 +196,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   };
 
   const handleJumpToChart = (taskId: string) => {
-    const task = filteredTasks.find(task => task.id === taskId);
+    const task = findTaskByOrderId(taskId);
+    if (!task) return;
     setIsCreateMode(false);
-    setSelectedTaskId(taskId);
+    setSelectedTaskId(task.id);
     setIsTaskDetailsOpen(false);
     setDashboardView('gantt');
     setIsChartVisible(true);
@@ -164,6 +207,42 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     const startDate = task ? getStartDateForCal(task) : null;
     if (startDate) {
       centerGanttOnDate(startDate);
+    }
+
+    setContextMenu(null);
+  };
+
+  const handleJumpContextTargetToChart = (target: ContextMenuTarget) => {
+    const boundaryTasks = getContextBoundaryTasks(target);
+    if (!boundaryTasks) return;
+    handleJumpToChart(boundaryTasks.firstTask.id);
+  };
+
+  const handleAddSuccessorsFromContext = (target: ContextMenuTarget) => {
+    const boundaryTasks = getContextBoundaryTasks(target);
+    if (!boundaryTasks) return;
+
+    setIsLinkMode(true);
+    setSelectedLinkTaskIds([boundaryTasks.lastTask.id]);
+    setContextMenu(null);
+  };
+
+  const handleBreakLinksFromContext = async (target: ContextMenuTarget) => {
+    const boundaryTasks = getContextBoundaryTasks(target);
+    if (!boundaryTasks) return;
+
+    if (target.kind === 'group') {
+      const firstTaskOrderId = getTaskOrderId(boundaryTasks.firstTask);
+      const predecessorTasks = tasks.filter(task => (task.successorIds || []).includes(firstTaskOrderId));
+
+      for (const predecessorTask of predecessorTasks) {
+        const nextSuccessorIds = (predecessorTask.successorIds || []).filter(successorId => successorId !== firstTaskOrderId);
+        await updateTaskSuccessors(getTaskOrderId(predecessorTask), nextSuccessorIds, true);
+      }
+    }
+
+    if (boundaryTasks.lastTask.successorIds?.length) {
+      await updateTaskSuccessors(boundaryTasks.lastTask.id, [], true);
     }
 
     setContextMenu(null);
@@ -187,6 +266,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       groupBlockId: group.groupBlockId,
       value: group.name,
     });
+    setContextMenu(null);
   };
 
   const handleSaveGroupEditor = async () => {
@@ -209,18 +289,20 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const sensors = useSensors(
     useSensor(TaskMouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TaskTouchSensor, {
-      activationConstraint: movingTaskId
+      activationConstraint: movingItemSortId
         ? { distance: 5 }
         : { delay: 550, tolerance: 8 }
     }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const sortableTaskIds = filteredTasks.map(getTaskOrderId);
+  const sortableItemIds = dashboardItems
+    .filter(item => !isTaskGroupBlock(item) || !item.isSyntheticRoot)
+    .map(getDashboardItemSortId);
 
   const handleDragStart = (event: DragStartEvent) => {
     dragHasMovedRef.current = false;
-    setActiveDragTaskId(String(event.active.id));
+    setActiveDragItemSortId(String(event.active.id));
     suppressNextClickRef.current = true;
     setContextMenu(null);
   };
@@ -235,13 +317,17 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       const { active, over } = event;
       if (!over) return;
 
-      const afterTaskId = getAfterIdForVisibleMove(filteredTasks, String(active.id), String(over.id));
-      if (afterTaskId === undefined) return;
+      const movePlan = getVisibleDashboardMovePlan(dashboardItems, String(active.id), String(over.id));
+      if (!movePlan) return;
 
-      await reorderTask(String(active.id), afterTaskId);
+      if (movePlan.taskIds.length === 1) {
+        await reorderTask(movePlan.taskIds[0], movePlan.afterTaskId);
+      } else {
+        await reorderTaskBlock(movePlan.taskIds, movePlan.afterTaskId);
+      }
     } finally {
-      setActiveDragTaskId(null);
-      setMovingTaskId(null);
+      setActiveDragItemSortId(null);
+      setMovingItemSortId(null);
       dragHasMovedRef.current = false;
       justDroppedRef.current = true;
       setTimeout(() => {
@@ -295,8 +381,8 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
               onDragCancel={() => {
-                setActiveDragTaskId(null);
-                setMovingTaskId(null);
+                setActiveDragItemSortId(null);
+                setMovingItemSortId(null);
                 dragHasMovedRef.current = false;
                 justDroppedRef.current = true;
                 setTimeout(() => {
@@ -304,7 +390,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 }, 100);
               }}
             >
-              <SortableContext items={sortableTaskIds} strategy={verticalListSortingStrategy}>
+              <SortableContext items={sortableItemIds} strategy={verticalListSortingStrategy}>
                 {dashboardItems.map((item, index) => (
                   isTaskGroupBlock(item) ? (
                     <TaskGroupRow
@@ -314,6 +400,11 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       onToggle={() => toggleGroupBlockCollapsed(item.groupBlockId)}
                       onRename={() => promptRenameGroup(item)}
                       onUngroup={() => ungroupGroupBlock(item.groupBlockId)}
+                      isDragActive={activeDragItemSortId === getDashboardItemSortId(item)}
+                      isAnyDragging={activeDragItemSortId !== null}
+                      isMobile={isMobile}
+                      movingItemSortId={movingItemSortId}
+                      openContextMenu={openContextMenu}
                       t={t}
                     />
                   ) : (
@@ -324,10 +415,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       isLinkMode={isLinkMode}
                       isSelected={selectedTaskId === item.id}
                       isLinkSelected={selectedLinkTaskIds.includes(item.id)}
-                      isDragActive={activeDragTaskId === getTaskOrderId(item)}
-                      isAnyDragging={activeDragTaskId !== null}
+                      isDragActive={activeDragItemSortId === getDashboardItemSortId(item)}
+                      isAnyDragging={activeDragItemSortId !== null}
                       isMobile={isMobile}
-                      movingTaskId={movingTaskId}
+                      movingItemSortId={movingItemSortId}
                       openPickerTaskId={openPickerTaskId}
                       openStatusPickerTaskId={openStatusPickerTaskId}
                       suppressNextClickRef={suppressNextClickRef}
@@ -369,14 +460,14 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
           >
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
-              onClick={() => startCreateTaskAt(contextMenu.taskId, 'above')}
+              onClick={() => startCreateTaskAt(contextMenu.target, 'above')}
             >
               <span className="material-symbols-outlined text-[16px]">add</span>
               {t('dashboard.addTaskAbove', 'Add task above')}
             </button>
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
-              onClick={() => startCreateTaskAt(contextMenu.taskId, 'below')}
+              onClick={() => startCreateTaskAt(contextMenu.target, 'below')}
             >
               <span className="material-symbols-outlined text-[16px]">add</span>
               {t('dashboard.addTaskBelow', 'Add task below')}
@@ -385,7 +476,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               <button
                 className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
                 onClick={() => {
-                  setMovingTaskId(contextMenu.taskId);
+                  setMovingItemSortId(getContextTargetSortId(contextMenu.target));
                   setContextMenu(null);
                 }}
               >
@@ -394,27 +485,53 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               </button>
             )}
             <div className="my-1 border-t border-slate-100" />
+            {contextMenu.target.kind === 'group' ? (
+              <>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                  onClick={() => {
+                    if (contextMenu.target.kind !== 'group') return;
+                    const group = findGroupById(contextMenu.target.groupBlockId);
+                    if (group) promptRenameGroup(group);
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[16px]">edit</span>
+                  {t('dashboard.renameGroup', 'Rename group')}
+                </button>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                  onClick={() => {
+                    if (contextMenu.target.kind !== 'group') return;
+                    ungroupGroupBlock(contextMenu.target.groupBlockId);
+                    setContextMenu(null);
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[16px]">folder_off</span>
+                  {t('dashboard.ungroup', 'Ungroup')}
+                </button>
+              </>
+            ) : (
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                onClick={() => {
+                  if (contextMenu.target.kind !== 'task') return;
+                  promptTaskGroupPath(contextMenu.target.taskId);
+                }}
+              >
+                <span className="material-symbols-outlined text-[16px]">drive_file_move</span>
+                {t('dashboard.setGroupPath', 'Set group path')}
+              </button>
+            )}
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
-              onClick={() => promptTaskGroupPath(contextMenu.taskId)}
-            >
-              <span className="material-symbols-outlined text-[16px]">drive_file_move</span>
-              {t('dashboard.setGroupPath', 'Set group path')}
-            </button>
-            <button
-              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
-              onClick={() => handleJumpToChart(contextMenu.taskId)}
+              onClick={() => handleJumpContextTargetToChart(contextMenu.target)}
             >
               <span className="material-symbols-outlined text-[16px]">center_focus_strong</span>
               {t('dashboard.jumpToChart')}
             </button>
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
-              onClick={() => {
-                setIsLinkMode(true);
-                setSelectedLinkTaskIds([contextMenu.taskId]);
-                setContextMenu(null);
-              }}
+              onClick={() => handleAddSuccessorsFromContext(contextMenu.target)}
             >
               <span className="material-symbols-outlined text-[16px]">add_link</span>
               {t('dashboard.addSuccessors')}
@@ -422,11 +539,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             <button
               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
               onClick={() => {
-                const tObj = filteredTasks.find(tObj => tObj.id === contextMenu.taskId);
-                if (tObj?.successorIds?.length) {
-                  updateTaskSuccessors(contextMenu.taskId, []);
-                }
-                setContextMenu(null);
+                handleBreakLinksFromContext(contextMenu.target);
               }}
             >
               <span className="material-symbols-outlined text-[16px]">link_off</span>
@@ -605,19 +718,82 @@ interface TaskGroupRowProps {
   onToggle: () => void;
   onRename: () => void;
   onUngroup: () => void;
+  isDragActive: boolean;
+  isAnyDragging: boolean;
+  isMobile: boolean;
+  movingItemSortId: string | null;
+  openContextMenu: (clientX: number, clientY: number, target: ContextMenuTarget) => void;
   t: TFunction;
 }
 
-function TaskGroupRow({ group, isFirst, onToggle, onRename, onUngroup, t }: TaskGroupRowProps) {
+function TaskGroupRow({
+  group,
+  isFirst,
+  onToggle,
+  onRename,
+  onUngroup,
+  isDragActive,
+  isAnyDragging,
+  isMobile,
+  movingItemSortId,
+  openContextMenu,
+  t,
+}: TaskGroupRowProps) {
+  const sortId = getDashboardItemSortId(group);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: sortId, disabled: group.isSyntheticRoot });
   const paddingLeft = Math.min(12 + group.depth * 16, 56);
+  const isMovingThisGroup = movingItemSortId === sortId;
 
   return (
     <div
-      className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pr-0 border-b border-slate-100/50 transition-colors relative ${
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        touchAction: isMobile && isMovingThisGroup ? 'none' : undefined,
+      }}
+      data-dashboard-sort-id={sortId}
+      data-task-moving={isMobile && isMovingThisGroup ? "true" : undefined}
+      className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 transition-all duration-200 relative group overflow-visible ${
         group.isSyntheticRoot ? 'bg-slate-100/80' : 'bg-slate-50/80'
-      } ${isFirst ? '' : ''}`}
+      } ${!group.isSyntheticRoot ? 'cursor-pointer hover:bg-slate-50' : ''} ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''} ${isFirst ? '' : ''}`}
+      onContextMenu={(e) => {
+        if (group.isSyntheticRoot) return;
+        e.preventDefault();
+        openContextMenu(e.clientX, e.clientY, { kind: 'group', groupBlockId: group.groupBlockId });
+      }}
     >
-      <div className="pl-4 text-slate-400">
+      {!group.isSyntheticRoot && (
+        <button
+          type="button"
+          data-task-drag-handle="true"
+          className={`pointer-events-auto absolute left-0 top-1/2 z-20 inline-flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm bg-white text-slate-400 transition-opacity hover:text-primary cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${
+            isAnyDragging && !isDragging && !isDragActive ? 'opacity-0 pointer-events-none' : 'task-drag-handle'
+          } ${
+            isDragging || isDragActive ? 'is-dragging' : ''
+          }`}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          title={t('dashboard.dragToReorder', 'Drag to reorder')}
+          aria-label={t('dashboard.dragToReorder', 'Drag to reorder')}
+          {...attributes}
+          {...listeners}
+        >
+          <span className="material-symbols-outlined text-[14px]">drag_indicator</span>
+        </button>
+      )}
+
+      <div className="text-slate-400">
         <button
           type="button"
           className="h-7 w-7 inline-flex items-center justify-center rounded hover:bg-white text-slate-500"
@@ -677,11 +853,11 @@ interface SortableTaskRowProps {
   isDragActive: boolean;
   isAnyDragging: boolean;
   isMobile: boolean;
-  movingTaskId: string | null;
+  movingItemSortId: string | null;
   openPickerTaskId: string | null;
   openStatusPickerTaskId: string | null;
   suppressNextClickRef: React.MutableRefObject<boolean>;
-  openContextMenu: (clientX: number, clientY: number, taskId: string) => void;
+  openContextMenu: (clientX: number, clientY: number, target: ContextMenuTarget) => void;
   handleTaskActivate: (taskId: string) => void;
   setOpenPickerTaskId: Dispatch<SetStateAction<string | null>>;
   setOpenStatusPickerTaskId: Dispatch<SetStateAction<string | null>>;
@@ -700,7 +876,7 @@ function SortableTaskRow({
   isDragActive,
   isAnyDragging,
   isMobile,
-  movingTaskId,
+  movingItemSortId,
   openPickerTaskId,
   openStatusPickerTaskId,
   suppressNextClickRef,
@@ -720,8 +896,9 @@ function SortableTaskRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: getTaskOrderId(task) });
-  const isMovingThisTask = movingTaskId === task.id;
+  } = useSortable({ id: getDashboardItemSortId(task) });
+  const sortId = getDashboardItemSortId(task);
+  const isMovingThisTask = movingItemSortId === sortId;
   const showHoverActions = !isDragging && !isDragActive && !isAnyDragging;
   const dragHandleFillClass = isLinkMode
     ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-white group-hover:bg-drag-handle-hovered'
@@ -736,6 +913,7 @@ function SortableTaskRow({
         touchAction: isMobile && isMovingThisTask ? 'none' : undefined,
       }}
       data-task-sortable-row="true"
+      data-dashboard-sort-id={sortId}
       data-task-id={task.id}
       data-task-moving={isMobile && isMovingThisTask ? "true" : undefined}
       className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
@@ -752,7 +930,7 @@ function SortableTaskRow({
       }}
       onContextMenu={(e) => {
         e.preventDefault();
-        openContextMenu(e.clientX, e.clientY, task.id);
+        openContextMenu(e.clientX, e.clientY, { kind: 'task', taskId: task.id });
       }}
       aria-pressed={isLinkMode ? isLinkSelected : undefined}
       role="button"
@@ -904,7 +1082,7 @@ function SortableTaskRow({
           className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
           onClick={(e) => {
             e.stopPropagation();
-            openContextMenu(e.clientX, e.clientY, task.id);
+            openContextMenu(e.clientX, e.clientY, { kind: 'task', taskId: task.id });
           }}
           title={t('dashboard.moreActions', 'More actions')}
           aria-label={t('dashboard.moreActions', 'More actions')}

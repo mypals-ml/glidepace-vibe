@@ -5,7 +5,7 @@ import { mapProjectItemToTask } from '../lib/githubTaskMapper';
 import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
 import { autoCorrectDependencyFields, cascadeTaskDates, cascadeAllTasks, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../lib/taskDependencyUtils';
-import { getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter } from '../lib/taskOrderUtils';
+import { getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter, moveTaskBlockAfter } from '../lib/taskOrderUtils';
 import { buildGroupBlocksFromOrderedTasks, renameGroupBlock as renameGroupBlockInTasks, serializeGroupPath, ungroupGroupBlock as ungroupGroupBlockInTasks, isTaskGroupBlock } from '../lib/taskGroupUtils';
 import type { DependencyFieldCorrection } from '../lib/taskDependencyUtils';
 import { mergeFetchedTaskWithLocalState } from '../lib/taskMergeUtils';
@@ -782,6 +782,44 @@ export function useDashboardTasks({
     return false;
   }, [selectedProject?.id, githubToken, setTasks, updateSyncTime, showToast, t]);
 
+  const reorderTaskBlock = useCallback(async (taskIds: string[], afterTaskId: string | null): Promise<boolean> => {
+    if (!selectedProject?.id || !githubToken) return false;
+
+    const oldTasks = [...tasksRef.current];
+    const nextTasks = moveTaskBlockAfter(oldTasks, taskIds, afterTaskId);
+    const oldOrder = oldTasks.map(getTaskOrderId).join('|');
+    const nextOrder = nextTasks.map(getTaskOrderId).join('|');
+    if (oldOrder === nextOrder) return true;
+
+    const movedTasks = taskIds
+      .map(taskId => nextTasks.find(task => task.id === taskId || getTaskOrderId(task) === taskId))
+      .filter((task): task is Task => Boolean(task?.itemId));
+    if (movedTasks.length !== taskIds.length) return false;
+
+    setTasks(nextTasks);
+
+    let success = true;
+    let currentAfterId = afterTaskId;
+    for (const movedTask of movedTasks) {
+      const moved = await updateProjectV2ItemPosition(selectedProject.id, movedTask.itemId!, currentAfterId, githubToken);
+      if (!moved) {
+        success = false;
+        break;
+      }
+      currentAfterId = movedTask.itemId!;
+    }
+
+    if (success) {
+      updateSyncTime();
+      return true;
+    }
+
+    setTasks(oldTasks);
+    showToast(t('dashboard.taskReorderFailed', 'Failed to reorder task.'), 'error');
+    await fetchProjectTasks(selectedProject.id, githubToken);
+    return false;
+  }, [selectedProject?.id, githubToken, setTasks, updateSyncTime, showToast, t, fetchProjectTasks]);
+
   const handleCreateTask = useCallback(async (taskData: {
     title: string;
     body?: string;
@@ -1113,6 +1151,7 @@ export function useDashboardTasks({
     ungroupGroupBlock,
     toggleGroupBlockCollapsed,
     reorderTask,
+    reorderTaskBlock,
     handleCreateTask,
     updateTaskTitle,
     updateTaskDescription,
