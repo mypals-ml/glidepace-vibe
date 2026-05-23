@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tree Rails Group Item Demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --line: #e5e7eb;
+      --line-soft: #edf2f7;
+      --text: #172033;
+      --muted: #64748b;
+      --faint: #94a3b8;
+      --primary: #4f46e5;
+      --row-h: 64px;
+      --handle-w: 24px;
+      --tree-w: minmax(360px, 1fr);
+      --meta-w: 72px;
+      --people-w: 78px;
+      --depth-step: 24px;
+      --node-x: 18px;
+      --parent-x: 18px;
+      --node-size: 22px;
+      --branch-gap: 8px;
+      --c0: #4f46e5;
+      --c1: #0891b2;
+      --c2: #16a34a;
+      --c3: #d97706;
+      --c4: #dc2626;
+      --c5: #9333ea;
+      --c6: #0f766e;
+      --c7: #2563eb;
+      --c8: #be185d;
+      --c9: #65a30d;
+      --rail-mix: 34%;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(79, 70, 229, 0.08), transparent 32rem),
+        linear-gradient(180deg, #ffffff 0, var(--bg) 52%);
+      color: var(--text);
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1220px, calc(100vw - 36px));
+      margin: 26px auto 42px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 20px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .lede {
+      max-width: 790px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .palette {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .palette span {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 1px 4px rgba(15, 23, 42, 0.12);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      overflow-x: auto;
+    }
+
+    .tab {
+      min-height: 36px;
+      padding: 0 13px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .tab:hover {
+      color: var(--text);
+      background: #f8fafc;
+    }
+
+    .tab[aria-selected="true"] {
+      color: var(--primary);
+      background: #eef2ff;
+      box-shadow: inset 0 0 0 1px rgba(79, 70, 229, 0.12);
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 330px;
+      gap: 18px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
+    .preview,
+    .notes {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+
+    .preview-head {
+      display: grid;
+      grid-template-columns: var(--handle-w) var(--tree-w) var(--meta-w) var(--people-w);
+      gap: 8px;
+      align-items: center;
+      height: 46px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fafc;
+      color: var(--faint);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .list {
+      background: var(--panel);
+    }
+
+    .row {
+      position: relative;
+      display: grid;
+      grid-template-columns: var(--handle-w) var(--tree-w) var(--meta-w) var(--people-w);
+      gap: 8px;
+      align-items: center;
+      min-height: var(--row-h);
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line-soft);
+      --rail: var(--c0);
+      --parent-rail: var(--c0);
+      --rail-line: color-mix(in srgb, var(--rail) var(--rail-mix), white);
+      --parent-line: color-mix(in srgb, var(--parent-rail) var(--rail-mix), white);
+    }
+
+    .row:last-child {
+      border-bottom: 0;
+    }
+
+    .row:hover {
+      background: #f8fafc;
+    }
+
+    .row[data-depth="0"] { --rail: var(--c0); --parent-rail: var(--c0); --node-x: 18px; --parent-x: 18px; }
+    .row[data-depth="1"] { --rail: var(--c1); --parent-rail: var(--c0); --node-x: 42px; --parent-x: 18px; }
+    .row[data-depth="2"] { --rail: var(--c2); --parent-rail: var(--c1); --node-x: 66px; --parent-x: 42px; }
+    .row[data-depth="3"] { --rail: var(--c3); --parent-rail: var(--c2); --node-x: 90px; --parent-x: 66px; }
+    .row[data-depth="4"] { --rail: var(--c4); --parent-rail: var(--c3); --node-x: 114px; --parent-x: 90px; }
+    .row[data-depth="5"] { --rail: var(--c5); --parent-rail: var(--c4); --node-x: 138px; --parent-x: 114px; }
+    .row[data-depth="6"] { --rail: var(--c6); --parent-rail: var(--c5); --node-x: 162px; --parent-x: 138px; }
+    .row[data-depth="7"] { --rail: var(--c7); --parent-rail: var(--c6); --node-x: 186px; --parent-x: 162px; }
+    .row[data-depth="8"] { --rail: var(--c8); --parent-rail: var(--c7); --node-x: 210px; --parent-x: 186px; }
+    .row[data-depth="9"] { --rail: var(--c9); --parent-rail: var(--c8); --node-x: 234px; --parent-x: 210px; }
+
+    .handle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--handle-w);
+      color: #cbd5e1;
+    }
+
+    .grip {
+      width: 12px;
+      height: 18px;
+      background-image: radial-gradient(circle, currentColor 1.2px, transparent 1.4px);
+      background-size: 6px 6px;
+    }
+
+    .rail {
+      grid-column: 2;
+      grid-row: 1;
+      position: relative;
+      height: var(--row-h);
+      min-width: 0;
+      pointer-events: none;
+    }
+
+    .guide {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      border-radius: 999px;
+    }
+
+    .row[data-first-child="true"] .guide.is-own-level {
+      top: 50%;
+    }
+
+    .row[data-first-list-item="true"] .guide.is-own-level {
+      top: 50%;
+    }
+
+    .row[data-last-child="true"] .guide.is-own-level {
+      bottom: 50%;
+    }
+
+    .guide.stops-here {
+      bottom: 50%;
+    }
+
+    .guide.stops-here:not(.is-own-level) {
+      bottom: calc(50% + 16px);
+    }
+
+    .elbow {
+      position: absolute;
+      left: var(--parent-x);
+      top: calc(50% - 16px);
+      width: calc(var(--node-x) - var(--parent-x));
+      height: 16px;
+      border-left: 2px solid var(--parent-line);
+      border-bottom: 2px solid var(--parent-line);
+      border-bottom-left-radius: 9px;
+    }
+
+    .row[data-depth="0"] .elbow {
+      display: none;
+    }
+
+    .guide[data-level="0"] { left: calc(0 * var(--depth-step) + 18px); background: color-mix(in srgb, var(--c0) var(--rail-mix), white); }
+    .guide[data-level="1"] { left: calc(1 * var(--depth-step) + 18px); background: color-mix(in srgb, var(--c1) var(--rail-mix), white); }
+    .guide[data-level="2"] { left: calc(2 * var(--depth-step) + 18px); background: color-mix(in srgb, var(--c2) var(--rail-mix), white); }
+    .guide[data-level="3"] { left: calc(3 * var(--depth-step) + 18px); background: color-mix(in srgb, var(--c3) var(--rail-mix), white); }
+    .guide[data-level="4"] { left: calc(4 * var(--depth-step) + 18px); background: color-mix(in srgb, var(--c4) var(--rail-mix), white); }
+    .guide[data-level="5"] { left: calc(5 * var(--depth-step) + 18px); background: color-mix(in srgb, var(--c5) var(--rail-mix), white); }
+    .guide[data-level="6"] { left: calc(6 * var(--depth-step) + 18px); background: color-mix(in srgb, var(--c6) var(--rail-mix), white); }
+    .guide[data-level="7"] { left: calc(7 * var(--depth-step) + 18px); background: color-mix(in srgb, var(--c7) var(--rail-mix), white); }
+    .guide[data-level="8"] { left: calc(8 * var(--depth-step) + 18px); background: color-mix(in srgb, var(--c8) var(--rail-mix), white); }
+    .guide[data-level="9"] { left: calc(9 * var(--depth-step) + 18px); background: color-mix(in srgb, var(--c9) var(--rail-mix), white); }
+
+    .content {
+      grid-column: 2;
+      grid-row: 1;
+      min-width: 0;
+      padding-left: calc(var(--node-x) + 24px);
+      position: relative;
+      z-index: 2;
+    }
+
+    .title-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .title {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #334155;
+      font-size: 14px;
+      font-weight: 650;
+      line-height: 1.25;
+    }
+
+    .group-row .title {
+      color: #111827;
+      font-weight: 850;
+    }
+
+    .group-row .title-line::after {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      height: 18px;
+      padding: 0 7px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--rail) 24%, white);
+      background: color-mix(in srgb, var(--rail) 9%, white);
+      color: color-mix(in srgb, var(--rail) 78%, #111827);
+      font-size: 9px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .group-row[data-depth="0"] .title-line::after { content: "Parent"; }
+    .group-row[data-depth="1"] .title-line::after { content: "Child"; }
+    .group-row[data-depth="2"] .title-line::after { content: "Nested"; }
+    .group-row[data-depth="3"] .title-line::after { content: "Deep"; }
+
+    .subline {
+      margin-top: 4px;
+      color: var(--faint);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .node {
+      position: absolute;
+      z-index: 2;
+      left: var(--node-x);
+      top: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--node-size);
+      height: var(--node-size);
+      border: 0;
+      color: var(--rail);
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .task-row .node {
+      pointer-events: none;
+    }
+
+    .node::before,
+    .node::after {
+      content: "";
+      position: absolute;
+      background: currentColor;
+    }
+
+    .node::before {
+      width: 9px;
+      height: 2px;
+    }
+
+    .node::after {
+      width: 2px;
+      height: 9px;
+    }
+
+    .group-row[data-expanded="true"] .node::after {
+      display: none;
+    }
+
+    .task-row .node::before,
+    .task-row .node::after {
+      display: none;
+    }
+
+    .task-row .node {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--rail);
+      box-shadow: 0 0 0 4px #fff;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: center;
+      min-width: 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 46px;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 9px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .people {
+      display: flex;
+      justify-content: center;
+      min-width: 0;
+    }
+
+    .avatars {
+      display: flex;
+      align-items: center;
+    }
+
+    .avatar {
+      width: 24px;
+      height: 24px;
+      margin-left: -6px;
+      border: 2px solid #fff;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 900;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+    }
+
+    .avatar:first-child {
+      margin-left: 0;
+    }
+
+    .avatar.green {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .avatar.pink {
+      background: #fce7f3;
+      color: #be185d;
+    }
+
+    .notes {
+      padding: 18px;
+    }
+
+    .notes h2 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    .notes ul {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .notes li {
+      padding-left: 14px;
+      border-left: 3px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .notes strong {
+      color: var(--text);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .variant-circle .node {
+      border: 2px solid currentColor;
+      border-radius: 999px;
+      background: #fff;
+      box-shadow: 0 0 0 4px #fff;
+    }
+
+    .variant-circle .group-row[data-expanded="true"] .node {
+      background: color-mix(in srgb, var(--rail) 10%, white);
+    }
+
+    .variant-circle-elbows .guide {
+      display: none;
+    }
+
+    .variant-circle-elbows .guide:not(.is-own-level),
+    .variant-circle-elbows .guide.parent-spine {
+      display: block;
+    }
+
+    .variant-circle-elbows .guide.parent-spine {
+      top: 50%;
+      bottom: 0;
+    }
+
+    .variant-circle-elbows .elbow {
+      display: block;
+    }
+
+    @media (max-width: 940px) {
+      .topbar,
+      .stage {
+        grid-template-columns: 1fr;
+      }
+
+      .palette {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .shell {
+        width: min(100vw - 20px, 1220px);
+        margin-top: 14px;
+      }
+
+      :root {
+        --tree-w: minmax(0, 1fr);
+        --people-w: 0px;
+        --meta-w: 58px;
+        --depth-step: 18px;
+        --branch-gap: 6px;
+      }
+
+      .row[data-depth="0"] { --node-x: 16px; --parent-x: 16px; }
+      .row[data-depth="1"] { --node-x: 34px; --parent-x: 16px; }
+      .row[data-depth="2"] { --node-x: 52px; --parent-x: 34px; }
+      .row[data-depth="3"] { --node-x: 70px; --parent-x: 52px; }
+      .row[data-depth="4"] { --node-x: 88px; --parent-x: 70px; }
+      .row[data-depth="5"] { --node-x: 106px; --parent-x: 88px; }
+      .row[data-depth="6"] { --node-x: 124px; --parent-x: 106px; }
+      .row[data-depth="7"] { --node-x: 142px; --parent-x: 124px; }
+      .row[data-depth="8"] { --node-x: 160px; --parent-x: 142px; }
+      .row[data-depth="9"] { --node-x: 178px; --parent-x: 160px; }
+
+      .preview-head,
+      .row {
+        grid-template-columns: 20px var(--tree-w) var(--meta-w);
+        padding: 0 10px;
+      }
+
+      .preview-head .people,
+      .row > .people {
+        display: none;
+      }
+
+      .title {
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <h1>Circle Nodes Tree Demo</h1>
+        <p class="lede">Two circle-node treatments for nested group rows. Compare continuous sibling rails against a cleaner elbows-only tree where sibling continuation lines are removed.</p>
+      </div>
+      <div class="palette" aria-label="Fixed depth color palette">
+        <span style="background: var(--c0)" title="Depth 0"></span>
+        <span style="background: var(--c1)" title="Depth 1"></span>
+        <span style="background: var(--c2)" title="Depth 2"></span>
+        <span style="background: var(--c3)" title="Depth 3"></span>
+        <span style="background: var(--c4)" title="Depth 4"></span>
+        <span style="background: var(--c5)" title="Depth 5"></span>
+        <span style="background: var(--c6)" title="Depth 6"></span>
+        <span style="background: var(--c7)" title="Depth 7"></span>
+        <span style="background: var(--c8)" title="Depth 8"></span>
+        <span style="background: var(--c9)" title="Depth 9"></span>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Circle node tree variants">
+      <button class="tab" type="button" aria-selected="true" data-tab="circle">Circle Nodes: Rails</button>
+      <button class="tab" type="button" aria-selected="false" data-tab="circle-elbows">Circle Nodes: Elbows Only</button>
+    </nav>
+
+    <section class="stage variant-circle" data-panel="circle">
+      <div class="preview" aria-label="Circle node tree rails preview">
+        <div class="preview-head">
+          <span></span><span>Branch + title</span><span class="meta">State</span><span class="people">People</span>
+        </div>
+        <div class="list" data-list></div>
+      </div>
+      <aside class="notes">
+        <h2>Circle Nodes: Rails</h2>
+        <ul>
+          <li><strong>Shape:</strong> round expand/collapse targets borrow from branch graph nodes without feeling too technical.</li>
+          <li><strong>Reading:</strong> continuous same-level rails make sibling runs easy to scan in long lists.</li>
+          <li><strong>Use when:</strong> you want stronger continuity across grouped task blocks.</li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="stage variant-circle variant-circle-elbows hidden" data-panel="circle-elbows">
+      <div class="preview" aria-label="Circle node elbows only tree preview">
+        <div class="preview-head">
+          <span></span><span>Branch + title</span><span class="meta">State</span><span class="people">People</span>
+        </div>
+        <div class="list" data-list></div>
+      </div>
+      <aside class="notes">
+        <h2>Circle Nodes: Elbows Only</h2>
+        <ul>
+          <li><strong>Shape:</strong> same circle nodes, but sibling continuation rails are removed.</li>
+          <li><strong>Reading:</strong> only parent-to-child elbows remain, making each branch relationship more isolated.</li>
+          <li><strong>Use when:</strong> you want a quieter tree that avoids long vertical lines through task rows.</li>
+        </ul>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const rows = [
+      { kind: "task", depth: 0, title: "Review release notes before grouping starts", subline: "2026-05-16 - 2026-05-17", state: "Todo", people: ["RI"] },
+      { kind: "task", depth: 0, title: "Confirm project field mapping baseline", subline: "2026-05-17 - 2026-05-18", state: "Doing", people: ["HW"] },
+      { kind: "group", depth: 0, title: "Backend Platform", subline: "2026-05-18 - 2026-06-14", state: "Group", expanded: true, people: ["HW", "AK"] },
+      { kind: "group", depth: 1, title: "API Contract", subline: "2026-05-21 - 2026-05-29", state: "Group", expanded: true, people: [] },
+      { kind: "group", depth: 2, title: "OAuth Flow", subline: "2026-05-22 - 2026-05-27", state: "Group", expanded: true, people: ["MS"] },
+      { kind: "task", depth: 3, title: "Finalize endpoint naming for grouped tasks", subline: "2026-05-22 - 2026-05-25", state: "Doing", people: ["MS"] },
+      { kind: "task", depth: 3, title: "Validate refresh token retry behavior", subline: "2026-05-26 - 2026-05-27", state: "Todo", people: ["JL"] },
+      { kind: "group", depth: 2, title: "Webhook Mapping", subline: "2026-05-28 - 2026-06-04", state: "Group", expanded: true, people: [] },
+      { kind: "task", depth: 3, title: "Normalize GitHub project payload dates", subline: "2026-05-28 - 2026-05-31", state: "Todo", people: ["AK"] },
+      { kind: "task", depth: 3, title: "Guard empty successor fields", subline: "2026-06-01 - 2026-06-04", state: "Todo", people: ["HW"] },
+      { kind: "group", depth: 1, title: "Background Sync", subline: "3 hidden tasks", state: "Group", expanded: false, people: [] },
+      { kind: "task", depth: 1, title: "Document sync status edge cases", subline: "2026-06-05 - 2026-06-06", state: "Todo", people: ["RI"] },
+      { kind: "group", depth: 0, title: "Frontend Surface", subline: "2026-06-01 - 2026-06-21", state: "Group", expanded: true, people: ["RI"] },
+      { kind: "group", depth: 1, title: "Task List", subline: "2026-06-01 - 2026-06-12", state: "Group", expanded: true, people: [] },
+      { kind: "task", depth: 2, title: "Tune hover state for nested group rows", subline: "2026-06-01 - 2026-06-03", state: "Todo", people: ["HW"] },
+      { kind: "task", depth: 2, title: "Check title truncation inside narrow sidebar", subline: "2026-06-04 - 2026-06-06", state: "Doing", people: ["AK"] },
+      { kind: "group", depth: 1, title: "Gantt Pairing", subline: "2026-06-07 - 2026-06-18", state: "Group", expanded: true, people: ["MS"] },
+      { kind: "group", depth: 2, title: "Date Bars", subline: "2026-06-07 - 2026-06-12", state: "Group", expanded: true, people: [] },
+      { kind: "task", depth: 3, title: "Match group row rhythm with chart row grid", subline: "2026-06-07 - 2026-06-09", state: "Todo", people: ["JL"] },
+      { kind: "task", depth: 3, title: "Review selected dependency line contrast", subline: "2026-06-10 - 2026-06-12", state: "Doing", people: ["RI", "HW"] },
+      { kind: "group", depth: 2, title: "Collapsed Examples", subline: "4 hidden tasks", state: "Group", expanded: false, people: [] },
+      { kind: "task", depth: 1, title: "Document final indentation token values", subline: "2026-06-13 - 2026-06-14", state: "Todo", people: ["MS"] },
+      { kind: "task", depth: 0, title: "Archive completed visual review notes", subline: "2026-06-15 - 2026-06-16", state: "Todo", people: ["AK"] },
+      { kind: "task", depth: 0, title: "Prepare implementation handoff checklist", subline: "2026-06-17 - 2026-06-18", state: "Todo", people: ["JL"] }
+    ];
+
+    const avatarClasses = ["", "green", "pink"];
+
+    function createRow(item, index, previousItem, nextItem) {
+      const row = document.createElement("article");
+      row.className = `row ${item.kind === "group" ? "group-row" : "task-row"}`;
+      row.dataset.depth = String(item.depth);
+      if (index === 0) row.dataset.firstListItem = "true";
+      if (previousItem && item.depth === previousItem.depth + 1) row.dataset.firstChild = "true";
+      if (!nextItem || nextItem.depth < item.depth) row.dataset.lastChild = "true";
+      if (item.kind === "group") row.dataset.expanded = String(item.expanded);
+
+      const handle = document.createElement("div");
+      handle.className = "handle";
+      handle.innerHTML = '<span class="grip"></span>';
+
+      const rail = document.createElement("div");
+      rail.className = "rail";
+      for (let level = 0; level <= Math.min(item.depth, 9); level += 1) {
+        const guide = document.createElement("span");
+        guide.className = "guide";
+        if (level === item.depth) guide.classList.add("is-own-level");
+        if (nextItem && nextItem.depth > item.depth && level === item.depth) guide.classList.add("parent-spine");
+        if (!nextItem || nextItem.depth < level || (level < item.depth && nextItem.depth <= level)) guide.classList.add("stops-here");
+        guide.dataset.level = String(level);
+        rail.append(guide);
+      }
+      const elbow = document.createElement("span");
+      elbow.className = "elbow";
+      rail.append(elbow);
+      const node = document.createElement(item.kind === "group" ? "button" : "span");
+      node.className = "node";
+      if (item.kind === "group") {
+        node.type = "button";
+        node.setAttribute("aria-label", `${item.expanded ? "Collapse" : "Expand"} ${item.title}`);
+      }
+      rail.append(node);
+
+      const content = document.createElement("div");
+      content.className = "content";
+      const titleLine = document.createElement("div");
+      titleLine.className = "title-line";
+      const title = document.createElement("span");
+      title.className = "title";
+      title.textContent = item.title;
+      titleLine.append(title);
+      const subline = document.createElement("div");
+      subline.className = "subline";
+      subline.textContent = item.subline;
+      content.append(titleLine, subline);
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = item.state;
+      meta.append(badge);
+
+      const people = document.createElement("div");
+      people.className = "people";
+      if (item.people.length > 0) {
+        const avatars = document.createElement("span");
+        avatars.className = "avatars";
+        item.people.forEach((person, personIndex) => {
+          const avatar = document.createElement("span");
+          avatar.className = `avatar ${avatarClasses[(index + personIndex) % avatarClasses.length]}`.trim();
+          avatar.textContent = person;
+          avatars.append(avatar);
+        });
+        people.append(avatars);
+      }
+
+      row.append(handle, rail, content, meta, people);
+      return row;
+    }
+
+    document.querySelectorAll("[data-list]").forEach((list) => {
+      rows.forEach((item, index) => list.append(createRow(item, index, rows[index - 1], rows[index + 1])));
+    });
+
+    const tabs = Array.from(document.querySelectorAll(".tab"));
+    const panels = Array.from(document.querySelectorAll("[data-panel]"));
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const target = tab.dataset.tab;
+
+        tabs.forEach((candidate) => {
+          candidate.setAttribute("aria-selected", String(candidate === tab));
+        });
+
+        panels.forEach((panel) => {
+          panel.classList.toggle("hidden", panel.dataset.panel !== target);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

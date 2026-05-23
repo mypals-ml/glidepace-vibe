@@ -7,23 +7,130 @@ import { useDashboard } from '../../context/DashboardContext';
 import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor } from '../../utils/statusColors';
-import type { Task, User } from '../../types';
-import { useRef, useState, useEffect, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
+import type { DashboardItem, Task, TaskGroupBlock, User } from '../../types';
+import { useRef, useState, useEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
 import { getDashboardItemSortId, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isTaskGroupBlock, parseGroupPath, serializeGroupPath } from '../../lib/taskGroupUtils';
-import type { TaskGroupBlock } from '../../types';
 import { Button } from '../UI/Button';
 
 type ContextMenuTarget =
   | { kind: 'task'; taskId: string }
   | { kind: 'group'; groupBlockId: string };
 
+const TREE_DEPTH_COLORS = [
+  '#4f46e5',
+  '#0891b2',
+  '#16a34a',
+  '#d97706',
+  '#dc2626',
+  '#9333ea',
+  '#0f766e',
+  '#2563eb',
+  '#be185d',
+  '#65a30d',
+] as const;
+
+const TREE_NODE_BASE_X = 18;
+const TREE_DEPTH_STEP = 24;
+const TREE_ELBOW_HEIGHT = 16;
+const TREE_LINE_MIX = 34;
+
+interface TreeRowMeta {
+  depth: number;
+  guideSegments: TreeGuideSegment[];
+}
+
+interface TreeGuideSegment {
+  level: number;
+  startsAtNode: boolean;
+  endsAtJoint: boolean;
+}
+
+interface DashboardTreeRow {
+  item: DashboardItem;
+  treeMeta: TreeRowMeta;
+}
+
 function eventTargetElement(target: EventTarget | null): HTMLElement | null {
   return target instanceof HTMLElement ? target : null;
+}
+
+function getDashboardItemTreeDepth(item: DashboardItem): number {
+  if (isTaskGroupBlock(item)) return item.depth;
+  return item.depth ?? (item.groupPath?.length ?? 0) + 1;
+}
+
+function getTreeNodeX(depth: number): number {
+  return TREE_NODE_BASE_X + Math.min(Math.max(depth, 0), TREE_DEPTH_COLORS.length - 1) * TREE_DEPTH_STEP;
+}
+
+function getTreeColor(depth: number): string {
+  return TREE_DEPTH_COLORS[Math.min(Math.max(depth, 0), TREE_DEPTH_COLORS.length - 1)];
+}
+
+function getTreeLineColor(depth: number): string {
+  return `color-mix(in srgb, ${getTreeColor(depth)} ${TREE_LINE_MIX}%, white)`;
+}
+
+function buildDashboardTreeRows(items: DashboardItem[]): DashboardTreeRow[] {
+  const depths = items.map(getDashboardItemTreeDepth);
+  const subtreeEndIndexes = depths.map((depth, index) => {
+    let endIndex = index;
+    for (let candidateIndex = index + 1; candidateIndex < depths.length; candidateIndex += 1) {
+      if (depths[candidateIndex] <= depth) break;
+      endIndex = candidateIndex;
+    }
+    return endIndex;
+  });
+  const hasNextSibling = depths.map((depth, index) => {
+    const nextIndexAfterSubtree = subtreeEndIndexes[index] + 1;
+    return depths[nextIndexAfterSubtree] === depth;
+  });
+  const branchStack: number[] = [];
+
+  return items.map((item, index) => {
+    const depth = depths[index];
+    const nextDepth = depths[index + 1] ?? null;
+    const hasChildren = nextDepth !== null && nextDepth > depth;
+
+    branchStack.length = depth + 1;
+    branchStack[depth] = index;
+
+    const guideSegments: TreeGuideSegment[] = [];
+    for (let level = 0; level < depth; level += 1) {
+      const childBranchIndex = branchStack[level + 1];
+      if (childBranchIndex === undefined) continue;
+
+      const isChildBranchRoot = childBranchIndex === index;
+      if (hasNextSibling[childBranchIndex] || isChildBranchRoot) {
+        guideSegments.push({
+          level,
+          startsAtNode: false,
+          endsAtJoint: !hasNextSibling[childBranchIndex] && isChildBranchRoot,
+        });
+      }
+    }
+
+    if (hasChildren) {
+      guideSegments.push({
+        level: depth,
+        startsAtNode: true,
+        endsAtJoint: false,
+      });
+    }
+
+    return {
+      item,
+      treeMeta: {
+        depth,
+        guideSegments,
+      },
+    };
+  });
 }
 
 class TaskMouseSensor extends MouseSensor {
@@ -299,6 +406,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const sortableItemIds = dashboardItems
     .filter(item => !isTaskGroupBlock(item) || !item.isSyntheticRoot)
     .map(getDashboardItemSortId);
+  const dashboardRows = buildDashboardTreeRows(dashboardItems);
 
   const handleDragStart = (event: DragStartEvent) => {
     dragHasMovedRef.current = false;
@@ -391,12 +499,12 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               }}
             >
               <SortableContext items={sortableItemIds} strategy={verticalListSortingStrategy}>
-                {dashboardItems.map((item, index) => (
+                {dashboardRows.map(({ item, treeMeta }, index) => (
                   isTaskGroupBlock(item) ? (
                     <TaskGroupRow
                       key={item.groupBlockId}
                       group={item}
-                      isFirst={index === 0}
+                      treeMeta={treeMeta}
                       onToggle={() => toggleGroupBlockCollapsed(item.groupBlockId)}
                       onRename={() => promptRenameGroup(item)}
                       onUngroup={() => ungroupGroupBlock(item.groupBlockId)}
@@ -412,6 +520,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       isFirst={index === 0}
                       key={item.id}
                       task={item}
+                      treeMeta={treeMeta}
                       isLinkMode={isLinkMode}
                       isSelected={selectedTaskId === item.id}
                       isLinkSelected={selectedLinkTaskIds.includes(item.id)}
@@ -712,9 +821,114 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   );
 }
 
+interface TreeTitleCellProps {
+  children: ReactNode;
+  treeMeta: TreeRowMeta;
+  nodeKind: 'group' | 'task';
+  isExpanded?: boolean;
+  onToggle?: () => void;
+  toggleTitle?: string;
+  toggleAriaLabel?: string;
+}
+
+function TreeTitleCell({
+  children,
+  treeMeta,
+  nodeKind,
+  isExpanded = false,
+  onToggle,
+  toggleTitle,
+  toggleAriaLabel,
+}: TreeTitleCellProps) {
+  const visualDepth = Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1);
+  const nodeX = getTreeNodeX(visualDepth);
+  const parentDepth = Math.max(visualDepth - 1, 0);
+  const parentX = getTreeNodeX(parentDepth);
+  const railColor = getTreeColor(visualDepth);
+  const contentPaddingLeft = nodeX + 24;
+  const parentLineColor = getTreeLineColor(parentDepth);
+
+  const nodeCommonClassName = 'absolute top-1/2 z-[2] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white';
+  const nodeStyle: CSSProperties = {
+    left: nodeX,
+    color: railColor,
+  };
+
+  return (
+    <div className="relative h-full min-w-0">
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        {treeMeta.guideSegments.map(segment => (
+          <span
+            key={segment.level}
+            className="absolute w-0.5 rounded-full"
+            style={{
+              left: getTreeNodeX(segment.level),
+              top: segment.startsAtNode ? '50%' : 0,
+              bottom: segment.endsAtJoint ? `calc(50% + ${TREE_ELBOW_HEIGHT}px)` : 0,
+              backgroundColor: getTreeLineColor(segment.level),
+            }}
+          />
+        ))}
+        {visualDepth > 0 && (
+          <span
+            className="absolute rounded-bl-lg border-b-2 border-l-2"
+            style={{
+              left: parentX,
+              top: `calc(50% - ${TREE_ELBOW_HEIGHT}px)`,
+              width: nodeX - parentX,
+              height: TREE_ELBOW_HEIGHT,
+              borderColor: parentLineColor,
+            }}
+          />
+        )}
+      </div>
+
+      {nodeKind === 'group' ? (
+        <button
+          type="button"
+          className={`${nodeCommonClassName} pointer-events-auto inline-flex h-[22px] w-[22px] items-center justify-center border-2 shadow-[0_0_0_4px_#fff] transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30`}
+          style={{
+            ...nodeStyle,
+            backgroundColor: isExpanded ? `color-mix(in srgb, ${railColor} 10%, white)` : '#fff',
+            borderColor: railColor,
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle?.();
+          }}
+          title={toggleTitle}
+          aria-label={toggleAriaLabel}
+          aria-expanded={isExpanded}
+        >
+          <span className="h-0.5 w-2 rounded-full" style={{ backgroundColor: railColor }} />
+          {!isExpanded && (
+            <span className="absolute h-2 w-0.5 rounded-full" style={{ backgroundColor: railColor }} />
+          )}
+        </button>
+      ) : (
+        <span
+          className={`${nodeCommonClassName} h-2.5 w-2.5 border-2 shadow-[0_0_0_3px_#fff]`}
+          style={{
+            ...nodeStyle,
+            borderColor: railColor,
+          }}
+          aria-hidden="true"
+        />
+      )}
+
+      <div
+        className="relative z-[1] flex h-full min-w-0 flex-col justify-center overflow-hidden pr-1"
+        style={{ paddingLeft: contentPaddingLeft }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 interface TaskGroupRowProps {
   group: TaskGroupBlock;
-  isFirst: boolean;
+  treeMeta: TreeRowMeta;
   onToggle: () => void;
   onRename: () => void;
   onUngroup: () => void;
@@ -728,7 +942,7 @@ interface TaskGroupRowProps {
 
 function TaskGroupRow({
   group,
-  isFirst,
+  treeMeta,
   onToggle,
   onRename,
   onUngroup,
@@ -748,7 +962,6 @@ function TaskGroupRow({
     transition,
     isDragging,
   } = useSortable({ id: sortId, disabled: group.isSyntheticRoot });
-  const paddingLeft = Math.min(12 + group.depth * 16, 56);
   const isMovingThisGroup = movingItemSortId === sortId;
 
   return (
@@ -763,7 +976,7 @@ function TaskGroupRow({
       data-task-moving={isMobile && isMovingThisGroup ? "true" : undefined}
       className={`grid grid-cols-[40px_1fr_64px_76px] gap-2 items-center h-[72px] pl-4 pr-0 border-b border-slate-100/50 transition-all duration-200 relative group overflow-visible ${
         group.isSyntheticRoot ? 'bg-slate-100/80' : 'bg-slate-50/80'
-      } ${!group.isSyntheticRoot ? 'cursor-pointer hover:bg-slate-50' : ''} ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''} ${isFirst ? '' : ''}`}
+      } ${!group.isSyntheticRoot ? 'cursor-pointer hover:bg-slate-50' : ''} ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''}`}
       onContextMenu={(e) => {
         if (group.isSyntheticRoot) return;
         e.preventDefault();
@@ -793,28 +1006,22 @@ function TaskGroupRow({
         </button>
       )}
 
-      <div className="text-slate-400">
-        <button
-          type="button"
-          className="h-7 w-7 inline-flex items-center justify-center rounded hover:bg-white text-slate-500"
-          onClick={onToggle}
-          title={group.isExpanded ? t('dashboard.collapseGroup', 'Collapse group') : t('dashboard.expandGroup', 'Expand group')}
-          aria-label={group.isExpanded ? t('dashboard.collapseGroup', 'Collapse group') : t('dashboard.expandGroup', 'Expand group')}
-        >
-          <span className="material-symbols-outlined text-[18px]">
-            {group.isExpanded ? 'expand_more' : 'chevron_right'}
-          </span>
-        </button>
-      </div>
-      <div className="min-w-0" style={{ paddingLeft }}>
+      <div aria-hidden="true" />
+      <TreeTitleCell
+        treeMeta={treeMeta}
+        nodeKind="group"
+        isExpanded={group.isExpanded}
+        onToggle={onToggle}
+        toggleTitle={group.isExpanded ? t('dashboard.collapseGroup', 'Collapse group') : t('dashboard.expandGroup', 'Expand group')}
+        toggleAriaLabel={group.isExpanded ? t('dashboard.collapseGroup', 'Collapse group') : t('dashboard.expandGroup', 'Expand group')}
+      >
         <div className="flex items-center gap-2 min-w-0">
-          <span className="material-symbols-outlined text-[16px] text-primary/80">folder</span>
           <span className="text-sm font-bold text-slate-700 truncate">{group.name}</span>
         </div>
-        <div className="text-[10px] text-slate-400 mt-0.5 font-medium">
+        <div className="mt-0.5 truncate text-[10px] font-medium text-slate-400">
           {group.startDate && group.targetDate ? `${group.startDate} - ${group.targetDate}` : t('dashboard.noGroupDates', 'No dates')}
         </div>
-      </div>
+      </TreeTitleCell>
       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
         {t('dashboard.groupLabel', 'Group')}
       </div>
@@ -847,6 +1054,7 @@ function TaskGroupRow({
 interface SortableTaskRowProps {
   task: Task;
   isFirst: boolean;
+  treeMeta: TreeRowMeta;
   isLinkMode: boolean;
   isSelected: boolean;
   isLinkSelected: boolean;
@@ -870,6 +1078,7 @@ interface SortableTaskRowProps {
 function SortableTaskRow({
   task,
   isFirst,
+  treeMeta,
   isLinkMode,
   isSelected,
   isLinkSelected,
@@ -976,15 +1185,12 @@ function SortableTaskRow({
         {task.displayId}
       </div>
 
-      <div
-        className="flex flex-col justify-center min-w-0 pr-1"
-        style={{ paddingLeft: Math.min(Math.max((task.depth || 1) - 1, 0) * 16, 48) }}
-      >
-        <span className={`text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
+      <TreeTitleCell treeMeta={treeMeta} nodeKind="task">
+        <span className={`block text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
           {task.title}
         </span>
-        <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
-      </div>
+        <div className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
+      </TreeTitleCell>
 
       <div className="group/status relative h-full flex items-center min-w-0">
         <div
