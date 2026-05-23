@@ -831,7 +831,6 @@ interface TreeTitleCellProps {
   onToggle?: () => void;
   toggleTitle?: string;
   toggleAriaLabel?: string;
-  nodeBadge?: ReactNode;
 }
 
 function TreeTitleCell({
@@ -842,7 +841,6 @@ function TreeTitleCell({
   onToggle,
   toggleTitle,
   toggleAriaLabel,
-  nodeBadge,
 }: TreeTitleCellProps) {
   const visualDepth = Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1);
   const nodeX = getTreeNodeX(visualDepth);
@@ -910,24 +908,14 @@ function TreeTitleCell({
           )}
         </button>
       ) : (
-        <>
-          <span
-            className={`${nodeCommonClassName} h-2.5 w-2.5 border-2 shadow-[0_0_0_3px_#fff]`}
-            style={{
-              ...nodeStyle,
-              borderColor: railColor,
-            }}
-            aria-hidden="true"
-          />
-          {nodeBadge && (
-            <span
-              className="absolute top-1/2 z-[2] mt-2 -translate-x-1/2 rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-[9px] font-bold leading-none text-slate-500 shadow-[0_0_0_2px_#fff]"
-              style={{ left: nodeX }}
-            >
-              {nodeBadge}
-            </span>
-          )}
-        </>
+        <span
+          className={`${nodeCommonClassName} h-2.5 w-2.5 border-2 shadow-[0_0_0_3px_#fff]`}
+          style={{
+            ...nodeStyle,
+            borderColor: railColor,
+          }}
+          aria-hidden="true"
+        />
       )}
 
       <div
@@ -1155,6 +1143,7 @@ function SortableTaskRow({
   const dragHandleFillClass = isLinkMode
     ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-white group-hover:bg-drag-handle-hovered'
     : isSelected ? 'bg-drag-handle-selected' : 'bg-white group-hover:bg-drag-handle-hovered';
+  const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
 
   return (
     <div
@@ -1221,8 +1210,9 @@ function SortableTaskRow({
         <span className="material-symbols-outlined text-[14px]">drag_indicator</span>
       </button>
 
-      <TreeTitleCell treeMeta={treeMeta} nodeKind="task" nodeBadge={task.displayId}>
-        <span className={`block text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
+      <TreeTitleCell treeMeta={treeMeta} nodeKind="task">
+        <span className={`overflow-hidden text-ellipsis text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
+          <span style={{ color: treeNodeColor }}>{task.displayId}</span>{' '}
           {task.title}
         </span>
         <div className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>

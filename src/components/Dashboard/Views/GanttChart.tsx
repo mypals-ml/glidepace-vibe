@@ -401,8 +401,8 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                       }}
                     >
                       <div className="flex flex-col min-w-0 flex-1">
-                        <span className="text-[10px] font-bold opacity-60 uppercase tracking-tighter mb-0.5">{task.displayId}</span>
-                        <span className="text-xs font-bold truncate leading-tight">
+                        <span className="text-xs font-bold leading-tight line-clamp-2 overflow-hidden text-ellipsis break-words">
+                          <span className="text-slate-400">{task.displayId}</span>{' '}
                           {task.title}
                         </span>
                       </div>

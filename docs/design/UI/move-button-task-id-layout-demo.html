@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Move Button and Task ID Layout Demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f8fafc;
+      --panel: #fff;
+      --line: #e2e8f0;
+      --line-soft: #eef2f7;
+      --text: #172033;
+      --muted: #64748b;
+      --faint: #94a3b8;
+      --primary: #4f46e5;
+      --primary-soft: #eef2ff;
+      --cyan: #0891b2;
+      --green: #16a34a;
+      --amber: #d97706;
+      --danger: #dc2626;
+      --row-h: 72px;
+      --status-w: 64px;
+      --people-w: 76px;
+      --row-pad-left: 8px;
+      --node-base-x: 12px;
+      --depth-step: 20px;
+      --content-gap: 18px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(180deg, #fff 0, var(--bg) 62%);
+      color: var(--text);
+    }
+
+    button { font: inherit; }
+
+    .shell {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 28px auto 44px;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .lede {
+      max-width: 800px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .size-toggle,
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.05);
+    }
+
+    .tabs { overflow-x: auto; }
+
+    .size-toggle button,
+    .tab {
+      min-height: 36px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .size-toggle button { padding: 0 12px; }
+    .tab { padding: 0 14px; }
+
+    .size-toggle button[aria-pressed="true"],
+    .tab[aria-selected="true"] {
+      color: var(--primary);
+      background: var(--primary-soft);
+      box-shadow: inset 0 0 0 1px rgba(79, 70, 229, 0.12);
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 318px;
+      gap: 18px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
+    .preview,
+    .notes {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+
+    .preview-head,
+    .row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) var(--status-w) var(--people-w);
+      gap: 8px;
+      align-items: center;
+      padding: 0 14px 0 var(--row-pad-left);
+    }
+
+    .preview-head {
+      height: 44px;
+      color: var(--faint);
+      background: #f8fafc;
+      border-bottom: 1px solid var(--line);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .row {
+      position: relative;
+      min-height: var(--row-h);
+      border-bottom: 1px solid var(--line-soft);
+      cursor: pointer;
+      --rail: var(--primary);
+      --rail-soft: color-mix(in srgb, var(--rail) 34%, white);
+      --depth-x: var(--node-base-x);
+      --node-x: calc(var(--row-pad-left) + var(--depth-x));
+      --content-x: calc(var(--depth-x) + var(--content-gap));
+    }
+
+    .row:last-child { border-bottom: 0; }
+    .row:hover,
+    .row.selected { background: #f8fafc; }
+    .row.selected { box-shadow: inset 3px 0 0 var(--primary); }
+
+    .row[data-depth="1"] { --rail: var(--cyan); --depth-x: calc(var(--node-base-x) + var(--depth-step)); }
+    .row[data-depth="2"] { --rail: var(--green); --depth-x: calc(var(--node-base-x) + var(--depth-step) * 2); }
+    .row[data-depth="3"] { --rail: var(--amber); --depth-x: calc(var(--node-base-x) + var(--depth-step) * 3); }
+    .row[data-depth="4"] { --rail: var(--danger); --depth-x: calc(var(--node-base-x) + var(--depth-step) * 4); }
+
+    .tree-cell {
+      position: relative;
+      min-width: 0;
+      height: 100%;
+      display: grid;
+      align-items: center;
+    }
+
+    .tree-rail {
+      position: absolute;
+      left: var(--depth-x);
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      border-radius: 99px;
+      background: var(--rail-soft);
+    }
+
+    .node {
+      position: absolute;
+      left: var(--depth-x);
+      top: 50%;
+      width: 11px;
+      height: 11px;
+      border: 2px solid var(--rail);
+      border-radius: 999px;
+      background: #fff;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 3px #fff;
+    }
+
+    .move {
+      position: absolute;
+      left: var(--node-x);
+      top: 50%;
+      z-index: 4;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 28px;
+      border: 0;
+      border-radius: 4px;
+      color: #94a3b8;
+      background: #fff;
+      cursor: grab;
+      transform: translate(-50%, -50%);
+      touch-action: none;
+      box-shadow: none;
+    }
+
+    .row:hover .move {
+      color: var(--primary);
+      background: #f8fafc;
+    }
+
+    .move:active { cursor: grabbing; }
+
+    .move .dots {
+      display: grid;
+      grid-template-columns: repeat(2, 3px);
+      gap: 3px;
+    }
+
+    .move .dots i {
+      width: 3px;
+      height: 3px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .content {
+      min-width: 0;
+      display: grid;
+      align-items: center;
+      height: 100%;
+      padding-left: var(--content-x);
+    }
+
+    .title {
+      min-width: 0;
+      color: #334155;
+      font-size: 14px;
+      font-weight: 650;
+      line-height: 1.25;
+    }
+
+    .title span {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+    }
+
+    .dates {
+      margin-top: 3px;
+      color: var(--faint);
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-id {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: max-content;
+      max-width: 100%;
+      min-width: 32px;
+      height: 18px;
+      padding: 0 6px;
+      border: 1px solid #dbe3ef;
+      border-radius: 5px;
+      background: #f8fafc;
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .status {
+      min-width: 0;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      max-width: 100%;
+      padding: 5px 7px;
+      border-radius: 7px;
+      background: #f1f5f9;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .avatar {
+      width: 30px;
+      height: 30px;
+      margin: auto;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #e0f2fe, #ede9fe);
+      color: #475569;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .notes { padding: 18px; }
+
+    .notes h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .notes p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .notes ul {
+      margin: 12px 0 0;
+      padding-left: 18px;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .demo-a .content {
+      grid-template-columns: 48px minmax(0, 1fr);
+      column-gap: 8px;
+    }
+
+    .demo-a .task-id {
+      justify-self: start;
+    }
+
+    .demo-b .content {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .demo-b .task-id {
+      position: absolute;
+      left: var(--depth-x);
+      top: calc(50% + 14px);
+      transform: translateX(-50%);
+      z-index: 3;
+      height: 16px;
+      min-width: 30px;
+      padding: 0 5px;
+      font-size: 9px;
+      background: #fff;
+      box-shadow: 0 0 0 2px #fff;
+    }
+
+    .demo-c .content {
+      grid-template-columns: minmax(0, 1fr) 52px;
+      column-gap: 8px;
+    }
+
+    .demo-c .task-id {
+      justify-self: end;
+    }
+
+    .demo-d .content {
+      grid-template-columns: minmax(0, 1fr);
+      align-items: center;
+    }
+
+    .demo-d .title-line {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .demo-d .title {
+      min-width: 0;
+    }
+
+    .demo-d .task-id {
+      flex: 0 0 auto;
+    }
+
+    .demo-e .content {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .demo-e .move {
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      color: #fff;
+      background: var(--rail);
+      box-shadow: 0 0 0 3px #fff, 0 4px 10px rgba(15, 23, 42, 0.13);
+    }
+
+    .demo-e .move .dots {
+      grid-template-columns: repeat(2, 2px);
+      gap: 2px;
+    }
+
+    .demo-e .move .dots i {
+      width: 2px;
+      height: 2px;
+    }
+
+    .demo-e .task-id {
+      position: absolute;
+      left: var(--depth-x);
+      top: calc(50% + 16px);
+      transform: translateX(-50%);
+      z-index: 3;
+      height: 16px;
+      min-width: 30px;
+      padding: 0 5px;
+      font-size: 9px;
+      color: #475569;
+      background: #fff;
+      box-shadow: 0 0 0 2px #fff;
+    }
+
+    .narrow .stage {
+      grid-template-columns: minmax(0, 430px);
+    }
+
+    .narrow .notes { max-width: 430px; }
+
+    .narrow .preview-head,
+    .narrow .row {
+      grid-template-columns: minmax(0, 1fr) 58px 54px;
+      padding-right: 8px;
+    }
+
+    .narrow .demo-a .content {
+      grid-template-columns: 42px minmax(0, 1fr);
+      column-gap: 6px;
+    }
+
+    .narrow .demo-c .content {
+      grid-template-columns: minmax(0, 1fr) 46px;
+    }
+
+    .narrow .status { font-size: 10px; }
+
+    @media (max-width: 860px) {
+      .top,
+      .stage {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+
+      .size-toggle { width: max-content; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell" id="app">
+    <div class="top">
+      <div>
+        <h1>Move Button + Task ID Tag Layouts</h1>
+        <p class="lede">Each option keeps the move button centered on the tree node. The task id tag is moved into normal layout flow, below the node, or to the trailing side so it does not overlap the button or title text.</p>
+      </div>
+      <div class="size-toggle" aria-label="Preview width">
+        <button type="button" data-width="wide" aria-pressed="true">Wide</button>
+        <button type="button" data-width="narrow" aria-pressed="false">Narrow</button>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Design options">
+      <button class="tab" id="tab-a" type="button" role="tab" aria-controls="panel-a" aria-selected="true">A. ID After Node</button>
+      <button class="tab" id="tab-b" type="button" role="tab" aria-controls="panel-b" aria-selected="false">B. ID Below Node</button>
+      <button class="tab" id="tab-c" type="button" role="tab" aria-controls="panel-c" aria-selected="false">C. ID Trailing</button>
+      <button class="tab" id="tab-d" type="button" role="tab" aria-controls="panel-d" aria-selected="false">D. Inline Title ID</button>
+      <button class="tab" id="tab-e" type="button" role="tab" aria-controls="panel-e" aria-selected="false">E. Compact Node Button</button>
+    </div>
+
+    <section class="stage">
+      <div class="preview">
+        <div class="preview-head">
+          <div>Task</div>
+          <div>Status</div>
+          <div>Owner</div>
+        </div>
+
+        <div class="tab-panel active demo-a" id="panel-a" role="tabpanel" aria-labelledby="tab-a">
+          <div class="list">
+            <article class="row selected" data-depth="0">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <span class="task-id">#104</span>
+                  <div class="title"><span>Build task row layout that keeps move control, task id, and title from overlapping</span><div class="dates">2026-05-20 - 2026-05-24</div></div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">In progress</span></div>
+              <div class="avatar">HW</div>
+            </article>
+            <article class="row" data-depth="1">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <span class="task-id">#8</span>
+                  <div class="title"><span>Very long nested task title wraps cleanly without crossing the task id badge</span><div class="dates">2026-05-22 - 2026-05-26</div></div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">Todo</span></div>
+              <div class="avatar">AK</div>
+            </article>
+            <article class="row" data-depth="3">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <span class="task-id">#1287</span>
+                  <div class="title"><span>Deeply indented row still has a predictable title start</span><div class="dates">2026-05-24 - 2026-05-30</div></div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">Review</span></div>
+              <div class="avatar">MS</div>
+            </article>
+          </div>
+        </div>
+
+        <div class="tab-panel demo-b" id="panel-b" role="tabpanel" aria-labelledby="tab-b">
+          <div class="list">
+            <article class="row selected" data-depth="0">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span><span class="task-id">#104</span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div class="title"><span>Build task row layout that keeps move control, task id, and title from overlapping</span><div class="dates">2026-05-20 - 2026-05-24</div></div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">In progress</span></div>
+              <div class="avatar">HW</div>
+            </article>
+            <article class="row" data-depth="1">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span><span class="task-id">#8</span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div class="title"><span>Badge stays below the move handle, leaving the title lane uninterrupted</span><div class="dates">2026-05-22 - 2026-05-26</div></div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">Todo</span></div>
+              <div class="avatar">AK</div>
+            </article>
+            <article class="row" data-depth="3">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span><span class="task-id">#1287</span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div class="title"><span>Deep rows preserve the current tree reading model and title width</span><div class="dates">2026-05-24 - 2026-05-30</div></div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">Review</span></div>
+              <div class="avatar">MS</div>
+            </article>
+          </div>
+        </div>
+
+        <div class="tab-panel demo-c" id="panel-c" role="tabpanel" aria-labelledby="tab-c">
+          <div class="list">
+            <article class="row selected" data-depth="0">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div class="title"><span>Build task row layout that keeps move control, task id, and title from overlapping</span><div class="dates">2026-05-20 - 2026-05-24</div></div>
+                  <span class="task-id">#104</span>
+                </div>
+              </div>
+              <div class="status"><span class="pill">In progress</span></div>
+              <div class="avatar">HW</div>
+            </article>
+            <article class="row" data-depth="1">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div class="title"><span>Title-first reading order keeps the row calm and scan-friendly</span><div class="dates">2026-05-22 - 2026-05-26</div></div>
+                  <span class="task-id">#8</span>
+                </div>
+              </div>
+              <div class="status"><span class="pill">Todo</span></div>
+              <div class="avatar">AK</div>
+            </article>
+            <article class="row" data-depth="3">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div class="title"><span>Deep rows preserve text width by pushing task metadata right</span><div class="dates">2026-05-24 - 2026-05-30</div></div>
+                  <span class="task-id">#1287</span>
+                </div>
+              </div>
+              <div class="status"><span class="pill">Review</span></div>
+              <div class="avatar">MS</div>
+            </article>
+          </div>
+        </div>
+
+        <div class="tab-panel demo-d" id="panel-d" role="tabpanel" aria-labelledby="tab-d">
+          <div class="list">
+            <article class="row selected" data-depth="0">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div>
+                    <div class="title-line"><span class="task-id">#104</span><div class="title"><span>Build task row layout that keeps move control, task id, and title from overlapping</span></div></div>
+                    <div class="dates">2026-05-20 - 2026-05-24</div>
+                  </div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">In progress</span></div>
+              <div class="avatar">HW</div>
+            </article>
+            <article class="row" data-depth="2">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div>
+                    <div class="title-line"><span class="task-id">#8</span><div class="title"><span>Badge sits inline with title but remains in normal flow</span></div></div>
+                    <div class="dates">2026-05-22 - 2026-05-26</div>
+                  </div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">Todo</span></div>
+              <div class="avatar">AK</div>
+            </article>
+            <article class="row" data-depth="4">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div>
+                    <div class="title-line"><span class="task-id">#1287</span><div class="title"><span>Compact mode is strongest when horizontal space is tight</span></div></div>
+                    <div class="dates">2026-05-24 - 2026-05-30</div>
+                  </div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">Review</span></div>
+              <div class="avatar">MS</div>
+            </article>
+          </div>
+        </div>
+
+        <div class="tab-panel demo-e" id="panel-e" role="tabpanel" aria-labelledby="tab-e">
+          <div class="list">
+            <article class="row selected" data-depth="0">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span><span class="task-id">#104</span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div class="title"><span>Build task row layout that keeps move control, task id, and title from overlapping</span><div class="dates">2026-05-20 - 2026-05-24</div></div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">In progress</span></div>
+              <div class="avatar">HW</div>
+            </article>
+            <article class="row" data-depth="1">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span><span class="task-id">#8</span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div class="title"><span>Move button replaces the visible node while active, so it feels anchored to the tree</span><div class="dates">2026-05-22 - 2026-05-26</div></div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">Todo</span></div>
+              <div class="avatar">AK</div>
+            </article>
+            <article class="row" data-depth="3">
+              <div class="tree-cell">
+                <span class="tree-rail"></span><span class="node"></span><span class="task-id">#1287</span>
+                <button class="move" type="button" aria-label="Move task"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="content">
+                  <div class="title"><span>Small circular handle avoids taking extra horizontal space</span><div class="dates">2026-05-24 - 2026-05-30</div></div>
+                </div>
+              </div>
+              <div class="status"><span class="pill">Review</span></div>
+              <div class="avatar">MS</div>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <aside class="notes" aria-live="polite">
+        <h2 id="note-title">A. ID After Node</h2>
+        <p id="note-copy">The move button remains centered on the tree node. The task id becomes the first normal-flow item in the content area, so it cannot overlap the button or title.</p>
+        <ul id="note-list">
+          <li>Closest to the current row style.</li>
+          <li>Clear separation between tree control, id, and title.</li>
+          <li>Uses a little more horizontal space before the title.</li>
+        </ul>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const notes = {
+      'panel-a': {
+        title: 'A. ID After Node',
+        copy: 'The move button remains centered on the tree node. The task id becomes the first normal-flow item in the content area, so it cannot overlap the button or title.',
+        points: ['Closest to the current row style.', 'Clear separation between tree control, id, and title.', 'Uses a little more horizontal space before the title.']
+      },
+      'panel-b': {
+        title: 'B. ID Below Node',
+        copy: 'Keeps the current task id location concept, but pushes it lower than the move handle. The title starts after the tree content gap, untouched.',
+        points: ['Best if the id should stay visually attached to the tree node.', 'Preserves title width.', 'Vertical spacing is tighter with long ids.']
+      },
+      'panel-c': {
+        title: 'C. ID Trailing',
+        copy: 'The title gets first priority, while the task id sits in a reserved trailing slot. The move button still appears directly over the tree node center.',
+        points: ['Maximum title readability.', 'Works well for deep nesting.', 'Task id is less prominent when scanning from the left.']
+      },
+      'panel-d': {
+        title: 'D. Inline Title ID',
+        copy: 'The id and title share a single line in normal flow. This is compact and readable, with no absolute task id overlay.',
+        points: ['Efficient on narrow lists.', 'No collision with the handle.', 'The badge can make very long titles feel busier.']
+      },
+      'panel-e': {
+        title: 'E. Compact Node Button',
+        copy: 'The move affordance becomes a small circular control centered on the node. It reads like an active tree node while keeping the id below.',
+        points: ['Strongest node-center alignment.', 'Consumes the least horizontal space.', 'More visually opinionated than the current handle.']
+      }
+    };
+
+    const tabs = document.querySelectorAll('[role="tab"]');
+    const panels = document.querySelectorAll('.tab-panel');
+    const noteTitle = document.querySelector('#note-title');
+    const noteCopy = document.querySelector('#note-copy');
+    const noteList = document.querySelector('#note-list');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const panelId = tab.getAttribute('aria-controls');
+        tabs.forEach(candidate => candidate.setAttribute('aria-selected', String(candidate === tab)));
+        panels.forEach(panel => panel.classList.toggle('active', panel.id === panelId));
+
+        const note = notes[panelId];
+        noteTitle.textContent = note.title;
+        noteCopy.textContent = note.copy;
+        noteList.innerHTML = note.points.map(point => `<li>${point}</li>`).join('');
+      });
+    });
+
+    document.querySelectorAll('[data-width]').forEach(button => {
+      button.addEventListener('click', () => {
+        const narrow = button.dataset.width === 'narrow';
+        document.querySelector('#app').classList.toggle('narrow', narrow);
+        document.querySelectorAll('[data-width]').forEach(candidate => {
+          candidate.setAttribute('aria-pressed', String(candidate === button));
+        });
+      });
+    });
+  </script>
+</body>
+</html>
