@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchGitHubGraphQL, getRepositoryId, createGitHubIssue, addProjectV2Item, addProjectV2DraftIssue, updateProjectV2ItemField, updateProjectV2ItemPosition } from '../lib/githubService';
+import { fetchGitHubGraphQL, getRepositoryId, createGitHubIssue, addProjectV2Item, addProjectV2DraftIssue, updateProjectV2ItemField, clearProjectV2ItemField, updateProjectV2ItemPosition } from '../lib/githubService';
 import { mapProjectItemToTask } from '../lib/githubTaskMapper';
 import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
@@ -444,22 +444,24 @@ export function useDashboardTasks({
     }
   }, [selectedProject?.id, githubToken, fetchSingleProjectItem]);
 
-  const updateTaskDates = useCallback(async (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode, skipRefresh = false): Promise<boolean> => {
+  const updateTaskDates = useCallback(async (task: Task, startDate?: string | null, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode, skipRefresh = false): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;
     
     // Optimistic Update
     const oldTasks = [...tasksRef.current];
     const projectFixedMode = getProjectFixedStartDateMode(dateSettings);
+    const shouldClearStartDate = startDate === null;
+    const normalizedStartDate = shouldClearStartDate ? '' : startDate;
     let nextTasks: Task[] = [];
     let effectiveFixedMode = projectFixedMode;
     const updatedBeforeCascade = oldTasks.map(t => 
       (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId)) 
         ? { 
             ...t, 
-            startDate: startDate !== undefined ? startDate : t.startDate,
-            targetDate: (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined)
+            startDate: normalizedStartDate !== undefined ? normalizedStartDate : t.startDate,
+            targetDate: (!shouldClearStartDate && (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined))
               ? calculateTargetDate(
-                  startDate !== undefined ? startDate : t.startDate,
+                  normalizedStartDate !== undefined ? normalizedStartDate : t.startDate,
                   estimate !== undefined ? estimate : (t.estimate || 0),
                   estimateUnit !== undefined ? estimateUnit : (t.estimateUnit || 'days')
                 )
@@ -474,7 +476,7 @@ export function useDashboardTasks({
         : t
     );
 
-    if (projectFixedMode === 'ask') {
+    if (!shouldClearStartDate && projectFixedMode === 'ask') {
       const fixedStartDateCandidates = uniqueTasks(getFixedStartDateUpdateCandidates(updatedBeforeCascade, task.itemId));
       if (fixedStartDateCandidates.length > 0) {
         const decision = await requestStartDateDecision(fixedStartDateCandidates);
@@ -482,9 +484,11 @@ export function useDashboardTasks({
       }
     }
 
-    nextTasks = cascadeTaskDates(updatedBeforeCascade, task.itemId!, new Set(), {
-      fixedStartDateMode: effectiveFixedMode,
-    });
+    nextTasks = shouldClearStartDate
+      ? recalculateFloatingSuccessorDates(updatedBeforeCascade, task.itemId, new Set(), effectiveFixedMode)
+      : cascadeTaskDates(updatedBeforeCascade, task.itemId!, new Set(), {
+          fixedStartDateMode: effectiveFixedMode,
+        });
     const dependencyRepair = autoCorrectDependencyFields(nextTasks);
     nextTasks = dependencyRepair.tasks;
     setTasks(nextTasks);
@@ -499,18 +503,24 @@ export function useDashboardTasks({
 
       // Auto-calculate new target date if dependencies changed
       let finalTargetDate = targetDate;
-      const effectiveStartDate = startDate !== undefined ? startDate : task.startDate;
+      const effectiveStartDate = normalizedStartDate !== undefined ? normalizedStartDate : task.startDate;
       const effectiveEstimate = estimate !== undefined ? estimate : (task.estimate || 0);
       const effectiveUnit = estimateUnit !== undefined ? estimateUnit : (task.estimateUnit || 'days');
       
-      if (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined) {
+      if (!shouldClearStartDate && (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined)) {
         const calculated = calculateTargetDate(effectiveStartDate, effectiveEstimate, effectiveUnit);
         if (calculated !== task.targetDate) {
           finalTargetDate = calculated;
         }
       }
 
-      if (startDate) {
+      if (shouldClearStartDate) {
+        const fieldId = dateSettings.startDateFieldId || task.projectFieldIds?.startDate;
+        if (fieldId) {
+          const success = await clearProjectV2ItemField(selectedProject.id, task.itemId!, fieldId, githubToken);
+          if (success) anySuccess = true;
+        }
+      } else if (startDate) {
         const fieldId = dateSettings.startDateFieldId || task.projectFieldIds?.startDate;
         await updateField(fieldId, { date: formatToGitHubDate(startDate) });
       }

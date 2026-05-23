@@ -150,6 +150,14 @@ export const UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION = `
   }
 `;
 
+export const CLEAR_PROJECT_ITEM_FIELD_VALUE_MUTATION = `
+  mutation ClearProjectV2ItemFieldValue($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+    clearProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId }) {
+      projectV2Item { id }
+    }
+  }
+`;
+
 export const UPDATE_PROJECT_ITEM_POSITION_MUTATION = `
   mutation UpdateProjectV2ItemPosition($projectId: ID!, $itemId: ID!, $afterId: ID) {
     updateProjectV2ItemPosition(input: { projectId: $projectId, itemId: $itemId, afterId: $afterId }) {

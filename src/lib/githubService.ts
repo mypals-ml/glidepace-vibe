@@ -6,6 +6,7 @@ import {
   ADD_PROJECT_ITEM_MUTATION,
   ADD_DRAFT_ISSUE_MUTATION,
   UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION,
+  CLEAR_PROJECT_ITEM_FIELD_VALUE_MUTATION,
   UPDATE_PROJECT_ITEM_POSITION_MUTATION,
   CREATE_PROJECT_V2_FIELD_MUTATION
 } from './githubQueries';
@@ -88,6 +89,21 @@ export async function updateProjectV2ItemField(projectId: string, itemId: string
     return true;
   } catch (e) {
     console.error('Update field failed:', e);
+    return false;
+  }
+}
+
+export async function clearProjectV2ItemField(projectId: string, itemId: string, fieldId: string, token: string): Promise<boolean> {
+  try {
+    console.log('[GitHubAPI] Executing GraphQL query with token (last 4):', token.slice(-4));
+    const res = await fetchGitHubGraphQL(CLEAR_PROJECT_ITEM_FIELD_VALUE_MUTATION, { projectId, itemId, fieldId }, token);
+    if (res.errors) {
+      console.error('Clear field failed:', res.errors);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('Clear field failed:', e);
     return false;
   }
 }

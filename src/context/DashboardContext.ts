@@ -65,7 +65,7 @@ export interface DashboardContextValue {
   addTaskComment: (task: Task, body: string) => Promise<boolean>;
   deleteTask: (task: Task) => Promise<boolean>;
   updateTaskStatus: (task: Task, status: TaskStatus) => Promise<boolean>;
-  updateTaskDates: (task: Task, startDate?: string, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode) => Promise<boolean>;
+  updateTaskDates: (task: Task, startDate?: string | null, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode) => Promise<boolean>;
   updateTaskSuccessors: (taskId: string, successorIds: string[], skipRefresh?: boolean, decision?: 'auto' | 'locked' | 'ask') => Promise<boolean>;
   updateTaskGroupPath: (taskId: string, groupPath: GroupPath) => Promise<boolean>;
   renameGroupBlock: (groupBlockId: string, name: string) => Promise<boolean>;

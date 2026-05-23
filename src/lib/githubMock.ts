@@ -930,6 +930,26 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     return { data: { updateProjectV2ItemFieldValue: { projectV2Item: { id: task.itemId } } } };
   }
 
+  if (query.includes('clearProjectV2ItemFieldValue(')) {
+    const projectId = getVar('projectId');
+    const itemId = getVar('itemId');
+    const task = getAllMockTasks().find(t => t.itemId === itemId);
+    if (!task) return { errors: [{ message: 'Item not found' }] };
+
+    const fieldId = getVar('fieldId');
+    const fields = projectId ? getFieldsForProject(projectId) : Object.values(MOCK_PROJECT_FIELDS_MAP).flat();
+    const field = fields.find(f => f.id === fieldId);
+    const fieldName = field?.name.toLowerCase() || '';
+    if (field?.id === MOCK_FIELD_IDS.startDate || fieldName.includes('start')) {
+      task.startDate = '';
+      task.fullStartDate = undefined;
+      task.tempStartDate = undefined;
+      task.tempTargetDate = undefined;
+    }
+
+    return { data: { clearProjectV2ItemFieldValue: { projectV2Item: { id: task.itemId } } } };
+  }
+
   if (query.includes('createProjectV2Field(')) {
     const projectId = getVar('projectId');
     const name = getVar('name');
