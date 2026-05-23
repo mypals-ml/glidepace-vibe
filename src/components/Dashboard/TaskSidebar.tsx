@@ -80,6 +80,10 @@ function getTreeLineColor(depth: number): string {
   return `color-mix(in srgb, ${getTreeColor(depth)} ${TREE_LINE_MIX}%, white)`;
 }
 
+function getTreeRowDividerLeft(depth: number): number {
+  return TREE_ROW_PADDING_LEFT + getTreeNodeX(depth) + TREE_CONTENT_GAP;
+}
+
 function getTreeHandleHoverColor(depth: number): string {
   return `color-mix(in srgb, ${getTreeColor(depth)} 82%, black)`;
 }
@@ -987,6 +991,7 @@ function TaskGroupRow({
   const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const dragHandleFillClass = isDragging || isDragActive ? 'bg-white' : 'bg-slate-50/80 group-hover:bg-slate-50';
   const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
+  const dividerLeft = getTreeRowDividerLeft(treeMeta.depth);
 
   return (
     <div
@@ -995,10 +1000,11 @@ function TaskGroupRow({
         transform: CSS.Transform.toString(transform),
         transition,
         touchAction: isMobile && isMovingThisGroup ? 'none' : undefined,
-      }}
+        '--tree-row-divider-left': `${dividerLeft}px`,
+      } as CSSProperties}
       data-dashboard-sort-id={sortId}
       data-task-moving={isMobile && isMovingThisGroup ? "true" : undefined}
-      className={`grid grid-cols-[1fr_64px_76px] gap-1 items-center h-[72px] pl-2 pr-0 border-b border-slate-100/50 transition-all duration-200 relative group overflow-visible ${
+      className={`grid grid-cols-[1fr_64px_76px] gap-1 items-center h-[72px] pl-2 pr-0 transition-all duration-200 relative group overflow-visible after:absolute after:bottom-0 after:left-[var(--tree-row-divider-left)] after:right-0 after:h-px after:bg-slate-100/50 after:content-[''] ${
         group.isSyntheticRoot ? 'bg-slate-100/80' : 'bg-slate-50/80'
       } ${!group.isSyntheticRoot ? 'cursor-pointer hover:bg-slate-50' : ''} ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''}`}
       onClick={() => {
@@ -1177,6 +1183,7 @@ function SortableTaskRow({
   const treeLineColor = getTreeLineColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
+  const dividerLeft = getTreeRowDividerLeft(treeMeta.depth);
 
   return (
     <div
@@ -1185,12 +1192,13 @@ function SortableTaskRow({
         transform: CSS.Transform.toString(transform),
         transition,
         touchAction: isMobile && isMovingThisTask ? 'none' : undefined,
-      }}
+        '--tree-row-divider-left': `${dividerLeft}px`,
+      } as CSSProperties}
       data-task-sortable-row="true"
       data-dashboard-sort-id={sortId}
       data-task-id={task.id}
       data-task-moving={isMobile && isMovingThisTask ? "true" : undefined}
-      className={`grid grid-cols-[1fr_64px_76px] gap-1 items-center h-[72px] pl-2 pr-0 border-b border-slate-100/50 cursor-pointer transition-all duration-200 relative group overflow-visible ${
+      className={`grid grid-cols-[1fr_64px_76px] gap-1 items-center h-[72px] pl-2 pr-0 cursor-pointer transition-all duration-200 relative group overflow-visible after:absolute after:bottom-0 after:left-[var(--tree-row-divider-left)] after:right-0 after:h-px after:bg-slate-100/50 after:content-[''] ${
         isLinkMode
           ? isLinkSelected ? 'bg-primary/10 ring-1 ring-primary/30 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
           : isSelected ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
