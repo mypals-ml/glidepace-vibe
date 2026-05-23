@@ -3,12 +3,13 @@ import { useDashboard } from '../../../context/DashboardContext';
 import { getStatusColor } from '../../../utils/statusColors';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { getStartDateForCal, getTargetDateForCal } from '../../../lib/githubTaskMapper';
-import { formatToGitHubDate, diffDays } from '../../../lib/dateUtils';
+import { diffDays } from '../../../lib/dateUtils';
 import { IconButton } from '../../UI/IconButton';
 import { useGanttTimeline } from '../../../hooks/useGanttTimeline';
 import { DependencyLines } from './DependencyLines';
 import { FloatingSequenceBuilder } from '../FloatingSequenceBuilder';
 import { isTaskGroupBlock } from '../../../lib/taskGroupUtils';
+import { defaultWorkCalendar } from '../../../lib/workCalendar';
 
 export interface GanttChartProps {
   className?: string;
@@ -46,7 +47,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
   });
 
   const today = useMemo(() => new Date(), []);
-  const todayStr = useMemo(() => formatToGitHubDate(today), [today]);
+  const todayStr = useMemo(() => defaultWorkCalendar.formatDate(today), [today]);
 
   const selectedTask = useMemo(() => filteredTasks.find(t => t.id === selectedTaskId), [filteredTasks, selectedTaskId]);
   
@@ -191,9 +192,9 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     for (let i = visibleStartIndex; i < visibleEndIndex; i++) {
       const d = new Date(timelineRange.start);
       d.setDate(d.getDate() + i);
-      const dateStr = formatToGitHubDate(d);
+      const dateStr = defaultWorkCalendar.formatDate(d);
       const isToday = dateStr === todayStr;
-      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      const isNonWorkday = defaultWorkCalendar.isNonWorkday(dateStr);
       
       days.push({
         date: dateStr,
@@ -201,7 +202,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
         dayNum: d.getDate(),
         month: d.toLocaleString('default', { month: 'short' }),
         isToday,
-        isWeekend,
+        isNonWorkday,
         index: i
       });
     }
@@ -226,7 +227,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
           {visibleTimelineDays.map((day) => (
             <div 
               key={day.date} 
-              className={`flex-shrink-0 border-r border-slate-100 flex flex-col justify-center items-center absolute top-0 bottom-0 ${day.isToday ? 'bg-indigo-50/50 text-indigo-600' : ''} ${day.isWeekend ? 'bg-slate-50/30 text-slate-400' : ''}`}
+              className={`flex-shrink-0 border-r border-slate-100 flex flex-col justify-center items-center absolute top-0 bottom-0 ${day.isNonWorkday ? 'bg-slate-200/70 text-slate-500' : ''} ${day.isToday ? 'text-indigo-600' : ''} ${day.isToday && !day.isNonWorkday ? 'bg-indigo-50/60' : ''}`}
               style={{ 
                 width: `${DAY_WIDTH}px`,
                 left: `${day.index * DAY_WIDTH}px`
@@ -270,7 +271,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
             {visibleTimelineDays.map((day) => (
               <div 
                 key={day.date} 
-                className={`flex-shrink-0 border-r border-slate-100/50 absolute top-0 bottom-0 ${day.isToday ? 'bg-indigo-50/10' : ''} ${day.isWeekend ? 'bg-slate-50/20' : ''}`}
+                className={`flex-shrink-0 border-r border-slate-100/50 absolute top-0 bottom-0 ${day.isNonWorkday ? 'bg-slate-200/45' : ''} ${day.isToday && !day.isNonWorkday ? 'bg-indigo-50/20' : ''}`}
                 style={{ 
                   width: `${DAY_WIDTH}px`,
                   left: `${day.index * DAY_WIDTH}px`
