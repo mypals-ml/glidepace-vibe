@@ -11,6 +11,7 @@ import { IconButton } from '../UI/IconButton';
 import { ConfirmationModal } from '../UI/ConfirmationModal';
 import { calculateTargetDate } from '../../lib/dateUtils';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
+import { copyTextToClipboard } from '../../lib/clipboard';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -22,26 +23,12 @@ function CopyButton({ text, t }: { text: string; t: TFunction }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).blur();
     if (!text) return;
     try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        // Fallback for non-secure contexts (e.g. local IP access on mobile)
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-9999px";
-        textArea.style.top = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        const successful = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        if (!successful) throw new Error('copy command failed');
-      }
+      const successful = await copyTextToClipboard(text);
+      if (!successful) throw new Error('copy command failed');
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
