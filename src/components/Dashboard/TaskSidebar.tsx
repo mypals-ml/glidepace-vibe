@@ -1241,7 +1241,7 @@ function SortableTaskRow({
       }}
     >
       {(isSelected || isLinkSelected) && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full z-10" />
+        <div className="absolute left-0 top-0 h-full w-0.5 bg-primary rounded-r-full z-10" />
       )}
 
       <button
