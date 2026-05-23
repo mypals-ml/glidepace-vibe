@@ -63,6 +63,13 @@ function eventTargetElement(target: EventTarget | null): HTMLElement | null {
   return target instanceof HTMLElement ? target : null;
 }
 
+function blurActiveDragHandle() {
+  const activeElement = document.activeElement;
+  if (activeElement instanceof HTMLElement && activeElement.matches('[data-task-drag-handle="true"]')) {
+    activeElement.blur();
+  }
+}
+
 function getDashboardItemTreeDepth(item: DashboardItem): number {
   if (isTaskGroupBlock(item)) return item.depth;
   return item.depth ?? (item.groupPath?.length ?? 0) + 1;
@@ -70,6 +77,10 @@ function getDashboardItemTreeDepth(item: DashboardItem): number {
 
 function getTreeNodeX(depth: number): number {
   return TREE_NODE_BASE_X + Math.min(Math.max(depth, 0), TREE_DEPTH_COLORS.length - 1) * TREE_DEPTH_STEP;
+}
+
+function getTreeDragHandleX(): number {
+  return TREE_ROW_PADDING_LEFT;
 }
 
 function getTreeColor(depth: number): string {
@@ -448,6 +459,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     } finally {
       setActiveDragItemSortId(null);
       setMovingItemSortId(null);
+      blurActiveDragHandle();
       dragHasMovedRef.current = false;
       justDroppedRef.current = true;
       setTimeout(() => {
@@ -502,6 +514,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               onDragCancel={() => {
                 setActiveDragItemSortId(null);
                 setMovingItemSortId(null);
+                blurActiveDragHandle();
                 dragHasMovedRef.current = false;
                 justDroppedRef.current = true;
                 setTimeout(() => {
@@ -903,7 +916,7 @@ function TreeTitleCell({
       {nodeKind === 'group' ? (
         <button
           type="button"
-          className={`${nodeCommonClassName} pointer-events-auto inline-flex h-[18px] w-[18px] items-center justify-center border-2 transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30`}
+          className={`${nodeCommonClassName} pointer-events-auto inline-flex h-[18px] w-[18px] items-center justify-center border-2 transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30`}
           style={{
             ...nodeStyle,
             backgroundColor: isExpanded ? `color-mix(in srgb, ${railColor} 10%, white)` : '#fff',
@@ -986,10 +999,10 @@ function TaskGroupRow({
   const [isDragHandleFocused, setIsDragHandleFocused] = useState(false);
   const isMovingThisGroup = movingItemSortId === sortId;
   const showHoverActions = !group.isSyntheticRoot && !isDragging && !isDragActive && !isAnyDragging;
-  const dragHandleLeft = TREE_ROW_PADDING_LEFT + getTreeNodeX(treeMeta.depth);
+  const dragHandleLeft = getTreeDragHandleX();
   const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
-  const dragHandleFillClass = isDragging || isDragActive ? 'bg-white' : 'bg-slate-50/80 group-hover:bg-slate-50';
+  const dragHandleFillClass = isDragging || isDragActive ? 'bg-white' : 'bg-slate-100/80 group-hover:bg-indigo-50';
   const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
   const dividerLeft = getTreeRowDividerLeft(treeMeta.depth);
 
@@ -1037,7 +1050,7 @@ function TaskGroupRow({
         <button
           type="button"
           data-task-drag-handle="true"
-          className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-7 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-[opacity,color,background-color] cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
+          className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-[72px] w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-none text-slate-400 transition-[opacity,color,background-color] cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
             isAnyDragging && !isDragging && !isDragActive ? 'opacity-0 pointer-events-none' : 'task-drag-handle'
           } ${
             isDragging || isDragActive ? 'is-dragging' : ''
@@ -1175,10 +1188,10 @@ function SortableTaskRow({
   const sortId = getDashboardItemSortId(task);
   const isMovingThisTask = movingItemSortId === sortId;
   const showHoverActions = !isDragging && !isDragActive && !isAnyDragging;
-  const dragHandleLeft = TREE_ROW_PADDING_LEFT + getTreeNodeX(treeMeta.depth);
+  const dragHandleLeft = getTreeDragHandleX();
   const dragHandleFillClass = isLinkMode
-    ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-white group-hover:bg-drag-handle-hovered'
-    : isSelected ? 'bg-drag-handle-selected' : 'bg-white group-hover:bg-drag-handle-hovered';
+    ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-slate-100/80 group-hover:bg-indigo-50'
+    : isSelected ? 'bg-indigo-100' : 'bg-slate-100/80 group-hover:bg-indigo-50';
   const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const treeLineColor = getTreeLineColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
@@ -1234,7 +1247,7 @@ function SortableTaskRow({
       <button
         type="button"
         data-task-drag-handle="true"
-        className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-7 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-sm text-slate-400 transition-[opacity,color,background-color] cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
+        className={`pointer-events-auto absolute top-1/2 z-20 inline-flex h-[72px] w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-none text-slate-400 transition-[opacity,color,background-color] cursor-grab active:cursor-grabbing focus:outline-none border-none shadow-none ${dragHandleFillClass} ${
           isAnyDragging && !isDragging && !isDragActive ? 'opacity-0 pointer-events-none' : 'task-drag-handle'
         } ${
           isDragging || isDragActive ? 'is-dragging' : ''
