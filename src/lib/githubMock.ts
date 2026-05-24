@@ -1,4 +1,5 @@
 import type { ProjectOwnerInfo, Task, TaskComment, TaskStatus, GitHubProjectV2Field } from '../types';
+import { logDashboardEvent } from './dashboardDebugLog';
 
 // ---------------------------------------------------------------------------
 // Mock status options — mirrors the `ProjectV2SingleSelectField.options` shape
@@ -662,6 +663,14 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
     const currentIndex = projectTasks.findIndex(task => task.itemId === itemId || task.id === itemId);
     if (currentIndex === -1) return { errors: [{ message: 'Item not found' }] };
 
+    logDashboardEvent('[GitHubMock] Reorder action', {
+      reorderKind: 'project_item_position',
+      projectId,
+      itemId,
+      afterId: afterId ?? null,
+      itemCount: projectTasks.length,
+    });
+
     const [movedTask] = projectTasks.splice(currentIndex, 1);
     if (afterId === null || afterId === undefined) {
       projectTasks.unshift(movedTask);
@@ -688,6 +697,12 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
   if (query.includes('items')) {
     // List project tasks
     const projectId = variables.projectId || 'PVT_1';
+    const projectTasks = getTasksForProject(projectId);
+    logDashboardEvent('[GitHubMock] Refresh action', {
+      refreshKind: 'project_items',
+      projectId,
+      refreshedItemCount: projectTasks.length,
+    });
     return {
       data: {
         node: {
@@ -696,7 +711,7 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
             nodes: getFieldsForProject(projectId)
           },
           items: {
-            nodes: getTasksForProject(projectId).map(task => mapTaskToGraphQLNode(task, projectId))
+            nodes: projectTasks.map(task => mapTaskToGraphQLNode(task, projectId))
           }
         }
       }

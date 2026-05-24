@@ -52,6 +52,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     return recentLocalReorderTrackerRef.current.consume(itemId);
   }, []);
 
+  const shouldSkipRecentLocalReorderSync = useCallback(() => {
+    return recentLocalReorderTrackerRef.current.hasRecent();
+  }, []);
+
   const hideToast = useCallback(() => {
     setToast(null);
   }, []);
@@ -163,6 +167,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     fetchProjectTasks: useCallback((id: string, token: string) => fetchProjectTasksRef.current(id, token), []),
     fetchSingleProjectItem: useCallback((id: string, token: string) => fetchSingleItemRef.current(id, token), []),
     shouldSkipRecentLocalReorder,
+    shouldSkipRecentLocalReorderSync,
   });
 
   const handleCreateProjectV2Field = useCallback(async (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => {

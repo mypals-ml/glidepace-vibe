@@ -95,6 +95,7 @@ describe('githubMock in-memory project fields', () => {
 
   it('persists project item position changes across project fetches', async () => {
     vi.useFakeTimers();
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
 
     const projectId = 'PVT_3';
     const movedItemId = 'item-mock-data';
@@ -106,8 +107,28 @@ describe('githubMock in-memory project fields', () => {
       afterId: afterItemId,
     });
 
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('[GitHubMock] Reorder action'));
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining(`"reorderKind":"project_item_position"`));
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining(`"projectId":"${projectId}"`));
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining(`"itemId":"${movedItemId}"`));
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining(`"afterId":"${afterItemId}"`));
+    expect(JSON.parse(infoSpy.mock.calls.at(-1)?.[0].replace('[GitHubMock] Reorder action ', '') || '{}')).toMatchObject({
+      reorderKind: 'project_item_position',
+      projectId,
+      itemId: movedItemId,
+      afterId: afterItemId,
+    });
+
     const refetchedProject = await resolveMockGraphQL(GET_PROJECT_TASKS_QUERY, { projectId }) as MockProjectResponse;
     const itemIds = refetchedProject.data.node.items.nodes.map(item => item.id);
+
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('[GitHubMock] Refresh action'));
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining(`"refreshKind":"project_items"`));
+    expect(JSON.parse(infoSpy.mock.calls.at(-1)?.[0].replace('[GitHubMock] Refresh action ', '') || '{}')).toMatchObject({
+      refreshKind: 'project_items',
+      projectId,
+      refreshedItemCount: refetchedProject.data.node.items.nodes.length,
+    });
 
     expect(itemIds.slice(0, 3)).toEqual([
       'item-pat-support',
@@ -124,6 +145,25 @@ describe('githubMock in-memory project fields', () => {
     const topRefetch = await resolveMockGraphQL(GET_PROJECT_TASKS_QUERY, { projectId }) as MockProjectResponse;
     expect(topRefetch.data.node.items.nodes[0]?.id).toBe(movedItemId);
 
+    const logMessages = infoSpy.mock.calls.map(call => String(call[0]));
+    expect(logMessages).toContainEqual(expect.stringContaining(`"afterId":null`));
+    expect(logMessages).toContainEqual(expect.stringContaining(`"itemId":"${movedItemId}"`));
+    expect(logMessages).toContainEqual(expect.stringContaining('[GitHubMock] Refresh action'));
+    expect(logMessages.at(-2)).toContain('[GitHubMock] Reorder action');
+    expect(JSON.parse(logMessages.at(-2)?.replace('[GitHubMock] Reorder action ', '') || '{}')).toMatchObject({
+      reorderKind: 'project_item_position',
+      projectId,
+      itemId: movedItemId,
+      afterId: null,
+    });
+    expect(logMessages.at(-1)).toContain('[GitHubMock] Refresh action');
+    expect(JSON.parse(logMessages.at(-1)?.replace('[GitHubMock] Refresh action ', '') || '{}')).toMatchObject({
+      refreshKind: 'project_items',
+      projectId,
+      refreshedItemCount: topRefetch.data.node.items.nodes.length,
+    });
+
+    infoSpy.mockRestore();
     vi.useRealTimers();
   });
 });
