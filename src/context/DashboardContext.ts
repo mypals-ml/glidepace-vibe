@@ -73,6 +73,7 @@ export interface DashboardContextValue {
   toggleGroupBlockCollapsed: (groupBlockId: string) => void;
   reorderTask: (taskId: string, afterTaskId: string | null) => Promise<boolean>;
   reorderTaskBlock: (taskIds: string[], afterTaskId: string | null) => Promise<boolean>;
+  moveTaskToGroupPath: (taskId: string, groupPath: GroupPath, afterTaskId: string | null) => Promise<boolean>;
   createProjectV2Field: (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => Promise<string | null>;
 
   // Sync

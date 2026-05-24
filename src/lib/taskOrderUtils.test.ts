@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { DashboardItem, Task, TaskGroupBlock } from '../types';
 import {
+  getDashboardGroupDropPlan,
+  getDashboardTaskGroupPathMovePlan,
   getAfterIdForInsertPosition,
   getGroupSortId,
   getTaskSortId,
@@ -10,11 +12,12 @@ import {
   moveTaskBlockAfter,
 } from './taskOrderUtils';
 
-const makeTask = (id: string): Task => ({
+const makeTask = (id: string, groupPathOrIndex: string[] | number = []): Task => ({
   id,
   itemId: id,
   displayId: id,
   title: id,
+  groupPath: Array.isArray(groupPathOrIndex) ? groupPathOrIndex : [],
   startDate: '',
   targetDate: '',
   status: 'Todo',
@@ -28,19 +31,26 @@ const makeGroup = (
   groupBlockId: string,
   childTaskIds: string[],
   startTaskIndex = 0,
-  endTaskIndex = childTaskIds.length - 1
+  endTaskIndex = childTaskIds.length - 1,
+  path = [groupBlockId]
 ): TaskGroupBlock => ({
   kind: 'group',
   groupBlockId,
   name: groupBlockId,
-  path: [groupBlockId],
-  depth: 1,
+  path,
+  depth: path.length,
   startTaskIndex,
   endTaskIndex,
   startDate: '',
   targetDate: '',
   childTaskIds,
   isExpanded: true,
+});
+
+const makeRootGroup = (childTaskIds: string[]): TaskGroupBlock => ({
+  ...makeGroup('project-root', childTaskIds, 0, childTaskIds.length - 1, []),
+  name: 'Project',
+  isSyntheticRoot: true,
 });
 
 describe('taskOrderUtils', () => {
@@ -178,6 +188,93 @@ describe('taskOrderUtils', () => {
       taskIds: ['B', 'C', 'D'],
       afterTaskId: 'E',
     });
+  });
+
+  it('plans dropping a task into a group at the end of that group block', () => {
+    const targetGroup = makeGroup('Target', ['B', 'C'], 1, 2, ['Target']);
+    const items: DashboardItem[] = [
+      makeRootGroup(['A', 'B', 'C']),
+      makeTask('A'),
+      targetGroup,
+      makeTask('B', ['Target']),
+      makeTask('C', ['Target']),
+    ];
+
+    expect(getDashboardGroupDropPlan(items, getTaskSortId(makeTask('A')), getGroupSortId(targetGroup))).toEqual({
+      taskId: 'A',
+      targetGroupPath: ['Target'],
+      afterTaskId: 'C',
+    });
+  });
+
+  it('plans dropping a grouped task onto the root group to ungroup it', () => {
+    const rootGroup = makeRootGroup(['A', 'B', 'C']);
+    const sourceGroup = makeGroup('Source', ['B'], 1, 1, ['Source']);
+    const items: DashboardItem[] = [
+      rootGroup,
+      makeTask('A'),
+      sourceGroup,
+      makeTask('B', ['Source']),
+      makeTask('C'),
+    ];
+
+    expect(getDashboardGroupDropPlan(items, getTaskSortId(makeTask('B', ['Source'])), getGroupSortId(rootGroup))).toEqual({
+      taskId: 'B',
+      targetGroupPath: [],
+      afterTaskId: 'C',
+    });
+  });
+
+  it('plans moving a task from one group to another group', () => {
+    const sourceGroup = makeGroup('Source', ['A'], 0, 0, ['Source']);
+    const targetGroup = makeGroup('Target', ['B'], 1, 1, ['Target']);
+    const items: DashboardItem[] = [
+      makeRootGroup(['A', 'B']),
+      sourceGroup,
+      makeTask('A', ['Source']),
+      targetGroup,
+      makeTask('B', ['Target']),
+    ];
+
+    expect(getDashboardGroupDropPlan(items, getTaskSortId(makeTask('A', ['Source'])), getGroupSortId(targetGroup))).toEqual({
+      taskId: 'A',
+      targetGroupPath: ['Target'],
+      afterTaskId: 'B',
+    });
+  });
+
+  it('plans changing group path when a task is dropped over a task in another group', () => {
+    const sourceGroup = makeGroup('Source', ['A'], 0, 0, ['Source']);
+    const targetGroup = makeGroup('Target', ['B'], 1, 1, ['Target']);
+    const activeTask = makeTask('A', ['Source']);
+    const overTask = makeTask('B', ['Target']);
+    const items: DashboardItem[] = [
+      makeRootGroup(['A', 'B']),
+      sourceGroup,
+      activeTask,
+      targetGroup,
+      overTask,
+    ];
+
+    expect(getDashboardTaskGroupPathMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toEqual({
+      taskId: 'A',
+      targetGroupPath: ['Target'],
+      afterTaskId: 'B',
+    });
+  });
+
+  it('does not change group path for task-over-task reorders within the same group', () => {
+    const group = makeGroup('Target', ['A', 'B'], 0, 1, ['Target']);
+    const activeTask = makeTask('A', ['Target']);
+    const overTask = makeTask('B', ['Target']);
+    const items: DashboardItem[] = [
+      makeRootGroup(['A', 'B']),
+      group,
+      activeTask,
+      overTask,
+    ];
+
+    expect(getDashboardTaskGroupPathMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toBeUndefined();
   });
 
   it('calculates insert position above a target', () => {
