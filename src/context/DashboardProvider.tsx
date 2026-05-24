@@ -10,6 +10,7 @@ import { useDashboardProjects } from '../hooks/useDashboardProjects';
 import { useDashboardTasks } from '../hooks/useDashboardTasks';
 import { useDashboardSync } from '../hooks/useDashboardSync';
 import { useFieldSetup } from '../hooks/useFieldSetup';
+import { createRecentLocalReorderTracker } from '../lib/reorderSyncUtils';
 
 // Service
 import { createProjectV2Field } from '../lib/githubService';
@@ -19,6 +20,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const fetchProjectTasksRef = useRef<(id: string, token: string) => Promise<void>>(() => Promise.resolve());
   const fetchSingleItemRef = useRef<(id: string, token: string) => Promise<void>>(() => Promise.resolve());
   const updateSyncTimeRef = useRef<() => void>(() => {});
+  const recentLocalReorderTrackerRef = useRef(createRecentLocalReorderTracker());
 
   const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -40,6 +42,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type });
+  }, []);
+
+  const markRecentLocalReorder = useCallback((itemIds: string[]) => {
+    recentLocalReorderTrackerRef.current.mark(itemIds);
+  }, []);
+
+  const shouldSkipRecentLocalReorder = useCallback((itemId: string | undefined) => {
+    return recentLocalReorderTrackerRef.current.consume(itemId);
+  }, []);
+
+  const shouldSkipRecentLocalReorderSync = useCallback(() => {
+    return recentLocalReorderTrackerRef.current.hasRecent();
   }, []);
 
   const hideToast = useCallback(() => {
@@ -113,6 +127,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     dateSettings,
     requestStartDateDecision,
     showToast,
+    markRecentLocalReorder,
   });
 
   // Persist selectedTaskId per project
@@ -151,6 +166,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     tasks: tasks.tasks,
     fetchProjectTasks: useCallback((id: string, token: string) => fetchProjectTasksRef.current(id, token), []),
     fetchSingleProjectItem: useCallback((id: string, token: string) => fetchSingleItemRef.current(id, token), []),
+    shouldSkipRecentLocalReorder,
+    shouldSkipRecentLocalReorderSync,
   });
 
   const handleCreateProjectV2Field = useCallback(async (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => {
@@ -187,6 +204,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const { checkAppInstallation, browsingAccountId, getTokenById } = auth;
   const { activeTabLogin, fetchProjects, hasProject, selectedProject } = projects;
   const { fetchProjectTasks } = tasks;
+  const selectedProjectId = selectedProject?.id;
+  const selectedProjectAccountId = selectedProject?.accountId;
 
   // App Installation check
   useEffect(() => {
@@ -205,12 +224,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // Initial data load - Tasks
   useEffect(() => {
-    if (projectToken && selectedProject) {
-      if (selectedProject.accountId) {
-        fetchProjectTasks(selectedProject.id, projectToken);
+    if (projectToken && selectedProjectId) {
+      if (selectedProjectAccountId) {
+        fetchProjectTasks(selectedProjectId, projectToken);
       }
     }
-  }, [projectToken, selectedProject, fetchProjectTasks]);
+  }, [projectToken, selectedProjectId, selectedProjectAccountId, fetchProjectTasks]);
 
   // ---- Unified Account Addition & Project Reload Routine ----
 

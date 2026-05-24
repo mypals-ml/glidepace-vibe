@@ -8,7 +8,7 @@ import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor } from '../../utils/statusColors';
 import type { DashboardItem, Task, TaskGroupBlock, User } from '../../types';
-import { useRef, useState, useEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
+import { memo, useCallback, useMemo, useRef, useState, useEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
@@ -254,7 +254,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     };
   }, [movingItemSortId]);
 
-  const openContextMenu = (clientX: number, clientY: number, target: ContextMenuTarget) => {
+  const openContextMenu = useCallback((clientX: number, clientY: number, target: ContextMenuTarget) => {
     if (activeDragItemSortId || justDroppedRef.current) return;
     const rect = rootRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -265,26 +265,26 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       target,
       alignRight: clientX - rect.left > rect.width - 220
     });
-  };
+  }, [activeDragItemSortId]);
 
-  const findTaskByOrderId = (taskId: string): Task | undefined => {
+  const findTaskByOrderId = useCallback((taskId: string): Task | undefined => {
     return tasks.find(task => task.id === taskId || task.itemId === taskId || getTaskOrderId(task) === taskId);
-  };
+  }, [tasks]);
 
-  const findGroupById = (groupBlockId: string): TaskGroupBlock | undefined => {
+  const findGroupById = useCallback((groupBlockId: string): TaskGroupBlock | undefined => {
     const item = dashboardItems.find(candidate => isTaskGroupBlock(candidate) && candidate.groupBlockId === groupBlockId);
     return item && isTaskGroupBlock(item) ? item : undefined;
-  };
+  }, [dashboardItems]);
 
-  const getGroupBoundaryTasks = (group: TaskGroupBlock): { firstTask: Task; lastTask: Task } | null => {
+  const getGroupBoundaryTasks = useCallback((group: TaskGroupBlock): { firstTask: Task; lastTask: Task } | null => {
     const firstTaskId = group.childTaskIds[0];
     const lastTaskId = group.childTaskIds[group.childTaskIds.length - 1];
     const firstTask = firstTaskId ? findTaskByOrderId(firstTaskId) : undefined;
     const lastTask = lastTaskId ? findTaskByOrderId(lastTaskId) : undefined;
     return firstTask && lastTask ? { firstTask, lastTask } : null;
-  };
+  }, [findTaskByOrderId]);
 
-  const getContextBoundaryTasks = (target: ContextMenuTarget): { firstTask: Task; lastTask: Task } | null => {
+  const getContextBoundaryTasks = useCallback((target: ContextMenuTarget): { firstTask: Task; lastTask: Task } | null => {
     if (target.kind === 'task') {
       const task = findTaskByOrderId(target.taskId);
       return task ? { firstTask: task, lastTask: task } : null;
@@ -292,14 +292,14 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
     const group = findGroupById(target.groupBlockId);
     return group ? getGroupBoundaryTasks(group) : null;
-  };
+  }, [findGroupById, findTaskByOrderId, getGroupBoundaryTasks]);
 
-  const getContextTargetSortId = (target: ContextMenuTarget): string | null => {
+  const getContextTargetSortId = useCallback((target: ContextMenuTarget): string | null => {
     if (target.kind === 'group') return `group:${target.groupBlockId}`;
 
     const task = findTaskByOrderId(target.taskId);
     return task ? getDashboardItemSortId(task) : null;
-  };
+  }, [findTaskByOrderId]);
 
   const startCreateTaskAt = (target: ContextMenuTarget, placement: 'above' | 'below') => {
     const boundaryTasks = getContextBoundaryTasks(target);
@@ -312,7 +312,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setContextMenu(null);
   };
 
-  const handleTaskActivate = (taskId: string) => {
+  const handleTaskActivate = useCallback((taskId: string) => {
     if (isLinkMode) {
       setSelectedLinkTaskIds(prev =>
         prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
@@ -323,7 +323,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setIsCreateMode(false);
     setSelectedTaskId(taskId);
     setIsTaskDetailsOpen(true);
-  };
+  }, [isLinkMode, setIsCreateMode, setIsTaskDetailsOpen, setSelectedLinkTaskIds, setSelectedTaskId]);
 
   const handleJumpToChart = (taskId: string) => {
     const task = findTaskByOrderId(taskId);
@@ -426,10 +426,13 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const sortableItemIds = dashboardItems
-    .filter(item => !isTaskGroupBlock(item) || !item.isSyntheticRoot)
-    .map(getDashboardItemSortId);
-  const dashboardRows = buildDashboardTreeRows(dashboardItems);
+  const sortableItemIds = useMemo(
+    () => dashboardItems
+      .filter(item => !isTaskGroupBlock(item) || !item.isSyntheticRoot)
+      .map(getDashboardItemSortId),
+    [dashboardItems]
+  );
+  const dashboardRows = useMemo(() => buildDashboardTreeRows(dashboardItems), [dashboardItems]);
 
   const handleDragStart = (event: DragStartEvent) => {
     dragHasMovedRef.current = false;
@@ -1151,7 +1154,7 @@ interface SortableTaskRowProps {
   t: TFunction;
 }
 
-function SortableTaskRow({
+const SortableTaskRow = memo(function SortableTaskRow({
   task,
   isFirst,
   treeMeta,
@@ -1385,4 +1388,4 @@ function SortableTaskRow({
       </div>
     </div>
   );
-}
+});

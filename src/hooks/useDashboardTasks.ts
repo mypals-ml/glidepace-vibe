@@ -9,6 +9,7 @@ import { getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter, moveTaskBlo
 import { buildGroupBlocksFromOrderedTasks, renameGroupBlock as renameGroupBlockInTasks, serializeGroupPath, ungroupGroupBlock as ungroupGroupBlockInTasks, isTaskGroupBlock } from '../lib/taskGroupUtils';
 import type { DependencyFieldCorrection } from '../lib/taskDependencyUtils';
 import { mergeFetchedTaskWithLocalState } from '../lib/taskMergeUtils';
+import { logDashboardEvent } from '../lib/dashboardDebugLog';
 import { 
   GET_SINGLE_ITEM_QUERY, 
   GET_PROJECT_TASKS_QUERY, 
@@ -41,6 +42,7 @@ interface UseDashboardTasksProps {
   dateSettings: ProjectDateSettings;
   requestStartDateDecision: (tasks: Task[]) => Promise<'auto' | 'locked' | 'ask'>;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  markRecentLocalReorder: (itemIds: string[]) => void;
 }
 
 function uniqueTasks(tasks: Task[]): Task[] {
@@ -109,6 +111,7 @@ export function useDashboardTasks({
   dateSettings,
   requestStartDateDecision,
   showToast,
+  markRecentLocalReorder,
 }: UseDashboardTasksProps) {
   const { t } = useTranslation();
 
@@ -258,7 +261,11 @@ export function useDashboardTasks({
   const fetchProjectTasks = useCallback(async (projectId: string, token: string) => {
     setIsLoadingTasks(true);
     setFieldsProgress({ current: 0, total: 0, isFetching: true });
-    console.log('[Tasks] Fetching items for project:', projectId, 'using account:', projectAccountId);
+    logDashboardEvent('[DashboardTasks] Refresh started', {
+      refreshKind: 'full_project',
+      projectId,
+      projectAccountId,
+    });
     try {
       let hasNextFields = true;
       let hasNextItems = true;
@@ -328,6 +335,12 @@ export function useDashboardTasks({
       setApiError(null);
   
       const mappedTasks: Task[] = allItems.map(item => mapProjectItemToTask(item, dateSettingsRef.current));
+      logDashboardEvent('[DashboardTasks] Refresh completed', {
+        refreshKind: 'full_project',
+        projectId,
+        refreshedItemCount: mappedTasks.length,
+        refreshedFieldCount: allFields.length,
+      });
 
       const statusField = allFields.find((f: GitHubProjectV2Field) => f.name?.toLowerCase() === 'status');
       const statusOptions = (statusField?.options || []) as Array<{ name: string, color?: string }>;
@@ -780,17 +793,37 @@ export function useDashboardTasks({
     const nextOrder = nextTasks.map(getTaskOrderId).join('|');
     if (oldOrder === nextOrder) return true;
 
+    logDashboardEvent('[DashboardTasks] Reorder started', {
+      reorderKind: 'single_task',
+      projectId: selectedProject.id,
+      taskId,
+      itemId: task.itemId,
+      afterTaskId,
+    });
     setTasks(nextTasks);
     const success = await updateProjectV2ItemPosition(selectedProject.id, task.itemId, afterTaskId, githubToken);
     if (success) {
+      logDashboardEvent('[DashboardTasks] Reorder completed', {
+        reorderKind: 'single_task',
+        projectId: selectedProject.id,
+        movedItemIds: [task.itemId],
+        afterTaskId,
+      });
+      markRecentLocalReorder([task.itemId]);
       updateSyncTime();
       return true;
     }
 
     setTasks(oldTasks);
+    logDashboardEvent('[DashboardTasks] Reorder failed', {
+      reorderKind: 'single_task',
+      projectId: selectedProject.id,
+      movedItemIds: [task.itemId],
+      afterTaskId,
+    }, 'warn');
     showToast(t('dashboard.taskReorderFailed', 'Failed to reorder task.'), 'error');
     return false;
-  }, [selectedProject?.id, githubToken, setTasks, updateSyncTime, showToast, t]);
+  }, [selectedProject?.id, githubToken, setTasks, markRecentLocalReorder, updateSyncTime, showToast, t]);
 
   const reorderTaskBlock = useCallback(async (taskIds: string[], afterTaskId: string | null): Promise<boolean> => {
     if (!selectedProject?.id || !githubToken) return false;
@@ -806,6 +839,13 @@ export function useDashboardTasks({
       .filter((task): task is Task => Boolean(task?.itemId));
     if (movedTasks.length !== taskIds.length) return false;
 
+    logDashboardEvent('[DashboardTasks] Reorder started', {
+      reorderKind: 'task_block',
+      projectId: selectedProject.id,
+      taskIds,
+      movedItemIds: movedTasks.map(movedTask => movedTask.itemId),
+      afterTaskId,
+    });
     setTasks(nextTasks);
 
     let success = true;
@@ -820,15 +860,29 @@ export function useDashboardTasks({
     }
 
     if (success) {
+      logDashboardEvent('[DashboardTasks] Reorder completed', {
+        reorderKind: 'task_block',
+        projectId: selectedProject.id,
+        movedItemIds: movedTasks.map(movedTask => movedTask.itemId),
+        afterTaskId,
+      });
+      markRecentLocalReorder(movedTasks.map(movedTask => movedTask.itemId!));
       updateSyncTime();
       return true;
     }
 
     setTasks(oldTasks);
+    logDashboardEvent('[DashboardTasks] Reorder failed', {
+      reorderKind: 'task_block',
+      projectId: selectedProject.id,
+      movedItemIds: movedTasks.map(movedTask => movedTask.itemId),
+      afterTaskId,
+      fallbackRefreshKind: 'full_project',
+    }, 'warn');
     showToast(t('dashboard.taskReorderFailed', 'Failed to reorder task.'), 'error');
     await fetchProjectTasks(selectedProject.id, githubToken);
     return false;
-  }, [selectedProject?.id, githubToken, setTasks, updateSyncTime, showToast, t, fetchProjectTasks]);
+  }, [selectedProject?.id, githubToken, setTasks, markRecentLocalReorder, updateSyncTime, showToast, t, fetchProjectTasks]);
 
   const handleCreateTask = useCallback(async (taskData: {
     title: string;

@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Sync Configuration Tables
   // ========================================
 
-  type SyncType = 'sync' | 'refresh_task';
+  type SyncType = 'sync' | 'refresh_task' | 'reorder';
 
   const PROJECT_V2_ITEM_CONFIG: Record<string, SyncType> = {
     'created': 'sync',
@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     'converted': 'refresh_task',
     'archived': 'refresh_task',
     'restored': 'refresh_task',
-    'reordered': 'sync',
+    'reordered': 'reorder',
   };
 
   const ISSUE_CONFIG: Record<string, SyncType> = {
@@ -90,10 +90,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const projectId = payload.projects_v2_item?.project_node_id || payload.project_v2_item?.project_node_id || payload.projects_v2?.node_id || payload.project_v2?.node_id;
 
     // Construct broadcast data
-    const broadcastPayload = syncType === 'refresh_task'
+    const broadcastPayload = syncType === 'refresh_task' || syncType === 'reorder'
       ? {
         itemId: payload.projects_v2_item?.node_id || payload.project_v2_item?.node_id,
         contentId: payload.projects_v2_item?.content_node_id || payload.project_v2_item?.content_node_id || payload.issue?.node_id,
+        projectId,
+        action,
         timestamp: Date.now()
       }
       : {
