@@ -227,16 +227,18 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
           {visibleTimelineDays.map((day) => (
             <div 
               key={day.date} 
-              className={`flex-shrink-0 border-r border-slate-100 flex flex-col justify-center items-center absolute top-0 bottom-0 ${day.isNonWorkday ? 'bg-slate-200/70 text-slate-500' : ''} ${day.isToday ? 'text-indigo-600' : ''} ${day.isToday && !day.isNonWorkday ? 'bg-indigo-50/60' : ''}`}
+              className={`flex-shrink-0 border-r border-slate-100 flex flex-col justify-center items-center gap-px absolute top-0 bottom-0 ${day.isNonWorkday ? 'bg-slate-200/70 text-slate-500' : ''} ${day.isToday ? '!bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500/35' : ''}`}
               style={{ 
                 width: `${DAY_WIDTH}px`,
                 left: `${day.index * DAY_WIDTH}px`
               }}
             >
-              {day.isToday && <div className="absolute top-0 w-full h-0.5 bg-indigo-500"></div>}
-              <span className="opacity-60">{day.month} {day.dayNum}</span>
-              <span className="text-[11px] font-extrabold">{day.label}</span>
-              {day.isToday && <span className="h-1 w-1 rounded-full bg-indigo-500 mt-0.5"></span>}
+              <span className={day.isToday ? 'rounded-full bg-indigo-600 px-1.5 py-0 text-[9px] leading-[10px] font-black text-white shadow-sm' : 'opacity-60'}>
+                {day.month} {day.dayNum}
+              </span>
+              <span className={day.isToday ? 'text-[10px] leading-3 font-extrabold' : 'text-[11px] font-extrabold'}>
+                {day.label}
+              </span>
             </div>
           ))}
         </div>
