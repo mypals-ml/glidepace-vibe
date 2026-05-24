@@ -204,6 +204,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const { checkAppInstallation, browsingAccountId, getTokenById } = auth;
   const { activeTabLogin, fetchProjects, hasProject, selectedProject } = projects;
   const { fetchProjectTasks } = tasks;
+  const selectedProjectId = selectedProject?.id;
+  const selectedProjectAccountId = selectedProject?.accountId;
 
   // App Installation check
   useEffect(() => {
@@ -222,12 +224,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // Initial data load - Tasks
   useEffect(() => {
-    if (projectToken && selectedProject) {
-      if (selectedProject.accountId) {
-        fetchProjectTasks(selectedProject.id, projectToken);
+    if (projectToken && selectedProjectId) {
+      if (selectedProjectAccountId) {
+        fetchProjectTasks(selectedProjectId, projectToken);
       }
     }
-  }, [projectToken, selectedProject, fetchProjectTasks]);
+  }, [projectToken, selectedProjectId, selectedProjectAccountId, fetchProjectTasks]);
 
   // ---- Unified Account Addition & Project Reload Routine ----
 
