@@ -12,7 +12,7 @@ import { memo, useCallback, useMemo, useRef, useState, useEffect, type CSSProper
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
-import { getDashboardItemSortId, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
+import { getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isTaskGroupBlock, parseGroupPath, serializeGroupPath } from '../../lib/taskGroupUtils';
 import { Button } from '../UI/Button';
@@ -213,6 +213,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     toggleGroupBlockCollapsed,
     reorderTask,
     reorderTaskBlock,
+    moveTaskToGroupPath,
     setPendingTaskInsertPosition,
   } = useDashboard();
   const isMobile = !useMediaQuery('(min-width: 768px)');
@@ -427,12 +428,15 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   );
 
   const sortableItemIds = useMemo(
-    () => dashboardItems
-      .filter(item => !isTaskGroupBlock(item) || !item.isSyntheticRoot)
-      .map(getDashboardItemSortId),
+    () => dashboardItems.map(getDashboardItemSortId),
     [dashboardItems]
   );
   const dashboardRows = useMemo(() => buildDashboardTreeRows(dashboardItems), [dashboardItems]);
+  const isDraggingTask = useMemo(() => {
+    if (!activeDragItemSortId) return false;
+    const activeItem = dashboardItems.find(item => getDashboardItemSortId(item) === activeDragItemSortId);
+    return Boolean(activeItem && !isTaskGroupBlock(activeItem));
+  }, [activeDragItemSortId, dashboardItems]);
 
   const handleDragStart = (event: DragStartEvent) => {
     dragHasMovedRef.current = false;
@@ -450,6 +454,22 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     try {
       const { active, over } = event;
       if (!over) return;
+
+      const groupDropPlan = getDashboardGroupDropPlan(dashboardItems, String(active.id), String(over.id));
+      if (groupDropPlan) {
+        await moveTaskToGroupPath(groupDropPlan.taskId, groupDropPlan.targetGroupPath, groupDropPlan.afterTaskId);
+        return;
+      }
+
+      const taskGroupPathMovePlan = getDashboardTaskGroupPathMovePlan(dashboardItems, String(active.id), String(over.id));
+      if (taskGroupPathMovePlan) {
+        await moveTaskToGroupPath(
+          taskGroupPathMovePlan.taskId,
+          taskGroupPathMovePlan.targetGroupPath,
+          taskGroupPathMovePlan.afterTaskId
+        );
+        return;
+      }
 
       const movePlan = getVisibleDashboardMovePlan(dashboardItems, String(active.id), String(over.id));
       if (!movePlan) return;
@@ -537,6 +557,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       onUngroup={() => ungroupGroupBlock(item.groupBlockId)}
                       isDragActive={activeDragItemSortId === getDashboardItemSortId(item)}
                       isAnyDragging={activeDragItemSortId !== null}
+                      isTaskDropTarget={isDraggingTask}
                       isMobile={isMobile}
                       movingItemSortId={movingItemSortId}
                       suppressNextClickRef={suppressNextClickRef}
@@ -967,6 +988,7 @@ interface TaskGroupRowProps {
   onUngroup: () => void;
   isDragActive: boolean;
   isAnyDragging: boolean;
+  isTaskDropTarget: boolean;
   isMobile: boolean;
   movingItemSortId: string | null;
   suppressNextClickRef: React.MutableRefObject<boolean>;
@@ -982,6 +1004,7 @@ function TaskGroupRow({
   onUngroup,
   isDragActive,
   isAnyDragging,
+  isTaskDropTarget,
   isMobile,
   movingItemSortId,
   suppressNextClickRef,
@@ -996,7 +1019,11 @@ function TaskGroupRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: sortId, disabled: group.isSyntheticRoot });
+    isOver,
+  } = useSortable({
+    id: sortId,
+    disabled: group.isSyntheticRoot ? { draggable: true, droppable: false } : false,
+  });
   const [isRowHovered, setIsRowHovered] = useState(false);
   const [isDragHandleHovered, setIsDragHandleHovered] = useState(false);
   const [isDragHandleFocused, setIsDragHandleFocused] = useState(false);
@@ -1008,6 +1035,7 @@ function TaskGroupRow({
   const dragHandleFillClass = isDragging || isDragActive ? 'bg-white' : 'bg-slate-100/80 group-hover:bg-indigo-50';
   const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
   const dividerLeft = getTreeRowDividerLeft(treeMeta.depth);
+  const isGroupDropActive = isTaskDropTarget && isOver && !isDragging;
 
   return (
     <div
@@ -1022,7 +1050,9 @@ function TaskGroupRow({
       data-task-moving={isMobile && isMovingThisGroup ? "true" : undefined}
       className={`grid grid-cols-[1fr_64px_76px] gap-1 items-center h-[72px] pl-2 pr-0 transition-all duration-200 relative group overflow-visible after:absolute after:bottom-0 after:left-[var(--tree-row-divider-left)] after:right-0 after:h-px after:bg-slate-100/50 after:content-[''] ${
         group.isSyntheticRoot ? 'bg-slate-100/80' : 'bg-slate-50/80'
-      } ${!group.isSyntheticRoot ? 'cursor-pointer hover:bg-slate-50' : ''} ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''}`}
+      } ${!group.isSyntheticRoot ? 'cursor-pointer hover:bg-slate-50' : ''} ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''} ${
+        isGroupDropActive ? 'bg-indigo-50/90 ring-2 ring-primary/30 ring-inset' : ''
+      } ${isTaskDropTarget && !isGroupDropActive ? 'ring-1 ring-transparent ring-inset' : ''}`}
       onClick={() => {
         if (group.isSyntheticRoot) return;
         if (suppressNextClickRef.current) {

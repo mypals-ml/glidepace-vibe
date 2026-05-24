@@ -1,10 +1,16 @@
-import type { DashboardItem, Task, TaskGroupBlock, TaskInsertPosition } from '../types';
+import type { DashboardItem, GroupPath, Task, TaskGroupBlock, TaskInsertPosition } from '../types';
 import { isTaskGroupBlock } from './taskGroupUtils';
 
 export type DashboardItemSortId = `task:${string}` | `group:${string}`;
 
 export interface DashboardItemMovePlan {
   taskIds: string[];
+  afterTaskId: string | null;
+}
+
+export interface DashboardGroupDropPlan {
+  taskId: string;
+  targetGroupPath: GroupPath;
   afterTaskId: string | null;
 }
 
@@ -109,8 +115,8 @@ function isSyntheticRootGroup(item: DashboardItem): boolean {
   return isTaskGroupBlock(item) && Boolean(item.isSyntheticRoot);
 }
 
-function getDashboardItemBySortId(items: DashboardItem[], sortId: string): DashboardItem | undefined {
-  return items.find(item => !isSyntheticRootGroup(item) && getDashboardItemSortId(item) === sortId);
+function getDashboardItemBySortId(items: DashboardItem[], sortId: string, includeSyntheticRoot = false): DashboardItem | undefined {
+  return items.find(item => (includeSyntheticRoot || !isSyntheticRootGroup(item)) && getDashboardItemSortId(item) === sortId);
 }
 
 function getPreviousAfterTaskId(items: DashboardItem[], activeIndex: number, movingTaskIdSet: Set<string>): string | null {
@@ -166,5 +172,49 @@ export function getVisibleDashboardMovePlan(
   return {
     taskIds: movingTaskIds,
     afterTaskId: getPreviousAfterTaskId(nextItems, nextActiveIndex, movingTaskIdSet),
+  };
+}
+
+export function getDashboardGroupDropPlan(
+  dashboardItems: DashboardItem[],
+  activeSortId: string,
+  overSortId: string
+): DashboardGroupDropPlan | undefined {
+  const activeItem = getDashboardItemBySortId(dashboardItems, activeSortId);
+  const overItem = getDashboardItemBySortId(dashboardItems, overSortId, true);
+  if (!activeItem || !overItem || isTaskGroupBlock(activeItem) || !isTaskGroupBlock(overItem)) return undefined;
+
+  const taskId = getTaskOrderId(activeItem);
+  const targetChildTaskIds = overItem.childTaskIds.filter(childTaskId => (
+    childTaskId !== taskId && childTaskId !== activeItem.id
+  ));
+
+  return {
+    taskId,
+    targetGroupPath: [...overItem.path],
+    afterTaskId: targetChildTaskIds[targetChildTaskIds.length - 1] ?? null,
+  };
+}
+
+export function getDashboardTaskGroupPathMovePlan(
+  dashboardItems: DashboardItem[],
+  activeSortId: string,
+  overSortId: string
+): DashboardGroupDropPlan | undefined {
+  const activeItem = getDashboardItemBySortId(dashboardItems, activeSortId);
+  const overItem = getDashboardItemBySortId(dashboardItems, overSortId);
+  if (!activeItem || !overItem || isTaskGroupBlock(activeItem) || isTaskGroupBlock(overItem)) return undefined;
+
+  const activePath = activeItem.groupPath || [];
+  const overPath = overItem.groupPath || [];
+  if (JSON.stringify(activePath) === JSON.stringify(overPath)) return undefined;
+
+  const movePlan = getVisibleDashboardMovePlan(dashboardItems, activeSortId, overSortId);
+  if (!movePlan || movePlan.taskIds.length !== 1) return undefined;
+
+  return {
+    taskId: movePlan.taskIds[0],
+    targetGroupPath: [...overPath],
+    afterTaskId: movePlan.afterTaskId,
   };
 }
