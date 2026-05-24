@@ -9,6 +9,7 @@ interface UseDashboardSyncProps {
   tasks: Task[];
   fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
   fetchSingleProjectItem: (itemId: string, token: string) => Promise<void>;
+  shouldSkipRecentLocalReorder: (itemId: string | undefined) => boolean;
 }
 
 export function useDashboardSync({
@@ -17,8 +18,10 @@ export function useDashboardSync({
   tasks,
   fetchProjectTasks,
   fetchSingleProjectItem,
+  shouldSkipRecentLocalReorder,
 }: UseDashboardSyncProps) {
   const { t } = useTranslation();
+  const selectedProjectId = selectedProject?.id;
 
   const [lastSyncedTime, setLastSyncedTime] = useState<number>(() => {
     const saved = localStorage.getItem('last_synced_time');
@@ -65,24 +68,43 @@ export function useDashboardSync({
   useEffect(() => { fetchProjectTasksRef.current = fetchProjectTasks; }, [fetchProjectTasks]);
   useEffect(() => { fetchSingleItemRef.current = fetchSingleProjectItem; }, [fetchSingleProjectItem]);
 
+  const handleReorderSync = useCallback((label: string, payload: unknown) => {
+    const data = (payload as { payload?: unknown })?.payload || payload;
+    const { itemId } = (data || {}) as { itemId?: string };
+    console.log(`[DashboardSync] ↕️ Reorder Event on ${label}:`, { itemId, rawPayload: payload });
+
+    if (!githubToken || !selectedProjectId) return;
+
+    if (shouldSkipRecentLocalReorder(itemId)) {
+      console.log(`[DashboardSync] -> Skipping local reorder echo for itemId: ${itemId}`);
+      updateSyncTime();
+      return;
+    }
+
+    fetchProjectTasksRef.current(selectedProjectId, githubToken);
+  }, [githubToken, selectedProjectId, shouldSkipRecentLocalReorder, updateSyncTime]);
+
   // Project-level Sync Channel (Stable)
   useEffect(() => {
-    if (!selectedProject?.id || !supabase) return;
+    if (!selectedProjectId || !supabase) return;
 
-    const label = `project-${selectedProject.id}`;
+    const label = `project-${selectedProjectId}`;
     const channel = supabase.channel(label);
     
     console.log(`[DashboardSync] 📡 Subscribing to Project Channel: ${label}`, { 
-      projectId: selectedProject.id,
+      projectId: selectedProjectId,
       projectTitle: selectedProject.title 
     });
 
     channel
       .on('broadcast', { event: 'sync' }, () => {
         console.log(`[DashboardSync] Full Sync Event on ${label}`);
-        if (githubToken && selectedProject.id) {
-          fetchProjectTasksRef.current(selectedProject.id, githubToken);
+        if (githubToken && selectedProjectId) {
+          fetchProjectTasksRef.current(selectedProjectId, githubToken);
         }
+      })
+      .on('broadcast', { event: 'reorder' }, (payload) => {
+        handleReorderSync(label, payload);
       })
       .on('broadcast', { event: 'refresh_task' }, (payload) => {
         const data = payload.payload || payload;
@@ -100,11 +122,11 @@ export function useDashboardSync({
             fetchSingleItemRef.current(task.itemId, githubToken);
           } else {
             console.warn(`[DashboardSync] -> No task found with contentId ${contentId}, doing full project refresh.`);
-            fetchProjectTasksRef.current(selectedProject.id, githubToken);
+            fetchProjectTasksRef.current(selectedProjectId, githubToken);
           }
         } else if (githubToken) {
           console.warn(`[DashboardSync] -> No itemId or contentId in payload, doing full project refresh.`);
-          fetchProjectTasksRef.current(selectedProject.id, githubToken);
+          fetchProjectTasksRef.current(selectedProjectId, githubToken);
         }
       })
       .subscribe((status) => {
@@ -115,14 +137,14 @@ export function useDashboardSync({
       console.log(`[DashboardSync] Unsubscribing from Project Channel: ${label}`);
       if (supabase) supabase.removeChannel(channel);
     };
-  }, [selectedProject?.id, selectedProject?.title, githubToken]);
+  }, [selectedProjectId, selectedProject?.title, githubToken, handleReorderSync]);
 
   // Repo-level Sync Channels (Dynamic based on visible tasks)
   const repoString = useMemo(() => tasks.map(t => t.repository).join(','), [tasks]);
 
   useEffect(() => {
     const s = supabase;
-    if (!selectedProject?.id || !s) return;
+    if (!selectedProjectId || !s) return;
 
     const repoNames = Array.from(new Set(tasksRef.current.map(t => t.repository).filter(Boolean)));
     const labels = repoNames.map(name => `repo-${name!.replace(/\//g, '-')}`);
@@ -135,9 +157,12 @@ export function useDashboardSync({
 
       channel
         .on('broadcast', { event: 'sync' }, () => {
-          if (githubToken && selectedProject.id) {
-            fetchProjectTasksRef.current(selectedProject.id, githubToken);
+          if (githubToken && selectedProjectId) {
+            fetchProjectTasksRef.current(selectedProjectId, githubToken);
           }
+        })
+        .on('broadcast', { event: 'reorder' }, (payload) => {
+          handleReorderSync(label, payload);
         })
         .on('broadcast', { event: 'refresh_task' }, (payload) => {
           const data = payload.payload || payload;
@@ -155,11 +180,11 @@ export function useDashboardSync({
               fetchSingleItemRef.current(task.itemId, githubToken);
             } else {
               console.warn(`[DashboardSync] -> No task found with contentId ${contentId}, doing full project refresh.`);
-              fetchProjectTasksRef.current(selectedProject.id, githubToken);
+              fetchProjectTasksRef.current(selectedProjectId, githubToken);
             }
           } else if (githubToken) {
             console.warn(`[DashboardSync] -> No itemId or contentId in payload, doing full project refresh.`);
-            fetchProjectTasksRef.current(selectedProject.id, githubToken);
+            fetchProjectTasksRef.current(selectedProjectId, githubToken);
           }
         })
         .subscribe();
@@ -171,12 +196,12 @@ export function useDashboardSync({
         if (supabase) supabase.removeChannel(channel);
       });
     };
-  }, [repoString, selectedProject?.id, githubToken]);
+  }, [repoString, selectedProjectId, githubToken, handleReorderSync]);
 
   // Owner-level Fallback Channel (For when project/repo IDs mismatch)
   useEffect(() => {
     const s = supabase;
-    if (!selectedProject?.id || !s) return;
+    if (!selectedProjectId || !s) return;
 
     // We can't easily get the owner from tasksRef, so we try to infer it or just skip if not possible.
     // For now, let's use the repo owner of the first task as a hint.
@@ -192,14 +217,19 @@ export function useDashboardSync({
     channel
       .on('broadcast', { event: 'sync' }, () => {
         console.log(`[DashboardSync] 🛡️ Fallback Sync Event on ${label}`);
-        fetchProjectTasksRef.current(selectedProject.id, githubToken);
+        fetchProjectTasksRef.current(selectedProjectId, githubToken);
+      })
+      .on('broadcast', { event: 'reorder' }, (payload) => {
+        const data = (payload.payload || payload) as { projectId?: string };
+        if (data.projectId && data.projectId !== selectedProjectId) return;
+        handleReorderSync(label, payload);
       })
       .on('broadcast', { event: 'refresh_task' }, (payload) => {
         const data = payload.payload || payload;
         const { itemId, contentId, projectId } = data || {};
         
         // If the payload contains a projectId that doesn't match ours, ignore it
-        if (projectId && projectId !== selectedProject.id) return;
+        if (projectId && projectId !== selectedProjectId) return;
 
         console.log(`[DashboardSync] 🛡️ Fallback Refresh Event on ${label}:`, { itemId, contentId });
         
@@ -210,7 +240,7 @@ export function useDashboardSync({
           if (task && task.itemId) {
             fetchSingleItemRef.current(task.itemId, githubToken);
           } else {
-            fetchProjectTasksRef.current(selectedProject.id, githubToken);
+            fetchProjectTasksRef.current(selectedProjectId, githubToken);
           }
         }
       })
@@ -219,7 +249,7 @@ export function useDashboardSync({
     return () => {
       if (supabase) supabase.removeChannel(channel);
     };
-  }, [repoString, selectedProject?.id, githubToken]);
+  }, [repoString, selectedProjectId, githubToken, handleReorderSync]);
 
   return {
     lastSyncedTime,

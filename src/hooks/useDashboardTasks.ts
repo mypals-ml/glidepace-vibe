@@ -41,6 +41,7 @@ interface UseDashboardTasksProps {
   dateSettings: ProjectDateSettings;
   requestStartDateDecision: (tasks: Task[]) => Promise<'auto' | 'locked' | 'ask'>;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  markRecentLocalReorder: (itemIds: string[]) => void;
 }
 
 function uniqueTasks(tasks: Task[]): Task[] {
@@ -109,6 +110,7 @@ export function useDashboardTasks({
   dateSettings,
   requestStartDateDecision,
   showToast,
+  markRecentLocalReorder,
 }: UseDashboardTasksProps) {
   const { t } = useTranslation();
 
@@ -783,6 +785,7 @@ export function useDashboardTasks({
     setTasks(nextTasks);
     const success = await updateProjectV2ItemPosition(selectedProject.id, task.itemId, afterTaskId, githubToken);
     if (success) {
+      markRecentLocalReorder([task.itemId]);
       updateSyncTime();
       return true;
     }
@@ -790,7 +793,7 @@ export function useDashboardTasks({
     setTasks(oldTasks);
     showToast(t('dashboard.taskReorderFailed', 'Failed to reorder task.'), 'error');
     return false;
-  }, [selectedProject?.id, githubToken, setTasks, updateSyncTime, showToast, t]);
+  }, [selectedProject?.id, githubToken, setTasks, markRecentLocalReorder, updateSyncTime, showToast, t]);
 
   const reorderTaskBlock = useCallback(async (taskIds: string[], afterTaskId: string | null): Promise<boolean> => {
     if (!selectedProject?.id || !githubToken) return false;
@@ -820,6 +823,7 @@ export function useDashboardTasks({
     }
 
     if (success) {
+      markRecentLocalReorder(movedTasks.map(movedTask => movedTask.itemId!));
       updateSyncTime();
       return true;
     }
@@ -828,7 +832,7 @@ export function useDashboardTasks({
     showToast(t('dashboard.taskReorderFailed', 'Failed to reorder task.'), 'error');
     await fetchProjectTasks(selectedProject.id, githubToken);
     return false;
-  }, [selectedProject?.id, githubToken, setTasks, updateSyncTime, showToast, t, fetchProjectTasks]);
+  }, [selectedProject?.id, githubToken, setTasks, markRecentLocalReorder, updateSyncTime, showToast, t, fetchProjectTasks]);
 
   const handleCreateTask = useCallback(async (taskData: {
     title: string;
