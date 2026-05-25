@@ -40,6 +40,23 @@ describe('buildBreakLinkPlan', () => {
     ]);
   });
 
+  it('keeps unrelated predecessor successor links when breaking all links for the selected task', () => {
+    const predecessor = makeTask({ id: 'A', itemId: 'item-a', successorIds: ['item-b', 'item-c'] });
+    const current = makeTask({ id: 'B', itemId: 'item-b', successorIds: ['item-c'] });
+    const successor = makeTask({ id: 'C', itemId: 'item-c' });
+
+    const plan = buildBreakLinkPlan(
+      [predecessor, current, successor],
+      { firstTask: current, lastTask: current },
+      'all',
+    );
+
+    expect(plan.operations).toEqual([
+      { taskId: 'item-a', successorIds: ['item-c'] },
+      { taskId: 'item-b', successorIds: [] },
+    ]);
+  });
+
   it('builds predecessor-only operations without clearing successors', () => {
     const predecessor = makeTask({ id: 'A', itemId: 'item-a', successorIds: ['item-b'] });
     const current = makeTask({ id: 'B', itemId: 'item-b', successorIds: ['item-c'] });

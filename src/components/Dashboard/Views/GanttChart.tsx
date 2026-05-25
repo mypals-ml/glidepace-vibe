@@ -11,6 +11,7 @@ import { FloatingSequenceBuilder } from '../FloatingSequenceBuilder';
 import { isTaskGroupBlock } from '../../../lib/taskGroupUtils';
 import { defaultWorkCalendar } from '../../../lib/workCalendar';
 import { getScrollTopForSelectedRow } from '../../../lib/scrollUtils';
+import { buildBreakLinkPlan, type BreakLinkScope } from '../../../lib/contextMenuLinkUtils';
 
 export interface GanttChartProps {
   className?: string;
@@ -27,7 +28,7 @@ const ROW_HEIGHT = 72;
 
 export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
   const { t } = useTranslation();
-  const { filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, centerGanttOnDate, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
+  const { tasks, filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, centerGanttOnDate, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
   const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, clientWidth: 0 });
   const internalScrollRef = useRef<HTMLDivElement>(null);
   
@@ -94,6 +95,24 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     if (!sourceTask || !sourceTask.successorIds) return;
     const newSuccessors = sourceTask.successorIds.filter(id => id !== targetId);
     await updateTaskSuccessors(sourceId, newSuccessors);
+  };
+
+  const contextBreakLinkPlan = useMemo(() => {
+    if (!contextMenu) return null;
+    const task = tasks.find(task => task.id === contextMenu.taskId || task.itemId === contextMenu.taskId);
+    return task ? buildBreakLinkPlan(tasks, { firstTask: task, lastTask: task }, 'all') : null;
+  }, [contextMenu, tasks]);
+
+  const handleBreakLinksFromContext = async (taskId: string, scope: BreakLinkScope) => {
+    const task = tasks.find(task => task.id === taskId || task.itemId === taskId);
+    if (!task) return;
+
+    const plan = buildBreakLinkPlan(tasks, { firstTask: task, lastTask: task }, scope);
+    for (const operation of plan.operations) {
+      await updateTaskSuccessors(operation.taskId, operation.successorIds, true);
+    }
+
+    setContextMenu(null);
   };
 
   const handleLinkDragStart = (e: React.MouseEvent, taskId: string, startX: number, startY: number) => {
@@ -516,19 +535,41 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
               <span className="material-symbols-outlined text-[16px]">add_link</span>
               {t('dashboard.addSuccessors')}
             </button>
-            <button 
-              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-              onClick={() => {
-                const tObj = filteredTasks.find(tObj => tObj.id === contextMenu.taskId);
-                if (tObj && tObj.successorIds && tObj.successorIds.length > 0) {
-                  updateTaskSuccessors(contextMenu.taskId, []);
-                }
-                setContextMenu(null);
-              }}
-            >
-              <span className="material-symbols-outlined text-[16px]">link_off</span>
-              {t('dashboard.breakAllLinks')}
-            </button>
+            {contextBreakLinkPlan && (contextBreakLinkPlan.hasPredecessors || contextBreakLinkPlan.hasSuccessors) && (
+              <>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  onClick={() => {
+                    handleBreakLinksFromContext(contextMenu.taskId, 'all');
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[16px]">link_off</span>
+                  {t('dashboard.breakAllLinks')}
+                </button>
+                {contextBreakLinkPlan.hasPredecessors && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    onClick={() => {
+                      handleBreakLinksFromContext(contextMenu.taskId, 'predecessors');
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">call_received</span>
+                    {t('dashboard.breakWithPredecessors')}
+                  </button>
+                )}
+                {contextBreakLinkPlan.hasSuccessors && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    onClick={() => {
+                      handleBreakLinksFromContext(contextMenu.taskId, 'successors');
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">call_made</span>
+                    {t('dashboard.breakWithSuccessors')}
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
