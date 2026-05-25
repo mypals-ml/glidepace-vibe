@@ -15,6 +15,7 @@ import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
 import { getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isTaskGroupBlock, parseGroupPath, serializeGroupPath } from '../../lib/taskGroupUtils';
+import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
 import { Button } from '../UI/Button';
 
 type ContextMenuTarget =
@@ -358,26 +359,26 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setContextMenu(null);
   };
 
-  const handleBreakLinksFromContext = async (target: ContextMenuTarget) => {
+  const getBreakLinkPlanForContext = useCallback((target: ContextMenuTarget, scope: BreakLinkScope) => {
     const boundaryTasks = getContextBoundaryTasks(target);
-    if (!boundaryTasks) return;
+    return boundaryTasks ? buildBreakLinkPlan(tasks, boundaryTasks, scope) : null;
+  }, [getContextBoundaryTasks, tasks]);
 
-    if (target.kind === 'group') {
-      const firstTaskOrderId = getTaskOrderId(boundaryTasks.firstTask);
-      const predecessorTasks = tasks.filter(task => (task.successorIds || []).includes(firstTaskOrderId));
+  const handleBreakLinksFromContext = async (target: ContextMenuTarget, scope: BreakLinkScope) => {
+    const plan = getBreakLinkPlanForContext(target, scope);
+    if (!plan) return;
 
-      for (const predecessorTask of predecessorTasks) {
-        const nextSuccessorIds = (predecessorTask.successorIds || []).filter(successorId => successorId !== firstTaskOrderId);
-        await updateTaskSuccessors(getTaskOrderId(predecessorTask), nextSuccessorIds, true);
-      }
-    }
-
-    if (boundaryTasks.lastTask.successorIds?.length) {
-      await updateTaskSuccessors(boundaryTasks.lastTask.id, [], true);
+    for (const operation of plan.operations) {
+      await updateTaskSuccessors(operation.taskId, operation.successorIds, true);
     }
 
     setContextMenu(null);
   };
+
+  const contextBreakLinkPlan = useMemo(() => {
+    if (!contextMenu) return null;
+    return getBreakLinkPlanForContext(contextMenu.target, 'all');
+  }, [contextMenu, getBreakLinkPlanForContext]);
 
   const promptTaskGroupPath = async (taskId: string) => {
     const task = filteredTasks.find(t => t.id === taskId || t.itemId === taskId);
@@ -694,15 +695,41 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               <span className="material-symbols-outlined text-[16px]">add_link</span>
               {t('dashboard.addSuccessors')}
             </button>
-            <button
-              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-              onClick={() => {
-                handleBreakLinksFromContext(contextMenu.target);
-              }}
-            >
-              <span className="material-symbols-outlined text-[16px]">link_off</span>
-              {t('dashboard.breakAllLinks')}
-            </button>
+            {contextBreakLinkPlan && (contextBreakLinkPlan.hasPredecessors || contextBreakLinkPlan.hasSuccessors) && (
+              <>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  onClick={() => {
+                    handleBreakLinksFromContext(contextMenu.target, 'all');
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[16px]">link_off</span>
+                  {t('dashboard.breakAllLinks')}
+                </button>
+                {contextBreakLinkPlan.hasPredecessors && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    onClick={() => {
+                      handleBreakLinksFromContext(contextMenu.target, 'predecessors');
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">call_received</span>
+                    {t('dashboard.breakWithPredecessors')}
+                  </button>
+                )}
+                {contextBreakLinkPlan.hasSuccessors && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    onClick={() => {
+                      handleBreakLinksFromContext(contextMenu.target, 'successors');
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">call_made</span>
+                    {t('dashboard.breakWithSuccessors')}
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
