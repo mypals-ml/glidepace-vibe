@@ -16,6 +16,7 @@ interface DependencyLinesProps {
 export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLink, dragState }: DependencyLinesProps) {
   const { t } = useTranslation();
   const ROW_HEIGHT = 72;
+  const DEPENDENCY_LINE_DASH_DURATION_SECONDS = 10;
 
   const getPathStr = (startX: number, startY: number, endX: number, endY: number) => {
     let cp1X, cp2X;
@@ -77,7 +78,8 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
                 stroke="#6366f1"
                 strokeWidth="2"
                 strokeDasharray="4 4"
-                className="dependency-line opacity-60 group-hover/line:opacity-100 group-hover/line:stroke-rose-500 animate-[dash_2s_linear_infinite]"
+                className="dependency-line opacity-60 group-hover/line:opacity-100 group-hover/line:stroke-rose-500"
+                style={{ animation: `dash ${DEPENDENCY_LINE_DASH_DURATION_SECONDS}s linear infinite` }}
               />
               {/* Break link icon on hover */}
               <foreignObject x={(startX + endX) / 2 - 12} y={(startY + endY) / 2 - 12} width="24" height="24" className="opacity-0 group-hover/line:opacity-100">
