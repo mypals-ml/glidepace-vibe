@@ -85,6 +85,8 @@ export interface DashboardContextValue {
   setIsProjectModalOpen: (open: boolean) => void;
   isAccountModalOpen: boolean;
   setIsAccountModalOpen: (open: boolean) => void;
+  isAboutModalOpen: boolean;
+  setIsAboutModalOpen: (open: boolean) => void;
   isPatModalOpen: boolean;
   setIsPatModalOpen: (open: boolean) => void;
   isCreateTaskModalOpen: boolean;

@@ -39,6 +39,22 @@ const resources = {
         activeStatus: "ACTIVE",
         addAccountPermissionNotice: "Adding new accounts may require additional permissions from your Github account."
       },
+      about: {
+        button: "About",
+        eyebrow: "About",
+        title: "About Glidelines",
+        description: "Glidelines turns GitHub Projects into a synchronized planning workspace with timeline, list, and burndown views.",
+        cardRealtimeLabel: "Realtime",
+        cardRealtimeValue: "Live GitHub sync",
+        cardViewsLabel: "Views",
+        cardViewsValue: "List, Gantt, Burndown",
+        cardDataLabel: "Source",
+        cardDataValue: "GitHub Projects",
+        supportingCopy: "Use the header tools to connect accounts, open projects, refine project settings, and keep task scheduling aligned with GitHub.",
+        viewSource: "View Source",
+        close: "Close about dialog",
+        closeButton: "Close"
+      },
       dashboard: {
         issuesList: "Issues List",
         filterPlaceholder: "Filter issues...",
@@ -302,6 +318,22 @@ const resources = {
         connectedAccountsLabel: "接続されたアカウント",
         activeStatus: "アクティブ",
         addAccountPermissionNotice: "新しいアカウントを追加するには、Githubアカウントからの追加の権限が必要になる場合があります。"
+      },
+      about: {
+        button: "About",
+        eyebrow: "概要",
+        title: "Glidelines について",
+        description: "Glidelines は GitHub Projects を、タイムライン、リスト、バーンダウンを備えた同期型の計画ワークスペースに変換します。",
+        cardRealtimeLabel: "同期",
+        cardRealtimeValue: "GitHub とリアルタイム同期",
+        cardViewsLabel: "ビュー",
+        cardViewsValue: "リスト、ガント、バーンダウン",
+        cardDataLabel: "データ元",
+        cardDataValue: "GitHub Projects",
+        supportingCopy: "ヘッダーツールからアカウント接続、プロジェクトを開く、設定調整を行い、GitHub と整合したスケジュール管理を続けられます。",
+        viewSource: "ソースを見る",
+        close: "概要ダイアログを閉じる",
+        closeButton: "閉じる"
       },
       dashboard: {
         issuesList: "課題リスト",
@@ -567,6 +599,22 @@ const resources = {
         activeStatus: "活跃",
         addAccountPermissionNotice: "添加新帐户可能需要您的 Github 帐户提供其他权限。"
       },
+      about: {
+        button: "About",
+        eyebrow: "关于",
+        title: "关于 Glidelines",
+        description: "Glidelines 将 GitHub Projects 转换为一个带有时间线、列表和燃尽图的同步规划工作区。",
+        cardRealtimeLabel: "同步",
+        cardRealtimeValue: "GitHub 实时同步",
+        cardViewsLabel: "视图",
+        cardViewsValue: "列表、甘特图、燃尽图",
+        cardDataLabel: "数据源",
+        cardDataValue: "GitHub Projects",
+        supportingCopy: "你可以通过顶部工具连接账号、打开项目、调整项目设置，并让排期与 GitHub 保持一致。",
+        viewSource: "查看源码",
+        close: "关闭关于对话框",
+        closeButton: "关闭"
+      },
       dashboard: {
         issuesList: "问题列表",
         filterPlaceholder: "过滤问题...",
@@ -830,6 +878,22 @@ const resources = {
         connectedAccountsLabel: "已連接的帳戶",
         activeStatus: "活躍",
         addAccountPermissionNotice: "添加新帳戶可能需要您的 Github 帳戶提供額外權限。"
+      },
+      about: {
+        button: "About",
+        eyebrow: "關於",
+        title: "關於 Glidelines",
+        description: "Glidelines 會把 GitHub Projects 轉換成帶有時間線、清單與燃盡圖的同步規劃工作區。",
+        cardRealtimeLabel: "同步",
+        cardRealtimeValue: "GitHub 即時同步",
+        cardViewsLabel: "檢視",
+        cardViewsValue: "清單、甘特圖、燃盡圖",
+        cardDataLabel: "資料來源",
+        cardDataValue: "GitHub Projects",
+        supportingCopy: "你可以透過頂部工具連接帳號、開啟專案、調整專案設定，並讓排程持續與 GitHub 對齊。",
+        viewSource: "查看原始碼",
+        close: "關閉關於對話框",
+        closeButton: "關閉"
       },
       dashboard: {
         issuesList: "問題列表",

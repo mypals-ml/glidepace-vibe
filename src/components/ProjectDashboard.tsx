@@ -21,6 +21,7 @@ const OpenProjectModal = lazy(() => import('./Modals/OpenProjectModal').then(m =
 const PatAuthModal = lazy(() => import('./Modals/PatAuthModal').then(m => ({ default: m.PatAuthModal })));
 const TaskDetailsPanel = lazy(() => import('./Dashboard/TaskDetailsPanel').then(m => ({ default: m.TaskDetailsPanel })));
 const ProjectSettingsModal = lazy(() => import('./Modals/ProjectSettingsModal').then(m => ({ default: m.ProjectSettingsModal })));
+const AboutModal = lazy(() => import('./Modals/AboutModal').then(m => ({ default: m.AboutModal })));
 
 
 function DashboardLayout() {
@@ -145,6 +146,7 @@ function DashboardLayout() {
         <ConnectedAccountsModal />
         <PatAuthModal />
         <ProjectSettingsModal />
+        <AboutModal />
         <MissingFieldsPromptModal />
         {toast && (
           <Toast

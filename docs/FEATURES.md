@@ -6,6 +6,7 @@
 *   **Project Discovery & Selection:** Instead of manually inputting a Project ID, authenticated users can browse their active projects via a dedicated "Open Project" modal, with selections cached in `localStorage`.
 *   **Real-time Sync:** Automatically receives updates from GitHub via webhooks and Supabase broadcast, updating the UI instantly without page refreshes.
 *   **Localization (i18n):** Fully translated interface supporting English, Japanese, and Simplified Chinese.
+*   **Header About Entry:** The top toolbar now includes an overflow-aware `About` button that opens a lightweight product overview modal with a direct link to the source repository.
 *   **Themes:** Supports Light and Dark mode toggling. The default interface is a polished Bright (Light) mode with a glassmorphism aesthetic.
 *   **MS Project Style Layout:** The main dashboard uses a resizable split-pane layout: the left panel lists issues (with assignees and status), while the wide right panel displays a horizontal Gantt chart.
 *   **Jump to Chart:** Long-pressing or right-clicking a task in the list opens a context menu with "Jump to Chart", switching to the Gantt chart and centering the selected task in view.

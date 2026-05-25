@@ -4,6 +4,7 @@ import type { TaskInsertPosition } from '../types';
 export function useDashboardUI() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [isPatModalOpen, setIsPatModalOpen] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
@@ -20,6 +21,8 @@ export function useDashboardUI() {
     setIsProjectModalOpen,
     isAccountModalOpen,
     setIsAccountModalOpen,
+    isAboutModalOpen,
+    setIsAboutModalOpen,
     isPatModalOpen,
     setIsPatModalOpen,
     isCreateTaskModalOpen,
