@@ -227,3 +227,31 @@ export function moveTasksToGroupPath(tasks: Task[], taskIds: string[], targetPat
     return { ...task, groupPath: [...targetPath] };
   });
 }
+
+function normalizeFieldGroupSegment(value: string | undefined): string {
+  const trimmed = value?.trim();
+  return trimmed || 'No value';
+}
+
+export function applyFieldGroupPaths(tasks: Task[], fieldIds: string[]): Task[] {
+  const selectedFieldIds = fieldIds.map(fieldId => fieldId.trim()).filter(Boolean);
+  if (selectedFieldIds.length === 0) return tasks;
+
+  const decoratedTasks = tasks.map((task, index) => {
+    const fieldSegments = selectedFieldIds.map(fieldId =>
+      normalizeFieldGroupSegment(task.projectFieldValues?.[fieldId])
+    );
+    return {
+      index,
+      task: {
+        ...task,
+        groupPath: [...fieldSegments, ...(task.groupPath || [])],
+      },
+      key: fieldSegments.map(segment => segment.toLocaleLowerCase()).join('\u0000'),
+    };
+  });
+
+  return decoratedTasks
+    .sort((a, b) => a.key.localeCompare(b.key) || a.index - b.index)
+    .map(({ task }) => task);
+}

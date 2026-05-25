@@ -175,7 +175,19 @@ const resources = {
         setGroupPath: "Set group path",
         groupPathPrompt: "Enter a JSON group path, such as [\"group1\",\"group2\"]. Use [] for the project root.",
         groupPathHelp: "Use [] for the project root, or a JSON array such as [\"group1\",\"group2\"].",
-        groupPathUpdateFailed: "Failed to update task group."
+        groupPathUpdateFailed: "Failed to update task group.",
+        groupByFields: "Group by Fields",
+        fieldGroupBar: "Field group bar",
+        fieldGroupDialogTitle: "Group by Fields",
+        selectedFields: "Selected fields",
+        availableFields: "Available fields",
+        noFieldsSelected: "No fields selected",
+        noProjectFields: "No project fields available",
+        addGroupField: "Add group field",
+        removeField: "Remove field",
+        moveFieldLeft: "Move field left",
+        moveFieldRight: "Move field right",
+        clearGroupFields: "Clear group fields"
       },
       createTask: {
         title: "Create New Task",

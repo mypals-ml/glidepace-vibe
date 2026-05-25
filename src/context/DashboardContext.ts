@@ -42,6 +42,10 @@ export interface DashboardContextValue {
   // Tasks
   tasks: Task[];
   dashboardItems: DashboardItem[];
+  selectedGroupFieldIds: string[];
+  setSelectedGroupFieldIds: (fieldIds: string[]) => void;
+  isFieldGroupBarVisible: boolean;
+  setIsFieldGroupBarVisible: (visible: boolean) => void;
   isLoadingTasks: boolean;
   fieldsProgress: { current: number; total: number; isFetching: boolean };
   fetchProjectTasks: (projectId: string, token: string) => Promise<void>;

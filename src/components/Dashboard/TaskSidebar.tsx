@@ -7,7 +7,7 @@ import { useDashboard } from '../../context/DashboardContext';
 import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor, getStatusTextColor } from '../../utils/statusColors';
-import type { DashboardItem, Task, TaskGroupBlock, User } from '../../types';
+import type { DashboardItem, GitHubProjectV2Field, Task, TaskGroupBlock, User } from '../../types';
 import { memo, useCallback, useMemo, useRef, useState, useEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
@@ -190,6 +190,11 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     filteredTasks, 
     dashboardItems,
     tasks, 
+    projectFields,
+    selectedGroupFieldIds,
+    setSelectedGroupFieldIds,
+    isFieldGroupBarVisible,
+    setIsFieldGroupBarVisible,
     isLoadingTasks, 
     searchQuery, 
     setSearchQuery, 
@@ -229,6 +234,9 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     | null
   >(null);
   const [isSavingGroupEditor, setIsSavingGroupEditor] = useState(false);
+  const [isFieldGroupDialogOpen, setIsFieldGroupDialogOpen] = useState(false);
+  const [draftGroupFieldIds, setDraftGroupFieldIds] = useState<string[]>([]);
+  const [draggedGroupFieldId, setDraggedGroupFieldId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const suppressNextClickRef = useRef(false);
   const dragHasMovedRef = useRef(false);
@@ -447,6 +455,17 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     [dashboardItems]
   );
   const dashboardRows = useMemo(() => buildDashboardTreeRows(dashboardItems), [dashboardItems]);
+  const projectFieldsById = useMemo(() => {
+    return new Map(projectFields.map(field => [field.id, field]));
+  }, [projectFields]);
+  const selectedGroupFields = useMemo(() => {
+    return selectedGroupFieldIds
+      .map(fieldId => projectFieldsById.get(fieldId))
+      .filter((field): field is GitHubProjectV2Field => Boolean(field));
+  }, [projectFieldsById, selectedGroupFieldIds]);
+  const sortedProjectFields = useMemo(() => {
+    return [...projectFields].sort((a, b) => a.name.localeCompare(b.name));
+  }, [projectFields]);
   const isDraggingTask = useMemo(() => {
     if (!activeDragItemSortId) return false;
     const activeItem = dashboardItems.find(item => getDashboardItemSortId(item) === activeDragItemSortId);
@@ -506,6 +525,49 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     }
   };
 
+  const openFieldGroupDialog = () => {
+    setDraftGroupFieldIds(selectedGroupFieldIds);
+    setIsFieldGroupBarVisible(true);
+    setIsFieldGroupDialogOpen(true);
+  };
+
+  const toggleDraftGroupField = (fieldId: string) => {
+    setDraftGroupFieldIds(prev =>
+      prev.includes(fieldId)
+        ? prev.filter(id => id !== fieldId)
+        : [...prev, fieldId]
+    );
+  };
+
+  const moveDraftGroupField = (fieldId: string, direction: -1 | 1) => {
+    setDraftGroupFieldIds(prev => {
+      const index = prev.indexOf(fieldId);
+      const nextIndex = index + direction;
+      if (index === -1 || nextIndex < 0 || nextIndex >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+  };
+
+  const moveDraftGroupFieldTo = (fieldId: string, targetFieldId: string) => {
+    setDraftGroupFieldIds(prev => {
+      const sourceIndex = prev.indexOf(fieldId);
+      const targetIndex = prev.indexOf(targetFieldId);
+      if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return prev;
+      const next = [...prev];
+      const [movedFieldId] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, movedFieldId);
+      return next;
+    });
+  };
+
+  const saveFieldGroupSelection = () => {
+    setSelectedGroupFieldIds(draftGroupFieldIds);
+    setIsFieldGroupBarVisible(true);
+    setIsFieldGroupDialogOpen(false);
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden relative" ref={rootRef}>
       {/* Header - Moved outside scroll container for alignment */}
@@ -514,6 +576,41 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">{t('table.assignees')}</div>
       </div>
+
+      {isFieldGroupBarVisible && (
+        <div className="flex items-center gap-1.5 border-b border-slate-200/80 bg-white/90 px-2 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.02)]" aria-label={t('dashboard.fieldGroupBar', 'Field group bar')}>
+          <IconButton
+            icon="add"
+            variant="ghost"
+            size="xs"
+            onClick={openFieldGroupDialog}
+            title={t('dashboard.addGroupField', 'Add group field')}
+            aria-label={t('dashboard.addGroupField', 'Add group field')}
+          />
+          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto custom-scrollbar">
+            {selectedGroupFields.length === 0 ? (
+              <span className="px-1 text-[10px] font-medium text-slate-400">{t('dashboard.noFieldsSelected', 'No fields selected')}</span>
+            ) : selectedGroupFields.map(field => (
+              <span key={field.id} className="inline-flex max-w-[140px] shrink-0 items-center gap-1 rounded-md border border-primary/15 bg-primary/5 px-2 py-1 text-[10px] font-bold text-primary">
+                <span className="truncate">{field.name}</span>
+              </span>
+            ))}
+          </div>
+          {selectedGroupFields.length > 0 && (
+            <IconButton
+              icon="close"
+              variant="ghost"
+              size="xs"
+              onClick={() => {
+                setSelectedGroupFieldIds([]);
+                setIsFieldGroupBarVisible(false);
+              }}
+              title={t('dashboard.clearGroupFields', 'Clear group fields')}
+              aria-label={t('dashboard.clearGroupFields', 'Clear group fields')}
+            />
+          )}
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto custom-scrollbar" ref={scrollRef} onScroll={onScroll}>
         {/* Task List Container */}
@@ -577,6 +674,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       movingItemSortId={movingItemSortId}
                       suppressNextClickRef={suppressNextClickRef}
                       openContextMenu={openContextMenu}
+                      onOpenFieldGroupDialog={openFieldGroupDialog}
                       t={t}
                     />
                   ) : (
@@ -879,6 +977,138 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
         </div>
       )}
 
+      {isFieldGroupDialogOpen && (
+        <div
+          className="absolute inset-0 z-[130] flex items-center justify-center bg-slate-900/25 backdrop-blur-sm p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="field-group-dialog-title"
+          onClick={() => setIsFieldGroupDialogOpen(false)}
+        >
+          <form
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-2xl"
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveFieldGroupSelection();
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <h3 id="field-group-dialog-title" className="text-sm font-bold text-slate-800">
+                {t('dashboard.fieldGroupDialogTitle', 'Group by Fields')}
+              </h3>
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="xs"
+                onClick={() => setIsFieldGroupDialogOpen(false)}
+                aria-label={t('dashboard.close', 'Close')}
+              />
+            </div>
+            <div className="space-y-4 px-4 py-4">
+              <section className="space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  {t('dashboard.selectedFields', 'Selected fields')}
+                </div>
+                <div className="flex min-h-11 items-center gap-2 overflow-x-auto rounded-lg border border-slate-100 bg-slate-50/80 p-2 custom-scrollbar">
+                  {draftGroupFieldIds.length === 0 ? (
+                    <span className="text-xs text-slate-400">{t('dashboard.noFieldsSelected', 'No fields selected')}</span>
+                  ) : draftGroupFieldIds.map((fieldId, index) => {
+                    const field = projectFieldsById.get(fieldId);
+                    if (!field) return null;
+                    return (
+                      <div
+                        key={fieldId}
+                        draggable
+                        onDragStart={() => setDraggedGroupFieldId(fieldId)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (draggedGroupFieldId) moveDraftGroupFieldTo(draggedGroupFieldId, fieldId);
+                          setDraggedGroupFieldId(null);
+                        }}
+                        onDragEnd={() => setDraggedGroupFieldId(null)}
+                        className="inline-flex max-w-[180px] shrink-0 cursor-grab items-center gap-1 rounded-md border border-primary/15 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm active:cursor-grabbing"
+                      >
+                        <span className="material-symbols-outlined text-[14px] text-slate-400">drag_indicator</span>
+                        <span className="truncate">{field.name}</span>
+                        <IconButton
+                          icon="chevron_left"
+                          variant="ghost"
+                          size="xs"
+                          disabled={index === 0}
+                          onClick={() => moveDraftGroupField(fieldId, -1)}
+                          aria-label={t('dashboard.moveFieldLeft', 'Move field left')}
+                        />
+                        <IconButton
+                          icon="chevron_right"
+                          variant="ghost"
+                          size="xs"
+                          disabled={index === draftGroupFieldIds.length - 1}
+                          onClick={() => moveDraftGroupField(fieldId, 1)}
+                          aria-label={t('dashboard.moveFieldRight', 'Move field right')}
+                        />
+                        <IconButton
+                          icon="close"
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => toggleDraftGroupField(fieldId)}
+                          aria-label={t('dashboard.removeField', 'Remove field')}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  {t('dashboard.availableFields', 'Available fields')}
+                </div>
+                <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
+                  {sortedProjectFields.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-xs text-slate-400">
+                      {t('dashboard.noProjectFields', 'No project fields available')}
+                    </div>
+                  ) : sortedProjectFields.map(field => (
+                    <label
+                      key={field.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                        checked={draftGroupFieldIds.includes(field.id)}
+                        onChange={() => toggleDraftGroupField(field.id)}
+                      />
+                      <span className="min-w-0 flex-1 truncate">{field.name}</span>
+                      {field.dataType && (
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          {field.dataType}
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </section>
+            </div>
+            <div className="flex justify-end gap-2 rounded-b-xl border-t border-slate-100 bg-slate-50 px-4 py-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFieldGroupDialogOpen(false)}
+              >
+                {t('common.cancel', 'Cancel')}
+              </Button>
+              <Button type="submit" variant="primary" size="sm">
+                {t('common.save', 'Save')}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Bottom Search Box with Add Task Button and Progress Bar */}
       <div className="border-t border-slate-200/80 bg-slate-50/50 backdrop-blur-md absolute bottom-0 left-0 right-0 z-10">
         {isLinkMode && <FloatingSequenceBuilder variant="inline" className="md:hidden" />}
@@ -1078,6 +1308,7 @@ interface TaskGroupRowProps {
   movingItemSortId: string | null;
   suppressNextClickRef: React.MutableRefObject<boolean>;
   openContextMenu: (clientX: number, clientY: number, target: ContextMenuTarget) => void;
+  onOpenFieldGroupDialog: () => void;
   t: TFunction;
 }
 
@@ -1094,6 +1325,7 @@ function TaskGroupRow({
   movingItemSortId,
   suppressNextClickRef,
   openContextMenu,
+  onOpenFieldGroupDialog,
   t,
 }: TaskGroupRowProps) {
   const sortId = getDashboardItemSortId(group);
@@ -1113,7 +1345,13 @@ function TaskGroupRow({
   const [isDragHandleHovered, setIsDragHandleHovered] = useState(false);
   const [isDragHandleFocused, setIsDragHandleFocused] = useState(false);
   const isMovingThisGroup = movingItemSortId === sortId;
-  const showHoverActions = !group.isSyntheticRoot && !isDragging && !isDragActive && !isAnyDragging;
+  const showHoverActions = !isDragging && !isDragActive && !isAnyDragging;
+  const actionToolbarClassName = group.isSyntheticRoot
+    ? 'opacity-100 pointer-events-auto'
+    : `opacity-0 ${showHoverActions ? 'group-hover:opacity-100' : ''} pointer-events-none`;
+  const actionButtonClassName = group.isSyntheticRoot
+    ? 'pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10'
+    : 'pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10';
   const dragHandleLeft = getTreeDragHandleX();
   const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
@@ -1213,36 +1451,67 @@ function TaskGroupRow({
           {group.startDate && group.targetDate ? `${group.startDate} - ${group.targetDate}` : t('dashboard.noGroupDates', 'No dates')}
         </div>
       </TreeTitleCell>
-      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-        {t('dashboard.groupLabel', 'Group')}
+      <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+        <span>{t('dashboard.groupLabel', 'Group')}</span>
+        {group.isSyntheticRoot && (
+          <IconButton
+            icon="dataset"
+            variant="ghost"
+            size="xs"
+            className="text-slate-500 hover:text-primary hover:bg-primary/10"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenFieldGroupDialog();
+            }}
+            title={t('dashboard.groupByFields', 'Group by Fields')}
+            aria-label={t('dashboard.groupByFields', 'Group by Fields')}
+          />
+        )}
       </div>
       <div aria-hidden="true" />
 
-      <div className={`absolute right-2 bottom-full translate-y-[60%] flex items-center gap-1 opacity-0 ${showHoverActions ? 'group-hover:opacity-100' : ''} transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
-        <IconButton
-          icon="edit"
-          variant="ghost"
-          size="xs"
-          className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRename();
-          }}
-          title={t('dashboard.renameGroup', 'Rename group')}
-          aria-label={t('dashboard.renameGroup', 'Rename group')}
-        />
-        <IconButton
-          icon="folder_off"
-          variant="ghost"
-          size="xs"
-          className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
-          onClick={(e) => {
-            e.stopPropagation();
-            onUngroup();
-          }}
-          title={t('dashboard.ungroup', 'Ungroup')}
-          aria-label={t('dashboard.ungroup', 'Ungroup')}
-        />
+      <div className={`absolute right-2 bottom-full translate-y-[60%] flex items-center gap-1 ${actionToolbarClassName} transition-opacity z-10 bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
+        {group.isSyntheticRoot ? (
+          <IconButton
+            icon="dataset"
+            variant="ghost"
+            size="xs"
+            className={actionButtonClassName}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenFieldGroupDialog();
+            }}
+            title={t('dashboard.groupByFields', 'Group by Fields')}
+            aria-label={t('dashboard.groupByFields', 'Group by Fields')}
+          />
+        ) : (
+          <>
+            <IconButton
+              icon="edit"
+              variant="ghost"
+              size="xs"
+              className={actionButtonClassName}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRename();
+              }}
+              title={t('dashboard.renameGroup', 'Rename group')}
+              aria-label={t('dashboard.renameGroup', 'Rename group')}
+            />
+            <IconButton
+              icon="folder_off"
+              variant="ghost"
+              size="xs"
+              className={actionButtonClassName}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUngroup();
+              }}
+              title={t('dashboard.ungroup', 'Ungroup')}
+              aria-label={t('dashboard.ungroup', 'Ungroup')}
+            />
+          </>
+        )}
       </div>
     </div>
   );

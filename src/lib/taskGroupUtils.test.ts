@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '../types';
 import {
+  applyFieldGroupPaths,
   buildGroupBlocksFromOrderedTasks,
   isTaskGroupBlock,
   parseGroupPath,
@@ -73,7 +74,7 @@ describe('taskGroupUtils', () => {
   });
 
   it('renames only the selected group block', () => {
-    const tasks = [
+    const tasks: Task[] = [
       makeTask('TaskB', ['group1']),
       makeTask('TaskX', []),
       makeTask('TaskC', ['group1', 'group2']),
@@ -108,5 +109,23 @@ describe('taskGroupUtils', () => {
       ['group1', 'group3'],
       [],
     ]);
+  });
+
+  it('applies field groups as prefixes while preserving group path rules', () => {
+    const tasks: Task[] = [
+      { ...makeTask('TaskA', ['Backend']), projectFieldValues: { statusField: 'Todo', priorityField: 'P2' } },
+      { ...makeTask('TaskB', []), projectFieldValues: { statusField: 'Done', priorityField: 'P1' } },
+      { ...makeTask('TaskC', ['Frontend']), projectFieldValues: { statusField: 'Todo' } },
+    ];
+
+    const grouped = applyFieldGroupPaths(tasks, ['statusField', 'priorityField']);
+
+    expect(grouped.map(task => task.id)).toEqual(['TaskB', 'TaskC', 'TaskA']);
+    expect(grouped.map(task => task.groupPath)).toEqual([
+      ['Done', 'P1'],
+      ['Todo', 'No value', 'Frontend'],
+      ['Todo', 'P2', 'Backend'],
+    ]);
+    expect(tasks[0].groupPath).toEqual(['Backend']);
   });
 });

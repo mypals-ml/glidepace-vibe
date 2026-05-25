@@ -247,9 +247,26 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   }));
 
   const projectFieldIds: Record<string, string> = {};
+  const projectFieldValues: Record<string, string> = {};
   const statusOptions: Record<string, string> = {};
   const statusColorMap: Record<string, string> = {};
   const estimateUnitOptions: Record<string, string> = {};
+
+  fieldValues.forEach((fieldValue: GitHubFieldValue) => {
+    const fieldId = fieldValue.field?.id;
+    if (!fieldId) return;
+
+    const value = fieldValue.name
+      ?? fieldValue.text
+      ?? (fieldValue.number !== undefined ? String(fieldValue.number) : undefined)
+      ?? fieldValue.date
+      ?? fieldValue.title
+      ?? fieldValue.startDate;
+
+    if (value !== undefined && value !== '') {
+      projectFieldValues[fieldId] = value;
+    }
+  });
   
   if (statusField?.field?.id) projectFieldIds.status = statusField.field.id;
   if (startDateField?.field?.id) projectFieldIds.startDate = startDateField.field.id;
@@ -358,6 +375,7 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     progress: partialTask.progress || 0,
     repository: content?.repository?.nameWithOwner,
     projectFieldIds,
+    projectFieldValues,
     statusOptions,
     statusColorMap,
     isDraft: content?.__typename === 'DraftIssue' || !content?.number,
