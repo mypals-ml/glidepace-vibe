@@ -7,7 +7,7 @@ import { useDashboard } from '../../context/DashboardContext';
 import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor, getStatusTextColor } from '../../utils/statusColors';
-import type { DashboardItem, GitHubProjectV2Field, Task, TaskGroupBlock, User } from '../../types';
+import type { DashboardItem, Task, TaskGroupBlock, User } from '../../types';
 import { memo, useCallback, useMemo, useRef, useState, useEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
@@ -456,11 +456,6 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const projectFieldsById = useMemo(() => {
     return new Map(projectFields.map(field => [field.id, field]));
   }, [projectFields]);
-  const selectedGroupFields = useMemo(() => {
-    return selectedGroupFieldIds
-      .map(fieldId => projectFieldsById.get(fieldId))
-      .filter((field): field is GitHubProjectV2Field => Boolean(field));
-  }, [projectFieldsById, selectedGroupFieldIds]);
   const sortedProjectFields = useMemo(() => {
     return [...projectFields].sort((a, b) => a.name.localeCompare(b.name));
   }, [projectFields]);
@@ -536,17 +531,6 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     );
   };
 
-  const moveDraftGroupField = (fieldId: string, direction: -1 | 1) => {
-    setDraftGroupFieldIds(prev => {
-      const index = prev.indexOf(fieldId);
-      const nextIndex = index + direction;
-      if (index === -1 || nextIndex < 0 || nextIndex >= prev.length) return prev;
-      const next = [...prev];
-      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
-      return next;
-    });
-  };
-
   const moveDraftGroupFieldTo = (fieldId: string, targetFieldId: string) => {
     setDraftGroupFieldIds(prev => {
       const sourceIndex = prev.indexOf(fieldId);
@@ -579,24 +563,6 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
         />
         <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
           <span className="shrink-0">{t('table.title')}</span>
-          {selectedGroupFields.length > 0 && (
-            <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto custom-scrollbar normal-case">
-              {selectedGroupFields.map(field => (
-                <span key={field.id} className="inline-flex max-w-[92px] shrink-0 items-center rounded-md border border-primary/15 bg-primary/5 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                  <span className="truncate">{field.name}</span>
-                </span>
-              ))}
-              <IconButton
-                icon="close"
-                variant="ghost"
-                size="xs"
-                className="shrink-0 text-slate-400 hover:text-primary"
-                onClick={() => setSelectedGroupFieldIds([])}
-                title={t('dashboard.clearGroupFields', 'Clear group fields')}
-                aria-label={t('dashboard.clearGroupFields', 'Clear group fields')}
-              />
-            </div>
-          )}
         </div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">{t('table.assignees')}</div>
@@ -1002,7 +968,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 <div className="flex min-h-11 items-center gap-2 overflow-x-auto rounded-lg border border-slate-100 bg-slate-50/80 p-2 custom-scrollbar">
                   {draftGroupFieldIds.length === 0 ? (
                     <span className="text-xs text-slate-400">{t('dashboard.noFieldsSelected', 'No fields selected')}</span>
-                  ) : draftGroupFieldIds.map((fieldId, index) => {
+                  ) : draftGroupFieldIds.map((fieldId) => {
                     const field = projectFieldsById.get(fieldId);
                     if (!field) return null;
                     return (
@@ -1017,30 +983,15 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                           setDraggedGroupFieldId(null);
                         }}
                         onDragEnd={() => setDraggedGroupFieldId(null)}
-                        className="inline-flex max-w-[180px] shrink-0 cursor-grab items-center gap-1 rounded-md border border-primary/15 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm active:cursor-grabbing"
+                        className="inline-flex max-w-[180px] shrink-0 cursor-grab items-start gap-1 rounded-md border border-primary/15 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm active:cursor-grabbing"
                       >
-                        <span className="material-symbols-outlined text-[14px] text-slate-400">drag_indicator</span>
-                        <span className="truncate">{field.name}</span>
-                        <IconButton
-                          icon="chevron_left"
-                          variant="ghost"
-                          size="xs"
-                          disabled={index === 0}
-                          onClick={() => moveDraftGroupField(fieldId, -1)}
-                          aria-label={t('dashboard.moveFieldLeft', 'Move field left')}
-                        />
-                        <IconButton
-                          icon="chevron_right"
-                          variant="ghost"
-                          size="xs"
-                          disabled={index === draftGroupFieldIds.length - 1}
-                          onClick={() => moveDraftGroupField(fieldId, 1)}
-                          aria-label={t('dashboard.moveFieldRight', 'Move field right')}
-                        />
+                        <span className="material-symbols-outlined mt-0.5 text-[14px] text-slate-400">drag_indicator</span>
+                        <span className="line-clamp-2 min-w-0 whitespace-normal break-words leading-snug" title={field.name}>{field.name}</span>
                         <IconButton
                           icon="close"
                           variant="ghost"
                           size="xs"
+                          className="shrink-0"
                           onClick={() => toggleDraftGroupField(fieldId)}
                           aria-label={t('dashboard.removeField', 'Remove field')}
                         />
