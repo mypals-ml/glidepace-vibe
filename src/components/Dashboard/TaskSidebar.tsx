@@ -1071,6 +1071,9 @@ function TaskGroupRow({
         transform: CSS.Transform.toString(transform),
         transition,
         touchAction: isMobile && isMovingThisGroup ? 'none' : undefined,
+        userSelect: isMobile ? 'none' : undefined,
+        WebkitUserSelect: isMobile ? 'none' : undefined,
+        WebkitTouchCallout: isMobile ? 'none' : undefined,
         '--tree-row-divider-left': `${dividerLeft}px`,
       } as CSSProperties}
       data-dashboard-sort-id={sortId}
@@ -1265,6 +1268,9 @@ const SortableTaskRow = memo(function SortableTaskRow({
         transform: CSS.Transform.toString(transform),
         transition,
         touchAction: isMobile && isMovingThisTask ? 'none' : undefined,
+        userSelect: isMobile ? 'none' : undefined,
+        WebkitUserSelect: isMobile ? 'none' : undefined,
+        WebkitTouchCallout: isMobile ? 'none' : undefined,
         '--tree-row-divider-left': `${dividerLeft}px`,
       } as CSSProperties}
       data-task-sortable-row="true"
