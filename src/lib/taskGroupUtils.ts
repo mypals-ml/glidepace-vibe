@@ -23,6 +23,18 @@ export function serializeGroupPath(path: GroupPath | undefined): string {
   return JSON.stringify((path || []).map(segment => segment.trim()).filter(Boolean));
 }
 
+export function parseSlashGroupPath(value: string | undefined): GroupPath {
+  if (!value) return [];
+  return value
+    .split('/')
+    .map(segment => segment.trim())
+    .filter(Boolean);
+}
+
+export function serializeSlashGroupPath(path: GroupPath | undefined): string {
+  return (path || []).map(segment => segment.trim()).filter(Boolean).join(' / ');
+}
+
 export function groupPathKey(path: GroupPath): string {
   return JSON.stringify(path);
 }

@@ -7,6 +7,8 @@ import {
   renameGroupBlock,
   serializeGroupPath,
   ungroupGroupBlock,
+  parseSlashGroupPath,
+  serializeSlashGroupPath,
 } from './taskGroupUtils';
 
 function makeTask(id: string, groupPath: string[], startDate = '2026-01-01', targetDate = '2026-01-02'): Task {
@@ -29,6 +31,16 @@ describe('taskGroupUtils', () => {
     expect(parseGroupPath('not json')).toEqual([]);
     expect(parseGroupPath('{"name":"group1"}')).toEqual([]);
     expect(serializeGroupPath(['group1', ' group2 ', ''])).toBe('["group1","group2"]');
+  });
+
+  it('parses and serializes slash group paths', () => {
+    expect(parseSlashGroupPath('group1 / group2')).toEqual(['group1', 'group2']);
+    expect(parseSlashGroupPath('  group1/group2  ')).toEqual(['group1', 'group2']);
+    expect(parseSlashGroupPath('')).toEqual([]);
+    expect(parseSlashGroupPath(undefined)).toEqual([]);
+    expect(serializeSlashGroupPath(['group1', ' group2 ', ''])).toBe('group1 / group2');
+    expect(serializeSlashGroupPath([])).toBe('');
+    expect(serializeSlashGroupPath(undefined)).toBe('');
   });
 
   it('creates separate group blocks for separated matching names', () => {

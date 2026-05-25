@@ -14,7 +14,7 @@ import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMap
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
 import { getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { isTaskGroupBlock, parseGroupPath, serializeGroupPath } from '../../lib/taskGroupUtils';
+import { isTaskGroupBlock, parseSlashGroupPath, serializeSlashGroupPath } from '../../lib/taskGroupUtils';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
 import { Button } from '../UI/Button';
 
@@ -380,6 +380,17 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     return getBreakLinkPlanForContext(contextMenu.target, 'all');
   }, [contextMenu, getBreakLinkPlanForContext]);
 
+  const getExistingGroupPaths = useCallback((): string[] => {
+    const paths = new Set<string>();
+    tasks.forEach(task => {
+      const formatted = serializeSlashGroupPath(task.groupPath);
+      if (formatted) {
+        paths.add(formatted);
+      }
+    });
+    return Array.from(paths).sort();
+  }, [tasks]);
+
   const promptTaskGroupPath = async (taskId: string) => {
     const task = filteredTasks.find(t => t.id === taskId || t.itemId === taskId);
     if (!task) return;
@@ -387,7 +398,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setGroupEditor({
       mode: 'taskPath',
       taskId: task.id,
-      value: serializeGroupPath(task.groupPath),
+      value: serializeSlashGroupPath(task.groupPath),
     });
     setContextMenu(null);
   };
@@ -407,7 +418,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setIsSavingGroupEditor(true);
     try {
       const success = groupEditor.mode === 'taskPath'
-        ? await updateTaskGroupPath(groupEditor.taskId, parseGroupPath(groupEditor.value))
+        ? await updateTaskGroupPath(
+            groupEditor.taskId,
+            parseSlashGroupPath(groupEditor.value)
+          )
         : await renameGroupBlock(groupEditor.groupBlockId, groupEditor.value);
 
       if (success) {
@@ -677,8 +691,8 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                   promptTaskGroupPath(contextMenu.target.taskId);
                 }}
               >
-                <span className="material-symbols-outlined text-[16px]">drive_file_move</span>
-                {t('dashboard.setGroupPath', 'Set group path')}
+                <span className="material-symbols-outlined text-[16px]">folder</span>
+                {t('dashboard.groupLabel', 'Group')}
               </button>
             )}
             <button
@@ -755,7 +769,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
               <h3 id="group-editor-title" className="text-sm font-bold text-slate-800">
                 {groupEditor.mode === 'taskPath'
-                  ? t('dashboard.setGroupPath', 'Set group path')
+                  ? t('dashboard.groupLabel', 'Group')
                   : t('dashboard.renameGroup', 'Rename group')}
               </h3>
               <IconButton
@@ -767,34 +781,78 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 aria-label={t('dashboard.close', 'Close')}
               />
             </div>
-            <div className="space-y-2 px-4 py-4">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500" htmlFor="group-editor-value">
-                {groupEditor.mode === 'taskPath'
-                  ? t('settings.groupPathField', 'Group Path')
-                  : t('dashboard.groupLabel', 'Group')}
-              </label>
-              {groupEditor.mode === 'taskPath' ? (
-                <textarea
-                  id="group-editor-value"
-                  className="min-h-24 w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
-                  value={groupEditor.value}
-                  onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
-                  placeholder='["group1","group2"]'
-                  autoFocus
-                />
-              ) : (
-                <input
-                  id="group-editor-value"
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
-                  value={groupEditor.value}
-                  onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
-                  autoFocus
-                />
-              )}
+            <div className="space-y-4 px-4 py-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500" htmlFor="group-editor-value">
+                  {groupEditor.mode === 'taskPath'
+                    ? t('settings.groupPathField', 'Group Path')
+                    : t('dashboard.groupLabel', 'Group')}
+                </label>
+                {groupEditor.mode === 'taskPath' ? (
+                  <input
+                    id="group-editor-value"
+                    type="text"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                    value={groupEditor.value}
+                    onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
+                    placeholder="e.g. group1 / sub-group"
+                    autoFocus
+                  />
+                ) : (
+                  <input
+                    id="group-editor-value"
+                    type="text"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                    value={groupEditor.value}
+                    onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
+                    autoFocus
+                  />
+                )}
+                {groupEditor.mode === 'taskPath' && (
+                  <p className="text-xs leading-relaxed text-slate-400">
+                    Use slashes for nested groups, e.g. <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[10px] text-slate-600">group1 / sub-group</code>. Leave empty for no group.
+                  </p>
+                )}
+              </div>
+
               {groupEditor.mode === 'taskPath' && (
-                <p className="text-xs leading-relaxed text-slate-500">
-                  {t('dashboard.groupPathHelp', 'Use [] for the project root, or a JSON array such as ["group1","group2"].')}
-                </p>
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Select Existing Group
+                  </span>
+                  <div className="flex flex-col gap-1 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                    {/* Clear / Root Group Option */}
+                    <button
+                      type="button"
+                      onClick={() => setGroupEditor({ ...groupEditor, value: '' })}
+                      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors border ${
+                        groupEditor.value.trim() === ''
+                          ? 'bg-primary/5 text-primary border-primary/20 font-bold'
+                          : 'text-slate-600 hover:bg-slate-50 border-transparent hover:text-slate-800'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px] text-slate-400">folder_off</span>
+                      <span>None (Root)</span>
+                    </button>
+                    
+                    {/* List of Unique Existing Groups */}
+                    {getExistingGroupPaths().map((pathStr) => (
+                      <button
+                        key={pathStr}
+                        type="button"
+                        onClick={() => setGroupEditor({ ...groupEditor, value: pathStr })}
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors border ${
+                          groupEditor.value.trim() === pathStr
+                            ? 'bg-primary/5 text-primary border-primary/20 font-bold'
+                            : 'text-slate-600 hover:bg-slate-50 border-transparent hover:text-slate-800'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[16px] text-slate-400">folder</span>
+                        <span className="truncate">{pathStr}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
             <div className="flex justify-end gap-2 rounded-b-xl border-t border-slate-100 bg-slate-50 px-4 py-3">
