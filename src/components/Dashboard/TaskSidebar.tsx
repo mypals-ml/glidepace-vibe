@@ -6,7 +6,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useDashboard } from '../../context/DashboardContext';
 import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
-import { getStatusDotColor } from '../../utils/statusColors';
+import { getStatusDotColor, getStatusTextColor } from '../../utils/statusColors';
 import type { DashboardItem, Task, TaskGroupBlock, User } from '../../types';
 import { memo, useCallback, useMemo, useRef, useState, useEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
@@ -1256,10 +1256,10 @@ const SortableTaskRow = memo(function SortableTaskRow({
     ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-slate-100/80 group-hover:bg-indigo-50'
     : isSelected ? 'bg-indigo-100' : 'bg-slate-100/80 group-hover:bg-indigo-50';
   const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
-  const treeLineColor = getTreeLineColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
   const dividerLeft = getTreeRowDividerLeft(treeMeta.depth);
+  const statusTextColor = getStatusTextColor(task.status);
 
   return (
     <div
@@ -1341,7 +1341,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
 
       <TreeTitleCell treeMeta={treeMeta} nodeKind="task">
         <span className={`overflow-hidden text-ellipsis text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
-          <span style={{ color: treeLineColor }}>{task.displayId}</span>{' '}
+          <span className={statusTextColor}>{task.displayId}</span>{' '}
           {task.title}
         </span>
         <div className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>

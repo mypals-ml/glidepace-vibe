@@ -9,6 +9,7 @@
 *   **Header About Entry:** The top toolbar now includes an overflow-aware `About` button that opens a lightweight product overview modal with a direct link to the source repository.
 *   **Themes:** Supports Light and Dark mode toggling. The default interface is a polished Bright (Light) mode with a glassmorphism aesthetic.
 *   **MS Project Style Layout:** The main dashboard uses a resizable split-pane layout: the left panel lists issues (with assignees and status), while the wide right panel displays a horizontal Gantt chart.
+*   **Status-Colored Task IDs:** Task IDs in the issue list use the same color family as each task's current status, making status scanning easier without adding another column.
 *   **Jump to Chart:** Long-pressing or right-clicking a task in the list opens a context menu with "Jump to Chart", switching to the Gantt chart and centering the selected task in view.
 *   **Sync Status & Manual Sync:** Automatically tracks the last synchronization time with GitHub and displays it in the header (e.g., "Synced 5 minutes ago"). Users can hover over the status to reveal a "Sync Now" button for manual synchronization.
 *   **Robust Demo Mode:** Full functionality available offline via mock services (`githubMock.ts`) for testing and demonstration purposes. Supports simulated GraphQL queries and mutations, with in-memory project field persistence for edits such as task dependency links until the app is quit.
