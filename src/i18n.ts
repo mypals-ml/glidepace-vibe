@@ -177,7 +177,6 @@ const resources = {
         groupPathHelp: "Use [] for the project root, or a JSON array such as [\"group1\",\"group2\"].",
         groupPathUpdateFailed: "Failed to update task group.",
         groupByFields: "Group by Fields",
-        fieldGroupBar: "Field group bar",
         fieldGroupDialogTitle: "Group by Fields",
         selectedFields: "Selected fields",
         availableFields: "Available fields",

@@ -136,7 +136,6 @@ export function useDashboardTasks({
   const [apiError, setApiError] = useState<string | null>(null);
   const [collapsedGroupBlockIds, setCollapsedGroupBlockIds] = useState<string[]>([]);
   const [selectedGroupFieldIds, setSelectedGroupFieldIds] = useState<string[]>([]);
-  const [isFieldGroupBarVisible, setIsFieldGroupBarVisible] = useState(true);
   
   const dateSettingsRef = useRef(dateSettings);
   useEffect(() => {
@@ -1272,8 +1271,6 @@ export function useDashboardTasks({
     dashboardItems,
     selectedGroupFieldIds,
     setSelectedGroupFieldIds,
-    isFieldGroupBarVisible,
-    setIsFieldGroupBarVisible,
     setTasks,
     isLoadingTasks,
     setIsLoadingTasks,

@@ -193,8 +193,6 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     projectFields,
     selectedGroupFieldIds,
     setSelectedGroupFieldIds,
-    isFieldGroupBarVisible,
-    setIsFieldGroupBarVisible,
     isLoadingTasks, 
     searchQuery, 
     setSearchQuery, 
@@ -527,7 +525,6 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
   const openFieldGroupDialog = () => {
     setDraftGroupFieldIds(selectedGroupFieldIds);
-    setIsFieldGroupBarVisible(true);
     setIsFieldGroupDialogOpen(true);
   };
 
@@ -564,53 +561,46 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
   const saveFieldGroupSelection = () => {
     setSelectedGroupFieldIds(draftGroupFieldIds);
-    setIsFieldGroupBarVisible(true);
     setIsFieldGroupDialogOpen(false);
   };
 
   return (
     <div className="flex flex-col h-full overflow-hidden relative" ref={rootRef}>
       {/* Header - Moved outside scroll container for alignment */}
-      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[1fr_64px_76px] gap-1 pl-2 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.title')}</div>
+      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[32px_minmax(0,1fr)_64px_76px] gap-1 pl-1.5 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
+        <IconButton
+          icon="dataset"
+          variant="ghost"
+          size="xs"
+          className="text-slate-500 hover:text-primary hover:bg-primary/10"
+          onClick={openFieldGroupDialog}
+          title={t('dashboard.groupByFields', 'Group by Fields')}
+          aria-label={t('dashboard.groupByFields', 'Group by Fields')}
+        />
+        <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <span className="shrink-0">{t('table.title')}</span>
+          {selectedGroupFields.length > 0 && (
+            <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto custom-scrollbar normal-case">
+              {selectedGroupFields.map(field => (
+                <span key={field.id} className="inline-flex max-w-[92px] shrink-0 items-center rounded-md border border-primary/15 bg-primary/5 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                  <span className="truncate">{field.name}</span>
+                </span>
+              ))}
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="xs"
+                className="shrink-0 text-slate-400 hover:text-primary"
+                onClick={() => setSelectedGroupFieldIds([])}
+                title={t('dashboard.clearGroupFields', 'Clear group fields')}
+                aria-label={t('dashboard.clearGroupFields', 'Clear group fields')}
+              />
+            </div>
+          )}
+        </div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">{t('table.assignees')}</div>
       </div>
-
-      {isFieldGroupBarVisible && (
-        <div className="flex items-center gap-1.5 border-b border-slate-200/80 bg-white/90 px-2 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.02)]" aria-label={t('dashboard.fieldGroupBar', 'Field group bar')}>
-          <IconButton
-            icon="add"
-            variant="ghost"
-            size="xs"
-            onClick={openFieldGroupDialog}
-            title={t('dashboard.addGroupField', 'Add group field')}
-            aria-label={t('dashboard.addGroupField', 'Add group field')}
-          />
-          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto custom-scrollbar">
-            {selectedGroupFields.length === 0 ? (
-              <span className="px-1 text-[10px] font-medium text-slate-400">{t('dashboard.noFieldsSelected', 'No fields selected')}</span>
-            ) : selectedGroupFields.map(field => (
-              <span key={field.id} className="inline-flex max-w-[140px] shrink-0 items-center gap-1 rounded-md border border-primary/15 bg-primary/5 px-2 py-1 text-[10px] font-bold text-primary">
-                <span className="truncate">{field.name}</span>
-              </span>
-            ))}
-          </div>
-          {selectedGroupFields.length > 0 && (
-            <IconButton
-              icon="close"
-              variant="ghost"
-              size="xs"
-              onClick={() => {
-                setSelectedGroupFieldIds([]);
-                setIsFieldGroupBarVisible(false);
-              }}
-              title={t('dashboard.clearGroupFields', 'Clear group fields')}
-              aria-label={t('dashboard.clearGroupFields', 'Clear group fields')}
-            />
-          )}
-        </div>
-      )}
 
       <div className="flex-1 overflow-y-auto custom-scrollbar" ref={scrollRef} onScroll={onScroll}>
         {/* Task List Container */}
@@ -674,7 +664,6 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       movingItemSortId={movingItemSortId}
                       suppressNextClickRef={suppressNextClickRef}
                       openContextMenu={openContextMenu}
-                      onOpenFieldGroupDialog={openFieldGroupDialog}
                       t={t}
                     />
                   ) : (
@@ -1308,7 +1297,6 @@ interface TaskGroupRowProps {
   movingItemSortId: string | null;
   suppressNextClickRef: React.MutableRefObject<boolean>;
   openContextMenu: (clientX: number, clientY: number, target: ContextMenuTarget) => void;
-  onOpenFieldGroupDialog: () => void;
   t: TFunction;
 }
 
@@ -1325,7 +1313,6 @@ function TaskGroupRow({
   movingItemSortId,
   suppressNextClickRef,
   openContextMenu,
-  onOpenFieldGroupDialog,
   t,
 }: TaskGroupRowProps) {
   const sortId = getDashboardItemSortId(group);
@@ -1346,12 +1333,8 @@ function TaskGroupRow({
   const [isDragHandleFocused, setIsDragHandleFocused] = useState(false);
   const isMovingThisGroup = movingItemSortId === sortId;
   const showHoverActions = !isDragging && !isDragActive && !isAnyDragging;
-  const actionToolbarClassName = group.isSyntheticRoot
-    ? 'opacity-100 pointer-events-auto'
-    : `opacity-0 ${showHoverActions ? 'group-hover:opacity-100' : ''} pointer-events-none`;
-  const actionButtonClassName = group.isSyntheticRoot
-    ? 'pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10'
-    : 'pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10';
+  const actionToolbarClassName = `opacity-0 ${showHoverActions ? 'group-hover:opacity-100' : ''} pointer-events-none`;
+  const actionButtonClassName = 'pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10';
   const dragHandleLeft = getTreeDragHandleX();
   const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
@@ -1453,66 +1436,37 @@ function TaskGroupRow({
       </TreeTitleCell>
       <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
         <span>{t('dashboard.groupLabel', 'Group')}</span>
-        {group.isSyntheticRoot && (
-          <IconButton
-            icon="dataset"
-            variant="ghost"
-            size="xs"
-            className="text-slate-500 hover:text-primary hover:bg-primary/10"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenFieldGroupDialog();
-            }}
-            title={t('dashboard.groupByFields', 'Group by Fields')}
-            aria-label={t('dashboard.groupByFields', 'Group by Fields')}
-          />
-        )}
       </div>
       <div aria-hidden="true" />
 
-      <div className={`absolute right-2 bottom-full translate-y-[60%] flex items-center gap-1 ${actionToolbarClassName} transition-opacity z-10 bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
-        {group.isSyntheticRoot ? (
+      {!group.isSyntheticRoot && (
+        <div className={`absolute right-2 bottom-full translate-y-[60%] flex items-center gap-1 ${actionToolbarClassName} transition-opacity z-10 bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
           <IconButton
-            icon="dataset"
+            icon="edit"
             variant="ghost"
             size="xs"
             className={actionButtonClassName}
             onClick={(e) => {
               e.stopPropagation();
-              onOpenFieldGroupDialog();
+              onRename();
             }}
-            title={t('dashboard.groupByFields', 'Group by Fields')}
-            aria-label={t('dashboard.groupByFields', 'Group by Fields')}
+            title={t('dashboard.renameGroup', 'Rename group')}
+            aria-label={t('dashboard.renameGroup', 'Rename group')}
           />
-        ) : (
-          <>
-            <IconButton
-              icon="edit"
-              variant="ghost"
-              size="xs"
-              className={actionButtonClassName}
-              onClick={(e) => {
-                e.stopPropagation();
-                onRename();
-              }}
-              title={t('dashboard.renameGroup', 'Rename group')}
-              aria-label={t('dashboard.renameGroup', 'Rename group')}
-            />
-            <IconButton
-              icon="folder_off"
-              variant="ghost"
-              size="xs"
-              className={actionButtonClassName}
-              onClick={(e) => {
-                e.stopPropagation();
-                onUngroup();
-              }}
-              title={t('dashboard.ungroup', 'Ungroup')}
-              aria-label={t('dashboard.ungroup', 'Ungroup')}
-            />
-          </>
-        )}
-      </div>
+          <IconButton
+            icon="folder_off"
+            variant="ghost"
+            size="xs"
+            className={actionButtonClassName}
+            onClick={(e) => {
+              e.stopPropagation();
+              onUngroup();
+            }}
+            title={t('dashboard.ungroup', 'Ungroup')}
+            aria-label={t('dashboard.ungroup', 'Ungroup')}
+          />
+        </div>
+      )}
     </div>
   );
 }
