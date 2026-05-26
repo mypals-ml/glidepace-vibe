@@ -126,18 +126,39 @@
 }
 
 /* Custom resize handle for touch devices */
+.resizable-textarea-wrapper {
+  position: relative;
+}
+
+.textarea-resize-handle {
+  display: none;
+}
+
 @media (pointer: coarse) {
   .resizable-textarea {
-    resize: vertical;
-    background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 14 14' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M13 1L1 13' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M13 7L7 13' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M13 11L11 13' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-position: bottom 2px right 2px;
-    background-repeat: no-repeat;
+    resize: none;
+    padding-bottom: 1.75rem;
   }
 
-  /* Hide the native resizer dot/triangle but keep the functionality */
-  .resizable-textarea::-webkit-resizer {
-    background-repeat: no-repeat;
-    background-position: bottom right;
+  .textarea-resize-handle {
+    position: absolute;
+    left: 50%;
+    bottom: 0.2rem;
+    display: flex;
+    height: 1rem;
+    width: 2.75rem;
+    transform: translateX(-50%);
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+  }
+
+  .textarea-resize-handle-bar {
+    height: 0.26rem;
+    width: 1.9rem;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, rgba(148, 163, 184, 0.45), rgba(100, 116, 139, 0.85), rgba(148, 163, 184, 0.45));
+    box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.9);
   }
 }
 

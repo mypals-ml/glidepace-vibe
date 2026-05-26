@@ -9,6 +9,7 @@ import type { Task, User, AutoUpdateStartDateMode } from '../../types';
 import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
 import { ConfirmationModal } from '../UI/ConfirmationModal';
+import { ResizableTextarea } from '../UI/ResizableTextarea';
 import { calculateTargetDate } from '../../lib/dateUtils';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { copyTextToClipboard } from '../../lib/clipboard';
@@ -401,7 +402,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             <label className="text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
           </div>
           <div className="px-3 pt-3">
-            <textarea
+            <ResizableTextarea
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               placeholder={t('dashboard.descriptionPlaceholder', 'Add description...')}
@@ -626,7 +627,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         <div className="px-3 pt-3">
           {editingDesc ? (
             <div className="space-y-2">
-              <textarea
+              <ResizableTextarea
                 value={draftDesc}
                 onChange={(e) => setDraftDesc(e.target.value)}
                 className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[100px] resize-y resizable-textarea"
@@ -832,7 +833,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
 
                   {editingCommentId === comment.id ? (
                     <div className="space-y-2">
-                      <textarea
+                      <ResizableTextarea
                         value={draftComment}
                         onChange={(e) => setDraftComment(e.target.value)}
                         className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[60px] resize-y resizable-textarea"
@@ -875,7 +876,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               <label className="text-xs font-medium text-slate-600 block mb-3">
                 {t('dashboard.addTaskComment', 'Add a comment')}
               </label>
-              <textarea
+              <ResizableTextarea
                 value={newCommentBody}
                 onChange={(e) => setNewCommentBody(e.target.value)}
                 placeholder={t('dashboard.addCommentPlaceholder', 'Comment here ...')}
