@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '../types';
 import {
+  applyFieldGroupPaths,
   buildGroupBlocksFromOrderedTasks,
   isTaskGroupBlock,
   parseGroupPath,
   renameGroupBlock,
   serializeGroupPath,
   ungroupGroupBlock,
+  parseSlashGroupPath,
+  serializeSlashGroupPath,
 } from './taskGroupUtils';
 
 function makeTask(id: string, groupPath: string[], startDate = '2026-01-01', targetDate = '2026-01-02'): Task {
@@ -29,6 +32,16 @@ describe('taskGroupUtils', () => {
     expect(parseGroupPath('not json')).toEqual([]);
     expect(parseGroupPath('{"name":"group1"}')).toEqual([]);
     expect(serializeGroupPath(['group1', ' group2 ', ''])).toBe('["group1","group2"]');
+  });
+
+  it('parses and serializes slash group paths', () => {
+    expect(parseSlashGroupPath('group1 / group2')).toEqual(['group1', 'group2']);
+    expect(parseSlashGroupPath('  group1/group2  ')).toEqual(['group1', 'group2']);
+    expect(parseSlashGroupPath('')).toEqual([]);
+    expect(parseSlashGroupPath(undefined)).toEqual([]);
+    expect(serializeSlashGroupPath(['group1', ' group2 ', ''])).toBe('group1 / group2');
+    expect(serializeSlashGroupPath([])).toBe('');
+    expect(serializeSlashGroupPath(undefined)).toBe('');
   });
 
   it('creates separate group blocks for separated matching names', () => {
@@ -61,7 +74,7 @@ describe('taskGroupUtils', () => {
   });
 
   it('renames only the selected group block', () => {
-    const tasks = [
+    const tasks: Task[] = [
       makeTask('TaskB', ['group1']),
       makeTask('TaskX', []),
       makeTask('TaskC', ['group1', 'group2']),
@@ -96,5 +109,23 @@ describe('taskGroupUtils', () => {
       ['group1', 'group3'],
       [],
     ]);
+  });
+
+  it('applies field groups as prefixes while preserving group path rules', () => {
+    const tasks: Task[] = [
+      { ...makeTask('TaskA', ['Backend']), projectFieldValues: { statusField: 'Todo', priorityField: 'P2' } },
+      { ...makeTask('TaskB', []), projectFieldValues: { statusField: 'Done', priorityField: 'P1' } },
+      { ...makeTask('TaskC', ['Frontend']), projectFieldValues: { statusField: 'Todo' } },
+    ];
+
+    const grouped = applyFieldGroupPaths(tasks, ['statusField', 'priorityField']);
+
+    expect(grouped.map(task => task.id)).toEqual(['TaskB', 'TaskC', 'TaskA']);
+    expect(grouped.map(task => task.groupPath)).toEqual([
+      ['Done', 'P1'],
+      ['Todo', 'No value', 'Frontend'],
+      ['Todo', 'P2', 'Backend'],
+    ]);
+    expect(tasks[0].groupPath).toEqual(['Backend']);
   });
 });

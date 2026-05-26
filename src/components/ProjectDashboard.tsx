@@ -21,11 +21,12 @@ const OpenProjectModal = lazy(() => import('./Modals/OpenProjectModal').then(m =
 const PatAuthModal = lazy(() => import('./Modals/PatAuthModal').then(m => ({ default: m.PatAuthModal })));
 const TaskDetailsPanel = lazy(() => import('./Dashboard/TaskDetailsPanel').then(m => ({ default: m.TaskDetailsPanel })));
 const ProjectSettingsModal = lazy(() => import('./Modals/ProjectSettingsModal').then(m => ({ default: m.ProjectSettingsModal })));
+const AboutModal = lazy(() => import('./Modals/AboutModal').then(m => ({ default: m.AboutModal })));
 
 
 function DashboardLayout() {
   const { t } = useTranslation();
-  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, isTaskDetailsOpen, setIsTaskDetailsOpen, toast, hideToast } = useDashboard();
+  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, isCreateMode, isTaskDetailsOpen, setIsTaskDetailsOpen, toast, hideToast } = useDashboard();
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const { width: sidebarWidth, isResizing, panelRef, onMouseDown } = useResizablePanel();
   const { width: detailsWidth, panelRef: detailsPanelRef, onMouseDown: onMouseDownDetails } = useResizablePanel({
@@ -38,6 +39,7 @@ function DashboardLayout() {
   useMobileBackNavigation(!isDesktop);
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
+  const shouldRenderTaskDetails = isTaskDetailsOpen && (isCreateMode || selectedTask !== null);
   const { setIsChartVisible } = useDashboard();
 
 
@@ -99,7 +101,7 @@ function DashboardLayout() {
             </div>
 
             {/* Task Details Panel Section */}
-            {isTaskDetailsOpen && (
+            {shouldRenderTaskDetails && (
               isDesktop ? (
                 <>
                   {/* Resizer Handle (Right) - Only on Desktop */}
@@ -144,6 +146,7 @@ function DashboardLayout() {
         <ConnectedAccountsModal />
         <PatAuthModal />
         <ProjectSettingsModal />
+        <AboutModal />
         <MissingFieldsPromptModal />
         {toast && (
           <Toast

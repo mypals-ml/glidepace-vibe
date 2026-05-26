@@ -10,6 +10,8 @@ import { DependencyLines } from './DependencyLines';
 import { FloatingSequenceBuilder } from '../FloatingSequenceBuilder';
 import { isTaskGroupBlock } from '../../../lib/taskGroupUtils';
 import { defaultWorkCalendar } from '../../../lib/workCalendar';
+import { getScrollTopForSelectedRow } from '../../../lib/scrollUtils';
+import { buildBreakLinkPlan, type BreakLinkScope } from '../../../lib/contextMenuLinkUtils';
 
 export interface GanttChartProps {
   className?: string;
@@ -22,10 +24,11 @@ const INITIAL_BUFFER_DAYS_LEFT = 14;
 const INITIAL_BUFFER_DAYS_RIGHT = 30;
 const EXPANSION_THRESHOLD_PX = 300;
 const EXPANSION_DAYS = 14;
+const ROW_HEIGHT = 72;
 
 export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
   const { t } = useTranslation();
-  const { filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, centerGanttOnDate, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
+  const { tasks, filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, centerGanttOnDate, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
   const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, clientWidth: 0 });
   const internalScrollRef = useRef<HTMLDivElement>(null);
   
@@ -64,6 +67,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
   // Handle external scroll requests (e.g. from Sidebar)
   const [linkDragState, setLinkDragState] = useState<{ sourceTaskId: string; startX: number; startY: number; currentX: number; currentY: number } | null>(null);
+  const [hoveredTargetTaskId, setHoveredTargetTaskId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, taskId: string } | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressNextClickRef = useRef(false);
@@ -93,9 +97,28 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     await updateTaskSuccessors(sourceId, newSuccessors);
   };
 
+  const contextBreakLinkPlan = useMemo(() => {
+    if (!contextMenu) return null;
+    const task = tasks.find(task => task.id === contextMenu.taskId || task.itemId === contextMenu.taskId);
+    return task ? buildBreakLinkPlan(tasks, { firstTask: task, lastTask: task }, 'all') : null;
+  }, [contextMenu, tasks]);
+
+  const handleBreakLinksFromContext = async (taskId: string, scope: BreakLinkScope) => {
+    const task = tasks.find(task => task.id === taskId || task.itemId === taskId);
+    if (!task) return;
+
+    const plan = buildBreakLinkPlan(tasks, { firstTask: task, lastTask: task }, scope);
+    for (const operation of plan.operations) {
+      await updateTaskSuccessors(operation.taskId, operation.successorIds, true);
+    }
+
+    setContextMenu(null);
+  };
+
   const handleLinkDragStart = (e: React.MouseEvent, taskId: string, startX: number, startY: number) => {
     e.stopPropagation();
     e.preventDefault();
+    setHoveredTargetTaskId(null);
     setLinkDragState({ sourceTaskId: taskId, startX, startY, currentX: startX, currentY: startY });
   };
 
@@ -109,12 +132,14 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
   const handleLinkDragEnd = () => {
     setLinkDragState(null);
+    setHoveredTargetTaskId(null);
   };
 
   const handleLinkDrop = async (targetTaskId: string) => {
     if (!linkDragState) return;
     const sourceTaskId = linkDragState.sourceTaskId;
     setLinkDragState(null);
+    setHoveredTargetTaskId(null);
     if (sourceTaskId === targetTaskId) return;
 
     const sourceTask = filteredTasks.find(t => t.id === sourceTaskId);
@@ -157,10 +182,14 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
         ? dashboardItems.findIndex(item => !isTaskGroupBlock(item) && item.id === selectedTaskId)
         : -1;
       if (selectedIndex >= 0 && !isInitialMount.current) {
-        const targetTop = selectedIndex * 72;
-        const halfViewport = activeScrollRef.current.clientHeight / 2;
+        const top = getScrollTopForSelectedRow({
+          currentScrollTop: activeScrollRef.current.scrollTop,
+          rowIndex: selectedIndex,
+          rowHeight: ROW_HEIGHT,
+          viewportHeight: activeScrollRef.current.clientHeight,
+        });
         activeScrollRef.current.scrollTo({
-          top: Math.max(0, targetTop - halfViewport + 36),
+          top,
           behavior: 'auto'
         });
       }
@@ -304,6 +333,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                 dayWidth={DAY_WIDTH} 
                 onBreakLink={handleBreakLink}
                 dragState={linkDragState}
+                hoveredTargetTaskId={hoveredTargetTaskId}
               />
               {dashboardItems.map((item, index) => {
                 if (isTaskGroupBlock(item)) {
@@ -425,14 +455,26 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                         </div>
                       )}
                     </div>
-                    {/* Start Connector Node */}
+                     {/* Start Connector Node */}
                     <div 
                       className={`absolute z-40 flex items-center justify-center rounded-full cursor-crosshair transition-all ${
-                        isLinkDropTarget
-                          ? 'w-5 h-5 bg-indigo-100/80 opacity-100 ring-2 ring-indigo-300/60 shadow-md shadow-indigo-500/20'
-                          : 'w-7 h-7 opacity-0 group-hover:opacity-100'
+                        hoveredTargetTaskId === task.id
+                          ? 'w-6 h-6 bg-emerald-100 opacity-100 ring-4 ring-emerald-400 shadow-lg scale-110'
+                          : isLinkDropTarget
+                            ? 'w-5 h-5 bg-indigo-100/80 opacity-100 ring-2 ring-indigo-300/60 shadow-md shadow-indigo-500/20'
+                            : 'w-7 h-7 opacity-0 group-hover:opacity-100'
                       }`}
                       style={{ left: `${left}px`, top: '50%', transform: 'translate(-50%, -50%)' }}
+                      onMouseEnter={() => {
+                        if (linkDragState && linkDragState.sourceTaskId !== task.id) {
+                          setHoveredTargetTaskId(task.id);
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (hoveredTargetTaskId === task.id) {
+                          setHoveredTargetTaskId(null);
+                        }
+                      }}
                       onMouseUp={(e) => {
                         e.stopPropagation();
                         handleLinkDrop(task.id);
@@ -441,9 +483,11 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                     >
                       <span
                         className={`rounded-full border-2 transition-all ${
-                          isLinkDropTarget
-                            ? 'w-2.5 h-2.5 bg-indigo-500 border-white'
-                            : 'w-3 h-3 bg-indigo-200 border-indigo-500 hover:scale-125'
+                          hoveredTargetTaskId === task.id
+                            ? 'w-3.5 h-3.5 bg-emerald-500 border-white animate-pulse'
+                            : isLinkDropTarget
+                              ? 'w-2.5 h-2.5 bg-indigo-500 border-white'
+                              : 'w-3 h-3 bg-indigo-200 border-indigo-500 hover:scale-125'
                         }`}
                       />
                     </div>
@@ -491,19 +535,41 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
               <span className="material-symbols-outlined text-[16px]">add_link</span>
               {t('dashboard.addSuccessors')}
             </button>
-            <button 
-              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-              onClick={() => {
-                const tObj = filteredTasks.find(tObj => tObj.id === contextMenu.taskId);
-                if (tObj && tObj.successorIds && tObj.successorIds.length > 0) {
-                  updateTaskSuccessors(contextMenu.taskId, []);
-                }
-                setContextMenu(null);
-              }}
-            >
-              <span className="material-symbols-outlined text-[16px]">link_off</span>
-              {t('dashboard.breakAllLinks')}
-            </button>
+            {contextBreakLinkPlan && (contextBreakLinkPlan.hasPredecessors || contextBreakLinkPlan.hasSuccessors) && (
+              <>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  onClick={() => {
+                    handleBreakLinksFromContext(contextMenu.taskId, 'all');
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[16px]">link_off</span>
+                  {t('dashboard.breakAllLinks')}
+                </button>
+                {contextBreakLinkPlan.hasPredecessors && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    onClick={() => {
+                      handleBreakLinksFromContext(contextMenu.taskId, 'predecessors');
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">call_received</span>
+                    {t('dashboard.breakWithPredecessors')}
+                  </button>
+                )}
+                {contextBreakLinkPlan.hasSuccessors && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    onClick={() => {
+                      handleBreakLinksFromContext(contextMenu.taskId, 'successors');
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">call_made</span>
+                    {t('dashboard.breakWithSuccessors')}
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

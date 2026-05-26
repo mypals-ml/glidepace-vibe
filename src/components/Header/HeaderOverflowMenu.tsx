@@ -34,6 +34,7 @@ export function HeaderOverflowMenu() {
     isLoadingAuth,
     handleOpenAuth,
     setIsAccountModalOpen,
+    setIsAboutModalOpen,
     handleOpenProjectClick,
   } = useDashboard();
   
@@ -52,6 +53,7 @@ export function HeaderOverflowMenu() {
   const isSyncVisible = useIsOverflowItemVisible('sync');
   const isLanguageVisible = useIsOverflowItemVisible('language');
   const isAccountVisible = useIsOverflowItemVisible('account');
+  const isAboutVisible = useIsOverflowItemVisible('about');
 
   useEffect(() => {
     const checkStaleness = () => {
@@ -149,7 +151,7 @@ export function HeaderOverflowMenu() {
             )}
 
             {/* Actions Section */}
-            {(!isSettingsVisible || !isSyncVisible || !isAccountVisible || !isProjectSelectorVisible) && (
+            {(!isSettingsVisible || !isSyncVisible || !isAccountVisible || !isAboutVisible || !isProjectSelectorVisible) && (
               <>
                 <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {t('app.actions', 'Actions')}
@@ -235,6 +237,19 @@ export function HeaderOverflowMenu() {
                       </svg>
                     )}
                     <span>{githubAccounts.length > 0 ? t('app.connectedAccounts') : t('app.connectToGitHub')}</span>
+                  </button>
+                )}
+
+                {!isAboutVisible && (
+                  <button
+                    onClick={() => {
+                      setIsAboutModalOpen(true);
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[20px] text-slate-400">info</span>
+                    <span>{t('about.button', 'About')}</span>
                   </button>
                 )}
                 {!isLanguageVisible && <div className="h-px bg-slate-100 my-1 mx-2" />}

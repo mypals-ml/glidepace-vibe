@@ -23,6 +23,18 @@ export function serializeGroupPath(path: GroupPath | undefined): string {
   return JSON.stringify((path || []).map(segment => segment.trim()).filter(Boolean));
 }
 
+export function parseSlashGroupPath(value: string | undefined): GroupPath {
+  if (!value) return [];
+  return value
+    .split('/')
+    .map(segment => segment.trim())
+    .filter(Boolean);
+}
+
+export function serializeSlashGroupPath(path: GroupPath | undefined): string {
+  return (path || []).map(segment => segment.trim()).filter(Boolean).join(' / ');
+}
+
 export function groupPathKey(path: GroupPath): string {
   return JSON.stringify(path);
 }
@@ -214,4 +226,32 @@ export function moveTasksToGroupPath(tasks: Task[], taskIds: string[], targetPat
     if (!taskIdSet.has(getTaskIdentity(task)) && !taskIdSet.has(task.id)) return task;
     return { ...task, groupPath: [...targetPath] };
   });
+}
+
+function normalizeFieldGroupSegment(value: string | undefined): string {
+  const trimmed = value?.trim();
+  return trimmed || 'No value';
+}
+
+export function applyFieldGroupPaths(tasks: Task[], fieldIds: string[]): Task[] {
+  const selectedFieldIds = fieldIds.map(fieldId => fieldId.trim()).filter(Boolean);
+  if (selectedFieldIds.length === 0) return tasks;
+
+  const decoratedTasks = tasks.map((task, index) => {
+    const fieldSegments = selectedFieldIds.map(fieldId =>
+      normalizeFieldGroupSegment(task.projectFieldValues?.[fieldId])
+    );
+    return {
+      index,
+      task: {
+        ...task,
+        groupPath: [...fieldSegments, ...(task.groupPath || [])],
+      },
+      key: fieldSegments.map(segment => segment.toLocaleLowerCase()).join('\u0000'),
+    };
+  });
+
+  return decoratedTasks
+    .sort((a, b) => a.key.localeCompare(b.key) || a.index - b.index)
+    .map(({ task }) => task);
 }

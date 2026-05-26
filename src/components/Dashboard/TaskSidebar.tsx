@@ -6,7 +6,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useDashboard } from '../../context/DashboardContext';
 import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
-import { getStatusDotColor } from '../../utils/statusColors';
+import { getStatusDotColor, getStatusTextColor } from '../../utils/statusColors';
 import type { DashboardItem, Task, TaskGroupBlock, User } from '../../types';
 import { memo, useCallback, useMemo, useRef, useState, useEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
@@ -14,7 +14,8 @@ import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMap
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
 import { getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { isTaskGroupBlock, parseGroupPath, serializeGroupPath } from '../../lib/taskGroupUtils';
+import { isTaskGroupBlock, parseSlashGroupPath, serializeSlashGroupPath } from '../../lib/taskGroupUtils';
+import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
 import { Button } from '../UI/Button';
 
 type ContextMenuTarget =
@@ -189,6 +190,9 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     filteredTasks, 
     dashboardItems,
     tasks, 
+    projectFields,
+    selectedGroupFieldIds,
+    setSelectedGroupFieldIds,
     isLoadingTasks, 
     searchQuery, 
     setSearchQuery, 
@@ -228,6 +232,9 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     | null
   >(null);
   const [isSavingGroupEditor, setIsSavingGroupEditor] = useState(false);
+  const [isFieldGroupDialogOpen, setIsFieldGroupDialogOpen] = useState(false);
+  const [draftGroupFieldIds, setDraftGroupFieldIds] = useState<string[]>([]);
+  const [draggedGroupFieldId, setDraggedGroupFieldId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const suppressNextClickRef = useRef(false);
   const dragHasMovedRef = useRef(false);
@@ -358,26 +365,37 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setContextMenu(null);
   };
 
-  const handleBreakLinksFromContext = async (target: ContextMenuTarget) => {
+  const getBreakLinkPlanForContext = useCallback((target: ContextMenuTarget, scope: BreakLinkScope) => {
     const boundaryTasks = getContextBoundaryTasks(target);
-    if (!boundaryTasks) return;
+    return boundaryTasks ? buildBreakLinkPlan(tasks, boundaryTasks, scope) : null;
+  }, [getContextBoundaryTasks, tasks]);
 
-    if (target.kind === 'group') {
-      const firstTaskOrderId = getTaskOrderId(boundaryTasks.firstTask);
-      const predecessorTasks = tasks.filter(task => (task.successorIds || []).includes(firstTaskOrderId));
+  const handleBreakLinksFromContext = async (target: ContextMenuTarget, scope: BreakLinkScope) => {
+    const plan = getBreakLinkPlanForContext(target, scope);
+    if (!plan) return;
 
-      for (const predecessorTask of predecessorTasks) {
-        const nextSuccessorIds = (predecessorTask.successorIds || []).filter(successorId => successorId !== firstTaskOrderId);
-        await updateTaskSuccessors(getTaskOrderId(predecessorTask), nextSuccessorIds, true);
-      }
-    }
-
-    if (boundaryTasks.lastTask.successorIds?.length) {
-      await updateTaskSuccessors(boundaryTasks.lastTask.id, [], true);
+    for (const operation of plan.operations) {
+      await updateTaskSuccessors(operation.taskId, operation.successorIds, true);
     }
 
     setContextMenu(null);
   };
+
+  const contextBreakLinkPlan = useMemo(() => {
+    if (!contextMenu) return null;
+    return getBreakLinkPlanForContext(contextMenu.target, 'all');
+  }, [contextMenu, getBreakLinkPlanForContext]);
+
+  const getExistingGroupPaths = useCallback((): string[] => {
+    const paths = new Set<string>();
+    tasks.forEach(task => {
+      const formatted = serializeSlashGroupPath(task.groupPath);
+      if (formatted) {
+        paths.add(formatted);
+      }
+    });
+    return Array.from(paths).sort();
+  }, [tasks]);
 
   const promptTaskGroupPath = async (taskId: string) => {
     const task = filteredTasks.find(t => t.id === taskId || t.itemId === taskId);
@@ -386,7 +404,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setGroupEditor({
       mode: 'taskPath',
       taskId: task.id,
-      value: serializeGroupPath(task.groupPath),
+      value: serializeSlashGroupPath(task.groupPath),
     });
     setContextMenu(null);
   };
@@ -406,7 +424,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setIsSavingGroupEditor(true);
     try {
       const success = groupEditor.mode === 'taskPath'
-        ? await updateTaskGroupPath(groupEditor.taskId, parseGroupPath(groupEditor.value))
+        ? await updateTaskGroupPath(
+            groupEditor.taskId,
+            parseSlashGroupPath(groupEditor.value)
+          )
         : await renameGroupBlock(groupEditor.groupBlockId, groupEditor.value);
 
       if (success) {
@@ -432,6 +453,12 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     [dashboardItems]
   );
   const dashboardRows = useMemo(() => buildDashboardTreeRows(dashboardItems), [dashboardItems]);
+  const projectFieldsById = useMemo(() => {
+    return new Map(projectFields.map(field => [field.id, field]));
+  }, [projectFields]);
+  const sortedProjectFields = useMemo(() => {
+    return [...projectFields].sort((a, b) => a.name.localeCompare(b.name));
+  }, [projectFields]);
   const isDraggingTask = useMemo(() => {
     if (!activeDragItemSortId) return false;
     const activeItem = dashboardItems.find(item => getDashboardItemSortId(item) === activeDragItemSortId);
@@ -491,11 +518,52 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     }
   };
 
+  const openFieldGroupDialog = () => {
+    setDraftGroupFieldIds(selectedGroupFieldIds);
+    setIsFieldGroupDialogOpen(true);
+  };
+
+  const toggleDraftGroupField = (fieldId: string) => {
+    setDraftGroupFieldIds(prev =>
+      prev.includes(fieldId)
+        ? prev.filter(id => id !== fieldId)
+        : [...prev, fieldId]
+    );
+  };
+
+  const moveDraftGroupFieldTo = (fieldId: string, targetFieldId: string) => {
+    setDraftGroupFieldIds(prev => {
+      const sourceIndex = prev.indexOf(fieldId);
+      const targetIndex = prev.indexOf(targetFieldId);
+      if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return prev;
+      const next = [...prev];
+      const [movedFieldId] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, movedFieldId);
+      return next;
+    });
+  };
+
+  const saveFieldGroupSelection = () => {
+    setSelectedGroupFieldIds(draftGroupFieldIds);
+    setIsFieldGroupDialogOpen(false);
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden relative" ref={rootRef}>
       {/* Header - Moved outside scroll container for alignment */}
-      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[1fr_64px_76px] gap-1 pl-2 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.title')}</div>
+      <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[32px_minmax(0,1fr)_64px_76px] gap-1 pl-1.5 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
+        <IconButton
+          icon="dataset"
+          variant="ghost"
+          size="xs"
+          className="text-slate-500 hover:text-primary hover:bg-primary/10"
+          onClick={openFieldGroupDialog}
+          title={t('dashboard.groupByFields', 'Group by Fields')}
+          aria-label={t('dashboard.groupByFields', 'Group by Fields')}
+        />
+        <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <span className="shrink-0">{t('table.title')}</span>
+        </div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">{t('table.assignees')}</div>
       </div>
@@ -676,8 +744,8 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                   promptTaskGroupPath(contextMenu.target.taskId);
                 }}
               >
-                <span className="material-symbols-outlined text-[16px]">drive_file_move</span>
-                {t('dashboard.setGroupPath', 'Set group path')}
+                <span className="material-symbols-outlined text-[16px]">folder</span>
+                {t('dashboard.groupLabel', 'Group')}
               </button>
             )}
             <button
@@ -694,15 +762,41 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               <span className="material-symbols-outlined text-[16px]">add_link</span>
               {t('dashboard.addSuccessors')}
             </button>
-            <button
-              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-              onClick={() => {
-                handleBreakLinksFromContext(contextMenu.target);
-              }}
-            >
-              <span className="material-symbols-outlined text-[16px]">link_off</span>
-              {t('dashboard.breakAllLinks')}
-            </button>
+            {contextBreakLinkPlan && (contextBreakLinkPlan.hasPredecessors || contextBreakLinkPlan.hasSuccessors) && (
+              <>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  onClick={() => {
+                    handleBreakLinksFromContext(contextMenu.target, 'all');
+                  }}
+                >
+                  <span className="material-symbols-outlined text-[16px]">link_off</span>
+                  {t('dashboard.breakAllLinks')}
+                </button>
+                {contextBreakLinkPlan.hasPredecessors && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    onClick={() => {
+                      handleBreakLinksFromContext(contextMenu.target, 'predecessors');
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">call_received</span>
+                    {t('dashboard.breakWithPredecessors')}
+                  </button>
+                )}
+                {contextBreakLinkPlan.hasSuccessors && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    onClick={() => {
+                      handleBreakLinksFromContext(contextMenu.target, 'successors');
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">call_made</span>
+                    {t('dashboard.breakWithSuccessors')}
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
@@ -728,7 +822,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
               <h3 id="group-editor-title" className="text-sm font-bold text-slate-800">
                 {groupEditor.mode === 'taskPath'
-                  ? t('dashboard.setGroupPath', 'Set group path')
+                  ? t('dashboard.groupLabel', 'Group')
                   : t('dashboard.renameGroup', 'Rename group')}
               </h3>
               <IconButton
@@ -740,34 +834,78 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 aria-label={t('dashboard.close', 'Close')}
               />
             </div>
-            <div className="space-y-2 px-4 py-4">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500" htmlFor="group-editor-value">
-                {groupEditor.mode === 'taskPath'
-                  ? t('settings.groupPathField', 'Group Path')
-                  : t('dashboard.groupLabel', 'Group')}
-              </label>
-              {groupEditor.mode === 'taskPath' ? (
-                <textarea
-                  id="group-editor-value"
-                  className="min-h-24 w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
-                  value={groupEditor.value}
-                  onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
-                  placeholder='["group1","group2"]'
-                  autoFocus
-                />
-              ) : (
-                <input
-                  id="group-editor-value"
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
-                  value={groupEditor.value}
-                  onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
-                  autoFocus
-                />
-              )}
+            <div className="space-y-4 px-4 py-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500" htmlFor="group-editor-value">
+                  {groupEditor.mode === 'taskPath'
+                    ? t('settings.groupPathField', 'Group Path')
+                    : t('dashboard.groupLabel', 'Group')}
+                </label>
+                {groupEditor.mode === 'taskPath' ? (
+                  <input
+                    id="group-editor-value"
+                    type="text"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                    value={groupEditor.value}
+                    onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
+                    placeholder="e.g. group1 / sub-group"
+                    autoFocus
+                  />
+                ) : (
+                  <input
+                    id="group-editor-value"
+                    type="text"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                    value={groupEditor.value}
+                    onChange={(e) => setGroupEditor({ ...groupEditor, value: e.target.value })}
+                    autoFocus
+                  />
+                )}
+                {groupEditor.mode === 'taskPath' && (
+                  <p className="text-xs leading-relaxed text-slate-400">
+                    Use slashes for nested groups, e.g. <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[10px] text-slate-600">group1 / sub-group</code>. Leave empty for no group.
+                  </p>
+                )}
+              </div>
+
               {groupEditor.mode === 'taskPath' && (
-                <p className="text-xs leading-relaxed text-slate-500">
-                  {t('dashboard.groupPathHelp', 'Use [] for the project root, or a JSON array such as ["group1","group2"].')}
-                </p>
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Select Existing Group
+                  </span>
+                  <div className="flex flex-col gap-1 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                    {/* Clear / Root Group Option */}
+                    <button
+                      type="button"
+                      onClick={() => setGroupEditor({ ...groupEditor, value: '' })}
+                      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors border ${
+                        groupEditor.value.trim() === ''
+                          ? 'bg-primary/5 text-primary border-primary/20 font-bold'
+                          : 'text-slate-600 hover:bg-slate-50 border-transparent hover:text-slate-800'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px] text-slate-400">folder_off</span>
+                      <span>None (Root)</span>
+                    </button>
+                    
+                    {/* List of Unique Existing Groups */}
+                    {getExistingGroupPaths().map((pathStr) => (
+                      <button
+                        key={pathStr}
+                        type="button"
+                        onClick={() => setGroupEditor({ ...groupEditor, value: pathStr })}
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors border ${
+                          groupEditor.value.trim() === pathStr
+                            ? 'bg-primary/5 text-primary border-primary/20 font-bold'
+                            : 'text-slate-600 hover:bg-slate-50 border-transparent hover:text-slate-800'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[16px] text-slate-400">folder</span>
+                        <span className="truncate">{pathStr}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
             <div className="flex justify-end gap-2 rounded-b-xl border-t border-slate-100 bg-slate-50 px-4 py-3">
@@ -787,6 +925,123 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 isLoading={isSavingGroupEditor}
                 disabled={groupEditor.mode === 'renameGroup' && groupEditor.value.trim().length === 0}
               >
+                {t('common.save', 'Save')}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {isFieldGroupDialogOpen && (
+        <div
+          className="absolute inset-0 z-[130] flex items-center justify-center bg-slate-900/25 backdrop-blur-sm p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="field-group-dialog-title"
+          onClick={() => setIsFieldGroupDialogOpen(false)}
+        >
+          <form
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-2xl"
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveFieldGroupSelection();
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <h3 id="field-group-dialog-title" className="text-sm font-bold text-slate-800">
+                {t('dashboard.fieldGroupDialogTitle', 'Group by Fields')}
+              </h3>
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="xs"
+                onClick={() => setIsFieldGroupDialogOpen(false)}
+                aria-label={t('dashboard.close', 'Close')}
+              />
+            </div>
+            <div className="space-y-4 px-4 py-4">
+              <section className="space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  {t('dashboard.selectedFields', 'Selected fields')}
+                </div>
+                <div className="flex min-h-11 items-center gap-2 overflow-x-auto rounded-lg border border-slate-100 bg-slate-50/80 p-2 custom-scrollbar">
+                  {draftGroupFieldIds.length === 0 ? (
+                    <span className="text-xs text-slate-400">{t('dashboard.noFieldsSelected', 'No fields selected')}</span>
+                  ) : draftGroupFieldIds.map((fieldId) => {
+                    const field = projectFieldsById.get(fieldId);
+                    if (!field) return null;
+                    return (
+                      <div
+                        key={fieldId}
+                        draggable
+                        onDragStart={() => setDraggedGroupFieldId(fieldId)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (draggedGroupFieldId) moveDraftGroupFieldTo(draggedGroupFieldId, fieldId);
+                          setDraggedGroupFieldId(null);
+                        }}
+                        onDragEnd={() => setDraggedGroupFieldId(null)}
+                        className="inline-flex max-w-[180px] shrink-0 cursor-grab items-start gap-1 rounded-md border border-primary/15 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm active:cursor-grabbing"
+                      >
+                        <span className="material-symbols-outlined mt-0.5 text-[14px] text-slate-400">drag_indicator</span>
+                        <span className="line-clamp-2 min-w-0 whitespace-normal break-words leading-snug" title={field.name}>{field.name}</span>
+                        <IconButton
+                          icon="close"
+                          variant="ghost"
+                          size="xs"
+                          className="shrink-0"
+                          onClick={() => toggleDraftGroupField(fieldId)}
+                          aria-label={t('dashboard.removeField', 'Remove field')}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  {t('dashboard.availableFields', 'Available fields')}
+                </div>
+                <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
+                  {sortedProjectFields.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-xs text-slate-400">
+                      {t('dashboard.noProjectFields', 'No project fields available')}
+                    </div>
+                  ) : sortedProjectFields.map(field => (
+                    <label
+                      key={field.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                        checked={draftGroupFieldIds.includes(field.id)}
+                        onChange={() => toggleDraftGroupField(field.id)}
+                      />
+                      <span className="min-w-0 flex-1 truncate">{field.name}</span>
+                      {field.dataType && (
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          {field.dataType}
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </section>
+            </div>
+            <div className="flex justify-end gap-2 rounded-b-xl border-t border-slate-100 bg-slate-50 px-4 py-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFieldGroupDialogOpen(false)}
+              >
+                {t('common.cancel', 'Cancel')}
+              </Button>
+              <Button type="submit" variant="primary" size="sm">
                 {t('common.save', 'Save')}
               </Button>
             </div>
@@ -1028,7 +1283,9 @@ function TaskGroupRow({
   const [isDragHandleHovered, setIsDragHandleHovered] = useState(false);
   const [isDragHandleFocused, setIsDragHandleFocused] = useState(false);
   const isMovingThisGroup = movingItemSortId === sortId;
-  const showHoverActions = !group.isSyntheticRoot && !isDragging && !isDragActive && !isAnyDragging;
+  const showHoverActions = !isDragging && !isDragActive && !isAnyDragging;
+  const actionToolbarClassName = `opacity-0 ${showHoverActions ? 'group-hover:opacity-100' : ''} pointer-events-none`;
+  const actionButtonClassName = 'pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10';
   const dragHandleLeft = getTreeDragHandleX();
   const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
@@ -1044,6 +1301,9 @@ function TaskGroupRow({
         transform: CSS.Transform.toString(transform),
         transition,
         touchAction: isMobile && isMovingThisGroup ? 'none' : undefined,
+        userSelect: isMobile ? 'none' : undefined,
+        WebkitUserSelect: isMobile ? 'none' : undefined,
+        WebkitTouchCallout: isMobile ? 'none' : undefined,
         '--tree-row-divider-left': `${dividerLeft}px`,
       } as CSSProperties}
       data-dashboard-sort-id={sortId}
@@ -1125,37 +1385,39 @@ function TaskGroupRow({
           {group.startDate && group.targetDate ? `${group.startDate} - ${group.targetDate}` : t('dashboard.noGroupDates', 'No dates')}
         </div>
       </TreeTitleCell>
-      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-        {t('dashboard.groupLabel', 'Group')}
+      <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+        <span>{t('dashboard.groupLabel', 'Group')}</span>
       </div>
       <div aria-hidden="true" />
 
-      <div className={`absolute right-2 bottom-full translate-y-[60%] flex items-center gap-1 opacity-0 ${showHoverActions ? 'group-hover:opacity-100' : ''} transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
-        <IconButton
-          icon="edit"
-          variant="ghost"
-          size="xs"
-          className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRename();
-          }}
-          title={t('dashboard.renameGroup', 'Rename group')}
-          aria-label={t('dashboard.renameGroup', 'Rename group')}
-        />
-        <IconButton
-          icon="folder_off"
-          variant="ghost"
-          size="xs"
-          className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
-          onClick={(e) => {
-            e.stopPropagation();
-            onUngroup();
-          }}
-          title={t('dashboard.ungroup', 'Ungroup')}
-          aria-label={t('dashboard.ungroup', 'Ungroup')}
-        />
-      </div>
+      {!group.isSyntheticRoot && (
+        <div className={`absolute right-2 bottom-full translate-y-[60%] flex items-center gap-1 ${actionToolbarClassName} transition-opacity z-10 bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
+          <IconButton
+            icon="edit"
+            variant="ghost"
+            size="xs"
+            className={actionButtonClassName}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRename();
+            }}
+            title={t('dashboard.renameGroup', 'Rename group')}
+            aria-label={t('dashboard.renameGroup', 'Rename group')}
+          />
+          <IconButton
+            icon="folder_off"
+            variant="ghost"
+            size="xs"
+            className={actionButtonClassName}
+            onClick={(e) => {
+              e.stopPropagation();
+              onUngroup();
+            }}
+            title={t('dashboard.ungroup', 'Ungroup')}
+            aria-label={t('dashboard.ungroup', 'Ungroup')}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -1226,10 +1488,10 @@ const SortableTaskRow = memo(function SortableTaskRow({
     ? isLinkSelected ? 'bg-drag-handle-selected-link' : 'bg-slate-100/80 group-hover:bg-indigo-50'
     : isSelected ? 'bg-indigo-100' : 'bg-slate-100/80 group-hover:bg-indigo-50';
   const treeNodeColor = getTreeColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
-  const treeLineColor = getTreeLineColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const treeHandleHoverColor = getTreeHandleHoverColor(Math.min(Math.max(treeMeta.depth, 0), TREE_DEPTH_COLORS.length - 1));
   const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
   const dividerLeft = getTreeRowDividerLeft(treeMeta.depth);
+  const statusTextColor = getStatusTextColor(task.status);
 
   return (
     <div
@@ -1238,6 +1500,9 @@ const SortableTaskRow = memo(function SortableTaskRow({
         transform: CSS.Transform.toString(transform),
         transition,
         touchAction: isMobile && isMovingThisTask ? 'none' : undefined,
+        userSelect: isMobile ? 'none' : undefined,
+        WebkitUserSelect: isMobile ? 'none' : undefined,
+        WebkitTouchCallout: isMobile ? 'none' : undefined,
         '--tree-row-divider-left': `${dividerLeft}px`,
       } as CSSProperties}
       data-task-sortable-row="true"
@@ -1308,7 +1573,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
 
       <TreeTitleCell treeMeta={treeMeta} nodeKind="task">
         <span className={`overflow-hidden text-ellipsis text-sm font-medium transition-colors leading-tight line-clamp-2 break-words ${task.status === 'Done' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700 group-hover:text-primary'}`}>
-          <span style={{ color: treeLineColor }}>{task.displayId}</span>{' '}
+          <span className={statusTextColor}>{task.displayId}</span>{' '}
           {task.title}
         </span>
         <div className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>

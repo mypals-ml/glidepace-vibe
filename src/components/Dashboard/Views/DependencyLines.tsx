@@ -11,11 +11,13 @@ interface DependencyLinesProps {
   dayWidth: number;
   onBreakLink: (taskId: string, targetId: string) => void;
   dragState: { startX: number; startY: number; currentX: number; currentY: number } | null;
+  hoveredTargetTaskId?: string | null;
 }
 
-export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLink, dragState }: DependencyLinesProps) {
+export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLink, dragState, hoveredTargetTaskId }: DependencyLinesProps) {
   const { t } = useTranslation();
   const ROW_HEIGHT = 72;
+  const DEPENDENCY_LINE_DASH_DURATION_SECONDS = 10;
 
   const getPathStr = (startX: number, startY: number, endX: number, endY: number) => {
     let cp1X, cp2X;
@@ -30,11 +32,9 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
     return `M ${startX} ${startY} C ${cp1X} ${startY}, ${cp2X} ${endY}, ${endX} ${endY}`;
   };
 
-  const lines = useMemo(() => {
-    const result: React.ReactNode[] = [];
-
-    // Map task ids to their bounds
-    const boundsMap = new Map<string, { x1: number; x2: number; y: number }>();
+  // Map task ids to their bounds
+  const boundsMap = useMemo(() => {
+    const bounds = new Map<string, { x1: number; x2: number; y: number }>();
     items.forEach((t, i) => {
       if (isTaskGroupBlock(t)) return;
       const start = getStartDateForCal(t);
@@ -44,10 +44,15 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
         const duration = diffDays(start, end);
         const x2 = x1 + Math.max(duration * dayWidth, 100);
         const y = i * ROW_HEIGHT + (ROW_HEIGHT / 2);
-        boundsMap.set(t.id, { x1, x2, y });
-        if (t.itemId) boundsMap.set(t.itemId, { x1, x2, y });
+        bounds.set(t.id, { x1, x2, y });
+        if (t.itemId) bounds.set(t.itemId, { x1, x2, y });
       }
     });
+    return bounds;
+  }, [items, getPositionForDate, dayWidth]);
+
+  const lines = useMemo(() => {
+    const result: React.ReactNode[] = [];
 
     items.forEach(task => {
       if (isTaskGroupBlock(task)) return;
@@ -77,7 +82,8 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
                 stroke="#6366f1"
                 strokeWidth="2"
                 strokeDasharray="4 4"
-                className="dependency-line opacity-60 group-hover/line:opacity-100 group-hover/line:stroke-rose-500 animate-[dash_2s_linear_infinite]"
+                className="dependency-line opacity-60 group-hover/line:opacity-100 group-hover/line:stroke-rose-500"
+                style={{ animation: `dash ${DEPENDENCY_LINE_DASH_DURATION_SECONDS}s linear infinite` }}
               />
               {/* Break link icon on hover */}
               <foreignObject x={(startX + endX) / 2 - 12} y={(startY + endY) / 2 - 12} width="24" height="24" className="opacity-0 group-hover/line:opacity-100">
@@ -96,7 +102,28 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
     });
 
     return result;
-  }, [items, getPositionForDate, dayWidth, onBreakLink, t]);
+  }, [items, boundsMap, onBreakLink, t]);
+
+  const dragPathInfo = useMemo(() => {
+    if (!dragState) return null;
+    let endX = dragState.currentX;
+    let endY = dragState.currentY;
+    let isSnapped = false;
+
+    if (hoveredTargetTaskId) {
+      const bounds = boundsMap.get(hoveredTargetTaskId);
+      if (bounds) {
+        endX = bounds.x1;
+        endY = bounds.y;
+        isSnapped = true;
+      }
+    }
+
+    return {
+      path: getPathStr(dragState.startX, dragState.startY, endX, endY),
+      isSnapped
+    };
+  }, [dragState, hoveredTargetTaskId, boundsMap]);
 
   return (
     <svg className="absolute inset-0 w-full h-full pointer-events-none z-20" style={{ minWidth: '100%', minHeight: '100%' }}>
@@ -121,6 +148,16 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
         >
           <polygon points="0 0, 6 2, 0 4" fill="#f43f5e" />
         </marker>
+        <marker
+          id="arrowhead-snap"
+          markerWidth="6"
+          markerHeight="4"
+          refX="5"
+          refY="2"
+          orient="auto"
+        >
+          <polygon points="0 0, 6 2, 0 4" fill="#10b981" />
+        </marker>
       </defs>
       <style>{`
         @keyframes dash {
@@ -138,15 +175,15 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
       <g className="pointer-events-auto">
         {lines}
       </g>
-      {dragState && (
+      {dragPathInfo && (
         <path
-          d={getPathStr(dragState.startX, dragState.startY, dragState.currentX, dragState.currentY)}
+          d={dragPathInfo.path}
           fill="none"
-          stroke="#818cf8"
-          strokeWidth="3"
-          strokeDasharray="6 6"
-          className="animate-[dash_1s_linear_infinite]"
-          markerEnd="url(#arrowhead)"
+          stroke={dragPathInfo.isSnapped ? '#10b981' : '#818cf8'}
+          strokeWidth={dragPathInfo.isSnapped ? '4' : '3'}
+          strokeDasharray={dragPathInfo.isSnapped ? '4 4' : '6 6'}
+          className={dragPathInfo.isSnapped ? 'animate-[dash_0.5s_linear_infinite] drop-shadow-[0_0_4px_rgba(16,185,129,0.5)] transition-all duration-150' : 'animate-[dash_1s_linear_infinite]'}
+          markerEnd={dragPathInfo.isSnapped ? 'url(#arrowhead-snap)' : 'url(#arrowhead)'}
         />
       )}
     </svg>

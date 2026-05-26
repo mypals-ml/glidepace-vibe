@@ -355,7 +355,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const onHandleCreate = async () => {
     if (!newTitle.trim()) return;
     setIsCreating(true);
-    await handleCreateTask({
+    const created = await handleCreateTask({
       title: newTitle,
       body: newDesc,
       status: newStatus,
@@ -369,6 +369,10 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
     });
     setPendingTaskInsertPosition(null);
     setIsCreating(false);
+    if (created) {
+      setSelectedTaskId(null);
+      setIsTaskDetailsOpen(false);
+    }
   };
 
   if (isCreateMode) {
@@ -541,7 +545,9 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
             fullWidth
             onClick={() => {
               setPendingTaskInsertPosition(null);
+              setSelectedTaskId(null);
               setIsCreateMode(false);
+              setIsTaskDetailsOpen(false);
             }}
           >
             {t('common.cancel', 'Cancel')}

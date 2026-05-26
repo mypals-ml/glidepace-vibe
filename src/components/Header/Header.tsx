@@ -27,6 +27,7 @@ export function Header() {
     isLoadingAuth,
     handleOpenAuth,
     setIsAccountModalOpen,
+    setIsAboutModalOpen,
     hasProject,
     setIsProjectSettingsModalOpen,
   } = useDashboard();
@@ -119,6 +120,21 @@ export function Header() {
                       </span>
                     </OverflowItem>
                   </div>
+                </Button>
+              </div>
+            </OverflowItem>
+
+            <OverflowItem id="about" priority={100}>
+              <div style={{ marginRight: 'var(--header-gap)' }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon="info"
+                  onClick={() => setIsAboutModalOpen(true)}
+                  aria-label={t('about.button', 'About')}
+                  className="text-slate-600 hover:bg-sky-50 hover:text-sky-700"
+                >
+                  {t('about.button', 'About')}
                 </Button>
               </div>
             </OverflowItem>

@@ -50,6 +50,7 @@ export interface Task {
   body?: string;
   comments?: TaskComment[];
   projectFieldIds?: Record<string, string>;
+  projectFieldValues?: Record<string, string>;
   statusOptions?: Record<string, string>;
   statusColorMap?: Record<string, string>;
   isDraft?: boolean;

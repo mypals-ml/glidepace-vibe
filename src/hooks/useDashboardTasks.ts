@@ -6,7 +6,7 @@ import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
 import { autoCorrectDependencyFields, cascadeTaskDates, cascadeAllTasks, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../lib/taskDependencyUtils';
 import { getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter, moveTaskBlockAfter } from '../lib/taskOrderUtils';
-import { buildGroupBlocksFromOrderedTasks, renameGroupBlock as renameGroupBlockInTasks, serializeGroupPath, ungroupGroupBlock as ungroupGroupBlockInTasks, isTaskGroupBlock, moveTasksToGroupPath } from '../lib/taskGroupUtils';
+import { applyFieldGroupPaths, buildGroupBlocksFromOrderedTasks, renameGroupBlock as renameGroupBlockInTasks, serializeGroupPath, ungroupGroupBlock as ungroupGroupBlockInTasks, isTaskGroupBlock, moveTasksToGroupPath } from '../lib/taskGroupUtils';
 import type { DependencyFieldCorrection } from '../lib/taskDependencyUtils';
 import { mergeFetchedTaskWithLocalState } from '../lib/taskMergeUtils';
 import { logDashboardEvent } from '../lib/dashboardDebugLog';
@@ -135,6 +135,7 @@ export function useDashboardTasks({
   const [fieldsProgress, setFieldsProgress] = useState<{ current: number; total: number; isFetching: boolean }>({ current: 0, total: 0, isFetching: false });
   const [apiError, setApiError] = useState<string | null>(null);
   const [collapsedGroupBlockIds, setCollapsedGroupBlockIds] = useState<string[]>([]);
+  const [selectedGroupFieldIds, setSelectedGroupFieldIds] = useState<string[]>([]);
   
   const dateSettingsRef = useRef(dateSettings);
   useEffect(() => {
@@ -168,11 +169,11 @@ export function useDashboardTasks({
 
   const dashboardItems = useMemo(
     () => buildGroupBlocksFromOrderedTasks(
-      filteredTasks,
+      applyFieldGroupPaths(filteredTasks, selectedGroupFieldIds),
       selectedProject?.title || t('dashboard.currentProject', 'Current Project'),
       new Set(collapsedGroupBlockIds)
     ),
-    [filteredTasks, selectedProject?.title, collapsedGroupBlockIds, t]
+    [filteredTasks, selectedGroupFieldIds, selectedProject?.title, collapsedGroupBlockIds, t]
   );
 
   const toggleGroupBlockCollapsed = useCallback((groupBlockId: string) => {
@@ -1268,6 +1269,8 @@ export function useDashboardTasks({
   return {
     tasks,
     dashboardItems,
+    selectedGroupFieldIds,
+    setSelectedGroupFieldIds,
     setTasks,
     isLoadingTasks,
     setIsLoadingTasks,
