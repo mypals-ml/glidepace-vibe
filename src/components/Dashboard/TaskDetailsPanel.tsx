@@ -53,7 +53,7 @@ function CopyButton({ text, t }: { text: string; t: TFunction }) {
 
 export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetailsPanelProps) {
   const { t } = useTranslation();
-  const { isCreateMode, setIsCreateMode, centerGanttOnDate, setIsChartVisible, setDashboardView, setPendingTaskInsertPosition } = useDashboard();
+  const { isCreateMode, setIsCreateMode, centerGanttOnTask, setIsChartVisible, setDashboardView, setPendingTaskInsertPosition } = useDashboard();
 
   if (!task && !isCreateMode) return null;
 
@@ -71,7 +71,7 @@ export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetail
       setIsChartVisible(true);
       setDashboardView('gantt');
       
-      centerGanttOnDate(startDate);
+      centerGanttOnTask(task.id, startDate);
       handleClose();
     }
   };

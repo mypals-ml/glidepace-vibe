@@ -205,7 +205,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     fieldsProgress,
     mappingStatus,
     setIsTaskDetailsOpen,
-    centerGanttOnDate,
+    centerGanttOnTask,
     isLinkMode,
     setIsLinkMode,
     selectedLinkTaskIds,
@@ -344,7 +344,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
     const startDate = task ? getStartDateForCal(task) : null;
     if (startDate) {
-      centerGanttOnDate(startDate);
+      centerGanttOnTask(task.id, startDate);
     }
 
     setContextMenu(null);
@@ -654,7 +654,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       setOpenStatusPickerTaskId={setOpenStatusPickerTaskId}
                       setIsLinkMode={setIsLinkMode}
                       setSelectedLinkTaskIds={setSelectedLinkTaskIds}
-                      centerGanttOnDate={centerGanttOnDate}
+                      centerGanttOnTask={centerGanttOnTask}
                       t={t}
                     />
                   )
@@ -1442,7 +1442,7 @@ interface SortableTaskRowProps {
   setOpenStatusPickerTaskId: Dispatch<SetStateAction<string | null>>;
   setIsLinkMode: (mode: boolean) => void;
   setSelectedLinkTaskIds: (tasks: string[] | ((prev: string[]) => string[])) => void;
-  centerGanttOnDate: (date: string | null) => void;
+  centerGanttOnTask: (taskId: string, date: string | null) => void;
   t: TFunction;
 }
 
@@ -1466,7 +1466,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
   setOpenStatusPickerTaskId,
   setIsLinkMode,
   setSelectedLinkTaskIds,
-  centerGanttOnDate,
+  centerGanttOnTask,
   t,
 }: SortableTaskRowProps) {
   const {
@@ -1663,7 +1663,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
           onClick={(e) => {
             e.stopPropagation();
             const startDate = getStartDateForCal(task);
-            if (startDate) centerGanttOnDate(startDate);
+            if (startDate) centerGanttOnTask(task.id, startDate);
           }}
           title={t('dashboard.centerInGantt') || 'Center in Gantt'}
           aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}

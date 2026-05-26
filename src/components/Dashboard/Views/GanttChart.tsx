@@ -28,7 +28,7 @@ const ROW_HEIGHT = 72;
 
 export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
   const { t } = useTranslation();
-  const { tasks, filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, centerGanttOnDate, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
+  const { tasks, filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, requestedCenterTaskId, centerGanttOnDate, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
   const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, clientWidth: 0 });
   const internalScrollRef = useRef<HTMLDivElement>(null);
   
@@ -51,8 +51,6 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() => defaultWorkCalendar.formatDate(today), [today]);
-
-  const selectedTask = useMemo(() => filteredTasks.find(t => t.id === selectedTaskId), [filteredTasks, selectedTaskId]);
   
   // Update viewport info on scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -165,52 +163,39 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     setIsTaskDetailsOpen(true);
   };
 
-  // Ref to track what was last centered to avoid redundant centering during expansions
-  const lastCenteredId = useRef<string | null>(null);
-  // Ref to track if this is the initial mount to prevent vertical scrolling on start
-  const isInitialMount = useRef(true);
-
   // Handle initial centering
   useEffect(() => {
     if (activeScrollRef.current) {
-      const currentSelectionKey = selectedTaskId || 'today';
-      if (lastCenteredId.current === currentSelectionKey) return;
-
-      const anchorDateStr = selectedTask ? (getStartDateForCal(selectedTask) || todayStr) : todayStr;
-      centerOnDate(anchorDateStr, 'auto');
-      const selectedIndex = selectedTaskId
-        ? dashboardItems.findIndex(item => !isTaskGroupBlock(item) && item.id === selectedTaskId)
-        : -1;
-      if (selectedIndex >= 0 && !isInitialMount.current) {
-        const top = getScrollTopForSelectedRow({
-          currentScrollTop: activeScrollRef.current.scrollTop,
-          rowIndex: selectedIndex,
-          rowHeight: ROW_HEIGHT,
-          viewportHeight: activeScrollRef.current.clientHeight,
-        });
-        activeScrollRef.current.scrollTo({
-          top,
-          behavior: 'auto'
-        });
-      }
-      lastCenteredId.current = currentSelectionKey;
-      
+      centerOnDate(todayStr, 'auto');
       setViewportInfo({
         scrollLeft: activeScrollRef.current.scrollLeft,
         clientWidth: activeScrollRef.current.clientWidth
       });
-
-      // Mark initial mount as completed after the first layout centering has run
-      isInitialMount.current = false;
     }
-  }, [activeScrollRef, selectedTaskId, todayStr, centerOnDate, selectedTask, dashboardItems]);
+  }, [activeScrollRef, todayStr, centerOnDate]);
 
-  // Handle external scroll requests (e.g. from Sidebar)
+  // Handle explicit focus requests (e.g. from Sidebar / Task Details)
   useEffect(() => {
     if (requestedCenterDate) {
       centerOnDate(requestedCenterDate, 'smooth');
     }
-  }, [requestedCenterDate, centerOnDate]);
+
+    if (!requestedCenterTaskId || !activeScrollRef.current) return;
+
+    const selectedIndex = dashboardItems.findIndex(item => !isTaskGroupBlock(item) && item.id === requestedCenterTaskId);
+    if (selectedIndex < 0) return;
+
+    const top = getScrollTopForSelectedRow({
+      currentScrollTop: activeScrollRef.current.scrollTop,
+      rowIndex: selectedIndex,
+      rowHeight: ROW_HEIGHT,
+      viewportHeight: activeScrollRef.current.clientHeight,
+    });
+    activeScrollRef.current.scrollTo({
+      top,
+      behavior: 'auto'
+    });
+  }, [requestedCenterDate, requestedCenterTaskId, activeScrollRef, centerOnDate, dashboardItems]);
 
   // Vertical Virtualization: Calculate visible days
   const visibleStartIndex = Math.max(0, Math.floor(viewportInfo.scrollLeft / DAY_WIDTH) - 2);
