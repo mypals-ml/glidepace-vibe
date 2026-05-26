@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GanttChart } from './GanttChart';
 import type { DashboardItem, Task } from '../../../types';
@@ -142,5 +142,16 @@ describe('GanttChart focus behavior', () => {
       top: 468,
       behavior: 'auto',
     });
+  });
+
+  it('disables text selection on gantt task bars for long-press interactions', () => {
+    render(<GanttChart />);
+
+    const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
+
+    expect(taskBar.className).toContain('select-none');
+    expect(taskBar.getAttribute('style')).toContain('user-select: none');
+    expect(taskBar.getAttribute('style')).toContain('-webkit-user-select: none');
+    expect(taskBar.getAttribute('style')).toContain('touch-action: manipulation');
   });
 });

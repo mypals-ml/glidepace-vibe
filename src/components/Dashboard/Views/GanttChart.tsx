@@ -375,7 +375,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                       <div className="absolute inset-y-0 left-0 right-0 bg-primary/[0.03] pointer-events-none" />
                     )}
                     <div
-                      className={`absolute h-10 rounded-lg border flex items-center px-4 cursor-pointer transition-all ${
+                      className={`absolute h-10 rounded-lg border flex items-center px-4 cursor-pointer select-none transition-all ${
                         isSelected 
                           ? `ring-4 ring-primary/30 border-primary shadow-lg scale-[1.02] z-30 ${getStatusColor(task.status).replace('border-slate-200', 'border-primary')}` 
                           : `shadow-md hover:scale-[1.02] hover:z-20 active:scale-[0.98] ${getStatusColor(task.status)}`
@@ -383,6 +383,10 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                       style={{
                         left: `${left}px`,
                         width: `${Math.max(width, 100)}px`, // Min width for visibility
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none',
+                        WebkitTouchCallout: 'none',
+                        touchAction: 'manipulation',
                       }}
                       onClick={() => {
                         if (suppressNextClickRef.current) {

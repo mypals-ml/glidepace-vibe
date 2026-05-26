@@ -8,6 +8,7 @@ Refine the task list context-menu break-link behavior so users can:
 - break only predecessor links
 - break only successor links
 - only see break-link actions when the corresponding links exist
+- long-press Gantt task bars without triggering native text selection before the same break-link menu opens
 
 ## Implementation Plan
 
@@ -22,6 +23,7 @@ Refine the task list context-menu break-link behavior so users can:
    - `Break with Successors` only when successor links exist
 4. Add i18n keys for the two new labels across supported locales.
 5. Update `docs/FEATURES.md` to reflect the refined dependency-break actions.
+6. Prevent native text selection on the Gantt task bar press target so long-press opens the menu cleanly on touch devices.
 
 ## Test Plan
 
@@ -32,7 +34,8 @@ Refine the task list context-menu break-link behavior so users can:
    - group boundary operations use the first task for predecessors and the last task for successors
    - visibility flags are false when no matching links exist
 2. Run targeted Vitest coverage for the helper tests.
-3. Run required repo verification:
+3. Add a targeted Gantt chart test asserting the task bar disables text selection styles used during long press.
+4. Run required repo verification:
    - `npm run lint`
    - `npm run type-check`
    - `npm run build`
