@@ -983,15 +983,17 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                           setDraggedGroupFieldId(null);
                         }}
                         onDragEnd={() => setDraggedGroupFieldId(null)}
-                        className="inline-flex max-w-[180px] shrink-0 cursor-grab items-start gap-1 rounded-md border border-primary/15 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm active:cursor-grabbing"
+                        className="inline-flex max-w-[180px] shrink-0 cursor-grab items-stretch gap-1 rounded-md border border-primary/15 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm active:cursor-grabbing"
                       >
-                        <span className="material-symbols-outlined mt-0.5 text-[14px] text-slate-400">drag_indicator</span>
-                        <span className="line-clamp-2 min-w-0 whitespace-normal break-words leading-snug" title={field.name}>{field.name}</span>
+                        <span className="material-symbols-outlined self-center text-[14px] text-slate-400">drag_indicator</span>
+                        <span className="flex min-w-0 flex-1 items-center">
+                          <span className="line-clamp-2 min-w-0 whitespace-normal break-words leading-snug" title={field.name}>{field.name}</span>
+                        </span>
                         <IconButton
                           icon="close"
                           variant="ghost"
                           size="xs"
-                          className="shrink-0"
+                          className="shrink-0 self-center"
                           onClick={() => toggleDraftGroupField(fieldId)}
                           aria-label={t('dashboard.removeField', 'Remove field')}
                         />
