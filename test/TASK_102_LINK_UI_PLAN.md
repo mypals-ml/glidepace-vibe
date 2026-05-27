@@ -19,11 +19,11 @@ Improve the UI of linking 2 tasks in Gantt chart view:
    - Pass `hoveredTargetTaskId` to the `DependencyLines` component.
    - Inside `DependencyLines.tsx`, check if `hoveredTargetTaskId` is active. If so, locate its coordinates (using the existing `boundsMap`).
    - If bounds exist, snap the ending coordinate of the drag line to the exact center of the target's start connector node (`x1`, `y`) instead of the mouse cursor coordinates.
-   - Change the drag line visual style when snapped: change color from indigo to emerald (`#10b981`), increase width, make dash animation faster (`animate-[dash_0.5s_linear_infinite]`), and use an emerald arrowhead.
+   - Change the drag line visual style when snapped: change color from indigo to emerald (`#10b981`), keep the line thin, make dash animation faster (`animate-[dash_0.5s_linear_infinite]`), and use an emerald arrowhead.
 
 4. **Enhance Connector Node Visuals**:
    - Inside `GanttChart.tsx`, update the start connector node styles when it is currently hovered (`hoveredTargetTaskId === task.id`).
-   - Apply a scale up (`scale-110`), a glowing ring (`ring-4 ring-emerald-400`), emerald background/border color, and make the inner dot pulse (`bg-emerald-500 animate-pulse`).
+   - Apply a small scale up (`scale-105`), a subtle ring (`ring-2 ring-emerald-400/80`), emerald background/border color, and make the inner dot pulse (`bg-emerald-500 animate-pulse`).
 
 5. **Documentation**:
    - Update `docs/FEATURES.md` to reflect the improved visual feedback when dragging task links in the Gantt view.
@@ -42,8 +42,8 @@ Improve the UI of linking 2 tasks in Gantt chart view:
    - Move the mouse pointer over the start connector node (circle on the left side of another task bar).
    - Verify that:
      1. The drag line snaps directly to the target connector node's center.
-     2. The drag line turns green/emerald and its flow animation speeds up.
-     3. The target start connector node expands, gets a green ring, and pulses.
+     2. The drag line turns green/emerald, remains thin, and its flow animation speeds up.
+     3. The target start connector node expands slightly, gets a subtle green ring, and pulses.
    - Lift the mouse button to verify the dependency link is created successfully.
    - Move mouse away without releasing to verify visual state resets cleanly.
 

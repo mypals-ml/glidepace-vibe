@@ -51,4 +51,43 @@ describe('mergeFetchedTaskWithLocalState', () => {
     expect(merged.predecessorIds).toEqual(['A']);
     expect(merged.autoUpdateStartDate).toBe('auto');
   });
+
+  it('preserves local fields (title, body, status, progress, comments, assignees) during protection window', () => {
+    const now = 1778916600000;
+    const existingComments = [{
+      id: 'comment-1',
+      author: { id: 'user-1', name: 'User One', initials: 'U1', avatarColor: 'bg-red-100' },
+      body: 'Existing comment content',
+      createdAt: '2026-03-24T12:00:00Z',
+    }];
+    const existingAssignees = [{ id: 'user-1', name: 'User One', login: 'user1', initials: 'U1', avatarColor: 'bg-red-100' }];
+
+    const existing = makeTask({
+      title: 'Local Updated Title',
+      body: 'Local Updated Body',
+      status: 'In Progress',
+      progress: 50,
+      comments: existingComments,
+      assignees: existingAssignees,
+      localUpdateTimestamp: now,
+    });
+
+    const staleFetched = makeTask({
+      title: 'Old Stale Title',
+      body: 'Old Stale Body',
+      status: 'Todo',
+      progress: 0,
+      comments: [],
+      assignees: [],
+    });
+
+    const merged = mergeFetchedTaskWithLocalState(existing, staleFetched, now + 1000);
+
+    expect(merged.title).toBe('Local Updated Title');
+    expect(merged.body).toBe('Local Updated Body');
+    expect(merged.status).toBe('In Progress');
+    expect(merged.progress).toBe(50);
+    expect(merged.comments).toEqual(existingComments);
+    expect(merged.assignees).toEqual(existingAssignees);
+  });
 });

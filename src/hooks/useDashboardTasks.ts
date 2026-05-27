@@ -29,7 +29,7 @@ import {
   DELETE_PROJECT_ITEM_MUTATION,
   DELETE_ISSUE_MUTATION
 } from '../lib/githubQueries';
-import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode, FixedSuccessorStartDateMode, TaskInsertPosition, GroupPath } from '../types';
+import type { Task, TaskComment, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode, FixedSuccessorStartDateMode, TaskInsertPosition, GroupPath } from '../types';
 
 interface UseDashboardTasksProps {
   githubToken: string;
@@ -436,8 +436,9 @@ export function useDashboardTasks({
           avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
         }));
 
+        const now = Date.now();
         setTasks(prev => prev.map(t => 
-          (t.id === taskId || t.itemId === taskId) ? { ...t, assignees: updatedAssignees } : t
+          (t.id === taskId || t.itemId === taskId) ? { ...t, assignees: updatedAssignees, localUpdateTimestamp: now } : t
         ));
       }
 
@@ -456,6 +457,15 @@ export function useDashboardTasks({
     try {
       const optionId = task.statusOptions[status];
       if (!optionId) return false;
+
+      const now = Date.now();
+      const progress = /^(done|closed|completed|merged)$/i.test(status) ? 100 : /^(todo|backlog|open|not started)$/i.test(status) ? 0 : 50;
+      setTasks(prev => prev.map(t => 
+        (t.id === task.id || t.itemId === task.itemId) 
+          ? { ...t, status, progress, localUpdateTimestamp: now } 
+          : t
+      ));
+
       const success = await updateProjectV2ItemField(selectedProject.id, task.itemId, task.projectFieldIds.status, { singleSelectOptionId: optionId }, githubToken);
       if (success && !skipRefresh) fetchSingleProjectItem(task.itemId, githubToken);
       return success;
@@ -463,7 +473,7 @@ export function useDashboardTasks({
       console.error(e);
       return false;
     }
-  }, [selectedProject?.id, githubToken, fetchSingleProjectItem]);
+  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, setTasks]);
 
   const updateTaskDates = useCallback(async (task: Task, startDate?: string | null, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode, skipRefresh = false): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;
@@ -1066,69 +1076,128 @@ export function useDashboardTasks({
   const updateTaskTitle = useCallback(async (task: Task, title: string): Promise<boolean> => {
     if (!task.contentId || !githubToken) return false;
     try {
+      const now = Date.now();
+      setTasks(prev => prev.map(t => 
+        (t.id === task.id || t.itemId === task.itemId)
+          ? { ...t, title, localUpdateTimestamp: now }
+          : t
+      ));
       const mutation = task.isDraft ? UPDATE_DRAFT_TITLE_MUTATION : UPDATE_ISSUE_TITLE_MUTATION;
       const res = await fetchGitHubGraphQL(mutation, { id: task.contentId, title }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem]);
+  }, [githubToken, fetchSingleProjectItem, setTasks]);
 
   const updateTaskDescription = useCallback(async (task: Task, description: string): Promise<boolean> => {
     if (!task.contentId || !githubToken) return false;
     try {
+      const now = Date.now();
+      setTasks(prev => prev.map(t => 
+        (t.id === task.id || t.itemId === task.itemId)
+          ? { ...t, body: description, localUpdateTimestamp: now }
+          : t
+      ));
       const mutation = task.isDraft ? UPDATE_DRAFT_BODY_MUTATION : UPDATE_ISSUE_BODY_MUTATION;
       const res = await fetchGitHubGraphQL(mutation, { id: task.contentId, body: description }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem]);
+  }, [githubToken, fetchSingleProjectItem, setTasks]);
 
   const updateTaskComment = useCallback(async (task: Task, commentId: string, body: string): Promise<boolean> => {
     if (!githubToken) return false;
     try {
+      const now = Date.now();
+      setTasks(prev => prev.map(t => {
+        if (t.id === task.id || t.itemId === task.itemId) {
+          const updatedComments = (t.comments || []).map(c => 
+            c.id === commentId ? { ...c, body } : c
+          );
+          return { ...t, comments: updatedComments, localUpdateTimestamp: now };
+        }
+        return t;
+      }));
       const res = await fetchGitHubGraphQL(UPDATE_ISSUE_COMMENT_MUTATION, { id: commentId, body }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem]);
+  }, [githubToken, fetchSingleProjectItem, setTasks]);
 
   const deleteTaskComment = useCallback(async (task: Task, commentId: string): Promise<boolean> => {
     if (!githubToken) return false;
     try {
+      const now = Date.now();
+      setTasks(prev => prev.map(t => {
+        if (t.id === task.id || t.itemId === task.itemId) {
+          const updatedComments = (t.comments || []).filter(c => c.id !== commentId);
+          return { ...t, comments: updatedComments, localUpdateTimestamp: now };
+        }
+        return t;
+      }));
       const res = await fetchGitHubGraphQL(DELETE_ISSUE_COMMENT_MUTATION, { id: commentId }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem]);
+  }, [githubToken, fetchSingleProjectItem, setTasks]);
 
   const addTaskComment = useCallback(async (task: Task, body: string): Promise<boolean> => {
     if (!task.contentId || !githubToken || task.isDraft) return false;
     try {
       const res = await fetchGitHubGraphQL(ADD_ISSUE_COMMENT_MUTATION, { subjectId: task.contentId, body }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+
+      const addedNode = res.data?.addComment?.commentEdge?.node;
+      const authorLogin = addedNode?.author?.login || 'me';
+      const authorName = addedNode?.author?.name || authorLogin;
+      const authorAvatar = addedNode?.author?.avatarUrl;
+
+      const newComment: TaskComment = {
+        id: addedNode?.id || `comment-local-${Date.now()}`,
+        body: addedNode?.body || body,
+        createdAt: addedNode?.createdAt || new Date().toISOString(),
+        author: {
+          id: authorLogin,
+          login: authorLogin,
+          name: authorName,
+          avatarUrl: authorAvatar,
+          initials: authorName.substring(0, 2).toUpperCase(),
+          avatarColor: 'bg-slate-100 text-slate-500',
+        }
+      };
+
+      const now = Date.now();
+      setTasks(prev => prev.map(t => {
+        if (t.id === task.id || t.itemId === task.itemId) {
+          const updatedComments = [...(t.comments || []), newComment];
+          return { ...t, comments: updatedComments, localUpdateTimestamp: now };
+        }
+        return t;
+      }));
+
+      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem]);
+  }, [githubToken, fetchSingleProjectItem, setTasks]);
 
   const deleteTask = useCallback(async (task: Task): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;

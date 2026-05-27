@@ -18,6 +18,8 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
   const { t } = useTranslation();
   const ROW_HEIGHT = 72;
   const DEPENDENCY_LINE_DASH_DURATION_SECONDS = 10;
+  const DRAG_LINE_STROKE_WIDTH = 2;
+  const SNAPPED_DRAG_LINE_STROKE_WIDTH = 2.5;
 
   const getPathStr = (startX: number, startY: number, endX: number, endY: number) => {
     let cp1X, cp2X;
@@ -177,12 +179,13 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
       </g>
       {dragPathInfo && (
         <path
+          data-testid="dependency-drag-preview"
           d={dragPathInfo.path}
           fill="none"
           stroke={dragPathInfo.isSnapped ? '#10b981' : '#818cf8'}
-          strokeWidth={dragPathInfo.isSnapped ? '4' : '3'}
-          strokeDasharray={dragPathInfo.isSnapped ? '4 4' : '6 6'}
-          className={dragPathInfo.isSnapped ? 'animate-[dash_0.5s_linear_infinite] drop-shadow-[0_0_4px_rgba(16,185,129,0.5)] transition-all duration-150' : 'animate-[dash_1s_linear_infinite]'}
+          strokeWidth={dragPathInfo.isSnapped ? SNAPPED_DRAG_LINE_STROKE_WIDTH : DRAG_LINE_STROKE_WIDTH}
+          strokeDasharray={dragPathInfo.isSnapped ? '3 5' : '6 6'}
+          className={dragPathInfo.isSnapped ? 'animate-[dash_0.5s_linear_infinite] drop-shadow-[0_0_2px_rgba(16,185,129,0.35)] transition-all duration-150' : 'animate-[dash_1s_linear_infinite]'}
           markerEnd={dragPathInfo.isSnapped ? 'url(#arrowhead-snap)' : 'url(#arrowhead)'}
         />
       )}
