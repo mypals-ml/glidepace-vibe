@@ -448,7 +448,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                     <div 
                       className={`absolute z-40 flex items-center justify-center rounded-full cursor-crosshair transition-all ${
                         hoveredTargetTaskId === task.id
-                          ? 'w-6 h-6 bg-emerald-100 opacity-100 ring-4 ring-emerald-400 shadow-lg scale-110'
+                          ? 'w-6 h-6 bg-emerald-50 opacity-100 ring-2 ring-emerald-400/80 shadow-md shadow-emerald-500/20 scale-105'
                           : isLinkDropTarget
                             ? 'w-5 h-5 bg-indigo-100/80 opacity-100 ring-2 ring-indigo-300/60 shadow-md shadow-indigo-500/20'
                             : 'w-7 h-7 opacity-0 group-hover:opacity-100'
@@ -473,7 +473,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                       <span
                         className={`rounded-full border-2 transition-all ${
                           hoveredTargetTaskId === task.id
-                            ? 'w-3.5 h-3.5 bg-emerald-500 border-white animate-pulse'
+                            ? 'w-3 h-3 bg-emerald-500 border-white animate-pulse'
                             : isLinkDropTarget
                               ? 'w-2.5 h-2.5 bg-indigo-500 border-white'
                               : 'w-3 h-3 bg-indigo-200 border-indigo-500 hover:scale-125'
