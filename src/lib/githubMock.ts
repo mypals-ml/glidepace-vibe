@@ -861,7 +861,15 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
         addComment: {
           commentEdge: {
             node: {
-              id: newComment.id
+              id: newComment.id,
+              body: newComment.body,
+              createdAt: newComment.createdAt,
+              author: {
+                __typename: 'User',
+                login: newComment.author.id,
+                name: newComment.author.name,
+                avatarUrl: newComment.author.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(newComment.author.name)}&background=random`
+              }
             }
           }
         }

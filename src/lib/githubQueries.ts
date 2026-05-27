@@ -297,8 +297,20 @@ export const DELETE_ISSUE_COMMENT_MUTATION = `
 export const ADD_ISSUE_COMMENT_MUTATION = `
   mutation AddComment($subjectId: ID!, $body: String!) { 
     addComment(input: { subjectId: $subjectId, body: $body }) { 
-      commentEdge { node { id } } 
-    } 
+      commentEdge {
+        node {
+          id
+          body
+          createdAt
+          author {
+            login
+            avatarUrl
+            ... on User { name }
+            ... on Organization { name }
+          }
+        }
+      }
+    }
   }
 `;
 
