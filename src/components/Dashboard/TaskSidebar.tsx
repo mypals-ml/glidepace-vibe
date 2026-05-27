@@ -564,8 +564,8 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
         <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
           <span className="shrink-0">{t('table.title')}</span>
         </div>
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('table.status')}</div>
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">{t('table.assignees')}</div>
+        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider"></div>
+        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center"></div>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar" ref={scrollRef} onScroll={onScroll}>
@@ -1640,8 +1640,9 @@ const SortableTaskRow = memo(function SortableTaskRow({
               />
             )}
           </div>
+
+          <div className="truncate text-[10px] font-medium text-slate-400">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
         </div>
-        <div className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
       </TreeTitleCell>
 
       <div className={`absolute right-2 ${isFirst ? 'top-full translate-y-[-60%]' : 'bottom-full translate-y-[60%]'} flex items-center gap-1 opacity-0 ${showHoverActions ? 'group-hover:opacity-100' : ''} transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
