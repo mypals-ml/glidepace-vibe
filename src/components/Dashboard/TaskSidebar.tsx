@@ -1511,7 +1511,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
       data-dashboard-sort-id={sortId}
       data-task-id={task.id}
       data-task-moving={isMobile && isMovingThisTask ? "true" : undefined}
-      className={`grid grid-cols-[1fr_64px_76px] gap-1 items-center h-[72px] pl-2 pr-0 cursor-pointer transition-all duration-200 relative group overflow-visible after:absolute after:bottom-0 after:left-[var(--tree-row-divider-left)] after:right-0 after:h-px after:bg-slate-100/50 after:content-[''] ${
+      className={`grid grid-cols-1 gap-1 items-center h-[72px] pl-2 pr-0 cursor-pointer transition-all duration-200 relative group overflow-visible after:absolute after:bottom-0 after:left-[var(--tree-row-divider-left)] after:right-0 after:h-px after:bg-slate-100/50 after:content-[''] ${
         isLinkMode
           ? isLinkSelected ? 'bg-primary/10 ring-1 ring-primary/30 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
           : isSelected ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
@@ -1578,70 +1578,71 @@ const SortableTaskRow = memo(function SortableTaskRow({
           <span className={statusTextColor}>{task.displayId}</span>{' '}
           {task.title}
         </span>
-        <div className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
-      </TreeTitleCell>
+        <div className="status-assignees flex items-center gap-3 mt-1 mb-0.5">
+          <div className="group/status relative flex items-center min-w-0">
+            <div
+              className="flex items-center gap-1 cursor-pointer hover:bg-slate-100/80 transition-colors px-1 py-0.5 rounded border border-slate-200/50 bg-slate-50/60"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenStatusPickerTaskId(openStatusPickerTaskId === task.id ? null : task.id);
+              }}
+              title={t('dashboard.updateStatus', 'Update status')}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ring-1 ring-white shadow-sm ${getStatusDotColor(task.status)}`}></span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter truncate max-w-[60px]">
+                {task.status}
+              </span>
+            </div>
+            {openStatusPickerTaskId === task.id && (
+              <StatusPicker
+                task={task}
+                onClose={() => setOpenStatusPickerTaskId(null)}
+              />
+            )}
+          </div>
 
-      <div className="group/status relative h-full flex items-center min-w-0">
-        <div
-          className="flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors py-1 h-full w-full"
-          onClick={(e) => {
-            e.stopPropagation();
-            setOpenStatusPickerTaskId(openStatusPickerTaskId === task.id ? null : task.id);
-          }}
-          title={t('dashboard.updateStatus', 'Update status')}
-        >
-          <span className={`w-2.5 h-2.5 rounded-full ring-2 ring-white shadow-sm mb-1 ${getStatusDotColor(task.status)}`}></span>
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[40px]">
-            {task.status}
-          </span>
-        </div>
-        {openStatusPickerTaskId === task.id && (
-          <StatusPicker
-            task={task}
-            onClose={() => setOpenStatusPickerTaskId(null)}
-          />
-        )}
-      </div>
-
-      <div className="group/assignee relative h-full flex items-center justify-center pr-1">
-        <div
-          className="flex -space-x-1.5 cursor-pointer hover:scale-110 transition-transform p-1"
-          onClick={(e) => {
-            e.stopPropagation();
-            setOpenPickerTaskId(openPickerTaskId === task.id ? null : task.id);
-          }}
-          title={t('dashboard.updateAssignees', 'Update assignees')}
-        >
-          {task.assignees.length > 0 ? (
-            <>
-              {task.assignees.slice(0, 3).map((user: User, idx: number) => (
-                <div key={user.id} className={`w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
-                  {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.initials} className="w-full h-full rounded-full object-cover" />
-                  ) : user.initials}
-                </div>
-              ))}
-              {task.assignees.length > 3 && (
-                <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[8px] font-bold bg-slate-100 text-slate-500" style={{ zIndex: 0 }}>
-                  +{task.assignees.length - 3}
+          <div className="group/assignee relative flex items-center justify-center">
+            <div
+              className="flex -space-x-1 cursor-pointer hover:scale-105 transition-transform"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenPickerTaskId(openPickerTaskId === task.id ? null : task.id);
+              }}
+              title={t('dashboard.updateAssignees', 'Update assignees')}
+            >
+              {task.assignees.length > 0 ? (
+                <>
+                  {task.assignees.slice(0, 3).map((user: User, idx: number) => (
+                    <div key={user.id} className={`w-4 h-4 rounded-full border border-white shadow-sm flex items-center justify-center text-[7px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
+                      {user.avatarUrl ? (
+                        <img src={user.avatarUrl} alt={user.initials} className="w-full h-full rounded-full object-cover" />
+                      ) : user.initials}
+                    </div>
+                  ))}
+                  {task.assignees.length > 3 && (
+                    <div className="w-4 h-4 rounded-full border border-white shadow-sm flex items-center justify-center text-[6px] font-bold bg-slate-100 text-slate-500" style={{ zIndex: 0 }}>
+                      +{task.assignees.length - 3}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="w-4 h-4 rounded-full border border-dashed border-slate-200 flex items-center justify-center text-slate-300">
+                  <span className="material-symbols-outlined text-[10px]">person_add</span>
                 </div>
               )}
-            </>
-          ) : (
-            <div className="w-6 h-6 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300">
-              <span className="material-symbols-outlined text-[14px]">person_add</span>
             </div>
-          )}
+            {openPickerTaskId === task.id && (
+              <AssigneePicker
+                taskId={task.id}
+                currentAssignees={task.assignees}
+                repository={task.repository}
+                onClose={() => setOpenPickerTaskId(null)}
+              />
+            )}
+          </div>
         </div>
-        {openPickerTaskId === task.id && (
-          <AssigneePicker
-            taskId={task.id}
-            currentAssignees={task.assignees}
-            repository={task.repository}
-            onClose={() => setOpenPickerTaskId(null)}
-          />
-        )}
-      </div>
+        <div className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{getStartDateForCal(task)} - {getTargetDateForCal(task)}</div>
+      </TreeTitleCell>
 
       <div className={`absolute right-2 ${isFirst ? 'top-full translate-y-[-60%]' : 'bottom-full translate-y-[60%]'} flex items-center gap-1 opacity-0 ${showHoverActions ? 'group-hover:opacity-100' : ''} transition-opacity z-10 pointer-events-none bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
         <IconButton
