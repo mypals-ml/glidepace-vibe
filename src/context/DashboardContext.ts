@@ -154,7 +154,9 @@ export interface DashboardContextValue {
 
   // Timeline / Gantt navigation
   requestedCenterDate: string | null;
+  requestedCenterTaskId: string | null;
   centerGanttOnDate: (date: string | null) => void;
+  centerGanttOnTask: (taskId: string, date: string | null) => void;
 }
 
 export const DashboardContext = createContext<DashboardContextValue | null>(null);

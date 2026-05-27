@@ -25,6 +25,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [requestedCenterDate, setRequestedCenterDate] = useState<string | null>(null);
+  const [requestedCenterTaskId, setRequestedCenterTaskId] = useState<string | null>(null);
   
   const [isStartDatePromptOpen, setIsStartDatePromptOpen] = useState(false);
   const [startDatePromptTasks, setStartDatePromptTasks] = useState<Task[]>([]);
@@ -38,6 +39,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     if (date) {
       setTimeout(() => setRequestedCenterDate(null), 100);
     }
+  }, []);
+
+  const centerGanttOnTask = useCallback((taskId: string, date: string | null) => {
+    setRequestedCenterTaskId(taskId);
+    setRequestedCenterDate(date);
+    setTimeout(() => {
+      setRequestedCenterTaskId(null);
+      setRequestedCenterDate(null);
+    }, 100);
   }, []);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -372,7 +382,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     showToast,
     hideToast,
     requestedCenterDate,
+    requestedCenterTaskId,
     centerGanttOnDate,
+    centerGanttOnTask,
     isStartDatePromptOpen,
     setIsStartDatePromptOpen,
     startDatePromptTasks,

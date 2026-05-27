@@ -205,7 +205,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     fieldsProgress,
     mappingStatus,
     setIsTaskDetailsOpen,
-    centerGanttOnDate,
+    centerGanttOnTask,
     isLinkMode,
     setIsLinkMode,
     selectedLinkTaskIds,
@@ -344,7 +344,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
     const startDate = task ? getStartDateForCal(task) : null;
     if (startDate) {
-      centerGanttOnDate(startDate);
+      centerGanttOnTask(task.id, startDate);
     }
 
     setContextMenu(null);
@@ -654,7 +654,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       setOpenStatusPickerTaskId={setOpenStatusPickerTaskId}
                       setIsLinkMode={setIsLinkMode}
                       setSelectedLinkTaskIds={setSelectedLinkTaskIds}
-                      centerGanttOnDate={centerGanttOnDate}
+                      centerGanttOnTask={centerGanttOnTask}
                       t={t}
                     />
                   )
@@ -983,15 +983,17 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                           setDraggedGroupFieldId(null);
                         }}
                         onDragEnd={() => setDraggedGroupFieldId(null)}
-                        className="inline-flex max-w-[180px] shrink-0 cursor-grab items-start gap-1 rounded-md border border-primary/15 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm active:cursor-grabbing"
+                        className="inline-flex max-w-[180px] shrink-0 cursor-grab items-stretch gap-1 rounded-md border border-primary/15 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm active:cursor-grabbing"
                       >
-                        <span className="material-symbols-outlined mt-0.5 text-[14px] text-slate-400">drag_indicator</span>
-                        <span className="line-clamp-2 min-w-0 whitespace-normal break-words leading-snug" title={field.name}>{field.name}</span>
+                        <span className="material-symbols-outlined self-center text-[14px] text-slate-400">drag_indicator</span>
+                        <span className="flex min-w-0 flex-1 items-center">
+                          <span className="line-clamp-2 min-w-0 whitespace-normal break-words leading-snug" title={field.name}>{field.name}</span>
+                        </span>
                         <IconButton
                           icon="close"
                           variant="ghost"
                           size="xs"
-                          className="shrink-0"
+                          className="shrink-0 self-center"
                           onClick={() => toggleDraftGroupField(fieldId)}
                           aria-label={t('dashboard.removeField', 'Remove field')}
                         />
@@ -1442,7 +1444,7 @@ interface SortableTaskRowProps {
   setOpenStatusPickerTaskId: Dispatch<SetStateAction<string | null>>;
   setIsLinkMode: (mode: boolean) => void;
   setSelectedLinkTaskIds: (tasks: string[] | ((prev: string[]) => string[])) => void;
-  centerGanttOnDate: (date: string | null) => void;
+  centerGanttOnTask: (taskId: string, date: string | null) => void;
   t: TFunction;
 }
 
@@ -1466,7 +1468,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
   setOpenStatusPickerTaskId,
   setIsLinkMode,
   setSelectedLinkTaskIds,
-  centerGanttOnDate,
+  centerGanttOnTask,
   t,
 }: SortableTaskRowProps) {
   const {
@@ -1663,7 +1665,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
           onClick={(e) => {
             e.stopPropagation();
             const startDate = getStartDateForCal(task);
-            if (startDate) centerGanttOnDate(startDate);
+            if (startDate) centerGanttOnTask(task.id, startDate);
           }}
           title={t('dashboard.centerInGantt') || 'Center in Gantt'}
           aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
