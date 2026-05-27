@@ -1069,7 +1069,7 @@ export function useDashboardTasks({
       const mutation = task.isDraft ? UPDATE_DRAFT_TITLE_MUTATION : UPDATE_ISSUE_TITLE_MUTATION;
       const res = await fetchGitHubGraphQL(mutation, { id: task.contentId, title }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
       return true;
     } catch (e) {
       console.error(e);
@@ -1083,7 +1083,7 @@ export function useDashboardTasks({
       const mutation = task.isDraft ? UPDATE_DRAFT_BODY_MUTATION : UPDATE_ISSUE_BODY_MUTATION;
       const res = await fetchGitHubGraphQL(mutation, { id: task.contentId, body: description }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
       return true;
     } catch (e) {
       console.error(e);
@@ -1096,7 +1096,7 @@ export function useDashboardTasks({
     try {
       const res = await fetchGitHubGraphQL(UPDATE_ISSUE_COMMENT_MUTATION, { id: commentId, body }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
       return true;
     } catch (e) {
       console.error(e);
@@ -1109,7 +1109,7 @@ export function useDashboardTasks({
     try {
       const res = await fetchGitHubGraphQL(DELETE_ISSUE_COMMENT_MUTATION, { id: commentId }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
       return true;
     } catch (e) {
       console.error(e);
@@ -1122,7 +1122,7 @@ export function useDashboardTasks({
     try {
       const res = await fetchGitHubGraphQL(ADD_ISSUE_COMMENT_MUTATION, { subjectId: task.contentId, body }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
       return true;
     } catch (e) {
       console.error(e);
