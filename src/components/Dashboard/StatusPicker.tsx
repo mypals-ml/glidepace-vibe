@@ -48,8 +48,16 @@ export function StatusPicker({ task, onClose, onSelect }: StatusPickerProps) {
     };
 
     calculatePlacement();
+
+    const timer = setTimeout(() => {
+      panelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 100);
+
     window.addEventListener('resize', calculatePlacement);
-    return () => window.removeEventListener('resize', calculatePlacement);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', calculatePlacement);
+    };
   }, [statuses]);
 
   return (

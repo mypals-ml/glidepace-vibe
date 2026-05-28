@@ -7,6 +7,8 @@ const makeTask = (overrides: Partial<Task>): Task => ({
   itemId: overrides.itemId || overrides.id || 'B',
   displayId: overrides.displayId || overrides.id || 'B',
   title: overrides.title || overrides.id || 'B',
+  body: overrides.body,
+  comments: overrides.comments || [],
   startDate: overrides.startDate || '2026-03-23',
   targetDate: overrides.targetDate || '2026-03-23',
   tempStartDate: overrides.tempStartDate,
