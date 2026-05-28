@@ -256,6 +256,7 @@ const resources = {
       table: {
         id: "ID",
         title: "Title",
+        tasks: "Tasks",
         status: "Status",
         assignees: "Assignees",
       },
@@ -536,6 +537,7 @@ const resources = {
       table: {
         id: "ID",
         title: "タイトル",
+        tasks: "タスク",
         status: "ステータス",
         assignees: "担当者",
       },
@@ -816,6 +818,7 @@ const resources = {
       table: {
         id: "ID",
         title: "标题",
+        tasks: "任务",
         status: "状态",
         assignees: "经办人",
       },
@@ -1096,6 +1099,7 @@ const resources = {
       table: {
         id: "ID",
         title: "標題",
+        tasks: "任務",
         status: "狀態",
         assignees: "經辦人",
       },

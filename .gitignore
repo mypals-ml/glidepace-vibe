@@ -27,3 +27,4 @@ dist-ssr
 lint_output.json
 docs/demo/*
 *.patch
+scripts/*
