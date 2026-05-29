@@ -1,53 +1,45 @@
-# Glidelines Todo Automation Prompt
+@chrome
 
-Open the Glidelines task board at `https://glidelines.vercel.app/?project=PVT_kwDODNQhvs4BWmqS&account=10445658`.
+## Objective
+Automate the Glidelines task board workflow using the Chrome browser and its extension client.
 
-## Browser/Profile Requirement
+## Setup
+1. Open Google Chrome with profile `codex_auto`.
+2. Navigate to: `https://glidelines.vercel.app/?project=PVT_kwDODNQhvs4BWmqS&account=10445658`
+3. Verify Chrome extension connectivity by running:
+   `node /Users/wanghui/.codex/plugins/cache/openai-bundled/chrome/26.519.81530/scripts/browser-client.mjs list_tabs --profile codex_auto`
+   - If the command fails or returns no tabs after one retry, stop and report the connection status. Do not proceed with DOM interactions.
 
-- You MUST use the Google Chrome profile named `codex_auto` for all browser automation in this task.
-  - To find its corresponding profile directory name (e.g., `Profile 1`, `Profile 2`), parse Chrome's `Local State` file (located at `~/Library/Application Support/Google/Chrome/Local State` on macOS) and look under `profile.info_cache` for the entry where the profile `name` matches `codex_auto`.
-- Do NOT use the default Chrome profile, any personal profile, incognito profile, temporary profile, embedded browser, or in-app browser profile.
-- Before doing any board work, verify that the active controlled browser session is the Google Chrome profile `codex_auto`.
-  - Try to find and connect to an existing, remote debugging enabled Chrome browser first.
-  - If no existing operatable Chrome browser is found, start Chrome in the foreground (with remote debugging enabled) using the identified `codex_auto` profile directory name.
-- If the `codex_auto` profile is not available, terminate the entire job and report that blocker.
-- If the Codex Chrome Extension is not installed and enabled in the `codex_auto` profile, terminate the entire job and report that blocker.
-- If the `codex_auto` profile is not already logged into Glidelines/GitHub, terminate the entire job and report that blocker.
-- Do not sign in, switch profiles, or continue in any fallback browser/profile.
-
-## Task Workflow
-
-- Find the first task whose state is `Todo`.
-- If there is no task in state `Todo`, terminate the current automation task.
-- Otherwise, change that task state to `In progress`.
-- Add a comment: `CodeX Automation is working on it <current datetime>`.
-- Open the task and read its title, description, and comments.
+## Task Workflow (repeat until no more Todo tasks or time/context limit reached)
+1. Find the **first** task card whose state is `Todo`.
+2. If no `Todo` tasks exist, terminate the automation and report completion.
+3. Change that task’s state to `In progress`.
+4. Add a comment: `CodeX Automation is working on it <current datetime in Asia/Tokyo>`.
+5. Open the task and read its title, description, and all comments.
 
 ## Implementation Workflow
-
-- Follow repository instructions in `AGENTS.md` and any referenced instruction files before editing code.
-- Use the repository in the configured workspace to write an implementation and test plan.
-- Review the plan for gaps, risks, edge cases, and missing verification.
-- Execute the implementation.
-- Run appropriate tests and required repository checks.
+- Follow the repository instructions in `AGENTS.md` and any files it references (especially `ANTIGRAVITY.md`) **before** editing any code.
+- In the workspace, create a clear implementation + test plan for the task.
+- Review the plan for gaps, risks, edge cases, and missing verification steps.
+- Implement the changes.
+- Run relevant tests and all required repository checks (lint, type-check, build, etc.).
 
 ## Completion Workflow
+1. Commit the changes locally.
+2. Push the commit to remote `origin`.
+3. Change the task state to `In review`.
+4. Add a comment in this exact format (must be ≤ 220 characters):
+   `CodeX Automation committed the changes <current datetime> | <brief execution walkthrough>`
+   - The walkthrough must concisely summarize what was implemented and how it was verified.
 
-- Commit the changes locally.
-- Push the commit to remote `origin`.
-- When the work is complete and tested, change the task state to `In review`.
-- Add a comment in this format: `CodeX Automation committed the changes <current datetime> | <brief execution walkthrough>`.
-- The walkthrough must briefly summarize what was implemented and how it was verified.
-- Keep the full completion comment under 220 characters.
+## Continuation & Guardrails
+- After finishing one task, immediately check for the next `Todo` task.
+- Apply the same Chrome extension connectivity check before starting work on any additional task.
+- Maximum 3 tasks per automation run (to avoid runaway loops).
+- If any step fails (connectivity, UI interaction, tests, push, etc.), stop, report the failure, and do not continue to the next task.
 
-## Continuation
-
-- Then continue to the next `Todo` task if time and context permit.
-- Apply the same browser/profile checks before modifying any additional task.
-
-## Reporting
-
-- Report what task was handled.
-- Report what changed.
-- Report what tests/checks ran.
-- Report any blockers.
+## Reporting (at the end of the run)
+- Which task(s) were handled.
+- What code changes were made.
+- What tests/checks were executed and their results.
+- Any blockers or failures encountered.
