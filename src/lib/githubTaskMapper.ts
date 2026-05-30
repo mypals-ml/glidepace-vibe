@@ -1,5 +1,5 @@
 import i18n from '../i18n';
-import type { Task, GitHubProjectItem, GitHubFieldValue, ProjectDateSettings, GitHubAssignee, GitHubComment } from '../types';
+import type { Task, TaskComment, GitHubProjectItem, GitHubFieldValue, ProjectDateSettings, GitHubAssignee, GitHubComment } from '../types';
 import { calculateTargetDate, calculateStartDate, diffDays } from './dateUtils';
 import { parseGroupPath } from './taskGroupUtils';
 
@@ -42,19 +42,6 @@ export const PROJECT_ITEM_FRAGMENT = `
       assignees(first: 20) {
         nodes { id login name avatarUrl }
       }
-      comments(first: 10) {
-        nodes {
-          id
-          body
-          createdAt
-          author {
-            login
-            avatarUrl
-            ... on User { name }
-            ... on Organization { name }
-          }
-        }
-      }
     }
     ... on PullRequest {
       id
@@ -68,19 +55,6 @@ export const PROJECT_ITEM_FRAGMENT = `
       repository { nameWithOwner }
       assignees(first: 20) {
         nodes { id login name avatarUrl }
-      }
-      comments(first: 10) {
-        nodes {
-          id
-          body
-          createdAt
-          author {
-            login
-            avatarUrl
-            ... on User { name }
-            ... on Organization { name }
-          }
-        }
       }
     }
   }
@@ -125,11 +99,29 @@ export const PROJECT_ITEM_FRAGMENT = `
   }
 `;
 
+export function mapGitHubCommentToTaskComment(comment: GitHubComment): TaskComment {
+  const authorLogin = comment.author?.login || 'unknown';
+  const authorName = comment.author?.name || authorLogin;
+  return {
+    id: comment.id,
+    author: {
+      id: authorLogin,
+      login: authorLogin,
+      name: authorName,
+      avatarUrl: comment.author?.avatarUrl,
+      initials: authorName.substring(0, 2).toUpperCase(),
+      avatarColor: 'bg-slate-100 text-slate-500',
+    },
+    body: comment.body || '',
+    createdAt: comment.createdAt || new Date().toISOString(),
+  };
+}
+
 export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: ProjectDateSettings): Task {
   if (!item) return { id: 'error', displayId: 'error', title: i18n.t('dashboard.invalidItem'), startDate: '', targetDate: '', status: 'Todo', assignees: [], progress: 0 };
   
   const content = item.content;
-  const fieldValues = item.fieldValues?.nodes || [];
+  const fieldValues = (item.fieldValues?.nodes || []).filter(Boolean);
 
   const statusField = fieldValues.find((f: GitHubFieldValue) => 
     f.field?.name?.toLowerCase() === 'status' || 
@@ -223,28 +215,36 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     }
   }
 
-  const assignees = (assigneeNodes || []).map((a: GitHubAssignee, idx: number) => ({
-    id: a.id || a.login || 'unknown',
-    login: a.login,
-    name: a.name || a.login || 'Unknown',
-    avatarUrl: a.avatarUrl,
-    initials: (a.name || a.login || '??').substring(0, 2).toUpperCase(),
-    avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
-  }));
+  const assignees = (assigneeNodes || [])
+    .filter((a): a is GitHubAssignee => !!a && (!!a.id || !!a.login))
+    .map((a: GitHubAssignee, idx: number) => {
+      const login = a.login || 'unknown';
+      const name = a.name || login;
+      return {
+        id: a.id || login,
+        login: login,
+        name: name,
+        avatarUrl: a.avatarUrl,
+        initials: name.substring(0, 2).toUpperCase(),
+        avatarColor: ['bg-amber-200 text-amber-700', 'bg-indigo-200 text-indigo-700', 'bg-emerald-200 text-emerald-700', 'bg-rose-200 text-rose-700'][idx % 4],
+      };
+    });
 
-  const comments = (content?.comments?.nodes || []).map((comment: GitHubComment) => ({
-    id: comment.id,
-    author: {
-      id: comment.author?.login || 'unknown',
-      login: comment.author?.login,
-      name: comment.author?.name || comment.author?.login || 'Unknown',
-      avatarUrl: comment.author?.avatarUrl,
-      initials: (comment.author?.name || comment.author?.login || 'UK').substring(0, 2).toUpperCase(),
-      avatarColor: 'bg-slate-100 text-slate-500',
-    },
-    body: comment.body,
-    createdAt: comment.createdAt,
-  }));
+  let comments: TaskComment[] | undefined = undefined;
+  if (content && content.comments) {
+    console.log('[githubTaskMapper] Mapping comments for item content:', {
+      itemId: item.id,
+      contentId: content?.id,
+      commentsNode: content.comments
+    });
+
+    comments = (content.comments.nodes || [])
+      .filter(Boolean)
+      .map(mapGitHubCommentToTaskComment);
+
+    console.log('[githubTaskMapper] Mapped comments:', comments);
+  }
+
 
   const projectFieldIds: Record<string, string> = {};
   const projectFieldValues: Record<string, string> = {};

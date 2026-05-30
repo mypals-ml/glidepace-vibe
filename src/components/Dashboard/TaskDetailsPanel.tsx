@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useDashboard } from '../../context/DashboardContext';
@@ -13,6 +13,7 @@ import { ResizableTextarea } from '../UI/ResizableTextarea';
 import { calculateTargetDate } from '../../lib/dateUtils';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { copyTextToClipboard } from '../../lib/clipboard';
+
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -184,10 +185,31 @@ export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetail
 }
 
 function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: TFunction; isCreateMode?: boolean }) {
-  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, deleteTask, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, setIsTaskDetailsOpen, setSelectedTaskId, showToast, dateSettings, projectFields, pendingTaskInsertPosition, setPendingTaskInsertPosition } = useDashboard();
+  const { fetchTaskComments, isFetchingComments, fetchSingleProjectItem, githubToken, updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, deleteTask, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, setIsTaskDetailsOpen, setSelectedTaskId, showToast, dateSettings, projectFields, pendingTaskInsertPosition, setPendingTaskInsertPosition } = useDashboard();
+
+  useEffect(() => {
+    if (!isCreateMode && task?.itemId && githubToken) {
+      console.log(`[TaskDetailsPanel] ⚡ Task detail view opened for task itemId: ${task.itemId}. Fetching comments/details...`);
+      fetchSingleProjectItem(task.itemId, githubToken)
+        .then(() => {
+          console.log(`[TaskDetailsPanel] ✅ Finished fetching comments/details for task itemId: ${task.itemId}`);
+        })
+        .catch((err: unknown) => {
+          console.error(`[TaskDetailsPanel] ❌ Failed fetching comments/details for task itemId: ${task.itemId}`, err);
+        });
+
+      if (task.contentId) {
+        fetchTaskComments(task.id, task.contentId, githubToken)
+          .catch((err: unknown) => {
+            console.error(`[TaskDetailsPanel] ❌ Failed fetching comments for task: ${task.id}`, err);
+          });
+      }
+    }
+  }, [task?.itemId, task?.contentId, task?.id, githubToken, isCreateMode, fetchSingleProjectItem, fetchTaskComments]);
 
   // Derive a repository from existing tasks so the AssigneePicker can fetch assignable users
   const projectRepository = tasks.find(t => t.repository)?.repository;
+
 
   // Create Mode state
   const [newTitle, setNewTitle] = useState('');
@@ -804,9 +826,20 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
 
       {/* Comments Section */}
       <div className="border-t border-slate-200/60 pt-3">
-        <label className="text-xs font-medium text-slate-600 block mb-3">
-          {t('dashboard.comments', { count: (task.comments || []).length })}
-        </label>
+        <div className="flex items-center justify-between mb-3">
+          <label className="text-xs font-medium text-slate-600">
+            {t('dashboard.comments', { count: (task.comments || []).length })}
+          </label>
+          {isFetchingComments[task.id] && (
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+              <svg className="animate-spin h-3 w-3 text-slate-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span>{t('dashboard.loadingComments', 'Loading comments...')}</span>
+            </div>
+          )}
+        </div>
         
         {task.isDraft ? (
           <div className="bg-slate-50 rounded-lg p-4 border border-slate-200/60">

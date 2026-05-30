@@ -8,7 +8,7 @@ const makeTask = (overrides: Partial<Task>): Task => ({
   displayId: overrides.displayId || overrides.id || 'B',
   title: overrides.title || overrides.id || 'B',
   body: overrides.body,
-  comments: overrides.comments || [],
+  comments: 'comments' in overrides ? overrides.comments : [],
   startDate: overrides.startDate || '2026-03-23',
   targetDate: overrides.targetDate || '2026-03-23',
   tempStartDate: overrides.tempStartDate,
@@ -91,5 +91,24 @@ describe('mergeFetchedTaskWithLocalState', () => {
     expect(merged.progress).toBe(50);
     expect(merged.comments).toEqual(existingComments);
     expect(merged.assignees).toEqual(existingAssignees);
+  });
+
+  it('preserves existing comments when fetched.comments is undefined, even outside protection window', () => {
+    const existingComments = [{
+      id: 'comment-1',
+      author: { id: 'user-1', name: 'User One', initials: 'U1', avatarColor: 'bg-red-100' },
+      body: 'Existing comment content',
+      createdAt: '2026-03-24T12:00:00Z',
+    }];
+    const existing = makeTask({
+      comments: existingComments,
+      localUpdateTimestamp: undefined,
+    });
+    const fetched = makeTask({
+      comments: undefined,
+    });
+
+    const merged = mergeFetchedTaskWithLocalState(existing, fetched);
+    expect(merged.comments).toEqual(existingComments);
   });
 });

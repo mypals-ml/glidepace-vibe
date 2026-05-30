@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchGitHubGraphQL, getRepositoryId, createGitHubIssue, addProjectV2Item, addProjectV2DraftIssue, updateProjectV2ItemField, clearProjectV2ItemField, updateProjectV2ItemPosition } from '../lib/githubService';
-import { mapProjectItemToTask } from '../lib/githubTaskMapper';
+import { mapProjectItemToTask, mapGitHubCommentToTaskComment } from '../lib/githubTaskMapper';
 import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
 import { autoCorrectDependencyFields, cascadeTaskDates, cascadeAllTasks, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../lib/taskDependencyUtils';
@@ -27,7 +27,8 @@ import {
   DELETE_ISSUE_COMMENT_MUTATION,
   ADD_ISSUE_COMMENT_MUTATION,
   DELETE_PROJECT_ITEM_MUTATION,
-  DELETE_ISSUE_MUTATION
+  DELETE_ISSUE_MUTATION,
+  GET_ISSUE_COMMENTS_QUERY
 } from '../lib/githubQueries';
 import type { Task, TaskComment, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode, FixedSuccessorStartDateMode, TaskInsertPosition, GroupPath } from '../types';
 
@@ -129,6 +130,8 @@ export function useDashboardTasks({
   }, []);
 
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [isFetchingComments, setIsFetchingComments] = useState<Record<string, boolean>>({});
+  const ongoingCommentFetchesRef = useRef<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [projectStatusOptions, setProjectStatusOptions] = useState<string[]>([]);
   const [projectFields, setProjectFields] = useState<GitHubProjectV2Field[]>([]);
@@ -233,19 +236,36 @@ export function useDashboardTasks({
           isDraft: updatedTask.isDraft,
           contentId: updatedTask.contentId
         });
-        const currentTasks = tasksRef.current;
-        const index = currentTasks.findIndex(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
-        const mergedTasks = index === -1 ? [...currentTasks, updatedTask] : [...currentTasks];
-        if (index !== -1) {
-          mergedTasks[index] = mergeFetchedTaskWithLocalState(mergedTasks[index], updatedTask);
+
+        // 1. Calculate snapshot for async side-effects/persistence using the tasksRef.current at this instant
+        const currentTasksAtThisInstant = tasksRef.current;
+        const indexAtThisInstant = currentTasksAtThisInstant.findIndex(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
+        const mergedTasksAtThisInstant = indexAtThisInstant === -1 ? [...currentTasksAtThisInstant, updatedTask] : [...currentTasksAtThisInstant];
+        if (indexAtThisInstant !== -1) {
+          mergedTasksAtThisInstant[indexAtThisInstant] = mergeFetchedTaskWithLocalState(mergedTasksAtThisInstant[indexAtThisInstant], updatedTask);
         }
-        const dependencyRepair = autoCorrectDependencyFields(mergedTasks);
-        const cascadedTasks = cascadeTaskDates(dependencyRepair.tasks, updatedTask.itemId || updatedTask.id, new Set(), {
+        const dependencyRepairAtThisInstant = autoCorrectDependencyFields(mergedTasksAtThisInstant);
+        const cascadedTasksAtThisInstant = cascadeTaskDates(dependencyRepairAtThisInstant.tasks, updatedTask.itemId || updatedTask.id, new Set(), {
           fixedStartDateMode: getProjectFixedStartDateMode(dateSettingsRef.current),
         });
-        setTasks(cascadedTasks);
+
+        // 2. Perform state update via functional updater to merge correctly with whatever changes might have occurred in the meantime
+        setTasks(currentTasks => {
+          const index = currentTasks.findIndex(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
+          const mergedTasks = index === -1 ? [...currentTasks, updatedTask] : [...currentTasks];
+          if (index !== -1) {
+            mergedTasks[index] = mergeFetchedTaskWithLocalState(mergedTasks[index], updatedTask);
+          }
+          const dependencyRepair = autoCorrectDependencyFields(mergedTasks);
+          const cascadedTasks = cascadeTaskDates(dependencyRepair.tasks, updatedTask.itemId || updatedTask.id, new Set(), {
+            fixedStartDateMode: getProjectFixedStartDateMode(dateSettingsRef.current),
+          });
+          return cascadedTasks;
+        });
+
+        // 3. Trigger persistence using the snapshot results to avoid holding state update references
         if (selectedProject?.id) {
-          await persistDependencyFieldCorrections(dependencyRepair.corrections, cascadedTasks, selectedProject.id, token, dateSettingsRef.current);
+          await persistDependencyFieldCorrections(dependencyRepairAtThisInstant.corrections, cascadedTasksAtThisInstant, selectedProject.id, token, dateSettingsRef.current);
         }
         updateSyncTime();
 
@@ -265,6 +285,85 @@ export function useDashboardTasks({
       console.error('Failed to fetch single project item:', e);
     }
   }, [updateSyncTime, selectedProject?.id, setTasks]);
+
+  const fetchTaskComments = useCallback(async (taskId: string, contentId: string, token: string) => {
+    if (!contentId || !token) return;
+    
+    // Check if we are already fetching comments for this task to avoid concurrent duplicate requests
+    if (ongoingCommentFetchesRef.current[taskId]) {
+      console.log(`[DashboardTasks] 💬 Already fetching comments for task ${taskId} (active request check), skipping duplicate call`);
+      return;
+    }
+    
+    ongoingCommentFetchesRef.current[taskId] = true;
+    console.log(`[DashboardTasks] 💬 Starting paginated comment fetch for task: ${taskId}, contentId: ${contentId}`);
+    
+    setIsFetchingComments(prev => ({ ...prev, [taskId]: true }));
+    
+    try {
+      let hasNextPage = true;
+      let cursor: string | undefined = undefined;
+      let pageCount = 0;
+      
+      while (hasNextPage) {
+        pageCount++;
+        console.log(`[DashboardTasks] 💬 Fetching page ${pageCount} of comments for ${taskId} (cursor: ${cursor || 'start'})`);
+        
+        const variables: Record<string, string | number | boolean | undefined> = { 
+          nodeId: contentId,
+          cursor
+        };
+        
+        const json = await fetchGitHubGraphQL(GET_ISSUE_COMMENTS_QUERY, variables, token);
+        
+        const node = json.data?.node;
+        const commentsData = node?.comments || (node?.__typename === 'Issue' || node?.__typename === 'PullRequest' ? node.comments : null);
+
+        if (json.errors) {
+          console.warn(`[DashboardTasks] GraphQL errors (possibly non-fatal) fetching comments for ${taskId}:`, json.errors);
+          if (!node || !commentsData) {
+            console.error(`[DashboardTasks] Fatal GraphQL error: comments data was not returned.`);
+            break;
+          }
+        }
+        
+        if (!commentsData) {
+          console.warn(`[DashboardTasks] ⚠️ No comments connection found on node for ${taskId}`);
+          break;
+        }
+        
+        const rawComments = commentsData.nodes || [];
+        const mappedComments: TaskComment[] = rawComments
+          .filter(Boolean)
+          .map(mapGitHubCommentToTaskComment);
+          
+        console.log(`[DashboardTasks] 💬 Fetched ${mappedComments.length} comments in page ${pageCount}`);
+        
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId || t.itemId === taskId) {
+            const currentComments = pageCount === 1 ? [] : (t.comments || []);
+            const existingIds = new Set(currentComments.map(c => c.id));
+            const newComments = mappedComments.filter(c => !existingIds.has(c.id));
+            return {
+              ...t,
+              comments: [...currentComments, ...newComments]
+            };
+          }
+          return t;
+        }));
+        
+        hasNextPage = commentsData.pageInfo?.hasNextPage || false;
+        cursor = commentsData.pageInfo?.endCursor;
+      }
+      
+      console.log(`[DashboardTasks] ✅ Finished comment fetch for task ${taskId}`);
+    } catch (e) {
+      console.error(`Failed to fetch comments for task ${taskId}:`, e);
+    } finally {
+      ongoingCommentFetchesRef.current[taskId] = false;
+      setIsFetchingComments(prev => ({ ...prev, [taskId]: false }));
+    }
+  }, [setTasks]);
 
   const fetchProjectTasks = useCallback(async (projectId: string, token: string) => {
     setIsLoadingTasks(true);
@@ -290,13 +389,6 @@ export function useDashboardTasks({
 
         const json = await fetchGitHubGraphQL(GET_PROJECT_TASKS_QUERY, variables, token);
 
-        if (json.errors) {
-          console.error('GraphQL Errors fetching items:', JSON.stringify(json.errors, null, 2));
-          setApiError(json.errors.map((e: { message: string }) => e.message).join(', '));
-          setTasks([]);
-          return;
-        }
-
         const projectNode = json.data?.node as { 
           fields?: { 
             totalCount: number,
@@ -308,6 +400,16 @@ export function useDashboardTasks({
             pageInfo: { hasNextPage: boolean, endCursor: string } 
           } 
         };
+
+        if (json.errors) {
+          console.warn('GraphQL Errors (possibly non-fatal) fetching items:', JSON.stringify(json.errors, null, 2));
+          if (!projectNode) {
+            console.error('Fatal GraphQL Error: No project node returned.');
+            setApiError(json.errors.map((e: { message: string }) => e.message).join(', '));
+            setTasks([]);
+            return;
+          }
+        }
 
         if (hasNextFields) {
           const fieldsConn = projectNode?.fields;
@@ -342,11 +444,47 @@ export function useDashboardTasks({
 
       setApiError(null);
   
-      const mappedTasks: Task[] = allItems.map(item => mapProjectItemToTask(item, dateSettingsRef.current));
+      // 1. Calculate snapshot for async side-effects/persistence using the tasksRef.current at this instant
+      const existingTasksAtThisInstant = tasksRef.current;
+      const existingTasksMapAtThisInstant = new Map(existingTasksAtThisInstant.map(t => [t.itemId || t.id, t]));
+
+      const mappedTasksAtThisInstant: Task[] = allItems.map(item => {
+        const fetched = mapProjectItemToTask(item, dateSettingsRef.current);
+        const existing = existingTasksMapAtThisInstant.get(fetched.itemId || fetched.id);
+        if (existing) {
+          return mergeFetchedTaskWithLocalState(existing, fetched);
+        }
+        return fetched;
+      });
+
+      const dependencyRepairAtThisInstant = autoCorrectDependencyFields(mappedTasksAtThisInstant);
+      const cascadedTasksAtThisInstant = cascadeAllTasks(dependencyRepairAtThisInstant.tasks, {
+        fixedStartDateMode: getProjectFixedStartDateMode(dateSettingsRef.current),
+      });
+
+      // 2. Perform state update via functional updater to merge correctly with whatever changes might have occurred in the meantime
+      setTasks(currentTasks => {
+        const existingTasksMap = new Map(currentTasks.map(t => [t.itemId || t.id, t]));
+        const mappedTasks: Task[] = allItems.map(item => {
+          const fetched = mapProjectItemToTask(item, dateSettingsRef.current);
+          const existing = existingTasksMap.get(fetched.itemId || fetched.id);
+          if (existing) {
+            return mergeFetchedTaskWithLocalState(existing, fetched);
+          }
+          return fetched;
+        });
+        const dependencyRepair = autoCorrectDependencyFields(mappedTasks);
+        const cascadedTasks = cascadeAllTasks(dependencyRepair.tasks, {
+          fixedStartDateMode: getProjectFixedStartDateMode(dateSettingsRef.current),
+        });
+        return cascadedTasks;
+      });
+
+      // 3. Trigger side-effects and persistence using snapshot results to avoid holding state update references
       logDashboardEvent('[DashboardTasks] Refresh completed', {
         refreshKind: 'full_project',
         projectId,
-        refreshedItemCount: mappedTasks.length,
+        refreshedItemCount: mappedTasksAtThisInstant.length,
         refreshedFieldCount: allFields.length,
       });
 
@@ -358,19 +496,14 @@ export function useDashboardTasks({
         setProjectStatusOptions(statusOptions.map(o => o.name));
       }
 
-      const dependencyRepair = autoCorrectDependencyFields(mappedTasks);
-      const cascadedTasks = cascadeAllTasks(dependencyRepair.tasks, {
-        fixedStartDateMode: getProjectFixedStartDateMode(dateSettingsRef.current),
-      });
       setProjectFields(allFields);
-      setTasks(cascadedTasks);
       if (selectedProject?.id) {
-        await persistDependencyFieldCorrections(dependencyRepair.corrections, cascadedTasks, selectedProject.id, token, dateSettingsRef.current);
+        await persistDependencyFieldCorrections(dependencyRepairAtThisInstant.corrections, cascadedTasksAtThisInstant, selectedProject.id, token, dateSettingsRef.current);
       }
       updateSyncTime();
 
       // Auto-sync missing values for Done tasks
-      mappedTasks.forEach(task => {
+      mappedTasksAtThisInstant.forEach(task => {
         if (task.progress === 100 && task.itemId && selectedProject?.id) {
           const updateField = async (fieldId: string | undefined, value: Record<string, string | number | boolean | undefined>) => {
             if (fieldId) await updateProjectV2ItemField(selectedProject.id, task.itemId!, fieldId, value, token);
@@ -1128,13 +1261,18 @@ export function useDashboardTasks({
       }));
       const res = await fetchGitHubGraphQL(UPDATE_ISSUE_COMMENT_MUTATION, { id: commentId, body }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) {
+        await fetchSingleProjectItem(task.itemId, githubToken);
+      }
+      if (task.contentId) {
+        await fetchTaskComments(task.id, task.contentId, githubToken);
+      }
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem, setTasks]);
+  }, [githubToken, fetchSingleProjectItem, fetchTaskComments, setTasks]);
 
   const deleteTaskComment = useCallback(async (task: Task, commentId: string): Promise<boolean> => {
     if (!githubToken) return false;
@@ -1149,13 +1287,18 @@ export function useDashboardTasks({
       }));
       const res = await fetchGitHubGraphQL(DELETE_ISSUE_COMMENT_MUTATION, { id: commentId }, githubToken);
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) {
+        await fetchSingleProjectItem(task.itemId, githubToken);
+      }
+      if (task.contentId) {
+        await fetchTaskComments(task.id, task.contentId, githubToken);
+      }
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem, setTasks]);
+  }, [githubToken, fetchSingleProjectItem, fetchTaskComments, setTasks]);
 
   const addTaskComment = useCallback(async (task: Task, body: string): Promise<boolean> => {
     if (!task.contentId || !githubToken || task.isDraft) return false;
@@ -1191,13 +1334,18 @@ export function useDashboardTasks({
         return t;
       }));
 
-      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
+      if (task.itemId) {
+        await fetchSingleProjectItem(task.itemId, githubToken);
+      }
+      if (task.contentId) {
+        await fetchTaskComments(task.id, task.contentId, githubToken);
+      }
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem, setTasks]);
+  }, [githubToken, fetchSingleProjectItem, fetchTaskComments, setTasks]);
 
   const deleteTask = useCallback(async (task: Task): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;
@@ -1373,5 +1521,7 @@ export function useDashboardTasks({
     addTaskComment,
     deleteTask,
     fetchSearchUsers,
+    fetchTaskComments,
+    isFetchingComments,
   };
 }
