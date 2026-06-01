@@ -674,7 +674,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       setOpenStatusPickerTaskId={setOpenStatusPickerTaskId}
                       setIsLinkMode={setIsLinkMode}
                       setSelectedLinkTaskIds={setSelectedLinkTaskIds}
-                      centerGanttOnTask={centerGanttOnTask}
+                      jumpToChart={handleJumpToChart}
                       t={t}
                     />
                   )
@@ -1479,7 +1479,7 @@ interface SortableTaskRowProps {
   setOpenStatusPickerTaskId: Dispatch<SetStateAction<string | null>>;
   setIsLinkMode: (mode: boolean) => void;
   setSelectedLinkTaskIds: (tasks: string[] | ((prev: string[]) => string[])) => void;
-  centerGanttOnTask: (taskId: string, date: string | null) => void;
+  jumpToChart: (taskId: string) => void;
   t: TFunction;
 }
 
@@ -1503,7 +1503,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
   setOpenStatusPickerTaskId,
   setIsLinkMode,
   setSelectedLinkTaskIds,
-  centerGanttOnTask,
+  jumpToChart,
   t,
 }: SortableTaskRowProps) {
   const {
@@ -1726,8 +1726,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
           className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
           onClick={(e) => {
             e.stopPropagation();
-            const startDate = getStartDateForCal(task);
-            if (startDate) centerGanttOnTask(task.id, startDate);
+            jumpToChart(task.id);
           }}
           title={t('dashboard.centerInGantt') || 'Center in Gantt'}
           aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}
