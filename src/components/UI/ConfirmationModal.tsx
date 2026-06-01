@@ -52,8 +52,13 @@ export function ConfirmationModal({
           <Button variant="ghost" onClick={onClose} disabled={isConfirming}>
             {cancelLabel}
           </Button>
-          <Button variant={variant === 'danger' ? 'danger' : 'primary'} onClick={onConfirm} disabled={isConfirming}>
-            {isConfirming ? '...' : confirmLabel}
+          <Button
+            variant={variant === 'danger' ? 'danger' : 'primary'}
+            onClick={onConfirm}
+            disabled={isConfirming}
+            isLoading={isConfirming}
+          >
+            {confirmLabel}
           </Button>
         </div>
       </div>

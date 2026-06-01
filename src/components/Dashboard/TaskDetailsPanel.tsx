@@ -261,6 +261,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [isDeletingComment, setIsDeletingComment] = useState(false);
   const [isTaskDeleteConfirmOpen, setIsTaskDeleteConfirmOpen] = useState(false);
   const [isDeletingTask, setIsDeletingTask] = useState(false);
   const [newCommentBody, setNewCommentBody] = useState('');
@@ -336,9 +337,14 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
 
   const confirmDeleteComment = async () => {
     if (!task || !commentToDelete) return;
-    await deleteTaskComment(task, commentToDelete);
-    setIsDeleteConfirmOpen(false);
-    setCommentToDelete(null);
+    setIsDeletingComment(true);
+    try {
+      await deleteTaskComment(task, commentToDelete);
+      setIsDeleteConfirmOpen(false);
+      setCommentToDelete(null);
+    } finally {
+      setIsDeletingComment(false);
+    }
   };
 
   const confirmDeleteTask = async () => {
@@ -953,6 +959,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       <ConfirmationModal
         isOpen={isDeleteConfirmOpen}
         onClose={() => {
+          if (isDeletingComment) return;
           setIsDeleteConfirmOpen(false);
           setCommentToDelete(null);
         }}
@@ -961,6 +968,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         message={t('common.confirmDelete', 'Are you sure you want to delete this comment?')}
         confirmLabel={t('common.delete', 'Delete')}
         variant="danger"
+        isConfirming={isDeletingComment}
       />
       <ConfirmationModal
         isOpen={isTaskDeleteConfirmOpen}
