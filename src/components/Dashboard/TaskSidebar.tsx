@@ -45,6 +45,7 @@ const TREE_LINE_MIX = 34;
 const TREE_ROW_PADDING_LEFT = 8;
 const TASK_ASSIGNEE_CHIP_CLASS = 'w-4 h-4 shrink-0 rounded-full border shadow-sm flex items-center justify-center';
 const TASK_ASSIGNEE_AVATAR_CLASS = `${TASK_ASSIGNEE_CHIP_CLASS} overflow-hidden`;
+const TASK_ASSIGNEE_PLACEHOLDER_ICON_CLASS = 'material-symbols-outlined task-assignee-placeholder-icon';
 
 interface TreeRowMeta {
   depth: number;
@@ -1650,7 +1651,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
                 </>
               ) : (
                 <div className={`${TASK_ASSIGNEE_CHIP_CLASS} border-dashed border-slate-200 bg-slate-50/70 text-slate-300`}>
-                  <span className="material-symbols-outlined text-[8px] leading-none">person_add</span>
+                  <span className={TASK_ASSIGNEE_PLACEHOLDER_ICON_CLASS}>person_add</span>
                 </div>
               )}
             </div>
