@@ -3,7 +3,8 @@
 Define Working Task Board:
 - working_task_board: 
   - https://glidelines-git-develop-whui1978-1776s-projects.vercel.app/?project=PVT_kwDODNQhvs4BWmqS&account=10445658
-
+- current_agent_name:
+  - Claude, Codex, Google Antigravity, etc. 
 
 
 # Main Agent (Coordinator) Instructions:
@@ -31,6 +32,7 @@ Define Working Task Board:
 Browser/profile requirement:
 - Find and use a proper existing browser profile based on current agent's name when possible.
 - Do not create new browser profile unless explicitly asked.
+- Do not kill the browser when the automation is done.
 
 Task workflow:
 
