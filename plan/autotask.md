@@ -42,7 +42,7 @@ Task workflow:
 
 - Otherwise, change that task state to `In progress`.
 
-- Add a comment: `Google Antigravity Automation is working on it <current datetime>`.
+- Add a comment: `{current_agent_name} Automation is working on it <current datetime>`.
 
 - Open the task and read its title, description, and comments.
 
@@ -64,7 +64,7 @@ Implementation workflow:
 
 Completion workflow:(The work is complete and tested)
 
-- Add a comment in this format: `Google Antigravity Automation committed the changes <current datetime> | <brief execution walkthrough>`.
+- Add a comment in this format: `{current_agent_name} Automation committed the changes <current datetime> | <brief execution walkthrough>`.
 
 - The walkthrough must briefly summarize what was implemented and how it was verified.
 
