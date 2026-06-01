@@ -1,14 +1,11 @@
-@chrome
+[@chrome]
 
 ## Objective
 Automate the Glidelines task board workflow using the Chrome browser and its extension client.
 
 ## Setup
-1. Open Google Chrome with profile `codex_auto`.
-2. Navigate to: `https://glidelines.vercel.app/?project=PVT_kwDODNQhvs4BWmqS&account=10445658`
-3. Verify Chrome extension connectivity by running:
-   `node /Users/wanghui/.codex/plugins/cache/openai-bundled/chrome/26.519.81530/scripts/browser-client.mjs list_tabs --profile codex_auto`
-   - If the command fails or returns no tabs after one retry, stop and report the connection status. Do not proceed with DOM interactions.
+1. Navigate to: `https://glidelines.vercel.app/?project=PVT_kwDODNQhvs4BWmqS&account=10445658`
+2. Do not kill chrome, just make the window visible
 
 ## Task Workflow (repeat until no more Todo tasks or time/context limit reached)
 1. Find the **first** task card whose state is `Todo`.
