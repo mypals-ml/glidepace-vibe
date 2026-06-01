@@ -191,11 +191,11 @@ export function AssigneePicker({ taskId, currentAssignees, repository, onClose, 
   const panel = (
     <div
       ref={panelRef}
-      className={`glass-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 ${placement === 'top' ? 'origin-bottom-right' : 'origin-top-right'} min-w-[280px] pointer-events-auto`}
+      className={`glass-panel task-row-picker-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 ${placement === 'top' ? 'origin-bottom-right' : 'origin-top-right'} min-w-[280px] pointer-events-auto`}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Search Header */}
-      <div className="p-3 border-b border-slate-200/60 bg-white/50">
+      <div className="task-row-picker-body p-3 border-b border-slate-200/60">
         <div className="relative">
           <span className={`material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm ${isSearching ? 'animate-spin' : ''}`}>
             {isSearching ? 'sync' : 'search'}
@@ -219,7 +219,7 @@ export function AssigneePicker({ taskId, currentAssignees, repository, onClose, 
       </div>
 
       {/* User List */}
-      <div className="max-h-[300px] overflow-y-auto custom-scrollbar py-1 bg-white/30">
+      <div className="task-row-picker-body max-h-[300px] overflow-y-auto custom-scrollbar py-1">
         {combinedResults.length === 0 && !isSearching ? (
           <div className="px-4 py-10 text-center">
             <span className="material-symbols-outlined text-slate-300 text-3xl mb-2">person_search</span>
@@ -234,7 +234,7 @@ export function AssigneePicker({ taskId, currentAssignees, repository, onClose, 
           <div className="flex flex-col">
             {/* Assignable section */}
             {filteredAssignable.length > 0 && (
-              <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+              <div className="task-row-picker-muted px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 {t('dashboard.assignable', 'Assignable')}
               </div>
             )}
@@ -254,7 +254,7 @@ export function AssigneePicker({ taskId, currentAssignees, repository, onClose, 
             {/* Suggestions from Search */}
             {searchTerm && searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id || (u.login && au.login === u.login))).length > 0 && (
               <>
-                <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50 mt-1 border-t border-slate-100">
+                <div className="task-row-picker-muted px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1 border-t border-slate-100">
                   {t('dashboard.suggestions', 'Suggestions')}
                 </div>
                 {searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id || (u.login && au.login === u.login))).map(user => {
@@ -287,7 +287,7 @@ export function AssigneePicker({ taskId, currentAssignees, repository, onClose, 
       </div>
 
       {/* Footer/Action */}
-      <div className="p-2 border-t border-slate-200/60 bg-slate-50/80 flex justify-between items-center sm:hidden">
+      <div className="task-row-picker-muted p-2 border-t border-slate-200/60 flex justify-between items-center sm:hidden">
         <span className="text-[10px] text-slate-400 ml-2">{t('common.selected', { count: localSelectedIds.length })}</span>
         <Button
           variant="primary"

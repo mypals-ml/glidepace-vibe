@@ -89,11 +89,11 @@ export function StatusPicker({ task, onClose, onSelect, anchorRect }: StatusPick
       {/* Selector Panel */}
       <div
         ref={panelRef}
-        className={`glass-panel w-full sm:w-auto sm:min-w-[160px] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 ${placement === 'top' ? 'origin-bottom-left' : 'origin-top-left'} pointer-events-auto`}
+        className={`glass-panel task-row-picker-panel w-full sm:w-auto sm:min-w-[160px] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 ${placement === 'top' ? 'origin-bottom-left' : 'origin-top-left'} pointer-events-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Status List */}
-        <div className="max-h-[300px] overflow-y-auto custom-scrollbar py-1 bg-white/30">
+        <div className="task-row-picker-body max-h-[300px] overflow-y-auto custom-scrollbar py-1">
           {statuses.map((statusName: string) => {
             const isSelected = task ? task.status === statusName : false;
             return (
@@ -120,7 +120,7 @@ export function StatusPicker({ task, onClose, onSelect, anchorRect }: StatusPick
         </div>
 
         {/* Footer/Action (mobile only) */}
-        <div className="p-2 border-t border-slate-200/60 bg-slate-50/80 flex justify-end items-center sm:hidden">
+        <div className="task-row-picker-muted p-2 border-t border-slate-200/60 flex justify-end items-center sm:hidden">
           <Button
             variant="primary"
             size="sm"
