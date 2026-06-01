@@ -237,6 +237,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const [isSavingGroupEditor, setIsSavingGroupEditor] = useState(false);
   const [isFieldGroupDialogOpen, setIsFieldGroupDialogOpen] = useState(false);
   const [draftGroupFieldIds, setDraftGroupFieldIds] = useState<string[]>([]);
+  const [fieldGroupSearchQuery, setFieldGroupSearchQuery] = useState('');
   const [draggedGroupFieldId, setDraggedGroupFieldId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const suppressNextClickRef = useRef(false);
@@ -462,6 +463,16 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const sortedProjectFields = useMemo(() => {
     return [...projectFields].sort((a, b) => a.name.localeCompare(b.name));
   }, [projectFields]);
+  const filteredProjectFields = useMemo(() => {
+    const query = fieldGroupSearchQuery.trim().toLowerCase();
+    if (!query) return sortedProjectFields;
+
+    return sortedProjectFields.filter(field => {
+      const fieldName = field.name.toLowerCase();
+      const fieldType = field.dataType?.toLowerCase() || '';
+      return fieldName.includes(query) || fieldType.includes(query);
+    });
+  }, [fieldGroupSearchQuery, sortedProjectFields]);
   const isDraggingTask = useMemo(() => {
     if (!activeDragItemSortId) return false;
     const activeItem = dashboardItems.find(item => getDashboardItemSortId(item) === activeDragItemSortId);
@@ -523,7 +534,13 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
   const openFieldGroupDialog = () => {
     setDraftGroupFieldIds(selectedGroupFieldIds);
+    setFieldGroupSearchQuery('');
     setIsFieldGroupDialogOpen(true);
+  };
+
+  const closeFieldGroupDialog = () => {
+    setFieldGroupSearchQuery('');
+    setIsFieldGroupDialogOpen(false);
   };
 
   const toggleDraftGroupField = (fieldId: string) => {
@@ -548,7 +565,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
   const saveFieldGroupSelection = () => {
     setSelectedGroupFieldIds(draftGroupFieldIds);
-    setIsFieldGroupDialogOpen(false);
+    closeFieldGroupDialog();
   };
 
   return (
@@ -941,7 +958,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="field-group-dialog-title"
-          onClick={() => setIsFieldGroupDialogOpen(false)}
+          onClick={closeFieldGroupDialog}
         >
           <form
             className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-2xl"
@@ -959,7 +976,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 icon="close"
                 variant="ghost"
                 size="xs"
-                onClick={() => setIsFieldGroupDialogOpen(false)}
+                onClick={closeFieldGroupDialog}
                 aria-label={t('dashboard.close', 'Close')}
               />
             </div>
@@ -1010,12 +1027,27 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   {t('dashboard.availableFields', 'Available fields')}
                 </div>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400" aria-hidden="true">search</span>
+                  <input
+                    className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 shadow-sm transition-colors placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    type="text"
+                    value={fieldGroupSearchQuery}
+                    onChange={(e) => setFieldGroupSearchQuery(e.target.value)}
+                    placeholder={t('dashboard.fieldSearchPlaceholder', 'Filter fields...')}
+                    aria-label={t('dashboard.fieldSearchPlaceholder', 'Filter fields...')}
+                  />
+                </div>
                 <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
                   {sortedProjectFields.length === 0 ? (
                     <div className="px-3 py-6 text-center text-xs text-slate-400">
                       {t('dashboard.noProjectFields', 'No project fields available')}
                     </div>
-                  ) : sortedProjectFields.map(field => (
+                  ) : filteredProjectFields.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-xs text-slate-400">
+                      {t('dashboard.noMatchingFields', 'No fields match your search.')}
+                    </div>
+                  ) : filteredProjectFields.map(field => (
                     <label
                       key={field.id}
                       className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm text-slate-700 hover:bg-slate-50"
@@ -1042,7 +1074,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setIsFieldGroupDialogOpen(false)}
+                onClick={closeFieldGroupDialog}
               >
                 {t('common.cancel', 'Cancel')}
               </Button>
