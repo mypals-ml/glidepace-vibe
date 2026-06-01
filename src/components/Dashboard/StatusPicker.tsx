@@ -1,4 +1,5 @@
 import { useState, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { getStatusColor, getStatusDotColor } from '../../utils/statusColors';
 import type { Task, TaskStatus } from '../../types';
 import { Button } from '../UI/Button';
@@ -11,13 +12,15 @@ interface StatusPickerProps {
   task: Task | null;
   onClose: () => void;
   onSelect?: (status: string) => void;
+  anchorRect?: DOMRectReadOnly | null;
 }
 
-export function StatusPicker({ task, onClose, onSelect }: StatusPickerProps) {
+export function StatusPicker({ task, onClose, onSelect, anchorRect }: StatusPickerProps) {
   const { updateTaskStatus, projectStatusOptions } = useDashboard();
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState<'top' | 'bottom'>('bottom');
+  const [floatingPosition, setFloatingPosition] = useState<{ left: number; top: number } | null>(null);
 
   // Use project statuses from context; fall back to defaults if not yet loaded.
   const statuses = projectStatusOptions.length > 0 ? projectStatusOptions : DEFAULT_STATUSES;
@@ -33,7 +36,25 @@ export function StatusPicker({ task, onClose, onSelect }: StatusPickerProps) {
 
   useLayoutEffect(() => {
     const calculatePlacement = () => {
-      if (containerRef.current && panelRef.current) {
+      if (anchorRect && panelRef.current) {
+        const margin = 8;
+        const panelWidth = panelRef.current.offsetWidth;
+        const panelHeight = panelRef.current.offsetHeight;
+        const spaceBelow = window.innerHeight - anchorRect.bottom;
+        const spaceAbove = anchorRect.top;
+        const nextPlacement = spaceBelow < panelHeight + margin && spaceAbove > spaceBelow ? 'top' : 'bottom';
+        const top = nextPlacement === 'top' ? anchorRect.top - panelHeight - margin : anchorRect.bottom + margin;
+        const left = Math.min(
+          Math.max(anchorRect.left - margin, margin),
+          Math.max(margin, window.innerWidth - panelWidth - margin)
+        );
+
+        setPlacement(nextPlacement);
+        setFloatingPosition({ left, top: Math.max(margin, top) });
+        return;
+      }
+
+      if (!anchorRect && containerRef.current && panelRef.current) {
         const scrollParent = containerRef.current.closest('.overflow-y-auto') || document.documentElement;
         const parentRect = scrollParent.getBoundingClientRect();
         const rect = containerRef.current.getBoundingClientRect();
@@ -61,18 +82,12 @@ export function StatusPicker({ task, onClose, onSelect }: StatusPickerProps) {
       clearTimeout(timer);
       window.removeEventListener('resize', calculatePlacement);
     };
-  }, [statuses]);
+  }, [statuses, anchorRect]);
 
-  return (
-    <div ref={containerRef} className={`fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:-left-2 ${placement === 'top' ? 'sm:bottom-full sm:mb-2' : 'sm:top-full sm:mt-2'} sm:p-0 pointer-events-none`}>
-      {/* Universal backdrop for mobile and click-outside capture for desktop */}
-      <div 
-        className="fixed inset-0 z-[-1] bg-slate-900/20 backdrop-blur-[2px] sm:bg-transparent sm:backdrop-blur-none pointer-events-auto" 
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
-      />
-      
+  const panel = (
+    <>
       {/* Selector Panel */}
-      <div 
+      <div
         ref={panelRef}
         className={`glass-panel w-full sm:w-auto sm:min-w-[160px] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 ${placement === 'top' ? 'origin-bottom-left' : 'origin-top-left'} pointer-events-auto`}
         onClick={(e) => e.stopPropagation()}
@@ -115,6 +130,39 @@ export function StatusPicker({ task, onClose, onSelect }: StatusPickerProps) {
           </Button>
         </div>
       </div>
+    </>
+  );
+
+  if (anchorRect) {
+    return createPortal(
+      <div ref={containerRef} className="fixed inset-0 z-[100] pointer-events-none">
+        <div
+          className="fixed inset-0 pointer-events-auto"
+          onClick={(e) => { e.stopPropagation(); onClose(); }}
+        />
+        <div
+          className="fixed pointer-events-none"
+          style={{
+            left: floatingPosition?.left ?? anchorRect.left,
+            top: floatingPosition?.top ?? anchorRect.bottom + 8,
+          }}
+        >
+          {panel}
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  return (
+    <div ref={containerRef} className={`fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:-left-2 ${placement === 'top' ? 'sm:bottom-full sm:mb-2' : 'sm:top-full sm:mt-2'} sm:p-0 pointer-events-none`}>
+      {/* Universal backdrop for mobile and click-outside capture for desktop */}
+      <div 
+        className="fixed inset-0 z-[-1] bg-slate-900/20 backdrop-blur-[2px] sm:bg-transparent sm:backdrop-blur-none pointer-events-auto" 
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+      />
+      
+      {panel}
       
       {/* Invisible overlay for desktop click-outside */}
       <div 
