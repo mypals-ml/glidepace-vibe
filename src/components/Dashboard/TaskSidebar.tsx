@@ -43,6 +43,7 @@ const TREE_ELBOW_RADIUS = 8;
 const TREE_ROW_HEIGHT = 72;
 const TREE_LINE_MIX = 34;
 const TREE_ROW_PADDING_LEFT = 8;
+const TASK_ASSIGNEE_AVATAR_CLASS = 'w-4 h-4 shrink-0 rounded-full border shadow-sm flex items-center justify-center overflow-hidden';
 
 interface TreeRowMeta {
   depth: number;
@@ -1614,21 +1615,21 @@ const SortableTaskRow = memo(function SortableTaskRow({
               {task.assignees.length > 0 ? (
                 <>
                   {task.assignees.slice(0, 3).map((user: User, idx: number) => (
-                    <div key={user.id} className={`w-4 h-4 rounded-full border border-white shadow-sm flex items-center justify-center text-[7px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
+                    <div key={user.id} className={`${TASK_ASSIGNEE_AVATAR_CLASS} border-white text-[7px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
                       {user.avatarUrl ? (
                         <img src={user.avatarUrl} alt={user.initials} className="w-full h-full rounded-full object-cover" />
                       ) : user.initials}
                     </div>
                   ))}
                   {task.assignees.length > 3 && (
-                    <div className="w-4 h-4 rounded-full border border-white shadow-sm flex items-center justify-center text-[6px] font-bold bg-slate-100 text-slate-500" style={{ zIndex: 0 }}>
+                    <div className={`${TASK_ASSIGNEE_AVATAR_CLASS} border-white text-[6px] font-bold bg-slate-100 text-slate-500`} style={{ zIndex: 0 }}>
                       +{task.assignees.length - 3}
                     </div>
                   )}
                 </>
               ) : (
-                <div className="w-4 h-4 rounded-full border border-dashed border-slate-200 flex items-center justify-center text-slate-300">
-                  <span className="material-symbols-outlined text-[10px]">person_add</span>
+                <div className={`${TASK_ASSIGNEE_AVATAR_CLASS} border-dashed border-slate-200 bg-slate-50/70 text-slate-300`}>
+                  <span className="material-symbols-outlined text-[9px] leading-none">person_add</span>
                 </div>
               )}
             </div>
