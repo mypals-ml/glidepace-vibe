@@ -52,7 +52,9 @@ Task workflow:
 
 Implementation workflow:
 
-- Use the repository in the configured workspace to write an implementation and test plan.
+- Use the repository in the configured workspace:
+  - Update local files to the newes version
+  - Write an implementation and test plan.
 
 - Review the plan for gaps, risks, and missing verification.
 
