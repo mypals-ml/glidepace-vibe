@@ -28,3 +28,4 @@ lint_output.json
 docs/demo/*
 *.patch
 scripts/*
+/plan/artifacts/hourly-remote-push/active_runbook.md
