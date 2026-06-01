@@ -1484,6 +1484,8 @@ const SortableTaskRow = memo(function SortableTaskRow({
   const [isRowHovered, setIsRowHovered] = useState(false);
   const [isDragHandleHovered, setIsDragHandleHovered] = useState(false);
   const [isDragHandleFocused, setIsDragHandleFocused] = useState(false);
+  const [statusPickerAnchorRect, setStatusPickerAnchorRect] = useState<DOMRectReadOnly | null>(null);
+  const [assigneePickerAnchorRect, setAssigneePickerAnchorRect] = useState<DOMRectReadOnly | null>(null);
   const sortId = getDashboardItemSortId(task);
   const isMovingThisTask = movingItemSortId === sortId;
   const showHoverActions = !isDragging && !isDragActive && !isAnyDragging;
@@ -1587,7 +1589,14 @@ const SortableTaskRow = memo(function SortableTaskRow({
               className="flex items-center gap-1 cursor-pointer hover:bg-slate-100/80 transition-colors px-1 rounded border border-slate-200/50 bg-slate-50/60 h-4"
               onClick={(e) => {
                 e.stopPropagation();
-                setOpenStatusPickerTaskId(openStatusPickerTaskId === task.id ? null : task.id);
+                if (openStatusPickerTaskId === task.id) {
+                  setStatusPickerAnchorRect(null);
+                  setOpenStatusPickerTaskId(null);
+                } else {
+                  setStatusPickerAnchorRect(e.currentTarget.getBoundingClientRect());
+                  setOpenPickerTaskId(null);
+                  setOpenStatusPickerTaskId(task.id);
+                }
               }}
               title={t('dashboard.updateStatus', 'Update status')}
             >
@@ -1599,7 +1608,11 @@ const SortableTaskRow = memo(function SortableTaskRow({
             {openStatusPickerTaskId === task.id && (
               <StatusPicker
                 task={task}
-                onClose={() => setOpenStatusPickerTaskId(null)}
+                anchorRect={statusPickerAnchorRect}
+                onClose={() => {
+                  setStatusPickerAnchorRect(null);
+                  setOpenStatusPickerTaskId(null);
+                }}
               />
             )}
           </div>
@@ -1609,7 +1622,14 @@ const SortableTaskRow = memo(function SortableTaskRow({
               className="flex -space-x-1 cursor-pointer hover:scale-105 transition-transform"
               onClick={(e) => {
                 e.stopPropagation();
-                setOpenPickerTaskId(openPickerTaskId === task.id ? null : task.id);
+                if (openPickerTaskId === task.id) {
+                  setAssigneePickerAnchorRect(null);
+                  setOpenPickerTaskId(null);
+                } else {
+                  setAssigneePickerAnchorRect(e.currentTarget.getBoundingClientRect());
+                  setOpenStatusPickerTaskId(null);
+                  setOpenPickerTaskId(task.id);
+                }
               }}
               title={t('dashboard.updateAssignees', 'Update assignees')}
             >
@@ -1639,7 +1659,11 @@ const SortableTaskRow = memo(function SortableTaskRow({
                 taskId={task.id}
                 currentAssignees={task.assignees}
                 repository={task.repository}
-                onClose={() => setOpenPickerTaskId(null)}
+                anchorRect={assigneePickerAnchorRect}
+                onClose={() => {
+                  setAssigneePickerAnchorRect(null);
+                  setOpenPickerTaskId(null);
+                }}
               />
             )}
           </div>
