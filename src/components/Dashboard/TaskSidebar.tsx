@@ -562,7 +562,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
           aria-label={t('dashboard.groupByFields', 'Group by Fields')}
         />
         <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-          <span className="shrink-0">{t('table.title')}</span>
+          <span className="shrink-0">{t('table.tasks', 'Tasks')}</span>
         </div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider"></div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center"></div>
@@ -1494,6 +1494,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
   const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
   const dividerLeft = getTreeRowDividerLeft(treeMeta.depth);
   const statusTextColor = getStatusTextColor(task.status);
+  const isPickerOpen = openPickerTaskId === task.id || openStatusPickerTaskId === task.id;
 
   return (
     <div
@@ -1515,7 +1516,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
         isLinkMode
           ? isLinkSelected ? 'bg-primary/10 ring-1 ring-primary/30 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
           : isSelected ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
-      } ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''}`}
+      } ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : isPickerOpen ? 'z-20' : ''}`}
       onClick={() => {
         if (suppressNextClickRef.current) {
           suppressNextClickRef.current = false;
@@ -1581,7 +1582,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
         <div className="status-assignees flex items-center gap-3 mt-1 mb-0.5">
           <div className="group/status relative flex items-center min-w-0">
             <div
-              className="flex items-center gap-1 cursor-pointer hover:bg-slate-100/80 transition-colors px-1 py-0.5 rounded border border-slate-200/50 bg-slate-50/60"
+              className="flex items-center gap-1 cursor-pointer hover:bg-slate-100/80 transition-colors px-1 rounded border border-slate-200/50 bg-slate-50/60 h-4"
               onClick={(e) => {
                 e.stopPropagation();
                 setOpenStatusPickerTaskId(openStatusPickerTaskId === task.id ? null : task.id);

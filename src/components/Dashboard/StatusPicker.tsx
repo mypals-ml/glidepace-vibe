@@ -34,12 +34,15 @@ export function StatusPicker({ task, onClose, onSelect }: StatusPickerProps) {
   useLayoutEffect(() => {
     const calculatePlacement = () => {
       if (containerRef.current && panelRef.current) {
+        const scrollParent = containerRef.current.closest('.overflow-y-auto') || document.documentElement;
+        const parentRect = scrollParent.getBoundingClientRect();
         const rect = containerRef.current.getBoundingClientRect();
         const panelHeight = panelRef.current.offsetHeight;
-        const viewportHeight = window.innerHeight;
-        const spaceBelow = viewportHeight - rect.bottom;
         
-        if (spaceBelow < panelHeight + 20) {
+        const spaceBelow = parentRect.bottom - rect.bottom;
+        const spaceAbove = rect.top - parentRect.top;
+        
+        if (spaceBelow < panelHeight + 20 && spaceAbove > spaceBelow) {
           setPlacement('top');
         } else {
           setPlacement('bottom');

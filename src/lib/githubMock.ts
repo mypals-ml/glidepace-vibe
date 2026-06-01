@@ -41,6 +41,7 @@ export const MOCK_PROJECTS_DATA: ProjectOwnerInfo[] = [
       { id: 'PVT_5', title: 'Zephyr Cloud Migration', public: true },
       { id: 'PVT_6', title: 'Customer Feedback Board', public: false },
       { id: 'PVT_7', title: 'Demo: Product Roadmap 2024', public: true },
+      { id: 'PVT_100_COMMENTS', title: '100 Comments Demo Project', public: true },
       { id: 'PVT_EMPTY', title: 'Empty Project Demo', public: true },
     ],
   },
@@ -345,7 +346,7 @@ function applyMockFieldValue(task: Task, field: GitHubProjectV2Field | undefined
 }
 
 // Helper to map tasks back to GitHub GraphQL nodes
-function mapTaskToGraphQLNode(task: Task, projectId = 'PVT_1') {
+function mapTaskToGraphQLNode(task: Task, projectId = 'PVT_1', includeComments = false) {
   const matchedOption = MOCK_STATUS_OPTIONS.find(o => o.name === task.status)
     ?? MOCK_STATUS_OPTIONS[0];
 
@@ -399,47 +400,90 @@ function mapTaskToGraphQLNode(task: Task, projectId = 'PVT_1') {
       };
     });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const contentNode: any = {
+    id: task.contentId,
+    title: task.title,
+    number: parseInt(task.id.replace('#', '') || '1'),
+    state: task.status === 'Done' ? 'CLOSED' : 'OPEN',
+    body: task.body || '',
+    repository: { nameWithOwner: 'glidepace/glidelines' },
+    assignees: {
+      nodes: task.assignees.map(a => ({
+        __typename: 'User',
+        id: a.id,
+        login: a.id === 'u1' ? 'arivera' : (a.id === 'u2' ? 'jsmith' : (a.id === 'u3' ? 'cchen' : (a.id === 'u4' ? 'treed' : (a.id === 'u5' ? 'mlee' : 'unknown')))),
+        name: a.name,
+        avatarUrl: a.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random`
+      }))
+    }
+  };
+
+  if (includeComments) {
+    contentNode.comments = {
+      nodes: (task.comments || []).map(c => ({
+        id: c.id,
+        body: c.body,
+        createdAt: c.createdAt,
+        author: {
+          __typename: 'User',
+          login: c.author.id,
+          name: c.author.name,
+          avatarUrl: c.author.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author.name)}&background=random`
+        }
+      }))
+    };
+  }
+
   return {
     id: task.itemId,
-    content: {
-      id: task.contentId,
-      title: task.title,
-      number: parseInt(task.id.replace('#', '')),
-      state: task.status === 'Done' ? 'CLOSED' : 'OPEN',
-      body: task.body || '',
-      repository: { nameWithOwner: 'glidepace/glidelines' },
-      assignees: {
-        nodes: task.assignees.map(a => ({
-          __typename: 'User',
-          id: a.id,
-          login: a.id === 'u1' ? 'arivera' : (a.id === 'u2' ? 'jsmith' : (a.id === 'u3' ? 'cchen' : (a.id === 'u4' ? 'treed' : (a.id === 'u5' ? 'mlee' : 'unknown')))),
-          name: a.name,
-          avatarUrl: a.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random`
-        }))
-      },
-      comments: {
-        nodes: (task.comments || []).map(c => ({
-          id: c.id,
-          body: c.body,
-          createdAt: c.createdAt,
-          author: {
-            __typename: 'User',
-            login: c.author.id,
-            name: c.author.name,
-            avatarUrl: c.author.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author.name)}&background=random`
-          }
-        }))
-      }
-    },
+    content: contentNode,
     fieldValues: {
       nodes: [statusField, startDateField, targetDateField, ...customFieldValues]
     }
   };
 }
 
+const MOCK_100_COMMENTS: TaskComment[] = Array.from({ length: 100 }, (_, index) => {
+  const authorIndex = index % MOCK_USER_POOL.length;
+  const author = MOCK_USER_POOL[authorIndex];
+  return {
+    id: `comment-100-comments-${index + 1}`,
+    author: {
+      id: author.id,
+      login: author.login,
+      name: author.name,
+      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name)}&background=random`,
+      avatarColor: author.avatarColor,
+      initials: author.initials,
+    },
+    body: `This is comment #${index + 1} for testing dynamic pagination of comments page-by-page.`,
+    createdAt: new Date(Date.now() - (100 - index) * 60000).toISOString(),
+  };
+});
+
+const TASKS_100_COMMENTS: Task[] = [
+  {
+    id: 'item-100-comments-1',
+    displayId: '#1001',
+    itemId: 'item-100-comments-1',
+    contentId: 'content-100-comments-1',
+    title: 'Task with 100 comments for pagination testing',
+    body: 'This task is pre-populated with exactly 100 comments to test dynamic comments loading pagination of 30 items at a time.',
+    status: 'In Progress',
+    startDate: new Date().toISOString().split('T')[0],
+    targetDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
+    assignees: [MOCK_USER_POOL[0]],
+    progress: 30,
+    comments: MOCK_100_COMMENTS,
+    groupPath: [],
+  }
+];
+
 const MOCK_PROJECT_TASKS_MAP: Record<string, Task[]> = {
   'PVT_2': MOCK_TASKS_BUG_TRACKER,
   'PVT_3': CONNECTED_TASKS_TASKS,
+  'PVT_100_COMMENTS': TASKS_100_COMMENTS,
   'PVT_EMPTY': [],
 };
 
@@ -555,6 +599,8 @@ export interface MockVariables {
   assigneeIds?: string[];
   query?: string;
   searchQuery?: string;
+  nodeId?: string;
+  cursor?: string | null;
 }
 
 export async function handleMockGraphQL(query: string, variables: MockVariables) {
@@ -712,6 +758,45 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
           },
           items: {
             nodes: projectTasks.map(task => mapTaskToGraphQLNode(task, projectId))
+          }
+        }
+      }
+    };
+  }
+
+  if (query.includes('comments(first: 30')) {
+    const nodeId = variables.nodeId || getVar('nodeId');
+    const task = getAllMockTasks().find(t => t.contentId === nodeId || t.itemId === nodeId || t.id === nodeId);
+    if (!task) return { errors: [{ message: 'Node not found' }] };
+
+    const cursor = variables.cursor || getVar('cursor');
+    const first = 30;
+    const startIndex = cursor ? parseInt(cursor, 10) : 0;
+    const endIndex = startIndex + first;
+    const paginatedComments = (task.comments || []).slice(startIndex, endIndex);
+    const hasNextPage = (task.comments || []).length > endIndex;
+    const endCursor = hasNextPage ? String(endIndex) : null;
+
+    return {
+      data: {
+        node: {
+          __typename: task.isDraft ? 'DraftIssue' : 'Issue',
+          id: nodeId,
+          comments: {
+            pageInfo: {
+              hasNextPage,
+              endCursor
+            },
+            nodes: paginatedComments.map(c => ({
+              id: c.id,
+              body: c.body,
+              createdAt: c.createdAt,
+              author: {
+                login: c.author.login || c.author.id,
+                avatarUrl: c.author.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author.name)}&background=random`,
+                name: c.author.name
+              }
+            }))
           }
         }
       }

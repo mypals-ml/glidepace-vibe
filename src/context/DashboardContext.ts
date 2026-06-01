@@ -47,6 +47,9 @@ export interface DashboardContextValue {
   isLoadingTasks: boolean;
   fieldsProgress: { current: number; total: number; isFetching: boolean };
   fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
+  fetchSingleProjectItem: (itemId: string, token: string) => Promise<void>;
+  fetchTaskComments: (taskId: string, contentId: string, token: string) => Promise<void>;
+  isFetchingComments: Record<string, boolean>;
   handleCreateTask: (taskData: { 
     title: string; 
     body?: string; 

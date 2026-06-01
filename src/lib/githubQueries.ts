@@ -324,3 +324,44 @@ export const CREATE_PROJECT_V2_FIELD_MUTATION = `
     }
   }
 `;
+
+export const GET_ISSUE_COMMENTS_QUERY = `
+  query($nodeId: ID!, $cursor: String) {
+    node(id: $nodeId) {
+      __typename
+      ... on Issue {
+        comments(first: 30, after: $cursor) {
+          pageInfo { hasNextPage endCursor }
+          nodes {
+            id
+            body
+            createdAt
+            author {
+              login
+              avatarUrl
+              ... on User { name }
+              ... on Organization { name }
+            }
+          }
+        }
+      }
+      ... on PullRequest {
+        comments(first: 30, after: $cursor) {
+          pageInfo { hasNextPage endCursor }
+          nodes {
+            id
+            body
+            createdAt
+            author {
+              login
+              avatarUrl
+              ... on User { name }
+              ... on Organization { name }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
