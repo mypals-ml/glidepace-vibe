@@ -179,6 +179,34 @@ body,
   margin: 0;
 }
 
+/*
+ * Material Symbols sizing fix.
+ *
+ * Root cause: the Google Fonts stylesheet defines
+ * `.material-symbols-outlined { font-size: 24px }`. That declaration has the
+ * same specificity (0,1,0) as Tailwind's arbitrary `text-[Npx]` utilities, so
+ * whenever the external stylesheet wins the source-order tie the glyph renders
+ * at its 24px default regardless of the `text-[Npx]` class on the element.
+ * This is why the unassigned-assignee chip (`person_add`) overflowed its 16px
+ * avatar box and looked far bigger than the assigned avatars.
+ *
+ * Fix: pin a dedicated, higher-specificity class for the avatar glyph so its
+ * size is deterministic and can never be overridden by the font default. The
+ * glyph is sized to fit inside the 16px (`w-4 h-4`) avatar box and the optical
+ * size axis is set to match so it visually aligns with the initials avatars.
+ */
+.task-assignee-icon.material-symbols-outlined {
+  font-size: 11px;
+  line-height: 1;
+  font-variation-settings: 'opsz' 20, 'wght' 400, 'FILL' 0, 'GRAD' 0;
+  /* Prevent the glyph's intrinsic box from ever pushing past the avatar. */
+  width: 1em;
+  height: 1em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Header compression strategy */
 .header-compressed {
   --header-gap: 4px;

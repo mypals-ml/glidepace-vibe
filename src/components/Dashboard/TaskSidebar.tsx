@@ -1629,7 +1629,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
                 </>
               ) : (
                 <div className={`${TASK_ASSIGNEE_AVATAR_CLASS} border-dashed border-slate-200 bg-slate-50/70 text-slate-300`}>
-                  <span className="material-symbols-outlined text-[9px] leading-none">person_add</span>
+                  <span className="material-symbols-outlined task-assignee-icon leading-none">person_add</span>
                 </div>
               )}
             </div>
