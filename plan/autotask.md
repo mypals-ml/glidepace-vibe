@@ -30,8 +30,8 @@ Define Working Task Board:
 (To be stored in `{artifact_directory_path}/active_runbook.md` and read by each subagent on startup)
 
 Browser/profile requirement:
-- Find and use a proper existing browser profile based on current agent's name when possible.
-- Do not create new browser profile unless explicitly asked.
+- Find and use a proper existing browser profile based on the current agent's name when possible.
+- Do not create a new browser profile unless explicitly asked.
 - Do not kill the browser when the automation is done.
 
 Task workflow:
@@ -66,7 +66,7 @@ Implementation workflow:
 
 
 
-Completion workflow:(The work is complete and tested)
+Completion workflow: (The work is complete and tested)
 
 - Add a comment in this format: `{current_agent_name} Automation committed the changes <current datetime> | <brief execution walkthrough>`.
 
