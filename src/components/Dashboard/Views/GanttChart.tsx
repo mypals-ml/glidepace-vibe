@@ -28,7 +28,7 @@ const ROW_HEIGHT = 72;
 
 export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
   const { t } = useTranslation();
-  const { tasks, filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, requestedCenterTaskId, centerGanttOnDate, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
+  const { tasks, filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, requestedCenterTaskId, centerGanttOnDate, completeGanttCenterRequest, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
   const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, clientWidth: 0 });
   const internalScrollRef = useRef<HTMLDivElement>(null);
   
@@ -176,11 +176,18 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
   // Handle explicit focus requests (e.g. from Sidebar / Task Details)
   useEffect(() => {
+    if (!requestedCenterDate && !requestedCenterTaskId) return;
+
     if (requestedCenterDate) {
       centerOnDate(requestedCenterDate, 'smooth');
     }
 
-    if (!requestedCenterTaskId || !activeScrollRef.current) return;
+    if (!requestedCenterTaskId) {
+      completeGanttCenterRequest();
+      return;
+    }
+
+    if (!activeScrollRef.current) return;
 
     const selectedIndex = dashboardItems.findIndex(item => !isTaskGroupBlock(item) && item.id === requestedCenterTaskId);
     if (selectedIndex < 0) return;
@@ -195,7 +202,8 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       top,
       behavior: 'auto'
     });
-  }, [requestedCenterDate, requestedCenterTaskId, activeScrollRef, centerOnDate, dashboardItems]);
+    completeGanttCenterRequest();
+  }, [requestedCenterDate, requestedCenterTaskId, activeScrollRef, centerOnDate, completeGanttCenterRequest, dashboardItems]);
 
   // Vertical Virtualization: Calculate visible days
   const visibleStartIndex = Math.max(0, Math.floor(viewportInfo.scrollLeft / DAY_WIDTH) - 2);

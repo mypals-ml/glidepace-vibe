@@ -47,6 +47,7 @@ let dashboardState = {
   requestedCenterDate: null as string | null,
   requestedCenterTaskId: null as string | null,
   centerGanttOnDate: vi.fn(),
+  completeGanttCenterRequest: vi.fn(),
   selectedTaskId: 'task-8' as string | null,
   setSelectedTaskId: vi.fn(),
   setIsTaskDetailsOpen: vi.fn(),
@@ -95,6 +96,7 @@ describe('GanttChart focus behavior', () => {
       ...dashboardState,
       requestedCenterDate: null,
       requestedCenterTaskId: null,
+      completeGanttCenterRequest: vi.fn(),
       selectedTaskId: 'task-8',
     };
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
@@ -129,10 +131,12 @@ describe('GanttChart focus behavior', () => {
   });
 
   it('vertically scrolls when an explicit task focus request is present', () => {
+    const completeGanttCenterRequest = vi.fn();
     dashboardState = {
       ...dashboardState,
       requestedCenterDate: '2026-05-01',
       requestedCenterTaskId: 'task-8',
+      completeGanttCenterRequest,
     };
 
     render(<GanttChart />);
@@ -142,6 +146,23 @@ describe('GanttChart focus behavior', () => {
       top: 468,
       behavior: 'auto',
     });
+    expect(completeGanttCenterRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('completes date-only center requests after the chart consumes them', () => {
+    const completeGanttCenterRequest = vi.fn();
+    dashboardState = {
+      ...dashboardState,
+      requestedCenterDate: '2026-05-01',
+      requestedCenterTaskId: null,
+      completeGanttCenterRequest,
+    };
+
+    render(<GanttChart />);
+
+    expect(centerOnDate).toHaveBeenCalledWith('2026-05-01', 'smooth');
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(completeGanttCenterRequest).toHaveBeenCalledTimes(1);
   });
 
   it('disables text selection on gantt task bars for long-press interactions', () => {
