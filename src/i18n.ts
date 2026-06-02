@@ -181,6 +181,8 @@ const resources = {
         selectedFields: "Selected fields",
         availableFields: "Available fields",
         fieldSearchPlaceholder: "Filter fields...",
+        clearFieldSearch: "Clear field filter",
+        clearIssueFilter: "Clear issue filter",
         noFieldsSelected: "No fields selected",
         noProjectFields: "No project fields available",
         noMatchingFields: "No fields match your search.",

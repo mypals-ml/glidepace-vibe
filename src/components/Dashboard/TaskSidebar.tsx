@@ -1030,13 +1030,24 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400" aria-hidden="true">search</span>
                   <input
-                    className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 shadow-sm transition-colors placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-9 text-sm text-slate-700 shadow-sm transition-colors placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     type="text"
                     value={fieldGroupSearchQuery}
                     onChange={(e) => setFieldGroupSearchQuery(e.target.value)}
                     placeholder={t('dashboard.fieldSearchPlaceholder', 'Filter fields...')}
                     aria-label={t('dashboard.fieldSearchPlaceholder', 'Filter fields...')}
                   />
+                  {fieldGroupSearchQuery && (
+                    <IconButton
+                      type="button"
+                      icon="close"
+                      variant="ghost"
+                      size="xs"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      onClick={() => setFieldGroupSearchQuery('')}
+                      aria-label={t('dashboard.clearFieldSearch', 'Clear field filter')}
+                    />
+                  )}
                 </div>
                 <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
                   {sortedProjectFields.length === 0 ? (
@@ -1135,13 +1146,24 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             <div className="relative flex-1">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]" aria-hidden="true">search</span>
               <input
-                className="w-full h-9 bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-3 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                className="w-full h-9 bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-9 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
                 placeholder={t('dashboard.filterPlaceholder')}
                 aria-label={t('dashboard.filterPlaceholder')}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searchQuery && (
+                <IconButton
+                  type="button"
+                  icon="close"
+                  variant="ghost"
+                  size="xs"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  onClick={() => setSearchQuery('')}
+                  aria-label={t('dashboard.clearIssueFilter', 'Clear issue filter')}
+                />
+              )}
             </div>
             <IconButton
               icon="add"

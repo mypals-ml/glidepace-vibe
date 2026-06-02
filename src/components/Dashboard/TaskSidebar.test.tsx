@@ -76,9 +76,12 @@ describe('TaskSidebar hover actions', () => {
   const setDashboardView = vi.fn();
   const setIsChartVisible = vi.fn();
   const centerGanttOnTask = vi.fn();
+  const setSearchQuery = vi.fn();
+  let searchQuery = '';
 
   beforeEach(() => {
     vi.clearAllMocks();
+    searchQuery = '';
 
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: false,
@@ -91,16 +94,19 @@ describe('TaskSidebar hover actions', () => {
       dispatchEvent: vi.fn(),
     }));
 
-    dashboardMock.useDashboard.mockReturnValue({
+    dashboardMock.useDashboard.mockImplementation(() => ({
       filteredTasks: [task],
       dashboardItems,
       tasks: [task],
-      projectFields: [],
+      projectFields: [
+        { __typename: 'ProjectV2Field', id: 'field-title', name: 'Title', dataType: 'TITLE' },
+        { __typename: 'ProjectV2SingleSelectField', id: 'field-status', name: 'Status', dataType: 'SINGLE_SELECT' },
+      ],
       selectedGroupFieldIds: [],
       setSelectedGroupFieldIds: vi.fn(),
       isLoadingTasks: false,
-      searchQuery: '',
-      setSearchQuery: vi.fn(),
+      searchQuery,
+      setSearchQuery,
       selectedTaskId: null,
       setSelectedTaskId,
       setIsCreateMode,
@@ -124,7 +130,7 @@ describe('TaskSidebar hover actions', () => {
       reorderTaskBlock: vi.fn(),
       moveTaskToGroupPath: vi.fn(),
       setPendingTaskInsertPosition: vi.fn(),
-    });
+    }));
   });
 
   it('uses the full jump-to-chart flow from the row location button', () => {
@@ -148,5 +154,28 @@ describe('TaskSidebar hover actions', () => {
     expect(placeholderIcon.classList.contains('material-symbols-outlined')).toBe(true);
     expect(placeholderIcon.classList.contains('task-assignee-icon')).toBe(true);
     expect(placeholderIcon.classList.contains('task-assignee-placeholder-icon')).toBe(false);
+  });
+
+  it('clears the task filter from the bottom search box', () => {
+    searchQuery = 'location';
+
+    render(<TaskSidebar />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear issue filter' }));
+
+    expect(setSearchQuery).toHaveBeenCalledWith('');
+  });
+
+  it('clears the Group by Fields available-fields filter', () => {
+    render(<TaskSidebar />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Group by Fields' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Filter fields...' }), {
+      target: { value: 'status' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear field filter' }));
+
+    expect((screen.getByRole('textbox', { name: 'Filter fields...' }) as HTMLInputElement).value).toBe('');
   });
 });
