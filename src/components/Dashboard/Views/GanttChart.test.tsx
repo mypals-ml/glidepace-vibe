@@ -91,6 +91,7 @@ vi.mock('./DependencyLines', () => ({
 describe('GanttChart focus behavior', () => {
   beforeEach(() => {
     centerOnDate.mockReset();
+    centerOnDate.mockReturnValue(true);
     scrollTo.mockReset();
     dashboardState = {
       ...dashboardState,
@@ -163,6 +164,23 @@ describe('GanttChart focus behavior', () => {
     expect(centerOnDate).toHaveBeenCalledWith('2026-05-01', 'smooth');
     expect(scrollTo).not.toHaveBeenCalled();
     expect(completeGanttCenterRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps task focus requests pending while horizontal centering is deferred', () => {
+    const completeGanttCenterRequest = vi.fn();
+    centerOnDate.mockReturnValue(false);
+    dashboardState = {
+      ...dashboardState,
+      requestedCenterDate: '2026-04-01',
+      requestedCenterTaskId: 'task-8',
+      completeGanttCenterRequest,
+    };
+
+    render(<GanttChart />);
+
+    expect(centerOnDate).toHaveBeenCalledWith('2026-04-01', 'smooth');
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(completeGanttCenterRequest).not.toHaveBeenCalled();
   });
 
   it('disables text selection on gantt task bars for long-press interactions', () => {

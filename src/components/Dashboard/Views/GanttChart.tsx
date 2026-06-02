@@ -179,7 +179,8 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     if (!requestedCenterDate && !requestedCenterTaskId) return;
 
     if (requestedCenterDate) {
-      centerOnDate(requestedCenterDate, 'smooth');
+      const didCenterDate = centerOnDate(requestedCenterDate, 'smooth');
+      if (!didCenterDate) return;
     }
 
     if (!requestedCenterTaskId) {

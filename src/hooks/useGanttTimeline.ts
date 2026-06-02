@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 interface TimelineRange {
   start: Date;
   totalDays: number;
@@ -108,16 +110,16 @@ export function useGanttTimeline({
   }, [expansionThresholdPx, expandTimeline]);
 
   const centerOnDate = useCallback((dateStr: string | Date, behavior: ScrollBehavior = 'smooth') => {
-    if (!scrollRef.current) return;
+    if (!scrollRef.current) return false;
 
     const targetDate = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
     const targetTime = targetDate.getTime();
     const startTime = timelineRange.start.getTime();
-    const endTime = startTime + (timelineRange.totalDays * 24 * 60 * 60 * 1000);
+    const endTime = startTime + (timelineRange.totalDays * DAY_MS);
 
     // If outside current range, expand first
     if (targetTime < startTime) {
-      const daysToAdd = Math.ceil((startTime - targetTime) / (24 * 60 * 60 * 1000)) + expansionDays;
+      const daysToAdd = Math.ceil((startTime - targetTime) / DAY_MS) + expansionDays;
       pendingScrollAdjustment.current = daysToAdd * dayWidth;
       setTimelineRange(prev => {
         const d = new Date(prev.start);
@@ -127,17 +129,16 @@ export function useGanttTimeline({
           totalDays: prev.totalDays + daysToAdd
         };
       });
-      // The centering will happen in the next render cycle or via dependency
-      return;
+      return false;
     }
 
-    if (targetTime > endTime - (dayWidth * 2)) {
-      const daysToAdd = Math.ceil((targetTime - endTime) / (24 * 60 * 60 * 1000)) + expansionDays;
+    if (targetTime >= endTime) {
+      const daysToAdd = Math.ceil((targetTime - endTime) / DAY_MS) + expansionDays + 1;
       setTimelineRange(prev => ({
         ...prev,
         totalDays: prev.totalDays + daysToAdd
       }));
-      // Centering will follow
+      return false;
     }
 
     const pos = getPositionForDate(dateStr);
@@ -147,6 +148,7 @@ export function useGanttTimeline({
       left: pos - halfViewport + (dayWidth / 2),
       behavior
     });
+    return true;
   }, [timelineRange, dayWidth, expansionDays, scrollRef, getPositionForDate]);
 
   // Sync range to parent if needed
