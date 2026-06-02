@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { getStatusColor } from '../../../utils/statusColors';
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import { getStartDateForCal, getTargetDateForCal } from '../../../lib/githubTaskMapper';
 import { diffDays } from '../../../lib/dateUtils';
 import { IconButton } from '../../UI/IconButton';
@@ -37,6 +37,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
   const { 
     timelineRange, 
+    timelineExpansionVersion,
     getPositionForDate, 
     handleScroll: handleTimelineScroll,
     centerOnDate 
@@ -69,6 +70,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, taskId: string } | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressNextClickRef = useRef(false);
+  const didCenterInitialRef = useRef(false);
 
   const clearLongPressTimer = () => {
     if (longPressTimerRef.current) {
@@ -165,7 +167,10 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
   // Handle initial centering
   useEffect(() => {
+    if (didCenterInitialRef.current) return;
+
     if (activeScrollRef.current) {
+      didCenterInitialRef.current = true;
       centerOnDate(todayStr, 'auto');
       setViewportInfo({
         scrollLeft: activeScrollRef.current.scrollLeft,
@@ -175,7 +180,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
   }, [activeScrollRef, todayStr, centerOnDate]);
 
   // Handle explicit focus requests (e.g. from Sidebar / Task Details)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!requestedCenterDate && !requestedCenterTaskId) return;
 
     if (requestedCenterDate) {
@@ -204,7 +209,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       behavior: 'auto'
     });
     completeGanttCenterRequest();
-  }, [requestedCenterDate, requestedCenterTaskId, activeScrollRef, centerOnDate, completeGanttCenterRequest, dashboardItems]);
+  }, [requestedCenterDate, requestedCenterTaskId, activeScrollRef, centerOnDate, completeGanttCenterRequest, dashboardItems, timelineExpansionVersion]);
 
   // Vertical Virtualization: Calculate visible days
   const visibleStartIndex = Math.max(0, Math.floor(viewportInfo.scrollLeft / DAY_WIDTH) - 2);

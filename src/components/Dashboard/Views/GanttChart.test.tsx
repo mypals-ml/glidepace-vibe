@@ -5,6 +5,7 @@ import type { DashboardItem, Task } from '../../../types';
 
 const centerOnDate = vi.fn();
 const scrollTo = vi.fn();
+let timelineExpansionVersion = 0;
 
 const buildTask = (index: number): Task => ({
   kind: 'task',
@@ -81,6 +82,7 @@ vi.mock('../../../hooks/useGanttTimeline', () => ({
     getPositionForDate: () => 0,
     handleScroll: vi.fn(),
     centerOnDate,
+    timelineExpansionVersion,
   }),
 }));
 
@@ -93,6 +95,7 @@ describe('GanttChart focus behavior', () => {
     centerOnDate.mockReset();
     centerOnDate.mockReturnValue(true);
     scrollTo.mockReset();
+    timelineExpansionVersion = 0;
     dashboardState = {
       ...dashboardState,
       requestedCenterDate: null,
@@ -181,6 +184,38 @@ describe('GanttChart focus behavior', () => {
     expect(centerOnDate).toHaveBeenCalledWith('2026-04-01', 'smooth');
     expect(scrollTo).not.toHaveBeenCalled();
     expect(completeGanttCenterRequest).not.toHaveBeenCalled();
+  });
+
+  it('retries pending task focus requests when timeline expansion is applied', () => {
+    const completeGanttCenterRequest = vi.fn();
+    let smoothCenterAttempts = 0;
+    centerOnDate.mockImplementation((_date: string, behavior: ScrollBehavior) => {
+      if (behavior !== 'smooth') return true;
+      smoothCenterAttempts += 1;
+      return smoothCenterAttempts > 1;
+    });
+    dashboardState = {
+      ...dashboardState,
+      requestedCenterDate: '2026-04-01',
+      requestedCenterTaskId: 'task-8',
+      completeGanttCenterRequest,
+    };
+
+    const { rerender } = render(<GanttChart />);
+
+    expect(centerOnDate).toHaveBeenCalledWith('2026-04-01', 'smooth');
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(completeGanttCenterRequest).not.toHaveBeenCalled();
+
+    timelineExpansionVersion += 1;
+    rerender(<GanttChart />);
+
+    expect(smoothCenterAttempts).toBe(2);
+    expect(scrollTo).toHaveBeenCalledWith({
+      top: 468,
+      behavior: 'auto',
+    });
+    expect(completeGanttCenterRequest).toHaveBeenCalledTimes(1);
   });
 
   it('disables text selection on gantt task bars for long-press interactions', () => {

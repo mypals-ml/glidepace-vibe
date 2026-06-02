@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -35,10 +35,16 @@ export function useGanttTimeline({
       totalDays: initialBufferDaysLeft + initialBufferDaysRight
     };
   });
+  const [timelineExpansionVersion, setTimelineExpansionVersion] = useState(0);
 
   const isExpanding = useRef(false);
   const pendingScrollAdjustment = useRef(0);
   const isProgrammaticScroll = useRef(false);
+
+  const expandTimelineRange = useCallback((updater: (prev: TimelineRange) => TimelineRange) => {
+    setTimelineRange(updater);
+    setTimelineExpansionVersion(version => version + 1);
+  }, []);
 
   const getPositionForDate = useCallback((dateStr: string | Date) => {
     if (!dateStr) return 0;
@@ -48,7 +54,7 @@ export function useGanttTimeline({
   }, [timelineRange.start, dayWidth]);
 
   // Adjust scrollLeft when timelineStart shifts (infinite scroll left)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (pendingScrollAdjustment.current !== 0 && scrollRef.current) {
       isProgrammaticScroll.current = true;
       scrollRef.current.scrollLeft += pendingScrollAdjustment.current;
@@ -66,7 +72,7 @@ export function useGanttTimeline({
 
     if (direction === 'left') {
       pendingScrollAdjustment.current = expansionDays * dayWidth;
-      setTimelineRange(prev => {
+      expandTimelineRange(prev => {
         const newStart = new Date(prev.start);
         newStart.setDate(newStart.getDate() - expansionDays);
         return {
@@ -75,7 +81,7 @@ export function useGanttTimeline({
         };
       });
     } else {
-      setTimelineRange(prev => ({
+      expandTimelineRange(prev => ({
         ...prev,
         totalDays: prev.totalDays + expansionDays
       }));
@@ -85,7 +91,7 @@ export function useGanttTimeline({
         isExpanding.current = false;
       }, 50);
     }
-  }, [expansionDays, dayWidth]);
+  }, [expansionDays, dayWidth, expandTimelineRange]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
@@ -121,7 +127,7 @@ export function useGanttTimeline({
     if (targetTime < startTime) {
       const daysToAdd = Math.ceil((startTime - targetTime) / DAY_MS) + expansionDays;
       pendingScrollAdjustment.current = daysToAdd * dayWidth;
-      setTimelineRange(prev => {
+      expandTimelineRange(prev => {
         const d = new Date(prev.start);
         d.setDate(d.getDate() - daysToAdd);
         return {
@@ -134,7 +140,7 @@ export function useGanttTimeline({
 
     if (targetTime >= endTime) {
       const daysToAdd = Math.ceil((targetTime - endTime) / DAY_MS) + expansionDays + 1;
-      setTimelineRange(prev => ({
+      expandTimelineRange(prev => ({
         ...prev,
         totalDays: prev.totalDays + daysToAdd
       }));
@@ -149,7 +155,7 @@ export function useGanttTimeline({
       behavior
     });
     return true;
-  }, [timelineRange, dayWidth, expansionDays, scrollRef, getPositionForDate]);
+  }, [timelineRange, dayWidth, expansionDays, scrollRef, getPositionForDate, expandTimelineRange]);
 
   // Sync range to parent if needed
   useEffect(() => {
@@ -160,6 +166,7 @@ export function useGanttTimeline({
 
   return {
     timelineRange,
+    timelineExpansionVersion,
     getPositionForDate,
     handleScroll,
     centerOnDate,
