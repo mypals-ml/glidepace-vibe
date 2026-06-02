@@ -105,13 +105,6 @@
     animation: spin 3s linear infinite;
   }
 
-  .material-symbols-outlined.task-assignee-placeholder-icon {
-    width: 9px;
-    height: 9px;
-    font-size: 9px;
-    line-height: 9px;
-  }
-
   /* Drag handle visibility rules */
   .task-drag-handle {
     opacity: 0;

@@ -139,4 +139,14 @@ describe('TaskSidebar hover actions', () => {
     expect(setIsChartVisible).toHaveBeenCalledWith(true);
     expect(centerGanttOnTask).toHaveBeenCalledWith('task-124', '2026-06-01');
   });
+
+  it('uses the fixed-size assignee icon class for unassigned task rows', () => {
+    render(<TaskSidebar />);
+
+    const placeholderIcon = screen.getByText('person_add');
+
+    expect(placeholderIcon.classList.contains('material-symbols-outlined')).toBe(true);
+    expect(placeholderIcon.classList.contains('task-assignee-icon')).toBe(true);
+    expect(placeholderIcon.classList.contains('task-assignee-placeholder-icon')).toBe(false);
+  });
 });

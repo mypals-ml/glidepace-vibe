@@ -45,7 +45,7 @@ const TREE_LINE_MIX = 34;
 const TREE_ROW_PADDING_LEFT = 8;
 const TASK_ASSIGNEE_CHIP_CLASS = 'w-4 h-4 shrink-0 rounded-full border shadow-sm flex items-center justify-center';
 const TASK_ASSIGNEE_AVATAR_CLASS = `${TASK_ASSIGNEE_CHIP_CLASS} overflow-hidden`;
-const TASK_ASSIGNEE_PLACEHOLDER_ICON_CLASS = 'material-symbols-outlined task-assignee-placeholder-icon';
+const TASK_ASSIGNEE_PLACEHOLDER_ICON_CLASS = 'material-symbols-outlined task-assignee-icon';
 
 interface TreeRowMeta {
   depth: number;
