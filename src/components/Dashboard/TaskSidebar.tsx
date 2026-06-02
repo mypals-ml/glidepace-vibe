@@ -1704,7 +1704,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
                   )}
                 </>
               ) : (
-                <div className={`${TASK_ASSIGNEE_CHIP_CLASS} border-dashed border-slate-200 bg-slate-50/70 text-slate-300`}>
+                <div className={`${TASK_ASSIGNEE_CHIP_CLASS} border-primary/40 bg-primary/10 text-primary shadow-primary/10 group-hover/assignee:border-primary/70 group-hover/assignee:bg-primary/15 group-hover/assignee:text-primary`}>
                   <span className={TASK_ASSIGNEE_PLACEHOLDER_ICON_CLASS}>person_add</span>
                 </div>
               )}

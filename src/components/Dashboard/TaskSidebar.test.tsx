@@ -150,10 +150,14 @@ describe('TaskSidebar hover actions', () => {
     render(<TaskSidebar />);
 
     const placeholderIcon = screen.getByText('person_add');
+    const placeholderChip = placeholderIcon.parentElement;
 
     expect(placeholderIcon.classList.contains('material-symbols-outlined')).toBe(true);
     expect(placeholderIcon.classList.contains('task-assignee-icon')).toBe(true);
     expect(placeholderIcon.classList.contains('task-assignee-placeholder-icon')).toBe(false);
+    expect(placeholderChip?.classList.contains('border-primary/40')).toBe(true);
+    expect(placeholderChip?.classList.contains('bg-primary/10')).toBe(true);
+    expect(placeholderChip?.classList.contains('text-primary')).toBe(true);
   });
 
   it('clears the task filter from the bottom search box', () => {
