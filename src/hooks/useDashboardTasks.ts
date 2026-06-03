@@ -5,7 +5,7 @@ import { mapProjectItemToTask, mapGitHubCommentToTaskComment } from '../lib/gith
 import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
 import { autoCorrectDependencyFields, cascadeTaskDates, cascadeAllTasks, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../lib/taskDependencyUtils';
-import { getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter, moveTaskBlockAfter } from '../lib/taskOrderUtils';
+import { getAfterIdForAppend, getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter, moveTaskBlockAfter } from '../lib/taskOrderUtils';
 import { applyFieldGroupPaths, buildGroupBlocksFromOrderedTasks, renameGroupBlock as renameGroupBlockInTasks, serializeGroupPath, ungroupGroupBlock as ungroupGroupBlockInTasks, isTaskGroupBlock, moveTasksToGroupPath } from '../lib/taskGroupUtils';
 import type { DependencyFieldCorrection } from '../lib/taskDependencyUtils';
 import { mergeFetchedTaskWithLocalState } from '../lib/taskMergeUtils';
@@ -1182,8 +1182,10 @@ export function useDashboardTasks({
       }
 
       let positionedAfterId: string | null | undefined;
-      if (insertPosition) {
-        const afterId = getAfterIdForInsertPosition(tasksRef.current, insertPosition);
+      const afterId = insertPosition
+        ? getAfterIdForInsertPosition(tasksRef.current, insertPosition)
+        : getAfterIdForAppend(tasksRef.current);
+      if (insertPosition || afterId !== null) {
         const moved = await updateProjectV2ItemPosition(selectedProject.id, itemId, afterId, githubToken);
         if (!moved) {
           showToast(t('dashboard.taskInsertPositionFailed', 'Task was created, but could not be moved to the requested position.'), 'error');

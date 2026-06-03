@@ -107,6 +107,11 @@ export function getAfterIdForInsertPosition(tasks: Task[], insertPosition: TaskI
   return previousTask ? getTaskOrderId(previousTask) : null;
 }
 
+export function getAfterIdForAppend(tasks: Task[]): string | null {
+  const lastTask = tasks[tasks.length - 1];
+  return lastTask ? getTaskOrderId(lastTask) : null;
+}
+
 function getDashboardItemTaskIds(item: DashboardItem): string[] {
   return isTaskGroupBlock(item) ? item.childTaskIds : [getTaskOrderId(item)];
 }

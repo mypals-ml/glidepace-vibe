@@ -3,6 +3,7 @@ import type { DashboardItem, Task, TaskGroupBlock } from '../types';
 import {
   getDashboardGroupDropPlan,
   getDashboardTaskGroupPathMovePlan,
+  getAfterIdForAppend,
   getAfterIdForInsertPosition,
   getGroupSortId,
   getTaskSortId,
@@ -287,5 +288,15 @@ describe('taskOrderUtils', () => {
     const tasks = ['A', 'B', 'C'].map(makeTask);
 
     expect(getAfterIdForInsertPosition(tasks, { targetTaskId: 'B', placement: 'below' })).toBe('B');
+  });
+
+  it('calculates append position after the current last task', () => {
+    const tasks = ['A', 'B', 'C'].map(makeTask);
+
+    expect(getAfterIdForAppend(tasks)).toBe('C');
+  });
+
+  it('calculates append position for an empty task list', () => {
+    expect(getAfterIdForAppend([])).toBeNull();
   });
 });
