@@ -12,6 +12,7 @@ import { isTaskGroupBlock } from '../../../lib/taskGroupUtils';
 import { defaultWorkCalendar } from '../../../lib/workCalendar';
 import { getScrollTopForSelectedRow } from '../../../lib/scrollUtils';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../../lib/contextMenuLinkUtils';
+import { getTreeColor, getGroupCardTitleBg, getGroupCardContentBg, getGroupCardBorder, getGroupCardTitleFg } from '../../../lib/treeColors';
 
 export interface GanttChartProps {
   className?: string;
@@ -28,7 +29,7 @@ const ROW_HEIGHT = 72;
 
 export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
   const { t } = useTranslation();
-  const { tasks, filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, requestedCenterTaskId, centerGanttOnDate, completeGanttCenterRequest, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds } = useDashboard();
+  const { tasks, filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, requestedCenterTaskId, centerGanttOnDate, completeGanttCenterRequest, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds, toggleGroupBlockCollapsed } = useDashboard();
   const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, clientWidth: 0 });
   const internalScrollRef = useRef<HTMLDivElement>(null);
   
@@ -52,7 +53,45 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() => defaultWorkCalendar.formatDate(today), [today]);
-  
+
+  // Weighted progress for a group block (Design 7 group card): weight each
+  // child task's progress by its duration in days, matching the design's
+  // `weighted(g)` derivation.
+  const getGroupWeightedProgress = (groupBlock: { childTaskIds: string[] }): number => {
+    const childTasks = filteredTasks.filter(t => groupBlock.childTaskIds.includes(t.id));
+    if (childTasks.length === 0) return 0;
+    let totalWeight = 0;
+    let weightedSum = 0;
+    for (const t of childTasks) {
+      const start = getStartDateForCal(t);
+      const end = getTargetDateForCal(t);
+      const dur = start && end ? Math.max(diffDays(start, end), 1) : 1;
+      totalWeight += dur;
+      weightedSum += dur * (t.progress ?? 0);
+    }
+    return totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
+  };
+
+  // Design 7: a group is drawn as a CARD that wraps its title row AND every
+  // descendant row beneath it. Precompute, per group block, how many rows
+  // (the title row itself + all descendant rows) the card must span. Items in
+  // `dashboardItems` are flat and ordered: a group is immediately followed by
+  // its descendants; a descendant has `depth` greater than the group's depth.
+  const groupRowSpans = useMemo(() => {
+    const spans: Record<string, number> = {};
+    for (let i = 0; i < dashboardItems.length; i++) {
+      const item = dashboardItems[i];
+      if (!isTaskGroupBlock(item)) continue;
+      let rows = 1; // the title row itself
+      for (let j = i + 1; j < dashboardItems.length; j++) {
+        if (dashboardItems[j].depth <= item.depth) break;
+        rows += 1;
+      }
+      spans[item.groupBlockId] = rows;
+    }
+    return spans;
+  }, [dashboardItems]);
+
   // Update viewport info on scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollLeft, clientWidth } = e.currentTarget;
@@ -335,35 +374,120 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                 if (isTaskGroupBlock(item)) {
                   const groupStart = item.startDate;
                   const groupEnd = item.targetDate;
+
+                  // Color keyed to the tree-view node color for this group's depth,
+                  // so the card matches the group's node in the task list.
+                  const nodeColor = getTreeColor(item.depth);
+                  const titleBg = getGroupCardTitleBg(item.depth);
+                  const contentBg = getGroupCardContentBg(item.depth);
+                  const cardBorder = getGroupCardBorder(item.depth);
+                  const titleFg = getGroupCardTitleFg(item.depth);
+
+                  // No-date fallback: keep a sticky label (Design 7 has no card to draw without a span).
                   if (!groupStart || !groupEnd) {
                     return (
                       <div key={item.groupBlockId} className="relative h-[72px] w-full flex items-center px-2 bg-slate-50/40">
-                        <div className="sticky left-3 inline-flex items-center gap-2 text-xs font-bold text-slate-500">
-                          <span className="material-symbols-outlined text-[16px] text-primary/80">folder</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleGroupBlockCollapsed(item.groupBlockId)}
+                          className="sticky left-3 inline-flex items-center gap-2 text-sm font-extrabold tracking-[-0.01em]"
+                          style={{ color: titleFg }}
+                        >
+                          <span
+                            className="material-symbols-outlined text-[18px] transition-transform duration-200"
+                            style={{ transform: item.isExpanded ? 'rotate(90deg)' : 'none', color: nodeColor }}
+                          >
+                            chevron_right
+                          </span>
                           {item.name}
-                        </div>
+                        </button>
                       </div>
                     );
                   }
 
-                  const left = getPositionForDate(groupStart);
+                  // ---- Design 7: "group as a card". ----
+                  // The card surface wraps the title row AND every descendant
+                  // row; the group bar is the card's title row sitting at the top.
+                  const CARD_PAD = 9;
+                  const TITLE_H = 40;
+                  const CARD_RADIUS = 8;
+                  const spanLeft = getPositionForDate(groupStart);
                   const duration = diffDays(groupStart, groupEnd);
-                  const width = duration * DAY_WIDTH;
+                  const spanWidth = duration * DAY_WIDTH;
+                  const cardLeft = spanLeft - CARD_PAD;
+                  const cardWidth = Math.max(spanWidth, 120) + CARD_PAD * 2;
+                  const weightedProgress = getGroupWeightedProgress(item);
+                  const isOpen = item.isExpanded;
+                  const rowSpan = groupRowSpans[item.groupBlockId] ?? 1;
+                  // Card height: own row + descendant rows when expanded, else just the title row.
+                  const cardHeight = isOpen
+                    ? (rowSpan - 1) * ROW_HEIGHT + TITLE_H + (72 - TITLE_H) / 2
+                    : TITLE_H;
+                  const titleTop = (72 - TITLE_H) / 2;
 
                   return (
-                    <div key={item.groupBlockId} className="relative h-[72px] w-full flex items-center px-2 bg-slate-50/40">
+                    <div key={item.groupBlockId} className="relative h-[72px] w-full px-2" style={{ zIndex: 5 }}>
+                      {/* translucent card surface — wraps title row + child rows (more transparent than the title) */}
                       <div
-                        className={`absolute h-8 rounded-md border border-primary/20 bg-primary/10 text-primary flex items-center px-3 shadow-sm ${
-                          item.isSyntheticRoot ? 'bg-slate-200/80 border-slate-300 text-slate-700' : ''
-                        }`}
+                        className="absolute pointer-events-none"
                         style={{
-                          left: `${left}px`,
-                          width: `${Math.max(width, 120)}px`,
+                          left: `${cardLeft}px`,
+                          width: `${cardWidth}px`,
+                          top: `${titleTop}px`,
+                          height: `${cardHeight}px`,
+                          background: contentBg,
+                          border: `1px solid ${cardBorder}`,
+                          borderRadius: `${CARD_RADIUS}px`,
+                          zIndex: 0,
                         }}
+                      />
+                      {/* group bar == card title row */}
+                      <button
+                        type="button"
+                        onClick={() => toggleGroupBlockCollapsed(item.groupBlockId)}
+                        className="absolute flex items-center gap-[9px] text-left"
+                        style={{
+                          left: `${cardLeft}px`,
+                          width: `${cardWidth}px`,
+                          top: `${titleTop}px`,
+                          height: `${TITLE_H}px`,
+                          padding: '0 13px 0 6px',
+                          background: titleBg,
+                          borderRadius: isOpen
+                            ? `${CARD_RADIUS}px ${CARD_RADIUS}px 0 0`
+                            : `${CARD_RADIUS}px`,
+                          borderBottom: isOpen ? `1px solid ${cardBorder}` : 'none',
+                          zIndex: 5,
+                        }}
+                        aria-expanded={isOpen}
                       >
-                        <span className="material-symbols-outlined text-[15px] mr-1.5">folder</span>
-                        <span className="text-xs font-bold truncate">{item.name}</span>
-                      </div>
+                        <span
+                          className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-md flex-shrink-0 transition-colors"
+                          style={{ color: nodeColor }}
+                        >
+                          <span
+                            className="material-symbols-outlined text-[18px] transition-transform duration-200"
+                            style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }}
+                          >
+                            chevron_right
+                          </span>
+                        </span>
+                        <span className="text-sm font-extrabold tracking-[-0.01em] whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: titleFg }}>
+                          {item.name}
+                        </span>
+                        <span
+                          className="inline-flex items-center text-[10px] font-extrabold px-[7px] py-[2px] rounded-full whitespace-nowrap flex-shrink-0"
+                          style={{ color: nodeColor, background: getGroupCardPillBg(item.depth), border: `1px solid ${getGroupCardBorder(item.depth)}` }}
+                        >
+                          {item.childTaskIds.length} {t('dashboard.tasksLabel', 'tasks')}
+                        </span>
+                        <span className="ml-auto flex items-center gap-[7px] flex-shrink-0">
+                          <span className="w-[46px] h-[5px] rounded-full bg-slate-200 overflow-hidden">
+                            <span className="block h-full rounded-full" style={{ width: `${weightedProgress}%`, background: nodeColor }} />
+                          </span>
+                          <span className="text-[11px] font-black tabular-nums" style={{ color: nodeColor }}>{weightedProgress}%</span>
+                        </span>
+                      </button>
                     </div>
                   );
                 }

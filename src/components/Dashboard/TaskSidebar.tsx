@@ -17,23 +17,11 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isTaskGroupBlock, parseSlashGroupPath, serializeSlashGroupPath } from '../../lib/taskGroupUtils';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
 import { Button } from '../UI/Button';
+import { TREE_DEPTH_COLORS, getTreeColor, getTreeLineColor, getTreeHandleHoverColor } from '../../lib/treeColors';
 
 type ContextMenuTarget =
   | { kind: 'task'; taskId: string }
   | { kind: 'group'; groupBlockId: string };
-
-const TREE_DEPTH_COLORS = [
-  '#4f46e5',
-  '#0891b2',
-  '#16a34a',
-  '#d97706',
-  '#dc2626',
-  '#9333ea',
-  '#0f766e',
-  '#2563eb',
-  '#be185d',
-  '#65a30d',
-] as const;
 
 const TREE_NODE_BASE_X = 12;
 const TREE_DEPTH_STEP = 20;
@@ -41,7 +29,6 @@ const TREE_CONTENT_GAP = 18;
 const TREE_ELBOW_HEIGHT = 16;
 const TREE_ELBOW_RADIUS = 8;
 const TREE_ROW_HEIGHT = 72;
-const TREE_LINE_MIX = 34;
 const TREE_ROW_PADDING_LEFT = 8;
 const TASK_ASSIGNEE_CHIP_CLASS = 'w-4 h-4 shrink-0 rounded-full border shadow-sm flex items-center justify-center';
 const TASK_ASSIGNEE_AVATAR_CLASS = `${TASK_ASSIGNEE_CHIP_CLASS} overflow-hidden`;
@@ -87,20 +74,8 @@ function getTreeDragHandleX(): number {
   return TREE_ROW_PADDING_LEFT;
 }
 
-function getTreeColor(depth: number): string {
-  return TREE_DEPTH_COLORS[Math.min(Math.max(depth, 0), TREE_DEPTH_COLORS.length - 1)];
-}
-
-function getTreeLineColor(depth: number): string {
-  return `color-mix(in srgb, ${getTreeColor(depth)} ${TREE_LINE_MIX}%, white)`;
-}
-
 function getTreeRowDividerLeft(depth: number): number {
   return TREE_ROW_PADDING_LEFT + getTreeNodeX(depth) + TREE_CONTENT_GAP;
-}
-
-function getTreeHandleHoverColor(depth: number): string {
-  return `color-mix(in srgb, ${getTreeColor(depth)} 82%, black)`;
 }
 
 function buildDashboardTreeRows(items: DashboardItem[]): DashboardTreeRow[] {
