@@ -12,7 +12,7 @@ export const ResizableTextarea = forwardRef<HTMLTextAreaElement, ResizableTextar
   useImperativeHandle(forwardedRef, () => textareaRef.current as HTMLTextAreaElement, []);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === 'mouse' || !textareaRef.current) return;
+    if (!textareaRef.current) return;
 
     event.preventDefault();
 
