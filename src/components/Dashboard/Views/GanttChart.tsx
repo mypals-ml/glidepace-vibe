@@ -12,7 +12,7 @@ import { isTaskGroupBlock } from '../../../lib/taskGroupUtils';
 import { defaultWorkCalendar } from '../../../lib/workCalendar';
 import { getScrollTopForSelectedRow } from '../../../lib/scrollUtils';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../../lib/contextMenuLinkUtils';
-import { getTreeColor, getGroupCardTitleBg, getGroupCardContentBg, getGroupCardBorder, getGroupCardTitleFg } from '../../../lib/treeColors';
+import { getTreeColor, getGroupCardTitleBg, getGroupCardContentBg, getGroupCardBorder, getGroupCardPillBg, getGroupCardTitleFg } from '../../../lib/treeColors';
 
 export interface GanttChartProps {
   className?: string;
@@ -84,7 +84,8 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       if (!isTaskGroupBlock(item)) continue;
       let rows = 1; // the title row itself
       for (let j = i + 1; j < dashboardItems.length; j++) {
-        if (dashboardItems[j].depth <= item.depth) break;
+        const nextItem = dashboardItems[j];
+        if (!nextItem || (nextItem.depth ?? 0) <= item.depth) break;
         rows += 1;
       }
       spans[item.groupBlockId] = rows;
