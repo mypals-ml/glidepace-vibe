@@ -152,28 +152,35 @@
 @media (pointer: coarse) {
   .resizable-textarea {
     resize: none;
-    padding-bottom: 1.75rem;
+    padding-bottom: 2.125rem;
   }
 
   .textarea-resize-handle {
     position: absolute;
     left: 50%;
-    bottom: 0.2rem;
+    bottom: 0.35rem;
     display: flex;
-    height: 1rem;
-    width: 2.75rem;
+    height: 1.45rem;
+    width: 3.25rem;
     transform: translateX(-50%);
     align-items: center;
     justify-content: center;
+    flex-direction: column;
+    gap: 0.14rem;
+    border: 1px solid rgba(148, 163, 184, 0.42);
+    border-radius: 0.55rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.92));
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
     touch-action: none;
+    user-select: none;
   }
 
   .textarea-resize-handle-bar {
-    height: 0.26rem;
-    width: 1.9rem;
+    height: 0.12rem;
+    width: 1.45rem;
     border-radius: 9999px;
-    background: linear-gradient(90deg, rgba(148, 163, 184, 0.45), rgba(100, 116, 139, 0.85), rgba(148, 163, 184, 0.45));
-    box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.9);
+    background: #64748b;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
   }
 }
 

@@ -54,6 +54,8 @@ export const ResizableTextarea = forwardRef<HTMLTextAreaElement, ResizableTextar
         aria-hidden="true"
       >
         <span className="textarea-resize-handle-bar" />
+        <span className="textarea-resize-handle-bar" />
+        <span className="textarea-resize-handle-bar" />
       </div>
     </div>
   );
