@@ -116,7 +116,9 @@ export function useGanttTimeline({
   }, [expansionThresholdPx, expandTimeline]);
 
   const centerOnDate = useCallback((dateStr: string | Date, behavior: ScrollBehavior = 'smooth') => {
-    if (!scrollRef.current) return false;
+    if (!scrollRef.current) {
+      return false;
+    }
 
     const targetDate = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
     const targetTime = targetDate.getTime();
@@ -149,10 +151,19 @@ export function useGanttTimeline({
 
     const pos = getPositionForDate(dateStr);
     const halfViewport = scrollRef.current.clientWidth / 2;
+    const targetLeft = pos - halfViewport + (dayWidth / 2);
     isProgrammaticScroll.current = true;
     scrollRef.current.scrollTo({
-      left: pos - halfViewport + (dayWidth / 2),
+      left: targetLeft,
+      top: scrollRef.current.scrollTop,
       behavior
+    });
+    requestAnimationFrame(() => {
+      if (!scrollRef.current) return;
+      if (Math.abs(scrollRef.current.scrollLeft - targetLeft) > dayWidth) {
+        isProgrammaticScroll.current = true;
+        scrollRef.current.scrollLeft = targetLeft;
+      }
     });
     return true;
   }, [timelineRange, dayWidth, expansionDays, scrollRef, getPositionForDate, expandTimelineRange]);

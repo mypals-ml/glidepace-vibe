@@ -143,13 +143,11 @@ describe('GanttChart focus behavior', () => {
       completeGanttCenterRequest,
     };
 
-    render(<GanttChart />);
+    const { container } = render(<GanttChart />);
 
     expect(centerOnDate).toHaveBeenCalledWith('2026-05-01', 'smooth');
-    expect(scrollTo).toHaveBeenCalledWith({
-      top: 468,
-      behavior: 'auto',
-    });
+    expect(container.querySelector('.overflow-auto')?.scrollTop).toBe(468);
+    expect(scrollTo).not.toHaveBeenCalled();
     expect(completeGanttCenterRequest).toHaveBeenCalledTimes(1);
   });
 
@@ -201,7 +199,7 @@ describe('GanttChart focus behavior', () => {
       completeGanttCenterRequest,
     };
 
-    const { rerender } = render(<GanttChart />);
+    const { container, rerender } = render(<GanttChart />);
 
     expect(centerOnDate).toHaveBeenCalledWith('2026-04-01', 'smooth');
     expect(scrollTo).not.toHaveBeenCalled();
@@ -211,10 +209,8 @@ describe('GanttChart focus behavior', () => {
     rerender(<GanttChart />);
 
     expect(smoothCenterAttempts).toBe(2);
-    expect(scrollTo).toHaveBeenCalledWith({
-      top: 468,
-      behavior: 'auto',
-    });
+    expect(container.querySelector('.overflow-auto')?.scrollTop).toBe(468);
+    expect(scrollTo).not.toHaveBeenCalled();
     expect(completeGanttCenterRequest).toHaveBeenCalledTimes(1);
   });
 

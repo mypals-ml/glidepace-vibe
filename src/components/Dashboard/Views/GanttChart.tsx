@@ -204,10 +204,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       rowHeight: ROW_HEIGHT,
       viewportHeight: activeScrollRef.current.clientHeight,
     });
-    activeScrollRef.current.scrollTo({
-      top,
-      behavior: 'auto'
-    });
+    activeScrollRef.current.scrollTop = top;
     completeGanttCenterRequest();
   }, [requestedCenterDate, requestedCenterTaskId, activeScrollRef, centerOnDate, completeGanttCenterRequest, dashboardItems, timelineExpansionVersion]);
 
