@@ -10,7 +10,7 @@ interface UseDashboardSyncProps {
   selectedProject: { id: string; title: string } | null;
   tasks: Task[];
   fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
-  fetchSingleProjectItem: (itemId: string, token: string) => Promise<void>;
+  fetchSingleProjectItem: (itemId: string, token: string) => Promise<Task | null>;
   shouldSkipRecentLocalReorder: (itemId: string | undefined) => boolean;
   shouldSkipRecentLocalReorderSync: () => boolean;
 }

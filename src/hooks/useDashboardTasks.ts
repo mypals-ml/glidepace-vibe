@@ -5,7 +5,7 @@ import { mapProjectItemToTask, mapGitHubCommentToTaskComment } from '../lib/gith
 import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
 import { autoCorrectDependencyFields, cascadeTaskDates, cascadeAllTasks, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../lib/taskDependencyUtils';
-import { getAfterIdForAppend, getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter, moveTaskBlockAfter } from '../lib/taskOrderUtils';
+import { getAfterIdForAppend, getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter, moveTaskBlockAfter, upsertTaskAfter } from '../lib/taskOrderUtils';
 import { applyFieldGroupPaths, buildGroupBlocksFromOrderedTasks, renameGroupBlock as renameGroupBlockInTasks, serializeGroupPath, ungroupGroupBlock as ungroupGroupBlockInTasks, isTaskGroupBlock, moveTasksToGroupPath } from '../lib/taskGroupUtils';
 import type { DependencyFieldCorrection } from '../lib/taskDependencyUtils';
 import { mergeFetchedTaskWithLocalState } from '../lib/taskMergeUtils';
@@ -221,7 +221,7 @@ export function useDashboardTasks({
     return true;
   }, [persistTaskGroupPath]);
 
-  const fetchSingleProjectItem = useCallback(async (itemId: string, token: string) => {
+  const fetchSingleProjectItem = useCallback(async (itemId: string, token: string): Promise<Task | null> => {
     console.log(`[DashboardTasks] 📡 Fetching single item: ${itemId}`);
     try {
       const json = await fetchGitHubGraphQL(GET_SINGLE_ITEM_QUERY, { itemId }, token);
@@ -278,12 +278,14 @@ export function useDashboardTasks({
             updateField(dateSettingsRef.current.estimateFieldId || updatedTask.projectFieldIds?.estimate, { number: updatedTask.tempEstimate });
           }
         }
+        return updatedTask;
       } else {
         console.warn(`[DashboardTasks] ⚠️ No item data returned for ${itemId}`);
       }
     } catch (e) {
       console.error('Failed to fetch single project item:', e);
     }
+    return null;
   }, [updateSyncTime, selectedProject?.id, setTasks]);
 
   const fetchTaskComments = useCallback(async (taskId: string, contentId: string, token: string) => {
@@ -1195,9 +1197,9 @@ export function useDashboardTasks({
       }
 
       console.log(`[DashboardTasks] 🚀 Creation sequence complete, performing final fetch for: ${itemId}`);
-      await fetchSingleProjectItem(itemId, githubToken);
+      const fetchedTask = await fetchSingleProjectItem(itemId, githubToken);
       if (positionedAfterId !== undefined) {
-        setTasks(prev => moveTaskAfter(prev, itemId, positionedAfterId));
+        setTasks(prev => upsertTaskAfter(prev, fetchedTask || tempTask, positionedAfterId));
       }
       
       setIsCreateMode(false);

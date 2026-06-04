@@ -53,6 +53,32 @@ export function moveTaskAfter(tasks: Task[], taskId: string, afterTaskId: string
   ];
 }
 
+export function upsertTaskAfter(tasks: Task[], taskToUpsert: Task, afterTaskId: string | null): Task[] {
+  const taskId = getTaskOrderId(taskToUpsert);
+  const currentIndex = tasks.findIndex(task => getTaskOrderId(task) === taskId || task.id === taskId);
+  const remainingTasks = currentIndex === -1
+    ? tasks
+    : tasks.filter((_, index) => index !== currentIndex);
+  const nextTask = currentIndex === -1 ? taskToUpsert : { ...tasks[currentIndex], ...taskToUpsert };
+
+  if (afterTaskId === null) {
+    return [nextTask, ...remainingTasks];
+  }
+
+  const insertAfterIndex = remainingTasks.findIndex(
+    candidate => getTaskOrderId(candidate) === afterTaskId || candidate.id === afterTaskId
+  );
+  if (insertAfterIndex === -1) {
+    return currentIndex === -1 ? [...remainingTasks, nextTask] : tasks;
+  }
+
+  return [
+    ...remainingTasks.slice(0, insertAfterIndex + 1),
+    nextTask,
+    ...remainingTasks.slice(insertAfterIndex + 1),
+  ];
+}
+
 export function moveTaskBlockAfter(tasks: Task[], taskIds: string[], afterTaskId: string | null): Task[] {
   const movingTaskIdSet = new Set(taskIds);
   if (movingTaskIdSet.size === 0) return tasks;

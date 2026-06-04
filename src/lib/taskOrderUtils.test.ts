@@ -11,6 +11,7 @@ import {
   getAfterIdForVisibleMove,
   moveTaskAfter,
   moveTaskBlockAfter,
+  upsertTaskAfter,
 } from './taskOrderUtils';
 
 const makeTask = (id: string, groupPathOrIndex: string[] | number = []): Task => ({
@@ -92,6 +93,24 @@ describe('taskOrderUtils', () => {
     const tasks = ['A', 'B', 'C'].map(makeTask);
 
     expect(ids(moveTaskAfter(tasks, 'A', 'C'))).toEqual(['B', 'C', 'A']);
+  });
+
+  it('inserts a newly created task after the current last task', () => {
+    const tasks = ['A', 'B', 'C'].map(makeTask);
+
+    expect(ids(upsertTaskAfter(tasks, makeTask('D'), 'C'))).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('inserts a newly created task above a target task', () => {
+    const tasks = ['A', 'B', 'C'].map(makeTask);
+
+    expect(ids(upsertTaskAfter(tasks, makeTask('D'), 'A'))).toEqual(['A', 'D', 'B', 'C']);
+  });
+
+  it('moves an existing fetched task into the requested create position', () => {
+    const tasks = ['A', 'B', 'C', 'D'].map(makeTask);
+
+    expect(ids(upsertTaskAfter(tasks, { ...makeTask('D'), title: 'Fetched D' }, 'A'))).toEqual(['A', 'D', 'B', 'C']);
   });
 
   it('moves a task block while preserving internal order', () => {

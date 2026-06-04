@@ -18,7 +18,7 @@ import { createProjectV2Field } from '../lib/githubService';
 export function DashboardProvider({ children }: { children: ReactNode }) {
   // Bridging Refs to break circular dependencies between hooks
   const fetchProjectTasksRef = useRef<(id: string, token: string) => Promise<void>>(() => Promise.resolve());
-  const fetchSingleItemRef = useRef<(id: string, token: string) => Promise<void>>(() => Promise.resolve());
+  const fetchSingleItemRef = useRef<(id: string, token: string) => Promise<Task | null>>(() => Promise.resolve(null));
   const updateSyncTimeRef = useRef<() => void>(() => {});
   const recentLocalReorderTrackerRef = useRef(createRecentLocalReorderTracker());
 
