@@ -8,7 +8,7 @@ import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor, getStatusTextColor } from '../../utils/statusColors';
 import type { DashboardItem, Task, TaskGroupBlock, User } from '../../types';
-import { memo, useCallback, useMemo, useRef, useState, useEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
+import { memo, useCallback, useMemo, useRef, useState, useEffect, useLayoutEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
@@ -23,6 +23,8 @@ type ContextMenuTarget =
   | { kind: 'task'; taskId: string }
   | { kind: 'group'; groupBlockId: string };
 
+type ContextMenuState = { x: number; y: number; target: ContextMenuTarget; alignRight: boolean };
+
 const TREE_NODE_BASE_X = 12;
 const TREE_DEPTH_STEP = 20;
 const TREE_CONTENT_GAP = 18;
@@ -33,6 +35,7 @@ const TREE_ROW_PADDING_LEFT = 8;
 const TASK_ASSIGNEE_CHIP_CLASS = 'w-4 h-4 shrink-0 rounded-full border shadow-sm flex items-center justify-center';
 const TASK_ASSIGNEE_AVATAR_CLASS = `${TASK_ASSIGNEE_CHIP_CLASS} overflow-hidden`;
 const TASK_ASSIGNEE_PLACEHOLDER_ICON_CLASS = 'material-symbols-outlined task-assignee-icon';
+const CONTEXT_MENU_VIEWPORT_PADDING = 8;
 
 interface TreeRowMeta {
   depth: number;
@@ -202,7 +205,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const [movingItemSortId, setMovingItemSortId] = useState<string | null>(null);
   const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; target: ContextMenuTarget; alignRight: boolean } | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [activeDragItemSortId, setActiveDragItemSortId] = useState<string | null>(null);
   const [groupEditor, setGroupEditor] = useState<
     | { mode: 'taskPath'; taskId: string; value: string }
@@ -215,6 +218,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const [fieldGroupSearchQuery, setFieldGroupSearchQuery] = useState('');
   const [draggedGroupFieldId, setDraggedGroupFieldId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const suppressNextClickRef = useRef(false);
   const dragHasMovedRef = useRef(false);
   const justDroppedRef = useRef(false);
@@ -253,6 +257,25 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       alignRight: clientX - rect.left > rect.width - 220
     });
   }, [activeDragItemSortId]);
+
+  useLayoutEffect(() => {
+    if (!contextMenu) return;
+
+    const rootRect = rootRef.current?.getBoundingClientRect();
+    const menuRect = contextMenuRef.current?.getBoundingClientRect();
+    if (!rootRect || !menuRect) return;
+
+    const visibleBottom = Math.min(rootRect.height, window.innerHeight - rootRect.top);
+    const maxY = Math.max(
+      CONTEXT_MENU_VIEWPORT_PADDING,
+      visibleBottom - menuRect.height - CONTEXT_MENU_VIEWPORT_PADDING,
+    );
+    const nextY = Math.min(Math.max(contextMenu.y, CONTEXT_MENU_VIEWPORT_PADDING), maxY);
+
+    if (nextY !== contextMenu.y) {
+      setContextMenu(prev => prev ? { ...prev, y: nextY } : prev);
+    }
+  }, [contextMenu]);
 
   const findTaskByOrderId = useCallback((taskId: string): Task | undefined => {
     return tasks.find(task => task.id === taskId || task.itemId === taskId || getTaskOrderId(task) === taskId);
@@ -544,7 +567,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden relative" ref={rootRef}>
+    <div className="flex flex-col h-full overflow-hidden relative" ref={rootRef} data-testid="task-sidebar-root">
       {/* Header - Moved outside scroll container for alignment */}
       <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[32px_minmax(0,1fr)_64px_76px] gap-1 pl-1.5 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
         <IconButton
@@ -671,6 +694,8 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
           }}
         >
           <div
+            ref={contextMenuRef}
+            data-testid="task-context-menu"
             className="absolute bg-white/95 rounded-xl shadow-2xl border border-slate-200/60 py-1.5 min-w-[200px] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200"
             style={{
               left: contextMenu.x,

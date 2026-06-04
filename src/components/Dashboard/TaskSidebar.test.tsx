@@ -182,4 +182,60 @@ describe('TaskSidebar hover actions', () => {
 
     expect((screen.getByRole('textbox', { name: 'Filter fields...' }) as HTMLInputElement).value).toBe('');
   });
+
+  it('moves the task context menu upward when it would overflow the bottom edge', () => {
+    const originalInnerHeight = window.innerHeight;
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getMockRect(this: HTMLElement) {
+      if (this.dataset.testid === 'task-sidebar-root') {
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          left: 0,
+          right: 320,
+          bottom: 400,
+          width: 320,
+          height: 400,
+          toJSON: () => ({}),
+        };
+      }
+      if (this.dataset.testid === 'task-context-menu') {
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          left: 0,
+          right: 200,
+          bottom: 260,
+          width: 200,
+          height: 260,
+          toJSON: () => ({}),
+        };
+      }
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+        toJSON: () => ({}),
+      };
+    });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 400 });
+
+    render(<TaskSidebar />);
+
+    const taskRow = screen.getByText(/fix bug: the location button/i).closest('[role="button"]');
+    expect(taskRow).not.toBeNull();
+
+    fireEvent.contextMenu(taskRow as HTMLElement, { clientX: 100, clientY: 380 });
+
+    expect(screen.getByTestId('task-context-menu').style.top).toBe('132px');
+
+    rectSpy.mockRestore();
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalInnerHeight });
+  });
 });
