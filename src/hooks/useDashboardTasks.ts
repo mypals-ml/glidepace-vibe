@@ -60,8 +60,8 @@ function getProjectFixedStartDateMode(dateSettings: ProjectDateSettings): FixedS
   return dateSettings.fixedSuccessorStartDateMode || 'ask';
 }
 
-function sortUniqueIds(ids: string[]): string[] {
-  return Array.from(new Set(ids.filter(Boolean))).sort();
+function preserveUniqueIds(ids: string[]): string[] {
+  return Array.from(new Set(ids.filter(Boolean)));
 }
 
 function getExistingPredecessorIds(tasks: Task[], successorTask: Task): string[] {
@@ -751,10 +751,10 @@ export function useDashboardTasks({
     if (!task || !task.itemId) return false;
     const sourceTaskId = task.itemId;
     const oldSuccessorIds = task.successorIds || [];
-    const nextSuccessorIds = sortUniqueIds(successorIds);
+    const nextSuccessorIds = preserveUniqueIds(successorIds);
     const addedSuccessorIds = nextSuccessorIds.filter(successorId => !oldSuccessorIds.includes(successorId));
     const removedSuccessorIds = oldSuccessorIds.filter(successorId => !nextSuccessorIds.includes(successorId));
-    const affectedSuccessorIds = sortUniqueIds([...addedSuccessorIds, ...removedSuccessorIds]);
+    const affectedSuccessorIds = preserveUniqueIds([...addedSuccessorIds, ...removedSuccessorIds]);
 
     // 2. Resolve prompt if needed
     const projectFixedMode = getProjectFixedStartDateMode(dateSettings);
@@ -786,7 +786,7 @@ export function useDashboardTasks({
       if (affectedSuccessorIds.includes(currentTaskId)) {
         const existingPredecessorIds = getExistingPredecessorIds(oldTasks, t);
         const predecessorIds = addedSuccessorIds.includes(currentTaskId)
-          ? sortUniqueIds([...existingPredecessorIds, sourceTaskId])
+          ? preserveUniqueIds([...existingPredecessorIds, sourceTaskId])
           : existingPredecessorIds.filter(predecessorId => predecessorId !== sourceTaskId);
         return {
           ...withUpdatedPredecessorIds(t, predecessorIds),

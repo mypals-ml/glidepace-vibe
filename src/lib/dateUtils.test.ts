@@ -180,6 +180,20 @@ describe('Task dependency cascade logic', () => {
     ]);
   });
 
+  it('keeps existing successor link order when auto-correcting missing reverse links', () => {
+    const { tasks, corrections } = autoCorrectDependencyFields([
+      makeTask({ id: 'A', itemId: 'A', successorIds: ['C', 'B'] }),
+      makeTask({ id: 'D', itemId: 'D', predecessorIds: ['A'] }),
+      makeTask({ id: 'C', itemId: 'C', predecessorIds: ['A'] }),
+      makeTask({ id: 'B', itemId: 'B', predecessorIds: ['A'] }),
+    ]);
+
+    expect(tasks.find(t => t.id === 'A')?.successorIds).toEqual(['C', 'B', 'D']);
+    expect(corrections).toEqual([
+      { taskId: 'A', field: 'successor', ids: ['C', 'B', 'D'] },
+    ]);
+  });
+
   it('auto-corrects missing predecessor links when walking downstream from successors', () => {
     const { tasks, corrections } = autoCorrectDependencyFields([
       makeTask({ id: 'A', itemId: 'A', successorIds: ['B'] }),
@@ -189,6 +203,20 @@ describe('Task dependency cascade logic', () => {
     expect(tasks.find(t => t.id === 'B')?.predecessorIds).toEqual(['A']);
     expect(corrections).toEqual([
       { taskId: 'B', field: 'predecessor', ids: ['A'] },
+    ]);
+  });
+
+  it('keeps existing predecessor link order when auto-correcting missing reverse links', () => {
+    const { tasks, corrections } = autoCorrectDependencyFields([
+      makeTask({ id: 'C', itemId: 'C', successorIds: ['D'] }),
+      makeTask({ id: 'B', itemId: 'B', successorIds: ['D'] }),
+      makeTask({ id: 'A', itemId: 'A', successorIds: ['D'] }),
+      makeTask({ id: 'D', itemId: 'D', predecessorIds: ['C', 'B'] }),
+    ]);
+
+    expect(tasks.find(t => t.id === 'D')?.predecessorIds).toEqual(['C', 'B', 'A']);
+    expect(corrections).toEqual([
+      { taskId: 'D', field: 'predecessor', ids: ['C', 'B', 'A'] },
     ]);
   });
 });

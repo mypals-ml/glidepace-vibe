@@ -41,8 +41,8 @@ function getTaskKey(task: Task): string {
   return task.itemId || task.id;
 }
 
-function sortUniqueIds(ids: string[]): string[] {
-  return Array.from(new Set(ids.filter(Boolean))).sort();
+function preserveUniqueIds(ids: string[]): string[] {
+  return Array.from(new Set(ids.filter(Boolean)));
 }
 
 function calculateFallbackFloatingStartDate(task: Task): string {
@@ -91,7 +91,7 @@ function calculateFloatingDatesFromPredecessors(tasks: Task[], successor: Task):
 export function withUpdatedPredecessorIds(task: Task, predecessorIds: string[]): Task {
   return {
     ...task,
-    predecessorIds: sortUniqueIds(predecessorIds),
+    predecessorIds: preserveUniqueIds(predecessorIds),
   };
 }
 
@@ -105,7 +105,7 @@ export function autoCorrectDependencyFields(tasks: Task[]): { tasks: Task[]; cor
     const existingIds = field === 'successor' ? (task.successorIds || []) : (task.predecessorIds || []);
     if (existingIds.includes(relatedTaskId)) return;
 
-    const ids = sortUniqueIds([...existingIds, relatedTaskId]);
+    const ids = preserveUniqueIds([...existingIds, relatedTaskId]);
     tasksCopy[taskIndex] = field === 'successor'
       ? { ...task, successorIds: ids }
       : { ...task, predecessorIds: ids };
