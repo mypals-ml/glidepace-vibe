@@ -224,4 +224,47 @@ describe('GanttChart focus behavior', () => {
     expect(taskBar.getAttribute('style')).toContain('-webkit-user-select: none');
     expect(taskBar.getAttribute('style')).toContain('touch-action: manipulation');
   });
+
+  it('shows group progress as text without a group-title progress bar', () => {
+    const groupTasks = [
+      { ...buildTask(1), progress: 100 },
+      { ...buildTask(2), progress: 0 },
+    ];
+    const groupDashboardItems: DashboardItem[] = [
+      {
+        kind: 'group',
+        groupBlockId: 'project-root',
+        name: 'Project',
+        path: [],
+        depth: 0,
+        startTaskIndex: 0,
+        endTaskIndex: groupTasks.length - 1,
+        startDate: '2026-05-01',
+        targetDate: '2026-05-03',
+        childTaskIds: groupTasks.map(task => task.id),
+        isExpanded: true,
+        isSyntheticRoot: true,
+      },
+      ...groupTasks,
+    ];
+
+    dashboardState = {
+      ...dashboardState,
+      tasks: groupTasks,
+      filteredTasks: groupTasks,
+      dashboardItems: groupDashboardItems,
+      selectedTaskId: null,
+    };
+
+    render(<GanttChart />);
+
+    const groupTitle = screen.getByRole('button', { name: /project2 tasks50%/i });
+
+    expect(groupTitle.textContent).toContain('50%');
+    expect(
+      Array.from(groupTitle.querySelectorAll('span')).some(element =>
+        element.className.includes('w-[46px]')
+      )
+    ).toBe(false);
+  });
 });

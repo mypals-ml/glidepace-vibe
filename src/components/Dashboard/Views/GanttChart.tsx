@@ -482,10 +482,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                         >
                           {item.childTaskIds.length} {t('dashboard.tasksLabel', 'tasks')}
                         </span>
-                        <span className="ml-auto flex items-center gap-[7px] flex-shrink-0">
-                          <span className="w-[46px] h-[5px] rounded-full bg-slate-200 overflow-hidden">
-                            <span className="block h-full rounded-full" style={{ width: `${weightedProgress}%`, background: nodeColor }} />
-                          </span>
+                        <span className="ml-auto flex items-center flex-shrink-0">
                           <span className="text-[11px] font-black tabular-nums" style={{ color: nodeColor }}>{weightedProgress}%</span>
                         </span>
                       </button>
