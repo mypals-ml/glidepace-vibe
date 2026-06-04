@@ -12,7 +12,7 @@ import { memo, useCallback, useMemo, useRef, useState, useEffect, useLayoutEffec
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
-import { getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
+import { getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getGroupPathForCreatedTaskTarget, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isTaskGroupBlock, parseSlashGroupPath, serializeSlashGroupPath } from '../../lib/taskGroupUtils';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
@@ -314,8 +314,16 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const startCreateTaskAt = (target: ContextMenuTarget, placement: 'above' | 'below') => {
     const boundaryTasks = getContextBoundaryTasks(target);
     if (!boundaryTasks) return;
+    const targetItem = target.kind === 'task'
+      ? findTaskByOrderId(target.taskId)
+      : findGroupById(target.groupBlockId);
+    if (!targetItem) return;
     const targetTaskId = placement === 'above' ? boundaryTasks.firstTask.id : boundaryTasks.lastTask.id;
-    setPendingTaskInsertPosition({ targetTaskId, placement });
+    setPendingTaskInsertPosition({
+      targetTaskId,
+      placement,
+      groupPath: getGroupPathForCreatedTaskTarget(targetItem),
+    });
     setIsCreateMode(true);
     setSelectedTaskId(null);
     setIsTaskDetailsOpen(true);

@@ -5,6 +5,7 @@ import {
   getDashboardTaskGroupPathMovePlan,
   getAfterIdForAppend,
   getAfterIdForInsertPosition,
+  getGroupPathForCreatedTaskTarget,
   getGroupSortId,
   getTaskSortId,
   getVisibleDashboardMovePlan,
@@ -295,6 +296,20 @@ describe('taskOrderUtils', () => {
     ];
 
     expect(getDashboardTaskGroupPathMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toBeUndefined();
+  });
+
+  it('keeps context-created tasks in the same group when starting from a task row', () => {
+    expect(getGroupPathForCreatedTaskTarget(makeTask('A', ['Parent', 'Child']))).toEqual(['Parent', 'Child']);
+  });
+
+  it('places context-created tasks outside the selected group row', () => {
+    const group = makeGroup('Child', ['A'], 0, 0, ['Parent', 'Child']);
+
+    expect(getGroupPathForCreatedTaskTarget(group)).toEqual(['Parent']);
+  });
+
+  it('places context-created tasks from the root group at the project root', () => {
+    expect(getGroupPathForCreatedTaskTarget(makeRootGroup(['A']))).toEqual([]);
   });
 
   it('calculates insert position above a target', () => {

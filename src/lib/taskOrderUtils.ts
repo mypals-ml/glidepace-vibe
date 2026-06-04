@@ -249,3 +249,9 @@ export function getDashboardTaskGroupPathMovePlan(
     afterTaskId: movePlan.afterTaskId,
   };
 }
+
+export function getGroupPathForCreatedTaskTarget(targetItem: DashboardItem): GroupPath {
+  if (!isTaskGroupBlock(targetItem)) return [...(targetItem.groupPath || [])];
+  if (targetItem.isSyntheticRoot) return [];
+  return targetItem.path.slice(0, -1);
+}

@@ -1124,6 +1124,7 @@ export function useDashboardTasks({
     }
 
     const { title, body, status, startDate, targetDate, estimate, estimateUnit, autoUpdateStartDate, assigneeIds, insertPosition } = taskData;
+    const createdGroupPath = insertPosition?.groupPath;
 
     try {
       let repoNameWithOwner: string | null = null;
@@ -1171,6 +1172,7 @@ export function useDashboardTasks({
         projectFieldIds: tasksRef.current.length > 0 ? tasksRef.current[0].projectFieldIds : undefined,
         statusOptions: tasksRef.current.length > 0 ? tasksRef.current[0].statusOptions : undefined,
         autoUpdateStartDate: autoUpdateStartDate,
+        groupPath: createdGroupPath ? [...createdGroupPath] : [],
       };
 
       if (status && tempTask.statusOptions) {
@@ -1181,6 +1183,9 @@ export function useDashboardTasks({
       }
       if (assigneeIds && assigneeIds.length > 0 && contentId) {
         await updateTaskAssignees(itemId, assigneeIds, true);
+      }
+      if (createdGroupPath) {
+        await persistTaskGroupPath(tempTask, createdGroupPath);
       }
 
       let positionedAfterId: string | null | undefined;
@@ -1208,7 +1213,7 @@ export function useDashboardTasks({
       console.error('Error creating task:', error);
       return false;
     }
-  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, updateTaskStatus, updateTaskDates, updateTaskAssignees, setTasks, setIsCreateMode, showToast, t]);
+  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, updateTaskStatus, updateTaskDates, updateTaskAssignees, persistTaskGroupPath, setTasks, setIsCreateMode, showToast, t]);
 
   const updateTaskTitle = useCallback(async (task: Task, title: string): Promise<boolean> => {
     if (!task.contentId || !githubToken) return false;
