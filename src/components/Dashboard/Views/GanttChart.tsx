@@ -561,19 +561,9 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                           {task.title}
                         </span>
                       </div>
-                      
-                      
                       {task.progress === 100 && (
                         <div className="ml-2 flex items-center">
                           <span className="material-symbols-outlined text-[16px] text-emerald-600">check_circle</span>
-                        </div>
-                      )}
-                      {task.progress > 0 && task.progress < 100 && (
-                        <div className="ml-2 flex items-center gap-2">
-                          <div className="w-10 h-1.5 bg-black/10 rounded-full overflow-hidden hidden sm:block">
-                            <div className="h-full bg-current opacity-60" style={{ width: `${task.progress}%` }}></div>
-                          </div>
-                          <span className="text-[10px] font-black opacity-60">{task.progress}%</span>
                         </div>
                       )}
                     </div>

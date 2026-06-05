@@ -225,6 +225,28 @@ describe('GanttChart focus behavior', () => {
     expect(taskBar.getAttribute('style')).toContain('touch-action: manipulation');
   });
 
+  it('does not show progress bars or percent text on task bars', () => {
+    const progressTask = { ...buildTask(1), progress: 50 };
+    dashboardState = {
+      ...dashboardState,
+      tasks: [progressTask],
+      filteredTasks: [progressTask],
+      dashboardItems: [progressTask],
+      selectedTaskId: null,
+    };
+
+    render(<GanttChart />);
+
+    const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
+
+    expect(taskBar.textContent).not.toContain('50%');
+    expect(
+      Array.from(taskBar.querySelectorAll('div')).some(element =>
+        element.className.includes('bg-black/10')
+      )
+    ).toBe(false);
+  });
+
   it('shows group progress as text without a group-title progress bar', () => {
     const groupTasks = [
       { ...buildTask(1), progress: 100 },
