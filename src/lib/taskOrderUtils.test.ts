@@ -298,6 +298,23 @@ describe('taskOrderUtils', () => {
     expect(getDashboardTaskGroupPathMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toBeUndefined();
   });
 
+  it('moves a grouped task before the first task in its group', () => {
+    const group = makeGroup('Target', ['A', 'B', 'C'], 0, 2, ['Target']);
+    const activeTask = makeTask('B', ['Target']);
+    const overTask = makeTask('A', ['Target']);
+    const items: DashboardItem[] = [
+      group,
+      overTask,
+      activeTask,
+      makeTask('C', ['Target']),
+    ];
+
+    expect(getVisibleDashboardMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toEqual({
+      taskIds: ['B'],
+      afterTaskId: null,
+    });
+  });
+
   it('keeps context-created tasks in the same group when starting from a task row', () => {
     expect(getGroupPathForCreatedTaskTarget(makeTask('A', ['Parent', 'Child']))).toEqual(['Parent', 'Child']);
   });

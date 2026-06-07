@@ -150,8 +150,29 @@ function getDashboardItemBySortId(items: DashboardItem[], sortId: string, includ
   return items.find(item => (includeSyntheticRoot || !isSyntheticRootGroup(item)) && getDashboardItemSortId(item) === sortId);
 }
 
-function getPreviousAfterTaskId(items: DashboardItem[], activeIndex: number, movingTaskIdSet: Set<string>): string | null {
+function isGroupFirstChildInsertionBoundary(
+  candidate: DashboardItem,
+  nextItem: DashboardItem | undefined,
+  overSortId: string
+): boolean {
+  if (!isTaskGroupBlock(candidate) || !nextItem) return false;
+  if (getDashboardItemSortId(candidate) === overSortId) return false;
+
+  const nextTaskIds = getDashboardItemTaskIds(nextItem);
+  return nextTaskIds.length > 0 && nextTaskIds.every(taskId => candidate.childTaskIds.includes(taskId));
+}
+
+function getPreviousAfterTaskId(
+  items: DashboardItem[],
+  activeIndex: number,
+  movingTaskIdSet: Set<string>,
+  overSortId: string
+): string | null {
   for (let index = activeIndex - 1; index >= 0; index -= 1) {
+    if (index === activeIndex - 1 && isGroupFirstChildInsertionBoundary(items[index], items[activeIndex + 1], overSortId)) {
+      continue;
+    }
+
     const candidateTaskIds = getDashboardItemTaskIds(items[index]);
     for (let taskIndex = candidateTaskIds.length - 1; taskIndex >= 0; taskIndex -= 1) {
       const taskId = candidateTaskIds[taskIndex];
@@ -202,7 +223,7 @@ export function getVisibleDashboardMovePlan(
 
   return {
     taskIds: movingTaskIds,
-    afterTaskId: getPreviousAfterTaskId(nextItems, nextActiveIndex, movingTaskIdSet),
+    afterTaskId: getPreviousAfterTaskId(nextItems, nextActiveIndex, movingTaskIdSet, overSortId),
   };
 }
 
