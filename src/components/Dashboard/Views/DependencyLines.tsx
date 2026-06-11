@@ -1,12 +1,19 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DashboardItem } from '../../../types';
+import type { DashboardItem, Task } from '../../../types';
 import { getStartDateForCal, getTargetDateForCal } from '../../../lib/githubTaskMapper';
 import { diffDays } from '../../../lib/dateUtils';
-import { isTaskGroupBlock } from '../../../lib/taskGroupUtils';
+import { isDashboardTask, isTaskGroupBlock } from '../../../lib/taskGroupUtils';
 
 interface DependencyLinesProps {
   items: DashboardItem[];
+  /**
+   * Full (filtered) task list, including tasks hidden inside folded group
+   * cards. Used so links that touch a hidden task can still be drawn,
+   * anchored to the folded group card's title bar. Falls back to the visible
+   * tasks in `items` when omitted.
+   */
+  tasks?: Task[];
   getPositionForDate: (dateStr: string) => number;
   dayWidth: number;
   onBreakLink: (taskId: string, targetId: string) => void;
@@ -14,12 +21,24 @@ interface DependencyLinesProps {
   hoveredTargetTaskId?: string | null;
 }
 
-export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLink, dragState, hoveredTargetTaskId }: DependencyLinesProps) {
+interface LineAnchor {
+  x1: number;
+  x2: number;
+  y: number;
+  /** Set when the anchor is a folded group card rather than a task bar. */
+  groupBlockId?: string;
+}
+
+export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, onBreakLink, dragState, hoveredTargetTaskId }: DependencyLinesProps) {
   const { t } = useTranslation();
   const ROW_HEIGHT = 72;
   const DEPENDENCY_LINE_DASH_DURATION_SECONDS = 10;
   const DRAG_LINE_STROKE_WIDTH = 2;
   const SNAPPED_DRAG_LINE_STROKE_WIDTH = 2.5;
+  // Mirror the group card geometry in GanttChart (CARD_PAD / min span width)
+  // so folded-card anchors line up with the rendered card title bar.
+  const GROUP_CARD_PAD = 9;
+  const GROUP_CARD_MIN_SPAN_WIDTH = 120;
 
   const getPathStr = (startX: number, startY: number, endX: number, endY: number) => {
     let cp1X, cp2X;
@@ -36,7 +55,7 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
 
   // Map task ids to their bounds
   const boundsMap = useMemo(() => {
-    const bounds = new Map<string, { x1: number; x2: number; y: number }>();
+    const bounds = new Map<string, LineAnchor>();
     items.forEach((t, i) => {
       if (isTaskGroupBlock(t)) return;
       const start = getStartDateForCal(t);
@@ -53,18 +72,53 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
     return bounds;
   }, [items, getPositionForDate, dayWidth]);
 
+  // Anchor bounds for tasks hidden inside folded group cards, keyed by the
+  // hidden task's identity. The anchor is the folded card's title bar so a
+  // link that crosses the card boundary visually starts/ends at the card.
+  const foldedCardAnchorMap = useMemo(() => {
+    const anchors = new Map<string, LineAnchor>();
+    items.forEach((item, i) => {
+      if (!isTaskGroupBlock(item) || item.isExpanded) return;
+      if (!item.startDate || !item.targetDate) return;
+      const spanLeft = getPositionForDate(item.startDate);
+      const duration = diffDays(item.startDate, item.targetDate);
+      const x1 = spanLeft - GROUP_CARD_PAD;
+      const x2 = x1 + Math.max(duration * dayWidth, GROUP_CARD_MIN_SPAN_WIDTH) + GROUP_CARD_PAD * 2;
+      // The card title bar is vertically centered within the group row.
+      const y = i * ROW_HEIGHT + (ROW_HEIGHT / 2);
+      const anchor: LineAnchor = { x1, x2, y, groupBlockId: item.groupBlockId };
+      item.childTaskIds.forEach(childId => {
+        if (!anchors.has(childId)) anchors.set(childId, anchor);
+      });
+    });
+    return anchors;
+  }, [items, getPositionForDate, dayWidth]);
+
   const lines = useMemo(() => {
     const result: React.ReactNode[] = [];
+    const drawnAnchorPairs = new Set<string>();
+    const linkSourceTasks = tasks ?? items.filter(isDashboardTask);
 
-    items.forEach(task => {
-      if (isTaskGroupBlock(task)) return;
+    linkSourceTasks.forEach(task => {
       if (task.successorIds && task.successorIds.length > 0) {
-        const source = boundsMap.get(task.itemId || task.id);
+        const sourceId = task.itemId || task.id;
+        const source = boundsMap.get(sourceId) ?? foldedCardAnchorMap.get(sourceId);
         if (!source) return;
 
         task.successorIds.forEach(targetId => {
-          const target = boundsMap.get(targetId);
+          const target = boundsMap.get(targetId) ?? foldedCardAnchorMap.get(targetId);
           if (!target) return;
+
+          const sourceAnchorKey = source.groupBlockId ? `group:${source.groupBlockId}` : `task:${sourceId}`;
+          const targetAnchorKey = target.groupBlockId ? `group:${target.groupBlockId}` : `task:${targetId}`;
+          // Both endpoints sit inside the same folded card: the link is
+          // internal to the group and stays hidden with its tasks.
+          if (sourceAnchorKey === targetAnchorKey) return;
+          // Collapse duplicate lines that would overlap exactly (multiple
+          // hidden tasks of one folded card linked to the same counterpart).
+          const anchorPairKey = `${sourceAnchorKey}->${targetAnchorKey}`;
+          if (drawnAnchorPairs.has(anchorPairKey)) return;
+          drawnAnchorPairs.add(anchorPairKey);
 
           const startX = source.x2;
           const startY = source.y;
@@ -104,7 +158,7 @@ export function DependencyLines({ items, getPositionForDate, dayWidth, onBreakLi
     });
 
     return result;
-  }, [items, boundsMap, onBreakLink, t]);
+  }, [items, tasks, boundsMap, foldedCardAnchorMap, onBreakLink, t]);
 
   const dragPathInfo = useMemo(() => {
     if (!dragState) return null;
