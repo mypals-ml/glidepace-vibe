@@ -196,7 +196,13 @@ const resources = {
         removeField: "Remove field",
         moveFieldLeft: "Move field left",
         moveFieldRight: "Move field right",
-        clearGroupFields: "Clear group fields"
+        clearGroupFields: "Clear group fields",
+        fieldGroupTabs: "Field group views",
+        fieldGroupTabFields: "All fields",
+        fieldGroupTabUsed: "Used groups",
+        fieldGroupTabRecommended: "Recommended",
+        noUsedFieldGroups: "No used groups yet. Saved field groupings will be listed here.",
+        noRecommendedFieldGroups: "No recommended groups available for this project."
       },
       createTask: {
         title: "Create New Task",

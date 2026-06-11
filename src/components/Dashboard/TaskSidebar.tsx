@@ -7,7 +7,7 @@ import { useDashboard } from '../../context/DashboardContext';
 import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor, getStatusTextColor } from '../../utils/statusColors';
-import type { DashboardItem, Task, TaskGroupBlock, User } from '../../types';
+import type { DashboardItem, GitHubProjectV2Field, Task, TaskGroupBlock, User } from '../../types';
 import { memo, useCallback, useMemo, useRef, useState, useEffect, useLayoutEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
@@ -18,6 +18,17 @@ import { isTaskGroupBlock, parseSlashGroupPath, serializeSlashGroupPath } from '
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
 import { Button } from '../UI/Button';
 import { TREE_DEPTH_COLORS, getTreeColor, getTreeLineColor, getTreeHandleHoverColor } from '../../lib/treeColors';
+import {
+  areFieldIdListsIdentical,
+  getLocalStorageSafe,
+  getRecommendedFieldGroups,
+  getUsedFieldGroupsStorageKey,
+  loadUsedFieldGroups,
+  recordUsedFieldGroup,
+  type UsedFieldGroup,
+} from '../../lib/fieldGroupHistory';
+
+type FieldGroupDialogTab = 'fields' | 'used' | 'recommended';
 
 type ContextMenuTarget =
   | { kind: 'task'; taskId: string }
@@ -170,8 +181,9 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const { 
     filteredTasks, 
     dashboardItems,
-    tasks, 
+    tasks,
     projectFields,
+    selectedProject,
     selectedGroupFieldIds,
     setSelectedGroupFieldIds,
     isLoadingTasks, 
@@ -214,6 +226,8 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   >(null);
   const [isSavingGroupEditor, setIsSavingGroupEditor] = useState(false);
   const [isFieldGroupDialogOpen, setIsFieldGroupDialogOpen] = useState(false);
+  const [fieldGroupDialogTab, setFieldGroupDialogTab] = useState<FieldGroupDialogTab>('fields');
+  const [usedFieldGroups, setUsedFieldGroups] = useState<UsedFieldGroup[]>([]);
   const [draftGroupFieldIds, setDraftGroupFieldIds] = useState<string[]>([]);
   const [fieldGroupSearchQuery, setFieldGroupSearchQuery] = useState('');
   const [draggedGroupFieldId, setDraggedGroupFieldId] = useState<string | null>(null);
@@ -479,6 +493,26 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       return fieldName.includes(query) || fieldType.includes(query);
     });
   }, [fieldGroupSearchQuery, sortedProjectFields]);
+  const resolveFieldGroupFields = useCallback((fieldIds: readonly string[]) => {
+    return fieldIds.flatMap(fieldId => {
+      const field = projectFieldsById.get(fieldId);
+      return field ? [field] : [];
+    });
+  }, [projectFieldsById]);
+  const resolvedUsedFieldGroups = useMemo(() => {
+    return usedFieldGroups
+      .map(entry => ({
+        key: `used-${entry.savedAt}-${entry.fieldIds.join('|')}`,
+        fields: resolveFieldGroupFields(entry.fieldIds),
+      }))
+      .filter(entry => entry.fields.length > 0);
+  }, [usedFieldGroups, resolveFieldGroupFields]);
+  const resolvedRecommendedFieldGroups = useMemo(() => {
+    return getRecommendedFieldGroups(projectFields).map(fieldIds => ({
+      key: `recommended-${fieldIds.join('|')}`,
+      fields: resolveFieldGroupFields(fieldIds),
+    }));
+  }, [projectFields, resolveFieldGroupFields]);
   const isDraggingTask = useMemo(() => {
     if (!activeDragItemSortId) return false;
     const activeItem = dashboardItems.find(item => getDashboardItemSortId(item) === activeDragItemSortId);
@@ -538,9 +572,13 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     }
   };
 
+  const usedFieldGroupsStorageKey = getUsedFieldGroupsStorageKey(selectedProject?.id);
+
   const openFieldGroupDialog = () => {
     setDraftGroupFieldIds(selectedGroupFieldIds);
     setFieldGroupSearchQuery('');
+    setFieldGroupDialogTab('fields');
+    setUsedFieldGroups(loadUsedFieldGroups(getLocalStorageSafe(), usedFieldGroupsStorageKey));
     setIsFieldGroupDialogOpen(true);
   };
 
@@ -569,7 +607,44 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     });
   };
 
+  const renderFieldGroupOption = (option: { key: string; fields: GitHubProjectV2Field[] }) => {
+    const fieldIds = option.fields.map(field => field.id);
+    const isActive = areFieldIdListsIdentical(fieldIds, draftGroupFieldIds);
+    return (
+      <button
+        key={option.key}
+        type="button"
+        onClick={() => setDraftGroupFieldIds(fieldIds)}
+        aria-pressed={isActive}
+        className={`flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors ${
+          isActive ? 'bg-primary/5 text-slate-800 ring-1 ring-primary/30' : 'text-slate-700 hover:bg-slate-50'
+        }`}
+      >
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-y-1">
+          {option.fields.map((field, fieldIndex) => (
+            <span key={`${option.key}-${field.id}-${fieldIndex}`} className="inline-flex min-w-0 items-center">
+              {fieldIndex > 0 && (
+                <span className="material-symbols-outlined text-[14px] text-slate-300" aria-hidden="true">chevron_right</span>
+              )}
+              <span className="truncate rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600" title={field.name}>
+                {field.name}
+              </span>
+            </span>
+          ))}
+        </span>
+        {isActive && (
+          <span className="material-symbols-outlined shrink-0 text-[16px] text-primary" aria-hidden="true">check</span>
+        )}
+      </button>
+    );
+  };
+
   const saveFieldGroupSelection = () => {
+    if (draftGroupFieldIds.length > 0) {
+      setUsedFieldGroups(
+        recordUsedFieldGroup(getLocalStorageSafe(), usedFieldGroupsStorageKey, draftGroupFieldIds)
+      );
+    }
     setSelectedGroupFieldIds(draftGroupFieldIds);
     closeFieldGroupDialog();
   };
@@ -1031,7 +1106,76 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 </div>
               </section>
 
-              <section className="space-y-2">
+              <div
+                className="flex items-center gap-1 rounded-lg bg-slate-100 p-1"
+                role="tablist"
+                aria-label={t('dashboard.fieldGroupTabs', 'Field group views')}
+              >
+                {([
+                  { id: 'fields', label: t('dashboard.fieldGroupTabFields', 'All fields') },
+                  { id: 'used', label: t('dashboard.fieldGroupTabUsed', 'Used groups') },
+                  { id: 'recommended', label: t('dashboard.fieldGroupTabRecommended', 'Recommended') },
+                ] as const).map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    id={`field-group-tab-${tab.id}`}
+                    aria-selected={fieldGroupDialogTab === tab.id}
+                    aria-controls={`field-group-tabpanel-${tab.id}`}
+                    onClick={() => setFieldGroupDialogTab(tab.id)}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
+                      fieldGroupDialogTab === tab.id
+                        ? 'bg-white text-slate-800 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {fieldGroupDialogTab === 'used' && (
+                <section
+                  className="space-y-2"
+                  role="tabpanel"
+                  id="field-group-tabpanel-used"
+                  aria-labelledby="field-group-tab-used"
+                >
+                  <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
+                    {resolvedUsedFieldGroups.length === 0 ? (
+                      <div className="px-3 py-6 text-center text-xs text-slate-400">
+                        {t('dashboard.noUsedFieldGroups', 'No used groups yet. Saved field groupings will be listed here.')}
+                      </div>
+                    ) : resolvedUsedFieldGroups.map(renderFieldGroupOption)}
+                  </div>
+                </section>
+              )}
+
+              {fieldGroupDialogTab === 'recommended' && (
+                <section
+                  className="space-y-2"
+                  role="tabpanel"
+                  id="field-group-tabpanel-recommended"
+                  aria-labelledby="field-group-tab-recommended"
+                >
+                  <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
+                    {resolvedRecommendedFieldGroups.length === 0 ? (
+                      <div className="px-3 py-6 text-center text-xs text-slate-400">
+                        {t('dashboard.noRecommendedFieldGroups', 'No recommended groups available for this project.')}
+                      </div>
+                    ) : resolvedRecommendedFieldGroups.map(renderFieldGroupOption)}
+                  </div>
+                </section>
+              )}
+
+              {fieldGroupDialogTab === 'fields' && (
+              <section
+                className="space-y-2"
+                role="tabpanel"
+                id="field-group-tabpanel-fields"
+                aria-labelledby="field-group-tab-fields"
+              >
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   {t('dashboard.availableFields', 'Available fields')}
                 </div>
@@ -1087,6 +1231,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                   ))}
                 </div>
               </section>
+              )}
             </div>
             <div className="flex justify-end gap-2 rounded-b-xl border-t border-slate-100 bg-slate-50 px-4 py-3">
               <Button
