@@ -71,8 +71,7 @@ Implementation workflow:
 Completion workflow: (The work is complete and tested)
 
 - Add a comment in this format: `{current_agent_name} Automation committed the changes <current datetime> | <brief execution walkthrough>`.
-
-- The walkthrough must briefly summarize what was implemented and how it was verified.
+  - The <brief execution walkthrough> must briefly summarize what was implemented and how it was verified.
 
 - Keep the full comment under 220 characters.
 
@@ -82,8 +81,9 @@ Completion workflow: (The work is complete and tested)
 
 - Change the task state to `In review`.
 
-
-
-Reporting:
+- Generate a md file named as `walkthrough-task#<task number>-YYYYMMDD-hhmmss.md` under `<project root path>/plan/walkthrough/`
+  - this md file must contain
+    - the above <brief execution walkthrough> contents
+    - the very detail of what was implemented and how it was verified.
 
 - Report what task was handled, what changed, what tests ran, and any blockers.
