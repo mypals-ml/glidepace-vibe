@@ -315,6 +315,126 @@ describe('taskOrderUtils', () => {
     });
   });
 
+  it('moves a task to the top of a path group nested under a field group', () => {
+    const fieldGroup = makeGroup('Field', ['T1', 'T2', 'T3'], 0, 2, ['Field']);
+    const pathGroup = makeGroup('Group', ['T1', 'T2', 'T3'], 0, 2, ['Field', 'Group']);
+    const activeTask = makeTask('T2', ['Field', 'Group']);
+    const overTask = makeTask('T1', ['Field', 'Group']);
+    const items: DashboardItem[] = [
+      fieldGroup,
+      pathGroup,
+      overTask,
+      activeTask,
+      makeTask('T3', ['Field', 'Group']),
+    ];
+
+    expect(getVisibleDashboardMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toEqual({
+      taskIds: ['T2'],
+      afterTaskId: null,
+    });
+  });
+
+  it('moves a task to the top of a nested group right below its parent sibling task', () => {
+    const parentGroup = makeGroup('Parent', ['P1', 'C1', 'C2'], 0, 2, ['Parent']);
+    const childGroup = makeGroup('Child', ['C1', 'C2'], 1, 2, ['Parent', 'Child']);
+    const activeTask = makeTask('C2', ['Parent', 'Child']);
+    const overTask = makeTask('C1', ['Parent', 'Child']);
+    const items: DashboardItem[] = [
+      parentGroup,
+      makeTask('P1', ['Parent']),
+      childGroup,
+      overTask,
+      activeTask,
+    ];
+    const orderedTasks = [makeTask('P1'), makeTask('C1'), makeTask('C2')];
+
+    expect(getVisibleDashboardMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toEqual({
+      taskIds: ['C2'],
+      afterTaskId: 'P1',
+    });
+    expect(getVisibleDashboardMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask), orderedTasks)).toEqual({
+      taskIds: ['C2'],
+      afterTaskId: 'P1',
+    });
+  });
+
+  it('anchors a top-of-group move to the underlying neighbor when field grouping re-sorts tasks', () => {
+    // Underlying project order: B, A, X — field grouping shows X (k1) before B, A (k2).
+    const groupK1 = makeGroup('k1', ['X'], 0, 0, ['k1']);
+    const groupK2 = makeGroup('k2', ['B', 'A'], 1, 2, ['k2']);
+    const activeTask = makeTask('A', ['k2']);
+    const overTask = makeTask('B', ['k2']);
+    const items: DashboardItem[] = [
+      groupK1,
+      makeTask('X', ['k1']),
+      groupK2,
+      overTask,
+      activeTask,
+    ];
+    const orderedTasks = [makeTask('B'), makeTask('A'), makeTask('X')];
+
+    // Anchoring after visible predecessor X would leave A after B in the
+    // underlying order; the plan must instead anchor A directly before B.
+    expect(getVisibleDashboardMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask), orderedTasks)).toEqual({
+      taskIds: ['A'],
+      afterTaskId: null,
+    });
+  });
+
+  it('keeps same-group downward moves anchored to the visible previous task', () => {
+    const groupK1 = makeGroup('k1', ['X'], 0, 0, ['k1']);
+    const groupK2 = makeGroup('k2', ['B', 'A'], 1, 2, ['k2']);
+    const activeTask = makeTask('B', ['k2']);
+    const overTask = makeTask('A', ['k2']);
+    const items: DashboardItem[] = [
+      groupK1,
+      makeTask('X', ['k1']),
+      groupK2,
+      activeTask,
+      overTask,
+    ];
+    const orderedTasks = [makeTask('B'), makeTask('A'), makeTask('X')];
+
+    expect(getVisibleDashboardMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask), orderedTasks)).toEqual({
+      taskIds: ['B'],
+      afterTaskId: 'A',
+    });
+  });
+
+  it('moves a task to the end of its group as the closest lower neighbor of the last task', () => {
+    const group = makeGroup('Target', ['A', 'B', 'C'], 0, 2, ['Target']);
+    const activeTask = makeTask('A', ['Target']);
+    const overTask = makeTask('C', ['Target']);
+    const items: DashboardItem[] = [
+      group,
+      activeTask,
+      makeTask('B', ['Target']),
+      overTask,
+    ];
+    const orderedTasks = [makeTask('A'), makeTask('B'), makeTask('C')];
+
+    expect(getVisibleDashboardMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask), orderedTasks)).toEqual({
+      taskIds: ['A'],
+      afterTaskId: 'C',
+    });
+  });
+
+  it('anchors moves after a collapsed group to that group last child', () => {
+    const collapsedGroup: TaskGroupBlock = { ...makeGroup('Closed', ['A', 'B'], 0, 1, ['Closed']), isExpanded: false };
+    const activeTask = makeTask('Y');
+    const overTask = makeTask('X');
+    const items: DashboardItem[] = [
+      collapsedGroup,
+      overTask,
+      activeTask,
+    ];
+
+    expect(getVisibleDashboardMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toEqual({
+      taskIds: ['Y'],
+      afterTaskId: 'B',
+    });
+  });
+
   it('keeps context-created tasks in the same group when starting from a task row', () => {
     expect(getGroupPathForCreatedTaskTarget(makeTask('A', ['Parent', 'Child']))).toEqual(['Parent', 'Child']);
   });

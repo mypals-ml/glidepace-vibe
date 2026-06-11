@@ -508,7 +508,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
         return;
       }
 
-      const taskGroupPathMovePlan = getDashboardTaskGroupPathMovePlan(dashboardItems, String(active.id), String(over.id));
+      const taskGroupPathMovePlan = getDashboardTaskGroupPathMovePlan(dashboardItems, String(active.id), String(over.id), tasks);
       if (taskGroupPathMovePlan) {
         await moveTaskToGroupPath(
           taskGroupPathMovePlan.taskId,
@@ -518,7 +518,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
         return;
       }
 
-      const movePlan = getVisibleDashboardMovePlan(dashboardItems, String(active.id), String(over.id));
+      const movePlan = getVisibleDashboardMovePlan(dashboardItems, String(active.id), String(over.id), tasks);
       if (!movePlan) return;
 
       if (movePlan.taskIds.length === 1) {
