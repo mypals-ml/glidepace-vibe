@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DashboardItem, Task, TaskGroupBlock } from '../types';
 import {
+  getDashboardDropTargetGroupSortId,
   getDashboardGroupDropPlan,
   getDashboardTaskGroupPathMovePlan,
   getAfterIdForAppend,
@@ -225,6 +226,7 @@ describe('taskOrderUtils', () => {
       taskId: 'A',
       targetGroupPath: ['Target'],
       afterTaskId: 'C',
+      placement: 'into',
     });
   });
 
@@ -243,6 +245,7 @@ describe('taskOrderUtils', () => {
       taskId: 'B',
       targetGroupPath: [],
       afterTaskId: 'C',
+      placement: 'into',
     });
   });
 
@@ -261,7 +264,143 @@ describe('taskOrderUtils', () => {
       taskId: 'A',
       targetGroupPath: ['Target'],
       afterTaskId: 'B',
+      placement: 'into',
     });
+  });
+
+  it('plans moving a grouped task out of its group when dropped above the group header', () => {
+    const group = makeGroup('Target', ['A', 'B'], 0, 1, ['Target']);
+    const activeTask = makeTask('A', ['Target']);
+    const items: DashboardItem[] = [
+      makeRootGroup(['A', 'B']),
+      group,
+      activeTask,
+      makeTask('B', ['Target']),
+    ];
+    const orderedTasks = [makeTask('A'), makeTask('B')];
+
+    expect(getDashboardGroupDropPlan(items, getTaskSortId(activeTask), getGroupSortId(group), orderedTasks)).toEqual({
+      taskId: 'A',
+      targetGroupPath: [],
+      afterTaskId: null,
+      placement: 'above',
+    });
+  });
+
+  it('keeps a task outside the group when dragged from below onto the group header', () => {
+    const group = makeGroup('Target', ['B', 'C'], 1, 2, ['Target']);
+    const items: DashboardItem[] = [
+      makeRootGroup(['A', 'B', 'C', 'D']),
+      makeTask('A'),
+      group,
+      makeTask('B', ['Target']),
+      makeTask('C', ['Target']),
+      makeTask('D'),
+    ];
+    const orderedTasks = ['A', 'B', 'C', 'D'].map(makeTask);
+
+    expect(getDashboardGroupDropPlan(items, getTaskSortId(makeTask('D')), getGroupSortId(group), orderedTasks)).toEqual({
+      taskId: 'D',
+      targetGroupPath: [],
+      afterTaskId: 'A',
+      placement: 'above',
+    });
+  });
+
+  it('moves a nested-group task to its parent group when dropped above the nested header', () => {
+    const parentGroup = makeGroup('Parent', ['P1', 'C1', 'C2'], 0, 2, ['Parent']);
+    const childGroup = makeGroup('Child', ['C1', 'C2'], 1, 2, ['Parent', 'Child']);
+    const activeTask = makeTask('C1', ['Parent', 'Child']);
+    const items: DashboardItem[] = [
+      makeRootGroup(['P1', 'C1', 'C2']),
+      parentGroup,
+      makeTask('P1', ['Parent']),
+      childGroup,
+      activeTask,
+      makeTask('C2', ['Parent', 'Child']),
+    ];
+    const orderedTasks = ['P1', 'C1', 'C2'].map(makeTask);
+
+    expect(getDashboardGroupDropPlan(items, getTaskSortId(activeTask), getGroupSortId(childGroup), orderedTasks)).toEqual({
+      taskId: 'C1',
+      targetGroupPath: ['Parent'],
+      afterTaskId: 'P1',
+      placement: 'above',
+    });
+  });
+
+  it('highlights the group header when a task hovers onto it from above', () => {
+    const targetGroup = makeGroup('Target', ['B'], 1, 1, ['Target']);
+    const items: DashboardItem[] = [
+      makeRootGroup(['A', 'B']),
+      makeTask('A'),
+      targetGroup,
+      makeTask('B', ['Target']),
+    ];
+
+    expect(getDashboardDropTargetGroupSortId(items, getTaskSortId(makeTask('A')), getGroupSortId(targetGroup))).toBe(
+      getGroupSortId(targetGroup)
+    );
+  });
+
+  it('highlights the target group when hovering a task that belongs to another group', () => {
+    const sourceGroup = makeGroup('Source', ['A'], 0, 0, ['Source']);
+    const targetGroup = makeGroup('Target', ['B'], 1, 1, ['Target']);
+    const activeTask = makeTask('A', ['Source']);
+    const overTask = makeTask('B', ['Target']);
+    const items: DashboardItem[] = [
+      makeRootGroup(['A', 'B']),
+      sourceGroup,
+      activeTask,
+      targetGroup,
+      overTask,
+    ];
+
+    expect(getDashboardDropTargetGroupSortId(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toBe(
+      getGroupSortId(targetGroup)
+    );
+  });
+
+  it('does not highlight the group header when the drop would move the task above the group', () => {
+    const group = makeGroup('Target', ['A', 'B'], 0, 1, ['Target']);
+    const activeTask = makeTask('A', ['Target']);
+    const items: DashboardItem[] = [
+      makeRootGroup(['A', 'B']),
+      group,
+      activeTask,
+      makeTask('B', ['Target']),
+    ];
+    const orderedTasks = [makeTask('A'), makeTask('B')];
+
+    expect(getDashboardDropTargetGroupSortId(items, getTaskSortId(activeTask), getGroupSortId(group), orderedTasks)).toBeNull();
+  });
+
+  it('does not highlight any group for same-group reorders', () => {
+    const group = makeGroup('Target', ['A', 'B'], 0, 1, ['Target']);
+    const activeTask = makeTask('A', ['Target']);
+    const overTask = makeTask('B', ['Target']);
+    const items: DashboardItem[] = [
+      makeRootGroup(['A', 'B']),
+      group,
+      activeTask,
+      overTask,
+    ];
+
+    expect(getDashboardDropTargetGroupSortId(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toBeNull();
+  });
+
+  it('does not highlight when hovering an ungrouped task moves the task to the root', () => {
+    const sourceGroup = makeGroup('Source', ['A'], 0, 0, ['Source']);
+    const activeTask = makeTask('A', ['Source']);
+    const overTask = makeTask('B');
+    const items: DashboardItem[] = [
+      makeRootGroup(['A', 'B']),
+      sourceGroup,
+      activeTask,
+      overTask,
+    ];
+
+    expect(getDashboardDropTargetGroupSortId(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toBeNull();
   });
 
   it('plans changing group path when a task is dropped over a task in another group', () => {
@@ -281,6 +420,7 @@ describe('taskOrderUtils', () => {
       taskId: 'A',
       targetGroupPath: ['Target'],
       afterTaskId: 'B',
+      placement: 'into',
     });
   });
 

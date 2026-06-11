@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent, type DragStartEvent, type MouseSensorOptions, type TouchSensorOptions } from '@dnd-kit/core';
+import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent, type DragOverEvent, type DragStartEvent, type MouseSensorOptions, type TouchSensorOptions } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDashboard } from '../../context/DashboardContext';
@@ -12,7 +12,7 @@ import { memo, useCallback, useMemo, useRef, useState, useEffect, useLayoutEffec
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
-import { getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getGroupPathForCreatedTaskTarget, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
+import { getDashboardDropTargetGroupSortId, getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getGroupPathForCreatedTaskTarget, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isTaskGroupBlock, parseSlashGroupPath, serializeSlashGroupPath } from '../../lib/taskGroupUtils';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
@@ -219,6 +219,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [activeDragItemSortId, setActiveDragItemSortId] = useState<string | null>(null);
+  const [dragOverSortId, setDragOverSortId] = useState<string | null>(null);
   const [groupEditor, setGroupEditor] = useState<
     | { mode: 'taskPath'; taskId: string; value: string }
     | { mode: 'renameGroup'; groupBlockId: string; value: string }
@@ -519,9 +520,15 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     return Boolean(activeItem && !isTaskGroupBlock(activeItem));
   }, [activeDragItemSortId, dashboardItems]);
 
+  const dropTargetGroupSortId = useMemo(() => {
+    if (!activeDragItemSortId || !dragOverSortId) return null;
+    return getDashboardDropTargetGroupSortId(dashboardItems, activeDragItemSortId, dragOverSortId, tasks);
+  }, [activeDragItemSortId, dragOverSortId, dashboardItems, tasks]);
+
   const handleDragStart = (event: DragStartEvent) => {
     dragHasMovedRef.current = false;
     setActiveDragItemSortId(String(event.active.id));
+    setDragOverSortId(null);
     suppressNextClickRef.current = true;
     setContextMenu(null);
   };
@@ -531,12 +538,16 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setContextMenu(null);
   };
 
+  const handleDragOver = (event: DragOverEvent) => {
+    setDragOverSortId(event.over ? String(event.over.id) : null);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     try {
       const { active, over } = event;
       if (!over) return;
 
-      const groupDropPlan = getDashboardGroupDropPlan(dashboardItems, String(active.id), String(over.id));
+      const groupDropPlan = getDashboardGroupDropPlan(dashboardItems, String(active.id), String(over.id), tasks);
       if (groupDropPlan) {
         await moveTaskToGroupPath(groupDropPlan.taskId, groupDropPlan.targetGroupPath, groupDropPlan.afterTaskId);
         return;
@@ -562,6 +573,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       }
     } finally {
       setActiveDragItemSortId(null);
+      setDragOverSortId(null);
       setMovingItemSortId(null);
       blurActiveDragHandle();
       dragHasMovedRef.current = false;
@@ -702,9 +714,11 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               collisionDetection={closestCenter}
               onDragStart={handleDragStart}
               onDragMove={handleDragMove}
+              onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
               onDragCancel={() => {
                 setActiveDragItemSortId(null);
+                setDragOverSortId(null);
                 setMovingItemSortId(null);
                 blurActiveDragHandle();
                 dragHasMovedRef.current = false;
@@ -727,6 +741,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       isDragActive={activeDragItemSortId === getDashboardItemSortId(item)}
                       isAnyDragging={activeDragItemSortId !== null}
                       isTaskDropTarget={isDraggingTask}
+                      isDropTargetGroup={dropTargetGroupSortId === getDashboardItemSortId(item)}
                       isMobile={isMobile}
                       movingItemSortId={movingItemSortId}
                       suppressNextClickRef={suppressNextClickRef}
@@ -1456,6 +1471,7 @@ interface TaskGroupRowProps {
   isDragActive: boolean;
   isAnyDragging: boolean;
   isTaskDropTarget: boolean;
+  isDropTargetGroup: boolean;
   isMobile: boolean;
   movingItemSortId: string | null;
   suppressNextClickRef: React.MutableRefObject<boolean>;
@@ -1472,6 +1488,7 @@ function TaskGroupRow({
   isDragActive,
   isAnyDragging,
   isTaskDropTarget,
+  isDropTargetGroup,
   isMobile,
   movingItemSortId,
   suppressNextClickRef,
@@ -1486,7 +1503,6 @@ function TaskGroupRow({
     transform,
     transition,
     isDragging,
-    isOver,
   } = useSortable({
     id: sortId,
     disabled: group.isSyntheticRoot ? { draggable: true, droppable: false } : false,
@@ -1504,7 +1520,7 @@ function TaskGroupRow({
   const dragHandleFillClass = isDragging || isDragActive ? 'bg-white' : 'bg-slate-100/80 group-hover:bg-indigo-50';
   const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
   const dividerLeft = getTreeRowDividerLeft(treeMeta.depth);
-  const isGroupDropActive = isTaskDropTarget && isOver && !isDragging;
+  const isGroupDropActive = isTaskDropTarget && isDropTargetGroup && !isDragging;
 
   return (
     <div

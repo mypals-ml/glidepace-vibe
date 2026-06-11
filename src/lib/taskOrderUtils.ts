@@ -1,5 +1,5 @@
 import type { DashboardItem, GroupPath, Task, TaskGroupBlock, TaskInsertPosition } from '../types';
-import { isTaskGroupBlock } from './taskGroupUtils';
+import { groupPathKey, isPathPrefix, isTaskGroupBlock } from './taskGroupUtils';
 
 export type DashboardItemSortId = `task:${string}` | `group:${string}`;
 
@@ -8,10 +8,13 @@ export interface DashboardItemMovePlan {
   afterTaskId: string | null;
 }
 
+export type DashboardGroupDropPlacement = 'into' | 'above';
+
 export interface DashboardGroupDropPlan {
   taskId: string;
   targetGroupPath: GroupPath;
   afterTaskId: string | null;
+  placement: DashboardGroupDropPlacement;
 }
 
 export function getTaskOrderId(task: Pick<Task, 'id' | 'itemId'>): string {
@@ -307,25 +310,119 @@ export function getVisibleDashboardMovePlan(
   };
 }
 
+/**
+ * Returns true when the simulated drop of `activeSortId` onto the group
+ * header `overSortId` lands the dragged item ABOVE the header. With a
+ * vertical sortable list this happens exactly when the item is dragged
+ * upward (its visible index is greater than the header's index): the drag
+ * preview shows the header shifting down and the item settling above it.
+ */
+function isDropAboveGroupHeader(dashboardItems: DashboardItem[], activeSortId: string, overSortId: string): boolean {
+  const activeIndex = dashboardItems.findIndex(item => getDashboardItemSortId(item) === activeSortId);
+  const overIndex = dashboardItems.findIndex(item => getDashboardItemSortId(item) === overSortId);
+  return activeIndex !== -1 && overIndex !== -1 && activeIndex > overIndex;
+}
+
+/**
+ * Anchor for a task dropped just above a group header: the task becomes the
+ * closest upper neighbor of the group's first remaining task, resolved
+ * against the underlying project order so the placement survives field-group
+ * re-sorting. Falls back to the closest visible block above the header.
+ */
+function getAfterTaskIdForDropAboveGroup(
+  dashboardItems: DashboardItem[],
+  overGroup: TaskGroupBlock,
+  movingTaskIdSet: Set<string>,
+  orderedTasks?: ReadonlyArray<Pick<Task, 'id' | 'itemId'>>
+): string | null {
+  const firstChildTaskId = overGroup.childTaskIds.find(childTaskId => !movingTaskIdSet.has(childTaskId));
+  if (firstChildTaskId && orderedTasks && orderedTasks.length > 0) {
+    return getUnderlyingPredecessorTaskId(orderedTasks, firstChildTaskId, movingTaskIdSet);
+  }
+
+  const headerIndex = dashboardItems.findIndex(item => getDashboardItemSortId(item) === getGroupSortId(overGroup));
+  if (headerIndex === -1) return null;
+  return scanPreviousAnchor(dashboardItems, headerIndex, movingTaskIdSet, getGroupSortId(overGroup)).afterTaskId;
+}
+
 export function getDashboardGroupDropPlan(
   dashboardItems: DashboardItem[],
   activeSortId: string,
-  overSortId: string
+  overSortId: string,
+  orderedTasks?: ReadonlyArray<Pick<Task, 'id' | 'itemId'>>
 ): DashboardGroupDropPlan | undefined {
   const activeItem = getDashboardItemBySortId(dashboardItems, activeSortId);
   const overItem = getDashboardItemBySortId(dashboardItems, overSortId, true);
   if (!activeItem || !overItem || isTaskGroupBlock(activeItem) || !isTaskGroupBlock(overItem)) return undefined;
 
   const taskId = getTaskOrderId(activeItem);
-  const targetChildTaskIds = overItem.childTaskIds.filter(childTaskId => (
-    childTaskId !== taskId && childTaskId !== activeItem.id
-  ));
+  const movingTaskIdSet = new Set([taskId, activeItem.id]);
+
+  if (!isSyntheticRootGroup(overItem) && isDropAboveGroupHeader(dashboardItems, activeSortId, overSortId)) {
+    // Dragging upward onto a group header previews the task landing just
+    // above the group, so the drop must move it out of the group instead of
+    // re-inserting it: the task joins the header's parent container directly
+    // above the group's first task.
+    return {
+      taskId,
+      targetGroupPath: overItem.path.slice(0, -1),
+      afterTaskId: getAfterTaskIdForDropAboveGroup(dashboardItems, overItem, movingTaskIdSet, orderedTasks),
+      placement: 'above',
+    };
+  }
+
+  const targetChildTaskIds = overItem.childTaskIds.filter(childTaskId => !movingTaskIdSet.has(childTaskId));
 
   return {
     taskId,
     targetGroupPath: [...overItem.path],
     afterTaskId: targetChildTaskIds[targetChildTaskIds.length - 1] ?? null,
+    placement: 'into',
   };
+}
+
+/**
+ * Resolves which group header row should show the drop-target selection
+ * effect while `activeSortId` (a task) hovers over `overSortId`. A header is
+ * highlighted only when the prospective drop would move the task INTO that
+ * group: hovering a group header on the way down, or hovering a task that
+ * belongs to a group the dragged task is not currently part of. Drops that
+ * land above a header (moving the task out of that group) and same-group
+ * reorders highlight nothing.
+ */
+export function getDashboardDropTargetGroupSortId(
+  dashboardItems: DashboardItem[],
+  activeSortId: string,
+  overSortId: string,
+  orderedTasks?: ReadonlyArray<Pick<Task, 'id' | 'itemId'>>
+): DashboardItemSortId | null {
+  if (activeSortId === overSortId) return null;
+
+  const activeItem = getDashboardItemBySortId(dashboardItems, activeSortId);
+  if (!activeItem || isTaskGroupBlock(activeItem)) return null;
+
+  const groupDropPlan = getDashboardGroupDropPlan(dashboardItems, activeSortId, overSortId, orderedTasks);
+  if (groupDropPlan) {
+    return groupDropPlan.placement === 'into' ? (overSortId as DashboardItemSortId) : null;
+  }
+
+  const pathMovePlan = getDashboardTaskGroupPathMovePlan(dashboardItems, activeSortId, overSortId, orderedTasks);
+  if (!pathMovePlan || pathMovePlan.targetGroupPath.length === 0) return null;
+  if (isPathPrefix(pathMovePlan.targetGroupPath, activeItem.groupPath || [])) return null;
+
+  const overIndex = dashboardItems.findIndex(item => getDashboardItemSortId(item) === overSortId);
+  for (let index = overIndex; index >= 0; index -= 1) {
+    const candidate = dashboardItems[index];
+    if (
+      isTaskGroupBlock(candidate) &&
+      !isSyntheticRootGroup(candidate) &&
+      groupPathKey(candidate.path) === groupPathKey(pathMovePlan.targetGroupPath)
+    ) {
+      return getDashboardItemSortId(candidate);
+    }
+  }
+
+  return null;
 }
 
 export function getDashboardTaskGroupPathMovePlan(
@@ -349,6 +446,7 @@ export function getDashboardTaskGroupPathMovePlan(
     taskId: movePlan.taskIds[0],
     targetGroupPath: [...overPath],
     afterTaskId: movePlan.afterTaskId,
+    placement: 'into',
   };
 }
 
