@@ -225,6 +225,7 @@ export interface ProjectDateSettings {
 export interface TaskInsertPosition {
   targetTaskId: string;
   placement: 'above' | 'below';
+  groupPath?: GroupPath;
 }
 
 export interface GitHubProjectV2 {

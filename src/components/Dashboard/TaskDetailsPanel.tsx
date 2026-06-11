@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useDashboard } from '../../context/DashboardContext';
@@ -13,6 +13,9 @@ import { ResizableTextarea } from '../UI/ResizableTextarea';
 import { calculateTargetDate } from '../../lib/dateUtils';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { copyTextToClipboard } from '../../lib/clipboard';
+import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
+import { parseSlashGroupPath, serializeSlashGroupPath } from '../../lib/taskGroupUtils';
+
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -184,10 +187,31 @@ export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetail
 }
 
 function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: TFunction; isCreateMode?: boolean }) {
-  const { updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, deleteTask, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, setIsTaskDetailsOpen, setSelectedTaskId, showToast, dateSettings, projectFields, pendingTaskInsertPosition, setPendingTaskInsertPosition } = useDashboard();
+  const { fetchTaskComments, isFetchingComments, fetchSingleProjectItem, githubToken, updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, deleteTask, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, setIsTaskDetailsOpen, setSelectedTaskId, showToast, dateSettings, projectFields, pendingTaskInsertPosition, setPendingTaskInsertPosition, setIsLinkMode, setSelectedLinkTaskIds, updateTaskSuccessors, updateTaskGroupPath } = useDashboard();
+
+  useEffect(() => {
+    if (!isCreateMode && task?.itemId && githubToken) {
+      console.log(`[TaskDetailsPanel] ⚡ Task detail view opened for task itemId: ${task.itemId}. Fetching comments/details...`);
+      fetchSingleProjectItem(task.itemId, githubToken)
+        .then(() => {
+          console.log(`[TaskDetailsPanel] ✅ Finished fetching comments/details for task itemId: ${task.itemId}`);
+        })
+        .catch((err: unknown) => {
+          console.error(`[TaskDetailsPanel] ❌ Failed fetching comments/details for task itemId: ${task.itemId}`, err);
+        });
+
+      if (task.contentId) {
+        fetchTaskComments(task.id, task.contentId, githubToken)
+          .catch((err: unknown) => {
+            console.error(`[TaskDetailsPanel] ❌ Failed fetching comments for task: ${task.id}`, err);
+          });
+      }
+    }
+  }, [task?.itemId, task?.contentId, task?.id, githubToken, isCreateMode, fetchSingleProjectItem, fetchTaskComments]);
 
   // Derive a repository from existing tasks so the AssigneePicker can fetch assignable users
   const projectRepository = tasks.find(t => t.repository)?.repository;
+
 
   // Create Mode state
   const [newTitle, setNewTitle] = useState('');
@@ -239,10 +263,31 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [isDeletingComment, setIsDeletingComment] = useState(false);
   const [isTaskDeleteConfirmOpen, setIsTaskDeleteConfirmOpen] = useState(false);
   const [isDeletingTask, setIsDeletingTask] = useState(false);
   const [newCommentBody, setNewCommentBody] = useState('');
   const [draftEstimate, setDraftEstimate] = useState<string>(task?.estimate?.toString() || '');
+  const [isGroupEditorOpen, setIsGroupEditorOpen] = useState(false);
+  const [draftGroupPath, setDraftGroupPath] = useState(serializeSlashGroupPath(task?.groupPath));
+  const [isSavingGroupPath, setIsSavingGroupPath] = useState(false);
+
+  useEffect(() => {
+    setDraftGroupPath(serializeSlashGroupPath(task?.groupPath));
+  }, [task?.id, task?.itemId, task?.groupPath]);
+
+  const breakLinkPlan = useMemo(() => {
+    return task ? buildBreakLinkPlan(tasks, { firstTask: task, lastTask: task }, 'all') : null;
+  }, [task, tasks]);
+
+  const existingGroupPaths = useMemo(() => {
+    const paths = new Set<string>();
+    tasks.forEach(candidate => {
+      const formatted = serializeSlashGroupPath(candidate.groupPath);
+      if (formatted) paths.add(formatted);
+    });
+    return Array.from(paths).sort();
+  }, [tasks]);
 
   // Derived estimate unit options (merged and deduplicated)
   const getMergedEstimateUnitOptions = () => {
@@ -314,9 +359,14 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
 
   const confirmDeleteComment = async () => {
     if (!task || !commentToDelete) return;
-    await deleteTaskComment(task, commentToDelete);
-    setIsDeleteConfirmOpen(false);
-    setCommentToDelete(null);
+    setIsDeletingComment(true);
+    try {
+      await deleteTaskComment(task, commentToDelete);
+      setIsDeleteConfirmOpen(false);
+      setCommentToDelete(null);
+    } finally {
+      setIsDeletingComment(false);
+    }
   };
 
   const confirmDeleteTask = async () => {
@@ -350,6 +400,42 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
     const val = parseFloat(draftEstimate) || 0;
     if (val !== task.estimate) {
       await updateTaskDates(task, undefined, undefined, val);
+    }
+  };
+
+  const handleStartPositionedCreate = (placement: 'above' | 'below') => {
+    if (!task) return;
+    setPendingTaskInsertPosition({ targetTaskId: task.id, placement });
+    setIsCreateMode(true);
+    setSelectedTaskId(null);
+    setIsTaskDetailsOpen(true);
+  };
+
+  const handleStartLinkMode = () => {
+    if (!task) return;
+    setIsLinkMode(true);
+    setSelectedLinkTaskIds([task.id]);
+    setIsTaskDetailsOpen(false);
+  };
+
+  const handleBreakLinks = async (scope: BreakLinkScope) => {
+    if (!task) return;
+    const plan = buildBreakLinkPlan(tasks, { firstTask: task, lastTask: task }, scope);
+    for (const operation of plan.operations) {
+      await updateTaskSuccessors(operation.taskId, operation.successorIds, true);
+    }
+  };
+
+  const handleSaveGroupPath = async () => {
+    if (!task || isSavingGroupPath) return;
+    setIsSavingGroupPath(true);
+    try {
+      const success = await updateTaskGroupPath(task.id, parseSlashGroupPath(draftGroupPath));
+      if (success) {
+        setIsGroupEditorOpen(false);
+      }
+    } finally {
+      setIsSavingGroupPath(false);
     }
   };
 
@@ -646,6 +732,84 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         </div>
       </div>
 
+      {/* Task Actions */}
+      <div className="border border-slate-200/60 rounded-lg bg-white/95 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between bg-slate-50 px-3 h-11 border-b border-slate-200/60">
+          <label className="text-xs font-medium text-slate-600">{t('dashboard.taskActions', 'Task actions')}</label>
+        </div>
+        <div className="grid grid-cols-2 gap-2 p-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon="add"
+            onClick={() => handleStartPositionedCreate('above')}
+          >
+            {t('dashboard.addTaskAbove')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon="add"
+            onClick={() => handleStartPositionedCreate('below')}
+          >
+            {t('dashboard.addTaskBelow')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon="add_link"
+            onClick={handleStartLinkMode}
+          >
+            {t('dashboard.addSuccessors')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon="folder"
+            onClick={() => setIsGroupEditorOpen(true)}
+          >
+            {t('dashboard.groupLabel')}
+          </Button>
+        </div>
+        {breakLinkPlan && (breakLinkPlan.hasPredecessors || breakLinkPlan.hasSuccessors) && (
+          <div className="border-t border-slate-100 px-3 pb-3">
+            <div className="grid grid-cols-1 gap-2 pt-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                leftIcon="link_off"
+                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => handleBreakLinks('all')}
+              >
+                {t('dashboard.breakAllLinks')}
+              </Button>
+              {breakLinkPlan.hasPredecessors && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon="call_received"
+                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => handleBreakLinks('predecessors')}
+                >
+                  {t('dashboard.breakWithPredecessors')}
+                </Button>
+              )}
+              {breakLinkPlan.hasSuccessors && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon="call_made"
+                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => handleBreakLinks('successors')}
+                >
+                  {t('dashboard.breakWithSuccessors')}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Status */}
       <div className="border-t border-slate-200/60 pt-3 relative">
         <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.status')}</label>
@@ -804,9 +968,20 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
 
       {/* Comments Section */}
       <div className="border-t border-slate-200/60 pt-3">
-        <label className="text-xs font-medium text-slate-600 block mb-3">
-          {t('dashboard.comments', { count: (task.comments || []).length })}
-        </label>
+        <div className="flex items-center justify-between mb-3">
+          <label className="text-xs font-medium text-slate-600">
+            {t('dashboard.comments', { count: (task.comments || []).length })}
+          </label>
+          {isFetchingComments[task.id] && (
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+              <svg className="animate-spin h-3 w-3 text-slate-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span>{t('dashboard.loadingComments', 'Loading comments...')}</span>
+            </div>
+          )}
+        </div>
         
         {task.isDraft ? (
           <div className="bg-slate-50 rounded-lg p-4 border border-slate-200/60">
@@ -920,6 +1095,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       <ConfirmationModal
         isOpen={isDeleteConfirmOpen}
         onClose={() => {
+          if (isDeletingComment) return;
           setIsDeleteConfirmOpen(false);
           setCommentToDelete(null);
         }}
@@ -928,6 +1104,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         message={t('common.confirmDelete', 'Are you sure you want to delete this comment?')}
         confirmLabel={t('common.delete', 'Delete')}
         variant="danger"
+        isConfirming={isDeletingComment}
       />
       <ConfirmationModal
         isOpen={isTaskDeleteConfirmOpen}
@@ -940,6 +1117,113 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         variant="danger"
         isConfirming={isDeletingTask}
       />
+      {isGroupEditorOpen && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/25 backdrop-blur-sm p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="task-details-group-editor-title"
+          onClick={() => {
+            if (!isSavingGroupPath) setIsGroupEditorOpen(false);
+          }}
+        >
+          <form
+            className="w-full max-w-sm rounded-xl border border-slate-200 bg-white shadow-2xl"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSaveGroupPath();
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <h3 id="task-details-group-editor-title" className="text-sm font-bold text-slate-800">
+                {t('dashboard.groupLabel', 'Group')}
+              </h3>
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="xs"
+                onClick={() => setIsGroupEditorOpen(false)}
+                disabled={isSavingGroupPath}
+                aria-label={t('dashboard.close', 'Close')}
+              />
+            </div>
+            <div className="space-y-4 px-4 py-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500" htmlFor="task-details-group-path">
+                  {t('settings.groupPathField', 'Group Path')}
+                </label>
+                <input
+                  id="task-details-group-path"
+                  type="text"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                  value={draftGroupPath}
+                  onChange={(e) => setDraftGroupPath(e.target.value)}
+                  placeholder={t('dashboard.groupPathExample', 'e.g. group1 / sub-group')}
+                  autoFocus
+                />
+                <p className="text-xs leading-relaxed text-slate-400">
+                  {t('dashboard.groupPathSlashHelp', 'Use slashes for nested groups. Leave empty for no group.')}
+                </p>
+              </div>
+
+              <div className="space-y-2 border-t border-slate-100 pt-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  {t('dashboard.selectExistingGroup', 'Select Existing Group')}
+                </span>
+                <div className="flex flex-col gap-1 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                  <button
+                    type="button"
+                    onClick={() => setDraftGroupPath('')}
+                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors border ${
+                      draftGroupPath.trim() === ''
+                        ? 'bg-primary/5 text-primary border-primary/20 font-bold'
+                        : 'text-slate-600 hover:bg-slate-50 border-transparent hover:text-slate-800'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[16px] text-slate-400">folder_off</span>
+                    <span>{t('dashboard.noGroup', 'None (Root)')}</span>
+                  </button>
+                  {existingGroupPaths.map((pathStr) => (
+                    <button
+                      key={pathStr}
+                      type="button"
+                      onClick={() => setDraftGroupPath(pathStr)}
+                      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors border ${
+                        draftGroupPath.trim() === pathStr
+                          ? 'bg-primary/5 text-primary border-primary/20 font-bold'
+                          : 'text-slate-600 hover:bg-slate-50 border-transparent hover:text-slate-800'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px] text-slate-400">folder</span>
+                      <span className="truncate">{pathStr}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 rounded-b-xl border-t border-slate-100 bg-slate-50 px-4 py-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsGroupEditorOpen(false)}
+                disabled={isSavingGroupPath}
+              >
+                {t('common.cancel', 'Cancel')}
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                isLoading={isSavingGroupPath}
+              >
+                {t('common.save', 'Save')}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
     </>
   );
 }

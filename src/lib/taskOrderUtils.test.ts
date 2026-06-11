@@ -3,13 +3,16 @@ import type { DashboardItem, Task, TaskGroupBlock } from '../types';
 import {
   getDashboardGroupDropPlan,
   getDashboardTaskGroupPathMovePlan,
+  getAfterIdForAppend,
   getAfterIdForInsertPosition,
+  getGroupPathForCreatedTaskTarget,
   getGroupSortId,
   getTaskSortId,
   getVisibleDashboardMovePlan,
   getAfterIdForVisibleMove,
   moveTaskAfter,
   moveTaskBlockAfter,
+  upsertTaskAfter,
 } from './taskOrderUtils';
 
 const makeTask = (id: string, groupPathOrIndex: string[] | number = []): Task => ({
@@ -91,6 +94,24 @@ describe('taskOrderUtils', () => {
     const tasks = ['A', 'B', 'C'].map(makeTask);
 
     expect(ids(moveTaskAfter(tasks, 'A', 'C'))).toEqual(['B', 'C', 'A']);
+  });
+
+  it('inserts a newly created task after the current last task', () => {
+    const tasks = ['A', 'B', 'C'].map(makeTask);
+
+    expect(ids(upsertTaskAfter(tasks, makeTask('D'), 'C'))).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('inserts a newly created task above a target task', () => {
+    const tasks = ['A', 'B', 'C'].map(makeTask);
+
+    expect(ids(upsertTaskAfter(tasks, makeTask('D'), 'A'))).toEqual(['A', 'D', 'B', 'C']);
+  });
+
+  it('moves an existing fetched task into the requested create position', () => {
+    const tasks = ['A', 'B', 'C', 'D'].map(makeTask);
+
+    expect(ids(upsertTaskAfter(tasks, { ...makeTask('D'), title: 'Fetched D' }, 'A'))).toEqual(['A', 'D', 'B', 'C']);
   });
 
   it('moves a task block while preserving internal order', () => {
@@ -277,6 +298,37 @@ describe('taskOrderUtils', () => {
     expect(getDashboardTaskGroupPathMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toBeUndefined();
   });
 
+  it('moves a grouped task before the first task in its group', () => {
+    const group = makeGroup('Target', ['A', 'B', 'C'], 0, 2, ['Target']);
+    const activeTask = makeTask('B', ['Target']);
+    const overTask = makeTask('A', ['Target']);
+    const items: DashboardItem[] = [
+      group,
+      overTask,
+      activeTask,
+      makeTask('C', ['Target']),
+    ];
+
+    expect(getVisibleDashboardMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toEqual({
+      taskIds: ['B'],
+      afterTaskId: null,
+    });
+  });
+
+  it('keeps context-created tasks in the same group when starting from a task row', () => {
+    expect(getGroupPathForCreatedTaskTarget(makeTask('A', ['Parent', 'Child']))).toEqual(['Parent', 'Child']);
+  });
+
+  it('places context-created tasks outside the selected group row', () => {
+    const group = makeGroup('Child', ['A'], 0, 0, ['Parent', 'Child']);
+
+    expect(getGroupPathForCreatedTaskTarget(group)).toEqual(['Parent']);
+  });
+
+  it('places context-created tasks from the root group at the project root', () => {
+    expect(getGroupPathForCreatedTaskTarget(makeRootGroup(['A']))).toEqual([]);
+  });
+
   it('calculates insert position above a target', () => {
     const tasks = ['A', 'B', 'C'].map(makeTask);
 
@@ -287,5 +339,15 @@ describe('taskOrderUtils', () => {
     const tasks = ['A', 'B', 'C'].map(makeTask);
 
     expect(getAfterIdForInsertPosition(tasks, { targetTaskId: 'B', placement: 'below' })).toBe('B');
+  });
+
+  it('calculates append position after the current last task', () => {
+    const tasks = ['A', 'B', 'C'].map(makeTask);
+
+    expect(getAfterIdForAppend(tasks)).toBe('C');
+  });
+
+  it('calculates append position for an empty task list', () => {
+    expect(getAfterIdForAppend([])).toBeNull();
   });
 });

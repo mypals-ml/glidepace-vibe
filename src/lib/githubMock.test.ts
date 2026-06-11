@@ -19,6 +19,9 @@ interface MockProjectItem {
   fieldValues: {
     nodes: MockFieldValue[];
   };
+  content?: {
+    comments?: unknown;
+  };
 }
 
 interface MockProjectResponse {
@@ -164,6 +167,77 @@ describe('githubMock in-memory project fields', () => {
     });
 
     infoSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('supports paginated comments fetch for the 100-comments mock project', async () => {
+    vi.useFakeTimers();
+
+    const projectId = 'PVT_100_COMMENTS';
+    const contentId = 'content-100-comments-1';
+
+    // 1. Initial project fetch returns tasks list without comments in nodes
+    const projectFetch = await resolveMockGraphQL(GET_PROJECT_TASKS_QUERY, { projectId }) as MockProjectResponse;
+    const taskItem = projectFetch.data.node.items.nodes[0];
+    expect(taskItem).toBeDefined();
+    expect(taskItem.id).toBe('item-100-comments-1');
+    expect(taskItem.content?.comments).toBeUndefined();
+
+    // 2. Fetch first page of comments
+    const page1Query = `
+      query($nodeId: ID!, $cursor: String) {
+        node(id: $nodeId) {
+          ... on Issue {
+            comments(first: 30, after: $cursor) {
+              pageInfo { hasNextPage endCursor }
+              nodes { id body }
+            }
+          }
+        }
+      }
+    `;
+
+    interface CommentsResponse {
+      data: {
+        node: {
+          comments: {
+            pageInfo: { hasNextPage: boolean; endCursor: string | null };
+            nodes: Array<{ id: string; body: string }>;
+          };
+        };
+      };
+    }
+
+    const page1Res = await resolveMockGraphQL(page1Query, { nodeId: contentId }) as CommentsResponse;
+    const p1Comments = page1Res.data.node.comments;
+    expect(p1Comments.nodes.length).toBe(30);
+    expect(p1Comments.pageInfo.hasNextPage).toBe(true);
+    expect(p1Comments.pageInfo.endCursor).toBe('30');
+    expect(p1Comments.nodes[0].id).toBe('comment-100-comments-1');
+
+    // 3. Fetch second page
+    const page2Res = await resolveMockGraphQL(page1Query, { nodeId: contentId, cursor: p1Comments.pageInfo.endCursor }) as CommentsResponse;
+    const p2Comments = page2Res.data.node.comments;
+    expect(p2Comments.nodes.length).toBe(30);
+    expect(p2Comments.pageInfo.hasNextPage).toBe(true);
+    expect(p2Comments.pageInfo.endCursor).toBe('60');
+    expect(p2Comments.nodes[0].id).toBe('comment-100-comments-31');
+
+    // 4. Fetch third page
+    const page3Res = await resolveMockGraphQL(page1Query, { nodeId: contentId, cursor: p2Comments.pageInfo.endCursor }) as CommentsResponse;
+    const p3Comments = page3Res.data.node.comments;
+    expect(p3Comments.nodes.length).toBe(30);
+    expect(p3Comments.pageInfo.hasNextPage).toBe(true);
+    expect(p3Comments.pageInfo.endCursor).toBe('90');
+
+    // 5. Fetch fourth page (final 10 comments)
+    const page4Res = await resolveMockGraphQL(page1Query, { nodeId: contentId, cursor: p3Comments.pageInfo.endCursor }) as CommentsResponse;
+    const p4Comments = page4Res.data.node.comments;
+    expect(p4Comments.nodes.length).toBe(10);
+    expect(p4Comments.pageInfo.hasNextPage).toBe(false);
+    expect(p4Comments.pageInfo.endCursor).toBeNull();
+    expect(p4Comments.nodes[9].id).toBe('comment-100-comments-100');
+
     vi.useRealTimers();
   });
 });

@@ -53,6 +53,32 @@ export function moveTaskAfter(tasks: Task[], taskId: string, afterTaskId: string
   ];
 }
 
+export function upsertTaskAfter(tasks: Task[], taskToUpsert: Task, afterTaskId: string | null): Task[] {
+  const taskId = getTaskOrderId(taskToUpsert);
+  const currentIndex = tasks.findIndex(task => getTaskOrderId(task) === taskId || task.id === taskId);
+  const remainingTasks = currentIndex === -1
+    ? tasks
+    : tasks.filter((_, index) => index !== currentIndex);
+  const nextTask = currentIndex === -1 ? taskToUpsert : { ...tasks[currentIndex], ...taskToUpsert };
+
+  if (afterTaskId === null) {
+    return [nextTask, ...remainingTasks];
+  }
+
+  const insertAfterIndex = remainingTasks.findIndex(
+    candidate => getTaskOrderId(candidate) === afterTaskId || candidate.id === afterTaskId
+  );
+  if (insertAfterIndex === -1) {
+    return currentIndex === -1 ? [...remainingTasks, nextTask] : tasks;
+  }
+
+  return [
+    ...remainingTasks.slice(0, insertAfterIndex + 1),
+    nextTask,
+    ...remainingTasks.slice(insertAfterIndex + 1),
+  ];
+}
+
 export function moveTaskBlockAfter(tasks: Task[], taskIds: string[], afterTaskId: string | null): Task[] {
   const movingTaskIdSet = new Set(taskIds);
   if (movingTaskIdSet.size === 0) return tasks;
@@ -107,6 +133,11 @@ export function getAfterIdForInsertPosition(tasks: Task[], insertPosition: TaskI
   return previousTask ? getTaskOrderId(previousTask) : null;
 }
 
+export function getAfterIdForAppend(tasks: Task[]): string | null {
+  const lastTask = tasks[tasks.length - 1];
+  return lastTask ? getTaskOrderId(lastTask) : null;
+}
+
 function getDashboardItemTaskIds(item: DashboardItem): string[] {
   return isTaskGroupBlock(item) ? item.childTaskIds : [getTaskOrderId(item)];
 }
@@ -119,8 +150,29 @@ function getDashboardItemBySortId(items: DashboardItem[], sortId: string, includ
   return items.find(item => (includeSyntheticRoot || !isSyntheticRootGroup(item)) && getDashboardItemSortId(item) === sortId);
 }
 
-function getPreviousAfterTaskId(items: DashboardItem[], activeIndex: number, movingTaskIdSet: Set<string>): string | null {
+function isGroupFirstChildInsertionBoundary(
+  candidate: DashboardItem,
+  nextItem: DashboardItem | undefined,
+  overSortId: string
+): boolean {
+  if (!isTaskGroupBlock(candidate) || !nextItem) return false;
+  if (getDashboardItemSortId(candidate) === overSortId) return false;
+
+  const nextTaskIds = getDashboardItemTaskIds(nextItem);
+  return nextTaskIds.length > 0 && nextTaskIds.every(taskId => candidate.childTaskIds.includes(taskId));
+}
+
+function getPreviousAfterTaskId(
+  items: DashboardItem[],
+  activeIndex: number,
+  movingTaskIdSet: Set<string>,
+  overSortId: string
+): string | null {
   for (let index = activeIndex - 1; index >= 0; index -= 1) {
+    if (index === activeIndex - 1 && isGroupFirstChildInsertionBoundary(items[index], items[activeIndex + 1], overSortId)) {
+      continue;
+    }
+
     const candidateTaskIds = getDashboardItemTaskIds(items[index]);
     for (let taskIndex = candidateTaskIds.length - 1; taskIndex >= 0; taskIndex -= 1) {
       const taskId = candidateTaskIds[taskIndex];
@@ -171,7 +223,7 @@ export function getVisibleDashboardMovePlan(
 
   return {
     taskIds: movingTaskIds,
-    afterTaskId: getPreviousAfterTaskId(nextItems, nextActiveIndex, movingTaskIdSet),
+    afterTaskId: getPreviousAfterTaskId(nextItems, nextActiveIndex, movingTaskIdSet, overSortId),
   };
 }
 
@@ -217,4 +269,10 @@ export function getDashboardTaskGroupPathMovePlan(
     targetGroupPath: [...overPath],
     afterTaskId: movePlan.afterTaskId,
   };
+}
+
+export function getGroupPathForCreatedTaskTarget(targetItem: DashboardItem): GroupPath {
+  if (!isTaskGroupBlock(targetItem)) return [...(targetItem.groupPath || [])];
+  if (targetItem.isSyntheticRoot) return [];
+  return targetItem.path.slice(0, -1);
 }

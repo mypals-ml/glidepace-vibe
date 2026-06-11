@@ -1,0 +1,2 @@
+- Files under this folder will not be commited automatically.
+- They are in .gitignore by default.

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useDashboard } from '../../context/DashboardContext';
 import { useTranslation } from 'react-i18next';
 import type { User } from '../../types';
@@ -10,9 +11,10 @@ interface AssigneePickerProps {
   repository?: string;
   onClose: () => void;
   onSelect?: (users: User[]) => void;
+  anchorRect?: DOMRectReadOnly | null;
 }
 
-export function AssigneePicker({ taskId, currentAssignees, repository, onClose, onSelect }: AssigneePickerProps) {
+export function AssigneePicker({ taskId, currentAssignees, repository, onClose, onSelect, anchorRect }: AssigneePickerProps) {
   const { fetchSearchUsers, updateTaskAssignees, selectedProject } = useDashboard();
   const isPrivate = selectedProject && !selectedProject.public;
   const { t } = useTranslation();
@@ -22,6 +24,7 @@ export function AssigneePicker({ taskId, currentAssignees, repository, onClose, 
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState<'top' | 'bottom'>('bottom');
+  const [floatingPosition, setFloatingPosition] = useState<{ left: number; top: number } | null>(null);
   
   // Initial assignable users from repo
   const [assignableUsers, setAssignableUsers] = useState<User[]>([]);
@@ -136,14 +139,35 @@ export function AssigneePicker({ taskId, currentAssignees, repository, onClose, 
 
   useLayoutEffect(() => {
     const calculatePlacement = () => {
-      if (containerRef.current && panelRef.current) {
+      if (anchorRect && panelRef.current) {
+        const margin = 8;
+        const panelWidth = panelRef.current.offsetWidth;
+        const panelHeight = panelRef.current.offsetHeight;
+        const spaceBelow = window.innerHeight - anchorRect.bottom;
+        const spaceAbove = anchorRect.top;
+        const nextPlacement = spaceBelow < panelHeight + margin && spaceAbove > spaceBelow ? 'top' : 'bottom';
+        const top = nextPlacement === 'top' ? anchorRect.top - panelHeight - margin : anchorRect.bottom + margin;
+        const left = Math.min(
+          Math.max(anchorRect.right - panelWidth, margin),
+          Math.max(margin, window.innerWidth - panelWidth - margin)
+        );
+
+        setPlacement(nextPlacement);
+        setFloatingPosition({ left, top: Math.max(margin, top) });
+        return;
+      }
+
+      if (!anchorRect && containerRef.current && panelRef.current) {
+        const scrollParent = containerRef.current.closest('.overflow-y-auto') || document.documentElement;
+        const parentRect = scrollParent.getBoundingClientRect();
         const rect = containerRef.current.getBoundingClientRect();
         const panelHeight = panelRef.current.offsetHeight;
-        const viewportHeight = window.innerHeight;
-        const spaceBelow = viewportHeight - rect.bottom;
+        
+        const spaceBelow = parentRect.bottom - rect.bottom;
+        const spaceAbove = rect.top - parentRect.top;
         
         // If space below is less than panel height (plus some margin), flip to top
-        if (spaceBelow < panelHeight + 20) {
+        if (spaceBelow < panelHeight + 20 && spaceAbove > spaceBelow) {
           setPlacement('top');
         } else {
           setPlacement('bottom');
@@ -162,7 +186,140 @@ export function AssigneePicker({ taskId, currentAssignees, repository, onClose, 
       clearTimeout(timer);
       window.removeEventListener('resize', calculatePlacement);
     };
-  }, [combinedResults]);
+  }, [combinedResults, anchorRect]);
+
+  const panel = (
+    <div
+      ref={panelRef}
+      className={`glass-panel task-row-picker-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 ${placement === 'top' ? 'origin-bottom-right' : 'origin-top-right'} min-w-[280px] pointer-events-auto`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Search Header */}
+      <div className="task-row-picker-body p-3 border-b border-slate-200/60">
+        <div className="relative">
+          <span className={`material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm ${isSearching ? 'animate-spin' : ''}`}>
+            {isSearching ? 'sync' : 'search'}
+          </span>
+          <input
+            autoFocus
+            type="text"
+            className={`w-full bg-slate-100/50 border border-slate-200/50 rounded-lg pl-8 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${isPrivate ? 'pr-16' : 'pr-3'}`}
+            placeholder={t('dashboard.searchPlaceholder', 'Search people...')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+          />
+          {isPrivate && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100/80 text-[10px] text-slate-500 font-bold border border-slate-200/50 backdrop-blur-sm select-none pointer-events-none">
+              <span className="material-symbols-outlined text-[14px]">lock</span>
+              {t('dashboard.privateStatus', 'Private')}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* User List */}
+      <div className="task-row-picker-body max-h-[300px] overflow-y-auto custom-scrollbar py-1">
+        {combinedResults.length === 0 && !isSearching ? (
+          <div className="px-4 py-10 text-center">
+            <span className="material-symbols-outlined text-slate-300 text-3xl mb-2">person_search</span>
+            <div className="text-slate-400 text-xs italic">{t('dashboard.noResults', 'No results found')}</div>
+            {isPrivate && (
+              <div className="mt-4 px-4 text-[10px] text-slate-400/70 leading-relaxed">
+                {t('dashboard.privateProjectSearchNotice', 'Global search is limited for private projects.')}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            {/* Assignable section */}
+            {filteredAssignable.length > 0 && (
+              <div className="task-row-picker-muted px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                {t('dashboard.assignable', 'Assignable')}
+              </div>
+            )}
+
+            {filteredAssignable.map(user => {
+              const isSelected = localSelectedIds.includes(user.id);
+              return (
+                <UserButton
+                  key={user.id}
+                  user={user}
+                  isSelected={isSelected}
+                  onClick={() => handleToggleUser(user.id)}
+                />
+              );
+            })}
+
+            {/* Suggestions from Search */}
+            {searchTerm && searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id || (u.login && au.login === u.login))).length > 0 && (
+              <>
+                <div className="task-row-picker-muted px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1 border-t border-slate-100">
+                  {t('dashboard.suggestions', 'Suggestions')}
+                </div>
+                {searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id || (u.login && au.login === u.login))).map(user => {
+                  const isSelected = localSelectedIds.includes(user.id);
+                  return (
+                    <UserButton
+                      key={user.id}
+                      user={user}
+                      isSelected={isSelected}
+                      onClick={() => handleToggleUser(user.id)}
+                    />
+                  );
+                })}
+              </>
+            )}
+
+            {/* Private project notice at bottom of results */}
+            {isPrivate && combinedResults.length > 0 && (
+              <div className="px-3 py-1.5 border-t border-slate-100/50 mt-1">
+                <div className="flex items-center gap-2 text-slate-400/60">
+                  <span className="material-symbols-outlined text-xs">info</span>
+                  <p className="text-[9px] leading-tight italic">
+                    {t('dashboard.privateProjectSearchNotice', 'Global search is limited for private projects.')}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer/Action */}
+      <div className="task-row-picker-muted p-2 border-t border-slate-200/60 flex justify-between items-center sm:hidden">
+        <span className="text-[10px] text-slate-400 ml-2">{t('common.selected', { count: localSelectedIds.length })}</span>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={handleApply}
+        >
+          {t('common.done')}
+        </Button>
+      </div>
+    </div>
+  );
+
+  if (anchorRect) {
+    return createPortal(
+      <div ref={containerRef} className="fixed inset-0 z-[100] pointer-events-none">
+        <div
+          className="fixed inset-0 pointer-events-auto"
+          onClick={(e) => { e.stopPropagation(); handleApply(); }}
+        />
+        <div
+          className="fixed pointer-events-none"
+          style={{
+            left: floatingPosition?.left ?? anchorRect.right - 280,
+            top: floatingPosition?.top ?? anchorRect.bottom + 8,
+          }}
+        >
+          {panel}
+        </div>
+      </div>,
+      document.body
+    );
+  }
 
   return (
     <div ref={containerRef} className={`fixed inset-0 z-[100] flex items-center justify-center p-4 sm:absolute sm:inset-auto sm:right-0 sm:left-auto ${placement === 'top' ? 'sm:bottom-full sm:mb-2' : 'sm:top-full sm:mt-2'} sm:p-0 pointer-events-none`}>
@@ -172,116 +329,7 @@ export function AssigneePicker({ taskId, currentAssignees, repository, onClose, 
         onClick={(e) => { e.stopPropagation(); handleApply(); }}
       />
       
-      {/* Selector Panel */}
-      <div 
-        ref={panelRef}
-        className={`glass-panel w-full rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 ${placement === 'top' ? 'origin-bottom-right' : 'origin-top-right'} min-w-[280px] pointer-events-auto`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Search Header */}
-        <div className="p-3 border-b border-slate-200/60 bg-white/50">
-          <div className="relative">
-            <span className={`material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm ${isSearching ? 'animate-spin' : ''}`}>
-              {isSearching ? 'sync' : 'search'}
-            </span>
-            <input
-              autoFocus
-              type="text"
-              className={`w-full bg-slate-100/50 border border-slate-200/50 rounded-lg pl-8 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${isPrivate ? 'pr-16' : 'pr-3'}`}
-              placeholder={t('dashboard.searchPlaceholder', 'Search people...')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-            />
-            {isPrivate && (
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100/80 text-[10px] text-slate-500 font-bold border border-slate-200/50 backdrop-blur-sm select-none pointer-events-none">
-                <span className="material-symbols-outlined text-[14px]">lock</span>
-                {t('dashboard.privateStatus', 'Private')}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* User List */}
-        <div className="max-h-[300px] overflow-y-auto custom-scrollbar py-1 bg-white/30">
-          {combinedResults.length === 0 && !isSearching ? (
-            <div className="px-4 py-10 text-center">
-              <span className="material-symbols-outlined text-slate-300 text-3xl mb-2">person_search</span>
-              <div className="text-slate-400 text-xs italic">{t('dashboard.noResults', 'No results found')}</div>
-              {isPrivate && (
-                <div className="mt-4 px-4 text-[10px] text-slate-400/70 leading-relaxed">
-                  {t('dashboard.privateProjectSearchNotice', 'Global search is limited for private projects.')}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col">
-              {/* Assignable section */}
-              {filteredAssignable.length > 0 && (
-                <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                  {t('dashboard.assignable', 'Assignable')}
-                </div>
-              )}
-              
-              {filteredAssignable.map(user => {
-                const isSelected = localSelectedIds.includes(user.id);
-                return (
-                  <UserButton 
-                    key={user.id} 
-                    user={user} 
-                    isSelected={isSelected} 
-                    onClick={() => handleToggleUser(user.id)} 
-                  />
-                );
-              })}
-
-              {/* Suggestions from Search */}
-              {searchTerm && searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id || (u.login && au.login === u.login))).length > 0 && (
-                <>
-                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50 mt-1 border-t border-slate-100">
-                    {t('dashboard.suggestions', 'Suggestions')}
-                  </div>
-                  {searchedUsers.filter(u => !assignableUsers.some(au => au.id === u.id || (u.login && au.login === u.login))).map(user => {
-                    const isSelected = localSelectedIds.includes(user.id);
-                    return (
-                      <UserButton 
-                        key={user.id} 
-                        user={user} 
-                        isSelected={isSelected} 
-                        onClick={() => handleToggleUser(user.id)} 
-                      />
-                    );
-                  })}
-                </>
-              )}
-
-              {/* Private project notice at bottom of results */}
-              {isPrivate && combinedResults.length > 0 && (
-                <div className="px-3 py-1.5 border-t border-slate-100/50 mt-1">
-                  <div className="flex items-center gap-2 text-slate-400/60">
-                    <span className="material-symbols-outlined text-xs">info</span>
-                    <p className="text-[9px] leading-tight italic">
-                      {t('dashboard.privateProjectSearchNotice', 'Global search is limited for private projects.')}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer/Action */}
-        <div className="p-2 border-t border-slate-200/60 bg-slate-50/80 flex justify-between items-center sm:hidden">
-          <span className="text-[10px] text-slate-400 ml-2">{t('common.selected', { count: localSelectedIds.length })}</span>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleApply}
-          >
-            {t('common.done')}
-          </Button>
-        </div>
-      </div>
+      {panel}
       
       {/* Invisible overlay for desktop click-outside */}
       <div 

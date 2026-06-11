@@ -8,32 +8,22 @@ import { AssigneePicker } from './AssigneePicker';
 import { StatusPicker } from './StatusPicker';
 import { getStatusDotColor, getStatusTextColor } from '../../utils/statusColors';
 import type { DashboardItem, Task, TaskGroupBlock, User } from '../../types';
-import { memo, useCallback, useMemo, useRef, useState, useEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
+import { memo, useCallback, useMemo, useRef, useState, useEffect, useLayoutEffect, type CSSProperties, type Dispatch, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction, type TouchEvent as ReactTouchEvent } from 'react';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
-import { getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
+import { getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getGroupPathForCreatedTaskTarget, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isTaskGroupBlock, parseSlashGroupPath, serializeSlashGroupPath } from '../../lib/taskGroupUtils';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
 import { Button } from '../UI/Button';
+import { TREE_DEPTH_COLORS, getTreeColor, getTreeLineColor, getTreeHandleHoverColor } from '../../lib/treeColors';
 
 type ContextMenuTarget =
   | { kind: 'task'; taskId: string }
   | { kind: 'group'; groupBlockId: string };
 
-const TREE_DEPTH_COLORS = [
-  '#4f46e5',
-  '#0891b2',
-  '#16a34a',
-  '#d97706',
-  '#dc2626',
-  '#9333ea',
-  '#0f766e',
-  '#2563eb',
-  '#be185d',
-  '#65a30d',
-] as const;
+type ContextMenuState = { x: number; y: number; target: ContextMenuTarget; alignRight: boolean };
 
 const TREE_NODE_BASE_X = 12;
 const TREE_DEPTH_STEP = 20;
@@ -41,8 +31,11 @@ const TREE_CONTENT_GAP = 18;
 const TREE_ELBOW_HEIGHT = 16;
 const TREE_ELBOW_RADIUS = 8;
 const TREE_ROW_HEIGHT = 72;
-const TREE_LINE_MIX = 34;
 const TREE_ROW_PADDING_LEFT = 8;
+const TASK_ASSIGNEE_CHIP_CLASS = 'w-4 h-4 shrink-0 rounded-full border shadow-sm flex items-center justify-center';
+const TASK_ASSIGNEE_AVATAR_CLASS = `${TASK_ASSIGNEE_CHIP_CLASS} overflow-hidden`;
+const TASK_ASSIGNEE_PLACEHOLDER_ICON_CLASS = 'material-symbols-outlined task-assignee-icon';
+const CONTEXT_MENU_VIEWPORT_PADDING = 8;
 
 interface TreeRowMeta {
   depth: number;
@@ -84,20 +77,8 @@ function getTreeDragHandleX(): number {
   return TREE_ROW_PADDING_LEFT;
 }
 
-function getTreeColor(depth: number): string {
-  return TREE_DEPTH_COLORS[Math.min(Math.max(depth, 0), TREE_DEPTH_COLORS.length - 1)];
-}
-
-function getTreeLineColor(depth: number): string {
-  return `color-mix(in srgb, ${getTreeColor(depth)} ${TREE_LINE_MIX}%, white)`;
-}
-
 function getTreeRowDividerLeft(depth: number): number {
   return TREE_ROW_PADDING_LEFT + getTreeNodeX(depth) + TREE_CONTENT_GAP;
-}
-
-function getTreeHandleHoverColor(depth: number): string {
-  return `color-mix(in srgb, ${getTreeColor(depth)} 82%, black)`;
 }
 
 function buildDashboardTreeRows(items: DashboardItem[]): DashboardTreeRow[] {
@@ -224,7 +205,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const [movingItemSortId, setMovingItemSortId] = useState<string | null>(null);
   const [openPickerTaskId, setOpenPickerTaskId] = useState<string | null>(null);
   const [openStatusPickerTaskId, setOpenStatusPickerTaskId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; target: ContextMenuTarget; alignRight: boolean } | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [activeDragItemSortId, setActiveDragItemSortId] = useState<string | null>(null);
   const [groupEditor, setGroupEditor] = useState<
     | { mode: 'taskPath'; taskId: string; value: string }
@@ -234,8 +215,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const [isSavingGroupEditor, setIsSavingGroupEditor] = useState(false);
   const [isFieldGroupDialogOpen, setIsFieldGroupDialogOpen] = useState(false);
   const [draftGroupFieldIds, setDraftGroupFieldIds] = useState<string[]>([]);
+  const [fieldGroupSearchQuery, setFieldGroupSearchQuery] = useState('');
   const [draggedGroupFieldId, setDraggedGroupFieldId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const suppressNextClickRef = useRef(false);
   const dragHasMovedRef = useRef(false);
   const justDroppedRef = useRef(false);
@@ -275,6 +258,25 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     });
   }, [activeDragItemSortId]);
 
+  useLayoutEffect(() => {
+    if (!contextMenu) return;
+
+    const rootRect = rootRef.current?.getBoundingClientRect();
+    const menuRect = contextMenuRef.current?.getBoundingClientRect();
+    if (!rootRect || !menuRect) return;
+
+    const visibleBottom = Math.min(rootRect.height, window.innerHeight - rootRect.top);
+    const maxY = Math.max(
+      CONTEXT_MENU_VIEWPORT_PADDING,
+      visibleBottom - menuRect.height - CONTEXT_MENU_VIEWPORT_PADDING,
+    );
+    const nextY = Math.min(Math.max(contextMenu.y, CONTEXT_MENU_VIEWPORT_PADDING), maxY);
+
+    if (nextY !== contextMenu.y) {
+      setContextMenu(prev => prev ? { ...prev, y: nextY } : prev);
+    }
+  }, [contextMenu]);
+
   const findTaskByOrderId = useCallback((taskId: string): Task | undefined => {
     return tasks.find(task => task.id === taskId || task.itemId === taskId || getTaskOrderId(task) === taskId);
   }, [tasks]);
@@ -312,8 +314,16 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const startCreateTaskAt = (target: ContextMenuTarget, placement: 'above' | 'below') => {
     const boundaryTasks = getContextBoundaryTasks(target);
     if (!boundaryTasks) return;
+    const targetItem = target.kind === 'task'
+      ? findTaskByOrderId(target.taskId)
+      : findGroupById(target.groupBlockId);
+    if (!targetItem) return;
     const targetTaskId = placement === 'above' ? boundaryTasks.firstTask.id : boundaryTasks.lastTask.id;
-    setPendingTaskInsertPosition({ targetTaskId, placement });
+    setPendingTaskInsertPosition({
+      targetTaskId,
+      placement,
+      groupPath: getGroupPathForCreatedTaskTarget(targetItem),
+    });
     setIsCreateMode(true);
     setSelectedTaskId(null);
     setIsTaskDetailsOpen(true);
@@ -459,6 +469,16 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const sortedProjectFields = useMemo(() => {
     return [...projectFields].sort((a, b) => a.name.localeCompare(b.name));
   }, [projectFields]);
+  const filteredProjectFields = useMemo(() => {
+    const query = fieldGroupSearchQuery.trim().toLowerCase();
+    if (!query) return sortedProjectFields;
+
+    return sortedProjectFields.filter(field => {
+      const fieldName = field.name.toLowerCase();
+      const fieldType = field.dataType?.toLowerCase() || '';
+      return fieldName.includes(query) || fieldType.includes(query);
+    });
+  }, [fieldGroupSearchQuery, sortedProjectFields]);
   const isDraggingTask = useMemo(() => {
     if (!activeDragItemSortId) return false;
     const activeItem = dashboardItems.find(item => getDashboardItemSortId(item) === activeDragItemSortId);
@@ -520,7 +540,13 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
   const openFieldGroupDialog = () => {
     setDraftGroupFieldIds(selectedGroupFieldIds);
+    setFieldGroupSearchQuery('');
     setIsFieldGroupDialogOpen(true);
+  };
+
+  const closeFieldGroupDialog = () => {
+    setFieldGroupSearchQuery('');
+    setIsFieldGroupDialogOpen(false);
   };
 
   const toggleDraftGroupField = (fieldId: string) => {
@@ -545,11 +571,11 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
   const saveFieldGroupSelection = () => {
     setSelectedGroupFieldIds(draftGroupFieldIds);
-    setIsFieldGroupDialogOpen(false);
+    closeFieldGroupDialog();
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden relative" ref={rootRef}>
+    <div className="flex flex-col h-full overflow-hidden relative" ref={rootRef} data-testid="task-sidebar-root">
       {/* Header - Moved outside scroll container for alignment */}
       <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] grid grid-cols-[32px_minmax(0,1fr)_64px_76px] gap-1 pl-1.5 pr-0 h-[var(--dashboard-header-height)] items-center flex-shrink-0" aria-label={t('dashboard.issuesList')}>
         <IconButton
@@ -562,7 +588,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
           aria-label={t('dashboard.groupByFields', 'Group by Fields')}
         />
         <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-          <span className="shrink-0">{t('table.title')}</span>
+          <span className="shrink-0">{t('table.tasks', 'Tasks')}</span>
         </div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider"></div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center"></div>
@@ -654,7 +680,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                       setOpenStatusPickerTaskId={setOpenStatusPickerTaskId}
                       setIsLinkMode={setIsLinkMode}
                       setSelectedLinkTaskIds={setSelectedLinkTaskIds}
-                      centerGanttOnTask={centerGanttOnTask}
+                      jumpToChart={handleJumpToChart}
                       t={t}
                     />
                   )
@@ -676,6 +702,8 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
           }}
         >
           <div
+            ref={contextMenuRef}
+            data-testid="task-context-menu"
             className="absolute bg-white/95 rounded-xl shadow-2xl border border-slate-200/60 py-1.5 min-w-[200px] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200"
             style={{
               left: contextMenu.x,
@@ -938,7 +966,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="field-group-dialog-title"
-          onClick={() => setIsFieldGroupDialogOpen(false)}
+          onClick={closeFieldGroupDialog}
         >
           <form
             className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-2xl"
@@ -956,7 +984,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 icon="close"
                 variant="ghost"
                 size="xs"
-                onClick={() => setIsFieldGroupDialogOpen(false)}
+                onClick={closeFieldGroupDialog}
                 aria-label={t('dashboard.close', 'Close')}
               />
             </div>
@@ -1007,12 +1035,38 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   {t('dashboard.availableFields', 'Available fields')}
                 </div>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400" aria-hidden="true">search</span>
+                  <input
+                    className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-9 text-sm text-slate-700 shadow-sm transition-colors placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    type="text"
+                    value={fieldGroupSearchQuery}
+                    onChange={(e) => setFieldGroupSearchQuery(e.target.value)}
+                    placeholder={t('dashboard.fieldSearchPlaceholder', 'Filter fields...')}
+                    aria-label={t('dashboard.fieldSearchPlaceholder', 'Filter fields...')}
+                  />
+                  {fieldGroupSearchQuery && (
+                    <IconButton
+                      type="button"
+                      icon="close"
+                      variant="ghost"
+                      size="xs"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      onClick={() => setFieldGroupSearchQuery('')}
+                      aria-label={t('dashboard.clearFieldSearch', 'Clear field filter')}
+                    />
+                  )}
+                </div>
                 <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
                   {sortedProjectFields.length === 0 ? (
                     <div className="px-3 py-6 text-center text-xs text-slate-400">
                       {t('dashboard.noProjectFields', 'No project fields available')}
                     </div>
-                  ) : sortedProjectFields.map(field => (
+                  ) : filteredProjectFields.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-xs text-slate-400">
+                      {t('dashboard.noMatchingFields', 'No fields match your search.')}
+                    </div>
+                  ) : filteredProjectFields.map(field => (
                     <label
                       key={field.id}
                       className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm text-slate-700 hover:bg-slate-50"
@@ -1039,7 +1093,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setIsFieldGroupDialogOpen(false)}
+                onClick={closeFieldGroupDialog}
               >
                 {t('common.cancel', 'Cancel')}
               </Button>
@@ -1100,13 +1154,24 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             <div className="relative flex-1">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]" aria-hidden="true">search</span>
               <input
-                className="w-full h-9 bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-3 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                className="w-full h-9 bg-white border border-slate-200 shadow-sm rounded-md pl-9 pr-9 text-sm text-slate-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
                 placeholder={t('dashboard.filterPlaceholder')}
                 aria-label={t('dashboard.filterPlaceholder')}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searchQuery && (
+                <IconButton
+                  type="button"
+                  icon="close"
+                  variant="ghost"
+                  size="xs"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  onClick={() => setSearchQuery('')}
+                  aria-label={t('dashboard.clearIssueFilter', 'Clear issue filter')}
+                />
+              )}
             </div>
             <IconButton
               icon="add"
@@ -1444,7 +1509,7 @@ interface SortableTaskRowProps {
   setOpenStatusPickerTaskId: Dispatch<SetStateAction<string | null>>;
   setIsLinkMode: (mode: boolean) => void;
   setSelectedLinkTaskIds: (tasks: string[] | ((prev: string[]) => string[])) => void;
-  centerGanttOnTask: (taskId: string, date: string | null) => void;
+  jumpToChart: (taskId: string) => void;
   t: TFunction;
 }
 
@@ -1468,7 +1533,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
   setOpenStatusPickerTaskId,
   setIsLinkMode,
   setSelectedLinkTaskIds,
-  centerGanttOnTask,
+  jumpToChart,
   t,
 }: SortableTaskRowProps) {
   const {
@@ -1482,6 +1547,8 @@ const SortableTaskRow = memo(function SortableTaskRow({
   const [isRowHovered, setIsRowHovered] = useState(false);
   const [isDragHandleHovered, setIsDragHandleHovered] = useState(false);
   const [isDragHandleFocused, setIsDragHandleFocused] = useState(false);
+  const [statusPickerAnchorRect, setStatusPickerAnchorRect] = useState<DOMRectReadOnly | null>(null);
+  const [assigneePickerAnchorRect, setAssigneePickerAnchorRect] = useState<DOMRectReadOnly | null>(null);
   const sortId = getDashboardItemSortId(task);
   const isMovingThisTask = movingItemSortId === sortId;
   const showHoverActions = !isDragging && !isDragActive && !isAnyDragging;
@@ -1494,6 +1561,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
   const dragHandleColor = isDragHandleHovered ? treeHandleHoverColor : isDragHandleFocused || isRowHovered ? treeNodeColor : undefined;
   const dividerLeft = getTreeRowDividerLeft(treeMeta.depth);
   const statusTextColor = getStatusTextColor(task.status);
+  const isPickerOpen = openPickerTaskId === task.id || openStatusPickerTaskId === task.id;
 
   return (
     <div
@@ -1515,7 +1583,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
         isLinkMode
           ? isLinkSelected ? 'bg-primary/10 ring-1 ring-primary/30 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
           : isSelected ? 'bg-primary/[0.04] ring-1 ring-primary/10 shadow-sm' : 'hover:bg-slate-50/80 bg-white'
-      } ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''}`}
+      } ${isDragging ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : isPickerOpen ? 'z-20' : ''}`}
       onClick={() => {
         if (suppressNextClickRef.current) {
           suppressNextClickRef.current = false;
@@ -1581,10 +1649,17 @@ const SortableTaskRow = memo(function SortableTaskRow({
         <div className="status-assignees flex items-center gap-3 mt-1 mb-0.5">
           <div className="group/status relative flex items-center min-w-0">
             <div
-              className="flex items-center gap-1 cursor-pointer hover:bg-slate-100/80 transition-colors px-1 py-0.5 rounded border border-slate-200/50 bg-slate-50/60"
+              className="flex items-center gap-1 cursor-pointer hover:bg-slate-100/80 transition-colors px-1 rounded border border-slate-200/50 bg-slate-50/60 h-4"
               onClick={(e) => {
                 e.stopPropagation();
-                setOpenStatusPickerTaskId(openStatusPickerTaskId === task.id ? null : task.id);
+                if (openStatusPickerTaskId === task.id) {
+                  setStatusPickerAnchorRect(null);
+                  setOpenStatusPickerTaskId(null);
+                } else {
+                  setStatusPickerAnchorRect(e.currentTarget.getBoundingClientRect());
+                  setOpenPickerTaskId(null);
+                  setOpenStatusPickerTaskId(task.id);
+                }
               }}
               title={t('dashboard.updateStatus', 'Update status')}
             >
@@ -1596,7 +1671,11 @@ const SortableTaskRow = memo(function SortableTaskRow({
             {openStatusPickerTaskId === task.id && (
               <StatusPicker
                 task={task}
-                onClose={() => setOpenStatusPickerTaskId(null)}
+                anchorRect={statusPickerAnchorRect}
+                onClose={() => {
+                  setStatusPickerAnchorRect(null);
+                  setOpenStatusPickerTaskId(null);
+                }}
               />
             )}
           </div>
@@ -1606,28 +1685,35 @@ const SortableTaskRow = memo(function SortableTaskRow({
               className="flex -space-x-1 cursor-pointer hover:scale-105 transition-transform"
               onClick={(e) => {
                 e.stopPropagation();
-                setOpenPickerTaskId(openPickerTaskId === task.id ? null : task.id);
+                if (openPickerTaskId === task.id) {
+                  setAssigneePickerAnchorRect(null);
+                  setOpenPickerTaskId(null);
+                } else {
+                  setAssigneePickerAnchorRect(e.currentTarget.getBoundingClientRect());
+                  setOpenStatusPickerTaskId(null);
+                  setOpenPickerTaskId(task.id);
+                }
               }}
               title={t('dashboard.updateAssignees', 'Update assignees')}
             >
               {task.assignees.length > 0 ? (
                 <>
                   {task.assignees.slice(0, 3).map((user: User, idx: number) => (
-                    <div key={user.id} className={`w-4 h-4 rounded-full border border-white shadow-sm flex items-center justify-center text-[7px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
+                    <div key={user.id} className={`${TASK_ASSIGNEE_AVATAR_CLASS} border-white text-[7px] font-bold ${user.avatarColor}`} style={{ zIndex: 10 - idx }} title={user.name}>
                       {user.avatarUrl ? (
                         <img src={user.avatarUrl} alt={user.initials} className="w-full h-full rounded-full object-cover" />
                       ) : user.initials}
                     </div>
                   ))}
                   {task.assignees.length > 3 && (
-                    <div className="w-4 h-4 rounded-full border border-white shadow-sm flex items-center justify-center text-[6px] font-bold bg-slate-100 text-slate-500" style={{ zIndex: 0 }}>
+                    <div className={`${TASK_ASSIGNEE_AVATAR_CLASS} border-white text-[6px] font-bold bg-slate-100 text-slate-500`} style={{ zIndex: 0 }}>
                       +{task.assignees.length - 3}
                     </div>
                   )}
                 </>
               ) : (
-                <div className="w-4 h-4 rounded-full border border-dashed border-slate-200 flex items-center justify-center text-slate-300">
-                  <span className="material-symbols-outlined text-[10px]">person_add</span>
+                <div className={`${TASK_ASSIGNEE_CHIP_CLASS} border-primary/40 bg-primary/10 text-primary shadow-primary/10 group-hover/assignee:border-primary/70 group-hover/assignee:bg-primary/15 group-hover/assignee:text-primary`}>
+                  <span className={TASK_ASSIGNEE_PLACEHOLDER_ICON_CLASS}>person_add</span>
                 </div>
               )}
             </div>
@@ -1636,7 +1722,11 @@ const SortableTaskRow = memo(function SortableTaskRow({
                 taskId={task.id}
                 currentAssignees={task.assignees}
                 repository={task.repository}
-                onClose={() => setOpenPickerTaskId(null)}
+                anchorRect={assigneePickerAnchorRect}
+                onClose={() => {
+                  setAssigneePickerAnchorRect(null);
+                  setOpenPickerTaskId(null);
+                }}
               />
             )}
           </div>
@@ -1666,8 +1756,7 @@ const SortableTaskRow = memo(function SortableTaskRow({
           className="pointer-events-none group-hover:pointer-events-auto text-slate-500 hover:text-primary hover:bg-primary/10"
           onClick={(e) => {
             e.stopPropagation();
-            const startDate = getStartDateForCal(task);
-            if (startDate) centerGanttOnTask(task.id, startDate);
+            jumpToChart(task.id);
           }}
           title={t('dashboard.centerInGantt') || 'Center in Gantt'}
           aria-label={t('dashboard.centerInGantt') || 'Center in Gantt'}

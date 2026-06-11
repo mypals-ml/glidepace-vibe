@@ -1,4 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 interface TimelineRange {
   start: Date;
@@ -33,10 +35,16 @@ export function useGanttTimeline({
       totalDays: initialBufferDaysLeft + initialBufferDaysRight
     };
   });
+  const [timelineExpansionVersion, setTimelineExpansionVersion] = useState(0);
 
   const isExpanding = useRef(false);
   const pendingScrollAdjustment = useRef(0);
   const isProgrammaticScroll = useRef(false);
+
+  const expandTimelineRange = useCallback((updater: (prev: TimelineRange) => TimelineRange) => {
+    setTimelineRange(updater);
+    setTimelineExpansionVersion(version => version + 1);
+  }, []);
 
   const getPositionForDate = useCallback((dateStr: string | Date) => {
     if (!dateStr) return 0;
@@ -46,7 +54,7 @@ export function useGanttTimeline({
   }, [timelineRange.start, dayWidth]);
 
   // Adjust scrollLeft when timelineStart shifts (infinite scroll left)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (pendingScrollAdjustment.current !== 0 && scrollRef.current) {
       isProgrammaticScroll.current = true;
       scrollRef.current.scrollLeft += pendingScrollAdjustment.current;
@@ -64,7 +72,7 @@ export function useGanttTimeline({
 
     if (direction === 'left') {
       pendingScrollAdjustment.current = expansionDays * dayWidth;
-      setTimelineRange(prev => {
+      expandTimelineRange(prev => {
         const newStart = new Date(prev.start);
         newStart.setDate(newStart.getDate() - expansionDays);
         return {
@@ -73,7 +81,7 @@ export function useGanttTimeline({
         };
       });
     } else {
-      setTimelineRange(prev => ({
+      expandTimelineRange(prev => ({
         ...prev,
         totalDays: prev.totalDays + expansionDays
       }));
@@ -83,7 +91,7 @@ export function useGanttTimeline({
         isExpanding.current = false;
       }, 50);
     }
-  }, [expansionDays, dayWidth]);
+  }, [expansionDays, dayWidth, expandTimelineRange]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
@@ -108,18 +116,20 @@ export function useGanttTimeline({
   }, [expansionThresholdPx, expandTimeline]);
 
   const centerOnDate = useCallback((dateStr: string | Date, behavior: ScrollBehavior = 'smooth') => {
-    if (!scrollRef.current) return;
+    if (!scrollRef.current) {
+      return false;
+    }
 
     const targetDate = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
     const targetTime = targetDate.getTime();
     const startTime = timelineRange.start.getTime();
-    const endTime = startTime + (timelineRange.totalDays * 24 * 60 * 60 * 1000);
+    const endTime = startTime + (timelineRange.totalDays * DAY_MS);
 
     // If outside current range, expand first
     if (targetTime < startTime) {
-      const daysToAdd = Math.ceil((startTime - targetTime) / (24 * 60 * 60 * 1000)) + expansionDays;
+      const daysToAdd = Math.ceil((startTime - targetTime) / DAY_MS) + expansionDays;
       pendingScrollAdjustment.current = daysToAdd * dayWidth;
-      setTimelineRange(prev => {
+      expandTimelineRange(prev => {
         const d = new Date(prev.start);
         d.setDate(d.getDate() - daysToAdd);
         return {
@@ -127,27 +137,36 @@ export function useGanttTimeline({
           totalDays: prev.totalDays + daysToAdd
         };
       });
-      // The centering will happen in the next render cycle or via dependency
-      return;
+      return false;
     }
 
-    if (targetTime > endTime - (dayWidth * 2)) {
-      const daysToAdd = Math.ceil((targetTime - endTime) / (24 * 60 * 60 * 1000)) + expansionDays;
-      setTimelineRange(prev => ({
+    if (targetTime >= endTime) {
+      const daysToAdd = Math.ceil((targetTime - endTime) / DAY_MS) + expansionDays + 1;
+      expandTimelineRange(prev => ({
         ...prev,
         totalDays: prev.totalDays + daysToAdd
       }));
-      // Centering will follow
+      return false;
     }
 
     const pos = getPositionForDate(dateStr);
     const halfViewport = scrollRef.current.clientWidth / 2;
+    const targetLeft = pos - halfViewport + (dayWidth / 2);
     isProgrammaticScroll.current = true;
     scrollRef.current.scrollTo({
-      left: pos - halfViewport + (dayWidth / 2),
+      left: targetLeft,
+      top: scrollRef.current.scrollTop,
       behavior
     });
-  }, [timelineRange, dayWidth, expansionDays, scrollRef, getPositionForDate]);
+    requestAnimationFrame(() => {
+      if (!scrollRef.current) return;
+      if (Math.abs(scrollRef.current.scrollLeft - targetLeft) > dayWidth) {
+        isProgrammaticScroll.current = true;
+        scrollRef.current.scrollLeft = targetLeft;
+      }
+    });
+    return true;
+  }, [timelineRange, dayWidth, expansionDays, scrollRef, getPositionForDate, expandTimelineRange]);
 
   // Sync range to parent if needed
   useEffect(() => {
@@ -158,6 +177,7 @@ export function useGanttTimeline({
 
   return {
     timelineRange,
+    timelineExpansionVersion,
     getPositionForDate,
     handleScroll,
     centerOnDate,
