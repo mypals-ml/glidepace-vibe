@@ -732,84 +732,6 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         </div>
       </div>
 
-      {/* Task Actions */}
-      <div className="border border-slate-200/60 rounded-lg bg-white/95 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between bg-slate-50 px-3 h-11 border-b border-slate-200/60">
-          <label className="text-xs font-medium text-slate-600">{t('dashboard.taskActions', 'Task actions')}</label>
-        </div>
-        <div className="grid grid-cols-2 gap-2 p-3">
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon="add"
-            onClick={() => handleStartPositionedCreate('above')}
-          >
-            {t('dashboard.addTaskAbove')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon="add"
-            onClick={() => handleStartPositionedCreate('below')}
-          >
-            {t('dashboard.addTaskBelow')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon="add_link"
-            onClick={handleStartLinkMode}
-          >
-            {t('dashboard.addSuccessors')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon="folder"
-            onClick={() => setIsGroupEditorOpen(true)}
-          >
-            {t('dashboard.groupLabel')}
-          </Button>
-        </div>
-        {breakLinkPlan && (breakLinkPlan.hasPredecessors || breakLinkPlan.hasSuccessors) && (
-          <div className="border-t border-slate-100 px-3 pb-3">
-            <div className="grid grid-cols-1 gap-2 pt-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                leftIcon="link_off"
-                className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => handleBreakLinks('all')}
-              >
-                {t('dashboard.breakAllLinks')}
-              </Button>
-              {breakLinkPlan.hasPredecessors && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  leftIcon="call_received"
-                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                  onClick={() => handleBreakLinks('predecessors')}
-                >
-                  {t('dashboard.breakWithPredecessors')}
-                </Button>
-              )}
-              {breakLinkPlan.hasSuccessors && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  leftIcon="call_made"
-                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                  onClick={() => handleBreakLinks('successors')}
-                >
-                  {t('dashboard.breakWithSuccessors')}
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Status */}
       <div className="border-t border-slate-200/60 pt-3 relative">
         <label className="text-xs font-medium text-slate-600 block mb-3">{t('table.status')}</label>
@@ -1075,18 +997,96 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
         )}
       </div>
 
-      <div className="border-t border-red-100 pt-4">
-        <Button
-          variant="danger"
-          size="md"
-          fullWidth
-          leftIcon="delete"
-          onClick={() => setIsTaskDeleteConfirmOpen(true)}
-          disabled={isDeletingTask}
-          isLoading={isDeletingTask}
-        >
-          {t('dashboard.deleteTask', 'Delete Task')}
-        </Button>
+      {/* Task Actions */}
+      <div className="border border-slate-200/60 rounded-lg bg-white/95 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between bg-slate-50 px-3 h-11 border-b border-slate-200/60">
+          <label className="text-xs font-medium text-slate-600">{t('dashboard.taskActions', 'Task actions')}</label>
+        </div>
+        <div className="grid grid-cols-2 gap-2 p-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon="add"
+            onClick={() => handleStartPositionedCreate('above')}
+          >
+            {t('dashboard.addTaskAbove')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon="add"
+            onClick={() => handleStartPositionedCreate('below')}
+          >
+            {t('dashboard.addTaskBelow')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon="add_link"
+            onClick={handleStartLinkMode}
+          >
+            {t('dashboard.addSuccessors')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon="folder"
+            onClick={() => setIsGroupEditorOpen(true)}
+          >
+            {t('dashboard.groupLabel')}
+          </Button>
+        </div>
+        {breakLinkPlan && (breakLinkPlan.hasPredecessors || breakLinkPlan.hasSuccessors) && (
+          <div className="border-t border-slate-100 px-3 pb-3">
+            <div className="grid grid-cols-1 gap-2 pt-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                leftIcon="link_off"
+                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => handleBreakLinks('all')}
+              >
+                {t('dashboard.breakAllLinks')}
+              </Button>
+              {breakLinkPlan.hasPredecessors && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon="call_received"
+                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => handleBreakLinks('predecessors')}
+                >
+                  {t('dashboard.breakWithPredecessors')}
+                </Button>
+              )}
+              {breakLinkPlan.hasSuccessors && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon="call_made"
+                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => handleBreakLinks('successors')}
+                >
+                  {t('dashboard.breakWithSuccessors')}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+        {/* Delete Task (danger zone) */}
+        <div className="border-t border-red-100 p-3">
+          <Button
+            variant="danger"
+            size="md"
+            fullWidth
+            leftIcon="delete"
+            onClick={() => setIsTaskDeleteConfirmOpen(true)}
+            disabled={isDeletingTask}
+            isLoading={isDeletingTask}
+          >
+            {t('dashboard.deleteTask', 'Delete Task')}
+          </Button>
+        </div>
       </div>
 
       {/* Bottom spacer to prevent dropdown clipping in scrollable area */}
