@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_USED_FIELD_GROUPS,
   areFieldIdListsIdentical,
+  getLastUsedFieldGroupStorageKey,
   getRecommendedFieldGroups,
   getUsedFieldGroupsStorageKey,
+  loadLastUsedFieldGroup,
   loadUsedFieldGroups,
   recordUsedFieldGroup,
+  saveLastUsedFieldGroup,
 } from './fieldGroupHistory';
 
 function makeMemoryStorage(initial: Record<string, string> = {}) {
@@ -24,6 +27,9 @@ describe('fieldGroupHistory', () => {
     expect(getUsedFieldGroupsStorageKey('PVT_1')).toBe('used_field_groups_PVT_1');
     expect(getUsedFieldGroupsStorageKey(null)).toBe('used_field_groups');
     expect(getUsedFieldGroupsStorageKey(undefined)).toBe('used_field_groups');
+    expect(getLastUsedFieldGroupStorageKey('PVT_1')).toBe('last_used_field_group_PVT_1');
+    expect(getLastUsedFieldGroupStorageKey(null)).toBe('last_used_field_group');
+    expect(getLastUsedFieldGroupStorageKey(undefined)).toBe('last_used_field_group');
   });
 
   it('treats combinations as identical only with the same fields in the same order', () => {
@@ -132,6 +138,38 @@ describe('fieldGroupHistory', () => {
     expect(recordUsedFieldGroup(null, 'any', ['status'], 1000).map(entry => entry.fieldIds)).toEqual([
       ['status'],
     ]);
+  });
+
+  it('saves and loads the last used field group separately from history', () => {
+    const storage = makeMemoryStorage();
+    const historyKey = getUsedFieldGroupsStorageKey('PVT_1');
+    const lastUsedKey = getLastUsedFieldGroupStorageKey('PVT_1');
+
+    recordUsedFieldGroup(storage, historyKey, ['status', 'priority'], 1000);
+    saveLastUsedFieldGroup(storage, lastUsedKey, ['priority', 'status']);
+
+    expect(loadUsedFieldGroups(storage, historyKey).map(entry => entry.fieldIds)).toEqual([
+      ['status', 'priority'],
+    ]);
+    expect(loadLastUsedFieldGroup(storage, lastUsedKey)).toEqual(['priority', 'status']);
+  });
+
+  it('preserves an explicitly empty last used field group', () => {
+    const storage = makeMemoryStorage();
+    const key = getLastUsedFieldGroupStorageKey('PVT_1');
+
+    saveLastUsedFieldGroup(storage, key, []);
+
+    expect(loadLastUsedFieldGroup(storage, key)).toEqual([]);
+  });
+
+  it('returns null when the last used field group has not been saved or is malformed', () => {
+    const key = getLastUsedFieldGroupStorageKey('PVT_1');
+
+    expect(loadLastUsedFieldGroup(makeMemoryStorage(), key)).toBeNull();
+    expect(loadLastUsedFieldGroup(makeMemoryStorage({ [key]: 'not-json' }), key)).toBeNull();
+    expect(loadLastUsedFieldGroup(makeMemoryStorage({ [key]: JSON.stringify({ fieldIds: [] }) }), key)).toBeNull();
+    expect(loadLastUsedFieldGroup(makeMemoryStorage({ [key]: JSON.stringify(['status', 42]) }), key)).toBeNull();
   });
 
   it('resolves recommended combinations against existing fields case-insensitively', () => {

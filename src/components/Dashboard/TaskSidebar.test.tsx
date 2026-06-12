@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskSidebar } from './TaskSidebar';
 import type { DashboardItem, Task } from '../../types';
+import { getLastUsedFieldGroupStorageKey } from '../../lib/fieldGroupHistory';
 
 const dashboardMock = vi.hoisted(() => ({
   useDashboard: vi.fn(),
@@ -77,11 +78,15 @@ describe('TaskSidebar hover actions', () => {
   const setIsChartVisible = vi.fn();
   const centerGanttOnTask = vi.fn();
   const setSearchQuery = vi.fn();
+  const setSelectedGroupFieldIds = vi.fn();
   let searchQuery = '';
+  let selectedGroupFieldIds: string[] = [];
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     searchQuery = '';
+    selectedGroupFieldIds = [];
 
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: false,
@@ -102,8 +107,9 @@ describe('TaskSidebar hover actions', () => {
         { __typename: 'ProjectV2Field', id: 'field-title', name: 'Title', dataType: 'TITLE' },
         { __typename: 'ProjectV2SingleSelectField', id: 'field-status', name: 'Status', dataType: 'SINGLE_SELECT' },
       ],
+      selectedProject: { id: 'PVT_1' },
       selectedGroupFieldIds: [],
-      setSelectedGroupFieldIds: vi.fn(),
+      setSelectedGroupFieldIds,
       isLoadingTasks: false,
       searchQuery,
       setSearchQuery,
@@ -181,6 +187,67 @@ describe('TaskSidebar hover actions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear field filter' }));
 
     expect((screen.getByRole('textbox', { name: 'Filter fields...' }) as HTMLInputElement).value).toBe('');
+  });
+
+  it('applies the saved last used field group for the current project on render', async () => {
+    localStorage.setItem(getLastUsedFieldGroupStorageKey('PVT_1'), JSON.stringify(['field-status']));
+
+    render(<TaskSidebar />);
+
+    await waitFor(() => {
+      expect(setSelectedGroupFieldIds).toHaveBeenCalledWith(['field-status']);
+    });
+  });
+
+  it('persists an explicitly cleared field group when saving the dialog', () => {
+    selectedGroupFieldIds = ['field-status'];
+    dashboardMock.useDashboard.mockImplementation(() => ({
+      filteredTasks: [task],
+      dashboardItems,
+      tasks: [task],
+      projectFields: [
+        { __typename: 'ProjectV2Field', id: 'field-title', name: 'Title', dataType: 'TITLE' },
+        { __typename: 'ProjectV2SingleSelectField', id: 'field-status', name: 'Status', dataType: 'SINGLE_SELECT' },
+      ],
+      selectedProject: { id: 'PVT_1' },
+      selectedGroupFieldIds,
+      setSelectedGroupFieldIds,
+      isLoadingTasks: false,
+      searchQuery,
+      setSearchQuery,
+      selectedTaskId: null,
+      setSelectedTaskId,
+      setIsCreateMode,
+      setIsChartVisible,
+      setDashboardView,
+      apiError: null,
+      fieldsProgress: { current: 0, total: 0, isFetching: false },
+      mappingStatus: 'idle',
+      setIsTaskDetailsOpen,
+      centerGanttOnTask,
+      isLinkMode: false,
+      setIsLinkMode: vi.fn(),
+      selectedLinkTaskIds: [],
+      setSelectedLinkTaskIds: vi.fn(),
+      updateTaskSuccessors: vi.fn(),
+      updateTaskGroupPath: vi.fn(),
+      renameGroupBlock: vi.fn(),
+      ungroupGroupBlock: vi.fn(),
+      toggleGroupBlockCollapsed: vi.fn(),
+      reorderTask: vi.fn(),
+      reorderTaskBlock: vi.fn(),
+      moveTaskToGroupPath: vi.fn(),
+      setPendingTaskInsertPosition: vi.fn(),
+    }));
+
+    render(<TaskSidebar />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Group by Fields' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove field' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(localStorage.getItem(getLastUsedFieldGroupStorageKey('PVT_1'))).toBe('[]');
+    expect(setSelectedGroupFieldIds).toHaveBeenCalledWith([]);
   });
 
   it('moves the task context menu upward when it would overflow the bottom edge', () => {

@@ -14,6 +14,7 @@ interface StorageLike {
 }
 
 const USED_FIELD_GROUPS_STORAGE_KEY_PREFIX = 'used_field_groups';
+const LAST_USED_FIELD_GROUP_STORAGE_KEY_PREFIX = 'last_used_field_group';
 
 export const MAX_USED_FIELD_GROUPS = 20;
 
@@ -28,6 +29,12 @@ export function getUsedFieldGroupsStorageKey(projectId: string | null | undefine
   return projectId
     ? `${USED_FIELD_GROUPS_STORAGE_KEY_PREFIX}_${projectId}`
     : USED_FIELD_GROUPS_STORAGE_KEY_PREFIX;
+}
+
+export function getLastUsedFieldGroupStorageKey(projectId: string | null | undefined): string {
+  return projectId
+    ? `${LAST_USED_FIELD_GROUP_STORAGE_KEY_PREFIX}_${projectId}`
+    : LAST_USED_FIELD_GROUP_STORAGE_KEY_PREFIX;
 }
 
 function normalizeFieldIds(fieldIds: readonly string[]): string[] {
@@ -111,6 +118,41 @@ export function recordUsedFieldGroup(
     }
   }
   return updatedEntries;
+}
+
+/**
+ * Load the last saved field group selection from storage.
+ * Returns null when no selection has been saved; an empty array is a valid
+ * saved value and means the user explicitly cleared grouping fields.
+ */
+export function loadLastUsedFieldGroup(storage: StorageLike | null, storageKey: string): string[] | null {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(storageKey);
+    if (raw === null) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.some(fieldId => typeof fieldId !== 'string')) return null;
+    return normalizeFieldIds(parsed);
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the last field group selection, including an explicitly empty selection. */
+export function saveLastUsedFieldGroup(
+  storage: StorageLike | null,
+  storageKey: string,
+  fieldIds: readonly string[]
+): string[] {
+  const normalizedFieldIds = normalizeFieldIds(fieldIds);
+  if (storage) {
+    try {
+      storage.setItem(storageKey, JSON.stringify(normalizedFieldIds));
+    } catch {
+      // Storage may be unavailable (private mode, quota); callers can still use the normalized value.
+    }
+  }
+  return normalizedFieldIds;
 }
 
 /**

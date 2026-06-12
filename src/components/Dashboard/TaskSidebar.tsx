@@ -20,11 +20,14 @@ import { Button } from '../UI/Button';
 import { TREE_DEPTH_COLORS, getTreeColor, getTreeLineColor, getTreeHandleHoverColor } from '../../lib/treeColors';
 import {
   areFieldIdListsIdentical,
+  getLastUsedFieldGroupStorageKey,
   getLocalStorageSafe,
   getRecommendedFieldGroups,
   getUsedFieldGroupsStorageKey,
+  loadLastUsedFieldGroup,
   loadUsedFieldGroups,
   recordUsedFieldGroup,
+  saveLastUsedFieldGroup,
   type UsedFieldGroup,
 } from '../../lib/fieldGroupHistory';
 
@@ -585,6 +588,14 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   };
 
   const usedFieldGroupsStorageKey = getUsedFieldGroupsStorageKey(selectedProject?.id);
+  const lastUsedFieldGroupStorageKey = getLastUsedFieldGroupStorageKey(selectedProject?.id);
+
+  useEffect(() => {
+    const lastUsedFieldGroup = loadLastUsedFieldGroup(getLocalStorageSafe(), lastUsedFieldGroupStorageKey);
+    if (lastUsedFieldGroup !== null) {
+      setSelectedGroupFieldIds(lastUsedFieldGroup);
+    }
+  }, [lastUsedFieldGroupStorageKey, setSelectedGroupFieldIds]);
 
   const openFieldGroupDialog = () => {
     setDraftGroupFieldIds(selectedGroupFieldIds);
@@ -652,12 +663,14 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   };
 
   const saveFieldGroupSelection = () => {
+    const storage = getLocalStorageSafe();
+    const savedFieldIds = saveLastUsedFieldGroup(storage, lastUsedFieldGroupStorageKey, draftGroupFieldIds);
     if (draftGroupFieldIds.length > 0) {
       setUsedFieldGroups(
-        recordUsedFieldGroup(getLocalStorageSafe(), usedFieldGroupsStorageKey, draftGroupFieldIds)
+        recordUsedFieldGroup(storage, usedFieldGroupsStorageKey, draftGroupFieldIds)
       );
     }
-    setSelectedGroupFieldIds(draftGroupFieldIds);
+    setSelectedGroupFieldIds(savedFieldIds);
     closeFieldGroupDialog();
   };
 
@@ -1059,7 +1072,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
           onClick={closeFieldGroupDialog}
         >
           <form
-            className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-2xl"
+            className="flex max-h-[min(720px,calc(100vh-2rem))] w-full max-w-md flex-col rounded-xl border border-slate-200 bg-white shadow-2xl"
             onSubmit={(e) => {
               e.preventDefault();
               saveFieldGroupSelection();
@@ -1078,7 +1091,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 aria-label={t('dashboard.close', 'Close')}
               />
             </div>
-            <div className="space-y-4 px-4 py-4">
+            <div className="flex min-h-0 flex-1 flex-col space-y-4 px-4 py-4">
               <section className="space-y-2">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   {t('dashboard.selectedFields', 'Selected fields')}
@@ -1108,6 +1121,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                           <span className="line-clamp-2 min-w-0 whitespace-normal break-words leading-snug" title={field.name}>{field.name}</span>
                         </span>
                         <IconButton
+                          type="button"
                           icon="close"
                           variant="ghost"
                           size="xs"
@@ -1150,6 +1164,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 ))}
               </div>
 
+              <div className="min-h-[290px] overflow-hidden">
               {fieldGroupDialogTab === 'used' && (
                 <section
                   className="space-y-2"
@@ -1157,7 +1172,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                   id="field-group-tabpanel-used"
                   aria-labelledby="field-group-tab-used"
                 >
-                  <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
+                  <div className="h-[290px] space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
                     {resolvedUsedFieldGroups.length === 0 ? (
                       <div className="px-3 py-6 text-center text-xs text-slate-400">
                         {t('dashboard.noUsedFieldGroups', 'No used groups yet. Saved field groupings will be listed here.')}
@@ -1174,7 +1189,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                   id="field-group-tabpanel-recommended"
                   aria-labelledby="field-group-tab-recommended"
                 >
-                  <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
+                  <div className="h-[290px] space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
                     {resolvedRecommendedFieldGroups.length === 0 ? (
                       <div className="px-3 py-6 text-center text-xs text-slate-400">
                         {t('dashboard.noRecommendedFieldGroups', 'No recommended groups available for this project.')}
@@ -1216,7 +1231,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                     />
                   )}
                 </div>
-                <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
+                <div className="h-[196px] space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-1 custom-scrollbar">
                   {sortedProjectFields.length === 0 ? (
                     <div className="px-3 py-6 text-center text-xs text-slate-400">
                       {t('dashboard.noProjectFields', 'No project fields available')}
@@ -1247,6 +1262,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                 </div>
               </section>
               )}
+              </div>
             </div>
             <div className="flex justify-end gap-2 rounded-b-xl border-t border-slate-100 bg-slate-50 px-4 py-3">
               <Button
