@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskDetailsPanel } from './TaskDetailsPanel';
 import type { Task } from '../../types';
@@ -127,6 +127,35 @@ describe('TaskDetailsPanel actions', () => {
       expect(updateTaskSuccessors).toHaveBeenCalledWith('item-predecessor', [], true);
       expect(updateTaskSuccessors).toHaveBeenCalledWith('item-125', [], true);
     });
+  });
+
+  it('renders the Task actions section at the end of the view, after the comments section', () => {
+    render(<TaskDetailsPanel task={task} onClose={vi.fn()} />);
+
+    // The panel renders the content twice (mobile and desktop layouts); check the first copy.
+    const taskActionsLabel = screen.getAllByText('Task actions')[0];
+    const commentsLabel = screen.getAllByText('dashboard.comments')[0];
+    const descriptionLabel = screen.getAllByText('dashboard.description')[0];
+    const statusLabel = screen.getAllByText('table.status')[0];
+
+    const follows = (earlier: HTMLElement, later: HTMLElement) =>
+      Boolean(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+    expect(follows(descriptionLabel, taskActionsLabel)).toBe(true);
+    expect(follows(statusLabel, taskActionsLabel)).toBe(true);
+    expect(follows(commentsLabel, taskActionsLabel)).toBe(true);
+  });
+
+  it('renders the Delete Task action inside the Task actions section', () => {
+    render(<TaskDetailsPanel task={task} onClose={vi.fn()} />);
+
+    const taskActionsLabel = screen.getAllByText('Task actions')[0];
+    const taskActionsCard = taskActionsLabel.parentElement?.parentElement as HTMLElement;
+
+    const deleteButton = within(taskActionsCard).getByRole('button', { name: /Delete Task/ });
+    expect(deleteButton.tagName).toBe('BUTTON');
+    // The other task actions live in the same card as the delete action.
+    expect(within(taskActionsCard).getByRole('button', { name: /dashboard.addTaskAbove/ }).tagName).toBe('BUTTON');
   });
 
   it('updates the task group path from the details panel', async () => {

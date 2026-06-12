@@ -363,9 +363,10 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
             </div>
           ) : (
             <div className="relative z-10">
-              <DependencyLines 
-                items={dashboardItems} 
-                getPositionForDate={getPositionForDate} 
+              <DependencyLines
+                items={dashboardItems}
+                tasks={filteredTasks}
+                getPositionForDate={getPositionForDate}
                 dayWidth={DAY_WIDTH} 
                 onBreakLink={handleBreakLink}
                 dragState={linkDragState}

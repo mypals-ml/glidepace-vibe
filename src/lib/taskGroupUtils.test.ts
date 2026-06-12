@@ -128,4 +128,39 @@ describe('taskGroupUtils', () => {
     ]);
     expect(tasks[0].groupPath).toEqual(['Backend']);
   });
+
+  it('includes the field name in field group titles when a field name map is provided', () => {
+    const tasks: Task[] = [
+      { ...makeTask('TaskA', ['Backend']), projectFieldValues: { statusField: 'Todo', priorityField: 'P2' } },
+      { ...makeTask('TaskB', []), projectFieldValues: { statusField: 'Done', priorityField: 'P1' } },
+      { ...makeTask('TaskC', ['Frontend']), projectFieldValues: { statusField: 'Todo' } },
+    ];
+
+    const grouped = applyFieldGroupPaths(tasks, ['statusField', 'priorityField'], {
+      statusField: 'Status',
+      priorityField: 'Priority',
+    });
+
+    expect(grouped.map(task => task.id)).toEqual(['TaskB', 'TaskC', 'TaskA']);
+    expect(grouped.map(task => task.groupPath)).toEqual([
+      ['Status: Done', 'Priority: P1'],
+      ['Status: Todo', 'Priority: No value', 'Frontend'],
+      ['Status: Todo', 'Priority: P2', 'Backend'],
+    ]);
+    expect(tasks[0].groupPath).toEqual(['Backend']);
+  });
+
+  it('falls back to the bare value when the field name is unknown', () => {
+    const tasks: Task[] = [
+      { ...makeTask('TaskA', []), projectFieldValues: { statusField: 'Todo' } },
+    ];
+
+    const grouped = applyFieldGroupPaths(tasks, ['statusField', 'unknownField'], {
+      statusField: 'Status',
+    });
+
+    expect(grouped.map(task => task.groupPath)).toEqual([
+      ['Status: Todo', 'No value'],
+    ]);
+  });
 });
