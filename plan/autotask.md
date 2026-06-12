@@ -46,7 +46,7 @@ Task workflow:
 
 - Otherwise, change that task state to `In progress`.
 
-- Add a comment: `{current_agent_name} Automation is working on it <current datetime>`.
+- Add a comment: `{current_agent_name} Automation is working on it <current local datetime>`.
 
 - Open the task and read its title, description, and comments.
 
@@ -54,8 +54,8 @@ Task workflow:
 
 Implementation workflow:
 
-- Use the repository in the configured workspace:
-  - Update local files to the newest version
+- Use the current repository in the configured workspace:
+  - Pull and merge the newest files from the remote origin into local checked out branch.
   - Write an implementation and test plan.
 
 - Review the plan for gaps, risks, and missing verification.
@@ -70,7 +70,7 @@ Implementation workflow:
 
 Completion workflow: (The work is complete and tested)
 
-- Add a comment in this format: `{current_agent_name} Automation committed the changes <current datetime> | <brief execution walkthrough>`.
+- Add a comment in this format: `{current_agent_name} Automation committed the changes <current local datetime> | <brief execution walkthrough>`.
   - The <brief execution walkthrough> must briefly summarize what was implemented and how it was verified.
 
 - Keep the full comment under 220 characters.
@@ -81,7 +81,7 @@ Completion workflow: (The work is complete and tested)
 
 - Change the task state to `In review`.
 
-- Generate a md file named as `walkthrough-task#<task number>-YYYYMMDD-hhmmss.md` under `<project root path>/plan/walkthrough/`
+- Generate a md file named with local date time stamp as `walkthrough-task#<task number>-YYYYMMDD-hhmmss.md` under `<project root path>/plan/walkthrough/`
   - this md file must contain
     - the above <brief execution walkthrough> contents
     - the very detail of what was implemented and how it was verified.
