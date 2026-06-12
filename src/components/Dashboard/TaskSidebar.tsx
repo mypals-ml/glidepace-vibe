@@ -7,7 +7,7 @@ import { useCallback, useMemo, useRef, useState, useEffect, useLayoutEffect } fr
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
-import { getDashboardDropTargetGroupSortId, getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getGroupPathForCreatedTaskTarget, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
+import { getDashboardDropTargetGroupSortId, getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getGroupPathForCreatedTaskTarget, getTaskOrderId, getVisibleDashboardMovePlan, type DashboardFieldGroupContext } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isTaskGroupBlock, parseSlashGroupPath, serializeSlashGroupPath } from '../../lib/taskGroupUtils';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
@@ -382,11 +382,15 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     const activeItem = dashboardItems.find(item => getDashboardItemSortId(item) === activeDragItemSortId);
     return Boolean(activeItem && !isTaskGroupBlock(activeItem));
   }, [activeDragItemSortId, dashboardItems]);
+  const fieldGroupContext = useMemo<DashboardFieldGroupContext>(() => ({
+    fieldIds: selectedGroupFieldIds,
+    fields: projectFields,
+  }), [selectedGroupFieldIds, projectFields]);
 
   const dropTargetGroupSortId = useMemo(() => {
     if (!activeDragItemSortId || !dragOverSortId) return null;
-    return getDashboardDropTargetGroupSortId(dashboardItems, activeDragItemSortId, dragOverSortId, tasks);
-  }, [activeDragItemSortId, dragOverSortId, dashboardItems, tasks]);
+    return getDashboardDropTargetGroupSortId(dashboardItems, activeDragItemSortId, dragOverSortId, tasks, fieldGroupContext);
+  }, [activeDragItemSortId, dragOverSortId, dashboardItems, tasks, fieldGroupContext]);
 
   const handleDragStart = (event: DragStartEvent) => {
     dragHasMovedRef.current = false;
@@ -410,18 +414,19 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       const { active, over } = event;
       if (!over) return;
 
-      const groupDropPlan = getDashboardGroupDropPlan(dashboardItems, String(active.id), String(over.id), tasks);
+      const groupDropPlan = getDashboardGroupDropPlan(dashboardItems, String(active.id), String(over.id), tasks, fieldGroupContext);
       if (groupDropPlan) {
-        await moveTaskToGroupPath(groupDropPlan.taskId, groupDropPlan.targetGroupPath, groupDropPlan.afterTaskId);
+        await moveTaskToGroupPath(groupDropPlan.taskId, groupDropPlan.targetGroupPath, groupDropPlan.afterTaskId, groupDropPlan.fieldValueChanges);
         return;
       }
 
-      const taskGroupPathMovePlan = getDashboardTaskGroupPathMovePlan(dashboardItems, String(active.id), String(over.id), tasks);
+      const taskGroupPathMovePlan = getDashboardTaskGroupPathMovePlan(dashboardItems, String(active.id), String(over.id), tasks, fieldGroupContext);
       if (taskGroupPathMovePlan) {
         await moveTaskToGroupPath(
           taskGroupPathMovePlan.taskId,
           taskGroupPathMovePlan.targetGroupPath,
-          taskGroupPathMovePlan.afterTaskId
+          taskGroupPathMovePlan.afterTaskId,
+          taskGroupPathMovePlan.fieldValueChanges
         );
         return;
       }
@@ -1227,4 +1232,3 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     </div>
   );
 }
-

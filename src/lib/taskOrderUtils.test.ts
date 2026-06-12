@@ -8,6 +8,7 @@ import {
   getAfterIdForInsertPosition,
   getGroupPathForCreatedTaskTarget,
   getGroupSortId,
+  resolveFieldGroupedTargetPath,
   getTaskSortId,
   getVisibleDashboardMovePlan,
   getAfterIdForVisibleMove,
@@ -572,6 +573,110 @@ describe('taskOrderUtils', () => {
     expect(getVisibleDashboardMovePlan(items, getTaskSortId(activeTask), getTaskSortId(overTask))).toEqual({
       taskIds: ['Y'],
       afterTaskId: 'B',
+    });
+  });
+
+  it('resolves field-group prefixes separately from persisted group path', () => {
+    expect(resolveFieldGroupedTargetPath(['Status: Todo', 'group1'], {
+      fieldIds: ['statusField'],
+      fields: [{ id: 'statusField', name: 'Status' }],
+    })).toEqual({
+      groupPath: ['group1'],
+      fieldValueChanges: [{ fieldId: 'statusField', value: 'Todo' }],
+    });
+  });
+
+  it('changes field values without adding field names to a moved task group path', () => {
+    const activeTask = {
+      ...makeTask('C', ['Status: Done', 'group2']),
+      projectFieldValues: { statusField: 'Done' },
+    };
+    const overTask = {
+      ...makeTask('A', ['Status: Todo', 'group1']),
+      projectFieldValues: { statusField: 'Todo' },
+    };
+    const items: DashboardItem[] = [
+      makeGroup('Status: Todo', ['A', 'B'], 0, 1, ['Status: Todo']),
+      makeGroup('group1', ['A', 'B'], 0, 1, ['Status: Todo', 'group1']),
+      overTask,
+      makeTask('B', ['Status: Todo', 'group1']),
+      makeGroup('Status: Done', ['C', 'D'], 2, 3, ['Status: Done']),
+      makeGroup('group2', ['C', 'D'], 2, 3, ['Status: Done', 'group2']),
+      activeTask,
+      makeTask('D', ['Status: Done', 'group2']),
+    ];
+
+    expect(getDashboardTaskGroupPathMovePlan(
+      items,
+      getTaskSortId(activeTask),
+      getTaskSortId(overTask),
+      [makeTask('A'), makeTask('B'), makeTask('C'), makeTask('D')],
+      { fieldIds: ['statusField'], fields: [{ id: 'statusField', name: 'Status' }] }
+    )).toEqual({
+      taskId: 'C',
+      targetGroupPath: ['group1'],
+      afterTaskId: null,
+      placement: 'into',
+      fieldValueChanges: [{ fieldId: 'statusField', value: 'Todo' }],
+    });
+  });
+
+  it('plans a field value change when moving between field groups with the same real group path', () => {
+    const activeTask = {
+      ...makeTask('C', ['Status: Done', 'group1']),
+      projectFieldValues: { statusField: 'Done' },
+    };
+    const overTask = {
+      ...makeTask('A', ['Status: Todo', 'group1']),
+      projectFieldValues: { statusField: 'Todo' },
+    };
+    const items: DashboardItem[] = [
+      makeGroup('Status: Todo', ['A'], 0, 0, ['Status: Todo']),
+      makeGroup('group1', ['A'], 0, 0, ['Status: Todo', 'group1']),
+      overTask,
+      makeGroup('Status: Done', ['C'], 1, 1, ['Status: Done']),
+      makeGroup('group1', ['C'], 1, 1, ['Status: Done', 'group1']),
+      activeTask,
+    ];
+
+    expect(getDashboardTaskGroupPathMovePlan(
+      items,
+      getTaskSortId(activeTask),
+      getTaskSortId(overTask),
+      [makeTask('A'), makeTask('C')],
+      { fieldIds: ['statusField'], fields: [{ id: 'statusField', name: 'Status' }] }
+    )).toEqual({
+      taskId: 'C',
+      targetGroupPath: ['group1'],
+      afterTaskId: null,
+      placement: 'into',
+      fieldValueChanges: [{ fieldId: 'statusField', value: 'Todo' }],
+    });
+  });
+
+  it('drops into a field-grouped path header without persisting field-group segments', () => {
+    const activeTask = makeTask('C', ['Status: Done', 'group2']);
+    const targetGroup = makeGroup('group1', ['A', 'B'], 0, 1, ['Status: Todo', 'group1']);
+    const items: DashboardItem[] = [
+      activeTask,
+      makeGroup('Status: Todo', ['A', 'B'], 0, 1, ['Status: Todo']),
+      targetGroup,
+      makeTask('A', ['Status: Todo', 'group1']),
+      makeTask('B', ['Status: Todo', 'group1']),
+    ];
+
+    expect(getDashboardGroupDropPlan(
+      items,
+      getTaskSortId(activeTask),
+      getGroupSortId(targetGroup),
+      [makeTask('A'), makeTask('B'), makeTask('C')],
+      { fieldIds: ['statusField'], fields: [{ id: 'statusField', name: 'Status' }] }
+    )).toEqual({
+      taskId: 'C',
+      targetGroupPath: ['group1'],
+      afterTaskId: 'B',
+      placement: 'into',
+      fieldValueChanges: [{ fieldId: 'statusField', value: 'Todo' }],
     });
   });
 

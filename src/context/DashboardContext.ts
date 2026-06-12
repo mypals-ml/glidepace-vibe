@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings, AutoUpdateStartDateMode, TaskInsertPosition, DashboardItem, GroupPath } from '../types';
 import type { MissingFieldDef } from '../hooks/useFieldSetup';
+import type { DashboardFieldValueChange } from '../lib/taskOrderUtils';
 
 export interface DashboardContextValue {
   // Auth
@@ -78,7 +79,7 @@ export interface DashboardContextValue {
   toggleGroupBlockCollapsed: (groupBlockId: string) => void;
   reorderTask: (taskId: string, afterTaskId: string | null) => Promise<boolean>;
   reorderTaskBlock: (taskIds: string[], afterTaskId: string | null) => Promise<boolean>;
-  moveTaskToGroupPath: (taskId: string, groupPath: GroupPath, afterTaskId: string | null) => Promise<boolean>;
+  moveTaskToGroupPath: (taskId: string, groupPath: GroupPath, afterTaskId: string | null, fieldValueChanges?: DashboardFieldValueChange[]) => Promise<boolean>;
   createProjectV2Field: (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => Promise<string | null>;
 
   // Sync

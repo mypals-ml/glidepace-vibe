@@ -5,7 +5,7 @@ import { mapProjectItemToTask, mapGitHubCommentToTaskComment } from '../lib/gith
 import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
 import { autoCorrectDependencyFields, cascadeTaskDates, cascadeAllTasks, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../lib/taskDependencyUtils';
-import { getAfterIdForAppend, getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter, moveTaskBlockAfter, upsertTaskAfter } from '../lib/taskOrderUtils';
+import { getAfterIdForAppend, getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter, moveTaskBlockAfter, upsertTaskAfter, type DashboardFieldValueChange } from '../lib/taskOrderUtils';
 import { applyFieldGroupPaths, buildGroupBlocksFromOrderedTasks, renameGroupBlock as renameGroupBlockInTasks, serializeGroupPath, ungroupGroupBlock as ungroupGroupBlockInTasks, isTaskGroupBlock, moveTasksToGroupPath } from '../lib/taskGroupUtils';
 import type { DependencyFieldCorrection } from '../lib/taskDependencyUtils';
 import { mergeFetchedTaskWithLocalState } from '../lib/taskMergeUtils';
@@ -73,6 +73,40 @@ function getExistingPredecessorIds(tasks: Task[], successorTask: Task): string[]
   return tasks
     .filter(task => (task.successorIds || []).includes(successorTaskId))
     .map(task => task.itemId || task.id);
+}
+
+function getProjectFieldUpdateValue(field: GitHubProjectV2Field | undefined, value: string): unknown {
+  const optionId = field?.options?.find(option => option.name === value)?.id;
+  return optionId ? { singleSelectOptionId: optionId } : { text: value };
+}
+
+function applyTaskFieldValueChanges(task: Task, fieldValueChanges: DashboardFieldValueChange[]): Task {
+  if (fieldValueChanges.length === 0) return task;
+
+  const nextProjectFieldValues = { ...(task.projectFieldValues || {}) };
+  let nextTask = task;
+
+  for (const change of fieldValueChanges) {
+    nextProjectFieldValues[change.fieldId] = change.value;
+
+    if (task.projectFieldIds?.status === change.fieldId) {
+      const progress = /^(done|closed|completed|merged)$/i.test(change.value)
+        ? 100
+        : /^(todo|backlog|open|not started)$/i.test(change.value)
+          ? 0
+          : 50;
+      nextTask = {
+        ...nextTask,
+        status: change.value,
+        progress,
+      };
+    }
+  }
+
+  return {
+    ...nextTask,
+    projectFieldValues: nextProjectFieldValues,
+  };
 }
 
 async function persistDependencyFieldCorrections(
@@ -1041,7 +1075,12 @@ export function useDashboardTasks({
     return false;
   }, [selectedProject?.id, githubToken, setTasks, markRecentLocalReorder, updateSyncTime, showToast, t, fetchProjectTasks]);
 
-  const moveTaskToGroupPath = useCallback(async (taskId: string, groupPath: GroupPath, afterTaskId: string | null): Promise<boolean> => {
+  const moveTaskToGroupPath = useCallback(async (
+    taskId: string,
+    groupPath: GroupPath,
+    afterTaskId: string | null,
+    fieldValueChanges: DashboardFieldValueChange[] = []
+  ): Promise<boolean> => {
     if (!selectedProject?.id || !githubToken) return false;
 
     const oldTasks = [...tasksRef.current];
@@ -1049,7 +1088,15 @@ export function useDashboardTasks({
     if (!task?.itemId) return false;
 
     const taskOrderId = getTaskOrderId(task);
-    const groupedTasks = moveTasksToGroupPath(oldTasks, [taskOrderId], groupPath);
+    const timestamp = Date.now();
+    const groupedTasks = moveTasksToGroupPath(oldTasks, [taskOrderId], groupPath).map(candidate =>
+      getTaskOrderId(candidate) === taskOrderId || candidate.id === task.id
+        ? {
+            ...applyTaskFieldValueChanges(candidate, fieldValueChanges),
+            localUpdateTimestamp: timestamp,
+          }
+        : candidate
+    );
     const nextTasks = moveTaskAfter(groupedTasks, taskOrderId, afterTaskId);
     const nextTask = nextTasks.find(t => t.id === task.id || getTaskOrderId(t) === taskOrderId);
     if (!nextTask) return false;
@@ -1058,22 +1105,44 @@ export function useDashboardTasks({
     const nextOrder = nextTasks.map(getTaskOrderId).join('|');
     const orderChanged = oldOrder !== nextOrder;
     const groupPathChanged = serializeGroupPath(task.groupPath) !== serializeGroupPath(nextTask.groupPath);
-    if (!orderChanged && !groupPathChanged) return true;
+    const fieldValuesChanged = fieldValueChanges.some(change =>
+      (task.projectFieldValues?.[change.fieldId] || '') !== change.value
+    );
+    if (!orderChanged && !groupPathChanged && !fieldValuesChanged) return true;
 
     logDashboardEvent('[DashboardTasks] Move task to group started', {
       projectId: selectedProject.id,
       taskId,
       itemId: task.itemId,
       targetGroupPath: groupPath,
+      fieldValueChanges,
       afterTaskId,
       orderChanged,
       groupPathChanged,
+      fieldValuesChanged,
     });
 
     setTasks(nextTasks);
 
     let success = true;
-    if (groupPathChanged) {
+    for (const change of fieldValueChanges) {
+      if (!success) break;
+      if ((task.projectFieldValues?.[change.fieldId] || '') === change.value) continue;
+      const field = projectFields.find(candidate => candidate.id === change.fieldId);
+      if (change.value === '') {
+        success = await clearProjectV2ItemField(selectedProject.id, task.itemId, change.fieldId, githubToken);
+      } else {
+        success = await updateProjectV2ItemField(
+          selectedProject.id,
+          task.itemId,
+          change.fieldId,
+          getProjectFieldUpdateValue(field, change.value),
+          githubToken
+        );
+      }
+    }
+
+    if (success && groupPathChanged) {
       success = await persistTaskGroupPath(nextTask, nextTask.groupPath || []);
     }
 
@@ -1086,6 +1155,7 @@ export function useDashboardTasks({
         projectId: selectedProject.id,
         movedItemIds: [task.itemId],
         targetGroupPath: groupPath,
+        fieldValueChanges,
         afterTaskId,
       });
       if (orderChanged) {
@@ -1100,15 +1170,16 @@ export function useDashboardTasks({
       projectId: selectedProject.id,
       movedItemIds: [task.itemId],
       targetGroupPath: groupPath,
+      fieldValueChanges,
       afterTaskId,
-      fallbackRefreshKind: groupPathChanged && orderChanged ? 'full_project' : undefined,
+      fallbackRefreshKind: (groupPathChanged || fieldValuesChanged) && orderChanged ? 'full_project' : undefined,
     }, 'warn');
     showToast(t('dashboard.groupPathUpdateFailed', 'Failed to update task group.'), 'error');
-    if (groupPathChanged && orderChanged) {
+    if ((groupPathChanged || fieldValuesChanged) && orderChanged) {
       await fetchProjectTasks(selectedProject.id, githubToken);
     }
     return false;
-  }, [selectedProject?.id, githubToken, setTasks, persistTaskGroupPath, markRecentLocalReorder, updateSyncTime, showToast, t, fetchProjectTasks]);
+  }, [selectedProject?.id, githubToken, setTasks, projectFields, persistTaskGroupPath, markRecentLocalReorder, updateSyncTime, showToast, t, fetchProjectTasks]);
 
   const handleCreateTask = useCallback(async (taskData: {
     title: string;
