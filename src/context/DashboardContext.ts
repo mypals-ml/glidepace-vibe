@@ -2,6 +2,8 @@ import { createContext, useContext } from 'react';
 import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings, AutoUpdateStartDateMode, TaskInsertPosition, DashboardItem, GroupPath } from '../types';
 import type { MissingFieldDef } from '../hooks/useFieldSetup';
 import type { DashboardFieldValueChange } from '../lib/taskOrderUtils';
+import type { FetchProjectTasksOptions } from '../hooks/useDashboardTasks';
+import type { ViewportAnchor } from '../lib/viewportAnchor';
 
 export interface DashboardContextValue {
   // Auth
@@ -46,9 +48,14 @@ export interface DashboardContextValue {
   selectedGroupFieldIds: string[];
   setSelectedGroupFieldIds: (fieldIds: string[]) => void;
   isLoadingTasks: boolean;
+  isRefreshingTasks: boolean;
   fieldsProgress: { current: number; total: number; isFetching: boolean };
-  fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
+  fetchProjectTasks: (projectId: string, token: string, options?: FetchProjectTasksOptions) => Promise<void>;
   fetchSingleProjectItem: (itemId: string, token: string) => Promise<Task | null>;
+
+  // Viewport anchoring (background refresh scroll preservation)
+  registerViewportAnchorController: (capture: (() => ViewportAnchor | null) | null) => void;
+  consumePendingViewportAnchor: () => ViewportAnchor | null;
   fetchTaskComments: (taskId: string, contentId: string, token: string) => Promise<void>;
   isFetchingComments: Record<string, boolean>;
   handleCreateTask: (taskData: { 

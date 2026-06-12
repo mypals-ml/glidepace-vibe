@@ -4,11 +4,11 @@ import { fetchGitHubGraphQL, getRepositoryId, createGitHubIssue, addProjectV2Ite
 import { mapProjectItemToTask, mapGitHubCommentToTaskComment } from '../lib/githubTaskMapper';
 import { formatToGitHubDate, calculateTargetDate } from '../lib/dateUtils';
 import { registerStatuses } from '../utils/statusColors';
-import { autoCorrectDependencyFields, cascadeTaskDates, cascadeAllTasks, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../lib/taskDependencyUtils';
+import { autoCorrectDependencyFields, cascadeTaskDates, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../lib/taskDependencyUtils';
 import { getAfterIdForAppend, getAfterIdForInsertPosition, getTaskOrderId, moveTaskAfter, moveTaskBlockAfter, upsertTaskAfter, type DashboardFieldValueChange } from '../lib/taskOrderUtils';
 import { applyFieldGroupPaths, buildGroupBlocksFromOrderedTasks, renameGroupBlock as renameGroupBlockInTasks, serializeGroupPath, ungroupGroupBlock as ungroupGroupBlockInTasks, isTaskGroupBlock, moveTasksToGroupPath } from '../lib/taskGroupUtils';
 import type { DependencyFieldCorrection } from '../lib/taskDependencyUtils';
-import { mergeFetchedTaskWithLocalState } from '../lib/taskMergeUtils';
+import { reconcileProjectSnapshot, reconcileSingleTask } from '../lib/taskReconciliation';
 import { logDashboardEvent } from '../lib/dashboardDebugLog';
 import { 
   GET_SINGLE_ITEM_QUERY, 
@@ -32,6 +32,18 @@ import {
 } from '../lib/githubQueries';
 import type { Task, TaskComment, TaskStatus, User, GithubAccount, ProjectOwnerInfo, GitHubProjectItem, GitHubProjectV2Field, GitHubAssignee, ProjectDateSettings, AutoUpdateStartDateMode, FixedSuccessorStartDateMode, TaskInsertPosition, GroupPath } from '../types';
 
+export interface FetchProjectTasksOptions {
+  /**
+   * 'initial' shows the loading UI and replaces everything (project open or
+   * project switch). 'background' keeps the current task list and Gantt
+   * visible while fetching; it never blanks the UI, even on failure.
+   */
+  mode?: 'initial' | 'background';
+  reason?: 'initial_load' | 'manual_sync' | 'webhook_sync' | 'external_reorder' | 'fallback';
+  /** Capture and restore the viewport anchor around applying the snapshot. */
+  preserveViewport?: boolean;
+}
+
 interface UseDashboardTasksProps {
   githubToken: string;
   selectedProject: { id: string; title: string; public: boolean; accountId?: string } | null;
@@ -44,6 +56,8 @@ interface UseDashboardTasksProps {
   requestStartDateDecision: (tasks: Task[]) => Promise<'auto' | 'locked' | 'ask'>;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   markRecentLocalReorder: (itemIds: string[]) => void;
+  /** Registered by the layout; queues a viewport anchor for the next render. */
+  captureViewportAnchor?: () => void;
 }
 
 function uniqueTasks(tasks: Task[]): Task[] {
@@ -147,6 +161,7 @@ export function useDashboardTasks({
   requestStartDateDecision,
   showToast,
   markRecentLocalReorder,
+  captureViewportAnchor,
 }: UseDashboardTasksProps) {
   const { t } = useTranslation();
 
@@ -164,6 +179,7 @@ export function useDashboardTasks({
   }, []);
 
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [isRefreshingTasks, setIsRefreshingTasks] = useState(false);
   const [isFetchingComments, setIsFetchingComments] = useState<Record<string, boolean>>({});
   const ongoingCommentFetchesRef = useRef<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -178,6 +194,11 @@ export function useDashboardTasks({
   useEffect(() => {
     dateSettingsRef.current = dateSettings;
   }, [dateSettings]);
+
+  const captureViewportAnchorRef = useRef(captureViewportAnchor);
+  useEffect(() => {
+    captureViewportAnchorRef.current = captureViewportAnchor;
+  }, [captureViewportAnchor]);
 
   const availableUsers = useMemo<User[]>(() => {
     const userMap = new Map<string, User>();
@@ -275,35 +296,21 @@ export function useDashboardTasks({
           contentId: updatedTask.contentId
         });
 
-        // 1. Calculate snapshot for async side-effects/persistence using the tasksRef.current at this instant
-        const currentTasksAtThisInstant = tasksRef.current;
-        const indexAtThisInstant = currentTasksAtThisInstant.findIndex(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
-        const mergedTasksAtThisInstant = indexAtThisInstant === -1 ? [...currentTasksAtThisInstant, updatedTask] : [...currentTasksAtThisInstant];
-        if (indexAtThisInstant !== -1) {
-          mergedTasksAtThisInstant[indexAtThisInstant] = mergeFetchedTaskWithLocalState(mergedTasksAtThisInstant[indexAtThisInstant], updatedTask);
-        }
-        const dependencyRepairAtThisInstant = autoCorrectDependencyFields(mergedTasksAtThisInstant);
-        const cascadedTasksAtThisInstant = cascadeTaskDates(dependencyRepairAtThisInstant.tasks, updatedTask.itemId || updatedTask.id, new Set(), {
+        // Reconcile against the synchronously-tracked tasksRef and apply in
+        // the same tick. setTasks (array form) updates tasksRef synchronously,
+        // so no competing update can interleave between read and apply.
+        // Unchanged tasks keep their object references, so memoized rows skip
+        // rerendering.
+        const reconciliation = reconcileSingleTask(tasksRef.current, updatedTask, {
           fixedStartDateMode: getProjectFixedStartDateMode(dateSettingsRef.current),
+          insertMissing: true,
         });
+        if (reconciliation.tasks !== tasksRef.current) {
+          setTasks(reconciliation.tasks);
+        }
 
-        // 2. Perform state update via functional updater to merge correctly with whatever changes might have occurred in the meantime
-        setTasks(currentTasks => {
-          const index = currentTasks.findIndex(t => t.itemId === updatedTask.itemId || t.contentId === updatedTask.contentId);
-          const mergedTasks = index === -1 ? [...currentTasks, updatedTask] : [...currentTasks];
-          if (index !== -1) {
-            mergedTasks[index] = mergeFetchedTaskWithLocalState(mergedTasks[index], updatedTask);
-          }
-          const dependencyRepair = autoCorrectDependencyFields(mergedTasks);
-          const cascadedTasks = cascadeTaskDates(dependencyRepair.tasks, updatedTask.itemId || updatedTask.id, new Set(), {
-            fixedStartDateMode: getProjectFixedStartDateMode(dateSettingsRef.current),
-          });
-          return cascadedTasks;
-        });
-
-        // 3. Trigger persistence using the snapshot results to avoid holding state update references
         if (selectedProject?.id) {
-          await persistDependencyFieldCorrections(dependencyRepairAtThisInstant.corrections, cascadedTasksAtThisInstant, selectedProject.id, token, dateSettingsRef.current);
+          await persistDependencyFieldCorrections(reconciliation.corrections, reconciliation.tasks, selectedProject.id, token, dateSettingsRef.current);
         }
         updateSyncTime();
 
@@ -405,11 +412,19 @@ export function useDashboardTasks({
     }
   }, [setTasks]);
 
-  const fetchProjectTasks = useCallback(async (projectId: string, token: string) => {
-    setIsLoadingTasks(true);
+  const fetchProjectTasks = useCallback(async (projectId: string, token: string, options?: FetchProjectTasksOptions) => {
+    // Background mode only makes sense when there is usable data to keep on
+    // screen; without existing tasks it degrades to the initial loading UI.
+    const isBackground = options?.mode === 'background' && tasksRef.current.length > 0;
+    if (!isBackground) {
+      setIsLoadingTasks(true);
+    }
+    setIsRefreshingTasks(true);
     setFieldsProgress({ current: 0, total: 0, isFetching: true });
     logDashboardEvent('[DashboardTasks] Refresh started', {
       refreshKind: 'full_project',
+      mode: isBackground ? 'background' : 'initial',
+      reason: options?.reason || 'initial_load',
       projectId,
       projectAccountId,
     });
@@ -445,8 +460,21 @@ export function useDashboardTasks({
           console.warn('GraphQL Errors (possibly non-fatal) fetching items:', JSON.stringify(json.errors, null, 2));
           if (!projectNode) {
             console.error('Fatal GraphQL Error: No project node returned.');
-            setApiError(json.errors.map((e: { message: string }) => e.message).join(', '));
-            setTasks([]);
+            const errorMessage = json.errors.map((e: { message: string }) => e.message).join(', ');
+            if (isBackground) {
+              // Never blank a usable task list because a background refresh
+              // failed; keep stale data and surface the failure non-modally.
+              logDashboardEvent('[DashboardTasks] Background refresh failed', {
+                refreshKind: 'full_project',
+                projectId,
+                reason: options?.reason,
+                error: errorMessage,
+              }, 'warn');
+              showToast(t('dashboard.backgroundRefreshFailed', 'Failed to refresh tasks from GitHub. Showing the last known state.'), 'error');
+            } else {
+              setApiError(errorMessage);
+              setTasks([]);
+            }
             return;
           }
         }
@@ -483,49 +511,36 @@ export function useDashboardTasks({
       }
 
       setApiError(null);
-  
-      // 1. Calculate snapshot for async side-effects/persistence using the tasksRef.current at this instant
-      const existingTasksAtThisInstant = tasksRef.current;
-      const existingTasksMapAtThisInstant = new Map(existingTasksAtThisInstant.map(t => [t.itemId || t.id, t]));
 
-      const mappedTasksAtThisInstant: Task[] = allItems.map(item => {
-        const fetched = mapProjectItemToTask(item, dateSettingsRef.current);
-        const existing = existingTasksMapAtThisInstant.get(fetched.itemId || fetched.id);
-        if (existing) {
-          return mergeFetchedTaskWithLocalState(existing, fetched);
-        }
-        return fetched;
-      });
-
-      const dependencyRepairAtThisInstant = autoCorrectDependencyFields(mappedTasksAtThisInstant);
-      const cascadedTasksAtThisInstant = cascadeAllTasks(dependencyRepairAtThisInstant.tasks, {
+      // Reconcile the authoritative GitHub snapshot against the
+      // synchronously-tracked tasksRef and apply in the same tick (no awaits
+      // between read and setTasks, so no competing update can interleave).
+      // Unchanged tasks keep their object references for memoized rows.
+      const previousTasks = tasksRef.current;
+      const mappedFetchedTasks: Task[] = allItems.map(item => mapProjectItemToTask(item, dateSettingsRef.current));
+      const reconciliation = reconcileProjectSnapshot(previousTasks, mappedFetchedTasks, {
         fixedStartDateMode: getProjectFixedStartDateMode(dateSettingsRef.current),
       });
 
-      // 2. Perform state update via functional updater to merge correctly with whatever changes might have occurred in the meantime
-      setTasks(currentTasks => {
-        const existingTasksMap = new Map(currentTasks.map(t => [t.itemId || t.id, t]));
-        const mappedTasks: Task[] = allItems.map(item => {
-          const fetched = mapProjectItemToTask(item, dateSettingsRef.current);
-          const existing = existingTasksMap.get(fetched.itemId || fetched.id);
-          if (existing) {
-            return mergeFetchedTaskWithLocalState(existing, fetched);
-          }
-          return fetched;
-        });
-        const dependencyRepair = autoCorrectDependencyFields(mappedTasks);
-        const cascadedTasks = cascadeAllTasks(dependencyRepair.tasks, {
-          fixedStartDateMode: getProjectFixedStartDateMode(dateSettingsRef.current),
-        });
-        return cascadedTasks;
-      });
+      if (reconciliation.tasks !== previousTasks) {
+        // Capture the viewport anchor at apply time (not fetch start): the
+        // user may have kept scrolling while the request was in flight.
+        if (isBackground && options?.preserveViewport) {
+          captureViewportAnchorRef.current?.();
+        }
+        setTasks(reconciliation.tasks);
+      }
 
-      // 3. Trigger side-effects and persistence using snapshot results to avoid holding state update references
       logDashboardEvent('[DashboardTasks] Refresh completed', {
         refreshKind: 'full_project',
+        mode: isBackground ? 'background' : 'initial',
         projectId,
-        refreshedItemCount: mappedTasksAtThisInstant.length,
+        refreshedItemCount: reconciliation.tasks.length,
         refreshedFieldCount: allFields.length,
+        addedTaskIds: reconciliation.addedTaskIds,
+        removedTaskIds: reconciliation.removedTaskIds,
+        updatedTaskCount: reconciliation.updatedTaskIds.length,
+        movedTaskCount: reconciliation.movedTaskIds.length,
       });
 
       const statusField = allFields.find((f: GitHubProjectV2Field) => f.name?.toLowerCase() === 'status');
@@ -538,12 +553,12 @@ export function useDashboardTasks({
 
       setProjectFields(allFields);
       if (selectedProject?.id) {
-        await persistDependencyFieldCorrections(dependencyRepairAtThisInstant.corrections, cascadedTasksAtThisInstant, selectedProject.id, token, dateSettingsRef.current);
+        await persistDependencyFieldCorrections(reconciliation.corrections, reconciliation.tasks, selectedProject.id, token, dateSettingsRef.current);
       }
       updateSyncTime();
 
       // Auto-sync missing values for Done tasks
-      mappedTasksAtThisInstant.forEach(task => {
+      reconciliation.tasks.forEach(task => {
         if (task.progress === 100 && task.itemId && selectedProject?.id) {
           const updateField = async (fieldId: string | undefined, value: Record<string, string | number | boolean | undefined>) => {
             if (fieldId) await updateProjectV2ItemField(selectedProject.id, task.itemId!, fieldId, value, token);
@@ -556,12 +571,25 @@ export function useDashboardTasks({
     } catch (err) {
       const error = err as Error;
       console.error('Failed to fetch project tasks:', error);
-      setApiError(error.message || t('dashboard.unknownError'));
+      if (isBackground) {
+        logDashboardEvent('[DashboardTasks] Background refresh failed', {
+          refreshKind: 'full_project',
+          projectId,
+          reason: options?.reason,
+          error: error.message,
+        }, 'warn');
+        showToast(t('dashboard.backgroundRefreshFailed', 'Failed to refresh tasks from GitHub. Showing the last known state.'), 'error');
+      } else {
+        setApiError(error.message || t('dashboard.unknownError'));
+      }
     } finally {
-      setIsLoadingTasks(false);
+      if (!isBackground) {
+        setIsLoadingTasks(false);
+      }
+      setIsRefreshingTasks(false);
       setFieldsProgress(prev => ({ ...prev, isFetching: false }));
     }
-  }, [updateSyncTime, t, projectAccountId, selectedProject?.id, setTasks]);
+  }, [updateSyncTime, t, projectAccountId, selectedProject?.id, setTasks, showToast]);
 
   const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[], skipRefresh = false) => {
     const task = tasksRef.current.find(t => t.id === taskId || t.itemId === taskId);
@@ -1071,7 +1099,7 @@ export function useDashboardTasks({
       fallbackRefreshKind: 'full_project',
     }, 'warn');
     showToast(t('dashboard.taskReorderFailed', 'Failed to reorder task.'), 'error');
-    await fetchProjectTasks(selectedProject.id, githubToken);
+    await fetchProjectTasks(selectedProject.id, githubToken, { mode: 'background', reason: 'fallback', preserveViewport: true });
     return false;
   }, [selectedProject?.id, githubToken, setTasks, markRecentLocalReorder, updateSyncTime, showToast, t, fetchProjectTasks]);
 
@@ -1176,7 +1204,7 @@ export function useDashboardTasks({
     }, 'warn');
     showToast(t('dashboard.groupPathUpdateFailed', 'Failed to update task group.'), 'error');
     if ((groupPathChanged || fieldValuesChanged) && orderChanged) {
-      await fetchProjectTasks(selectedProject.id, githubToken);
+      await fetchProjectTasks(selectedProject.id, githubToken, { mode: 'background', reason: 'fallback', preserveViewport: true });
     }
     return false;
   }, [selectedProject?.id, githubToken, setTasks, projectFields, persistTaskGroupPath, markRecentLocalReorder, updateSyncTime, showToast, t, fetchProjectTasks]);
@@ -1574,6 +1602,7 @@ export function useDashboardTasks({
     setSelectedGroupFieldIds,
     setTasks,
     isLoadingTasks,
+    isRefreshingTasks,
     setIsLoadingTasks,
     searchQuery,
     setSearchQuery,
