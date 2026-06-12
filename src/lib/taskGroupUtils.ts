@@ -233,13 +233,23 @@ function normalizeFieldGroupSegment(value: string | undefined): string {
   return trimmed || 'No value';
 }
 
-export function applyFieldGroupPaths(tasks: Task[], fieldIds: string[]): Task[] {
+function buildFieldGroupSegment(fieldName: string | undefined, value: string | undefined): string {
+  const normalizedValue = normalizeFieldGroupSegment(value);
+  const trimmedFieldName = fieldName?.trim();
+  return trimmedFieldName ? `${trimmedFieldName}: ${normalizedValue}` : normalizedValue;
+}
+
+export function applyFieldGroupPaths(
+  tasks: Task[],
+  fieldIds: string[],
+  fieldNamesById: Record<string, string> = {}
+): Task[] {
   const selectedFieldIds = fieldIds.map(fieldId => fieldId.trim()).filter(Boolean);
   if (selectedFieldIds.length === 0) return tasks;
 
   const decoratedTasks = tasks.map((task, index) => {
     const fieldSegments = selectedFieldIds.map(fieldId =>
-      normalizeFieldGroupSegment(task.projectFieldValues?.[fieldId])
+      buildFieldGroupSegment(fieldNamesById[fieldId], task.projectFieldValues?.[fieldId])
     );
     return {
       index,

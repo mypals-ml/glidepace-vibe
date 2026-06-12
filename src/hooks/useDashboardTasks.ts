@@ -170,13 +170,17 @@ export function useDashboardTasks({
     });
   }, [tasks, searchQuery]);
 
+  const groupFieldNamesById = useMemo<Record<string, string>>(() => {
+    return Object.fromEntries(projectFields.map(field => [field.id, field.name]));
+  }, [projectFields]);
+
   const dashboardItems = useMemo(
     () => buildGroupBlocksFromOrderedTasks(
-      applyFieldGroupPaths(filteredTasks, selectedGroupFieldIds),
+      applyFieldGroupPaths(filteredTasks, selectedGroupFieldIds, groupFieldNamesById),
       selectedProject?.title || t('dashboard.currentProject', 'Current Project'),
       new Set(collapsedGroupBlockIds)
     ),
-    [filteredTasks, selectedGroupFieldIds, selectedProject?.title, collapsedGroupBlockIds, t]
+    [filteredTasks, selectedGroupFieldIds, groupFieldNamesById, selectedProject?.title, collapsedGroupBlockIds, t]
   );
 
   const toggleGroupBlockCollapsed = useCallback((groupBlockId: string) => {
