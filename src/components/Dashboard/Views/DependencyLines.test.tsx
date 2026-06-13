@@ -47,6 +47,12 @@ const getPosition = (dateStr: string) => POSITIONS[dateStr] ?? 0;
 const getLinePaths = (container: HTMLElement): string[] =>
   Array.from(container.querySelectorAll('.dependency-line')).map(path => path.getAttribute('d') || '');
 
+const getBreakLinkButton = (container: HTMLElement): Element => {
+  const button = container.querySelector('foreignObject');
+  expect(button).not.toBeNull();
+  return button as Element;
+};
+
 vi.mock('react-i18next', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-i18next')>();
   return {
@@ -201,5 +207,51 @@ describe('DependencyLines with folded group cards', () => {
     );
 
     expect(getLinePaths(container)).toHaveLength(1);
+  });
+});
+
+describe('DependencyLines break-link button placement', () => {
+  it('keeps the hover break-link button inside the visible viewport', () => {
+    const source = { ...buildTask(1), successorIds: ['item-6'] };
+    const target = buildTask(6);
+    const items: DashboardItem[] = [source, target];
+
+    const { container } = render(
+      <DependencyLines
+        items={items}
+        getPositionForDate={getPosition}
+        dayWidth={120}
+        onBreakLink={vi.fn()}
+        dragState={null}
+        viewportInfo={{ scrollLeft: 500, scrollTop: 90, clientWidth: 100, clientHeight: 80 }}
+      />
+    );
+
+    const breakLinkButton = getBreakLinkButton(container);
+
+    expect(breakLinkButton.getAttribute('x')).toBe('500');
+    expect(breakLinkButton.getAttribute('y')).toBe('90');
+  });
+
+  it('keeps the hover break-link button inside the right viewport edge', () => {
+    const source = { ...buildTask(1), successorIds: ['item-6'] };
+    const target = buildTask(6);
+    const items: DashboardItem[] = [source, target];
+
+    const { container } = render(
+      <DependencyLines
+        items={items}
+        getPositionForDate={getPosition}
+        dayWidth={120}
+        onBreakLink={vi.fn()}
+        dragState={null}
+        viewportInfo={{ scrollLeft: 0, scrollTop: 0, clientWidth: 100, clientHeight: 200 }}
+      />
+    );
+
+    const breakLinkButton = getBreakLinkButton(container);
+
+    expect(breakLinkButton.getAttribute('x')).toBe('76');
+    expect(breakLinkButton.getAttribute('y')).toBe('60');
   });
 });

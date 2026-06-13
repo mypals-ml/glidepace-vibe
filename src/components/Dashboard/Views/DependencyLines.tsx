@@ -19,6 +19,7 @@ interface DependencyLinesProps {
   onBreakLink: (taskId: string, targetId: string) => void;
   dragState: { startX: number; startY: number; currentX: number; currentY: number } | null;
   hoveredTargetTaskId?: string | null;
+  viewportInfo?: DependencyLineViewportInfo;
 }
 
 interface LineAnchor {
@@ -29,7 +30,32 @@ interface LineAnchor {
   groupBlockId?: string;
 }
 
-export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, onBreakLink, dragState, hoveredTargetTaskId }: DependencyLinesProps) {
+interface DependencyLineViewportInfo {
+  scrollLeft: number;
+  scrollTop: number;
+  clientWidth: number;
+  clientHeight: number;
+}
+
+const BREAK_LINK_BUTTON_SIZE = 24;
+const BREAK_LINK_BUTTON_HALF_SIZE = BREAK_LINK_BUTTON_SIZE / 2;
+
+const clampBreakLinkButtonCenter = (
+  center: number,
+  viewportStart: number,
+  viewportSize: number,
+): number => {
+  if (viewportSize <= 0) return center;
+  if (viewportSize <= BREAK_LINK_BUTTON_SIZE) {
+    return viewportStart + viewportSize / 2;
+  }
+
+  const min = viewportStart + BREAK_LINK_BUTTON_HALF_SIZE;
+  const max = viewportStart + viewportSize - BREAK_LINK_BUTTON_HALF_SIZE;
+  return Math.min(Math.max(center, min), max);
+};
+
+export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, onBreakLink, dragState, hoveredTargetTaskId, viewportInfo }: DependencyLinesProps) {
   const { t } = useTranslation();
   const ROW_HEIGHT = 72;
   const DEPENDENCY_LINE_DASH_DURATION_SECONDS = 10;
@@ -129,6 +155,16 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
           const endY = target.y;
 
           const pathStr = getPathStr(startX, startY, endX, endY);
+          const breakLinkCenterX = clampBreakLinkButtonCenter(
+            (startX + endX) / 2,
+            viewportInfo?.scrollLeft ?? 0,
+            viewportInfo?.clientWidth ?? 0,
+          );
+          const breakLinkCenterY = clampBreakLinkButtonCenter(
+            (startY + endY) / 2,
+            viewportInfo?.scrollTop ?? 0,
+            viewportInfo?.clientHeight ?? 0,
+          );
 
           result.push(
             <g key={`${task.id}-${targetId}`} className="group/line cursor-pointer">
@@ -145,7 +181,7 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
                 style={{ animation: `dash ${DEPENDENCY_LINE_DASH_DURATION_SECONDS}s linear infinite` }}
               />
               {/* Break link icon on hover */}
-              <foreignObject x={(startX + endX) / 2 - 12} y={(startY + endY) / 2 - 12} width="24" height="24" className="opacity-0 group-hover/line:opacity-100">
+              <foreignObject x={breakLinkCenterX - BREAK_LINK_BUTTON_HALF_SIZE} y={breakLinkCenterY - BREAK_LINK_BUTTON_HALF_SIZE} width={BREAK_LINK_BUTTON_SIZE} height={BREAK_LINK_BUTTON_SIZE} className="opacity-0 group-hover/line:opacity-100">
                 <div 
                   className="w-6 h-6 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center shadow hover:bg-rose-500 hover:text-white transition-colors"
                   onClick={(e) => { e.stopPropagation(); onBreakLink(task.id, targetId); }}
@@ -161,7 +197,7 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
     });
 
     return result;
-  }, [items, tasks, boundsMap, foldedCardAnchorMap, onBreakLink, t]);
+  }, [items, tasks, boundsMap, foldedCardAnchorMap, onBreakLink, t, viewportInfo]);
 
   const dragPathInfo = useMemo(() => {
     if (!dragState) return null;

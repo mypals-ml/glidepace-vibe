@@ -29,10 +29,17 @@ const ROW_HEIGHT = 72;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 1;
 
+const getViewportInfo = (el: HTMLDivElement) => ({
+  scrollLeft: el.scrollLeft,
+  scrollTop: el.scrollTop,
+  clientWidth: el.clientWidth,
+  clientHeight: el.clientHeight,
+});
+
 export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
   const { t } = useTranslation();
   const { tasks, filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, requestedCenterTaskId, centerGanttOnDate, completeGanttCenterRequest, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds, toggleGroupBlockCollapsed, ganttZoomPercent, setGanttZoomPercent } = useDashboard();
-  const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, clientWidth: 0 });
+  const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, scrollTop: 0, clientWidth: 0, clientHeight: 0 });
   const internalScrollRef = useRef<HTMLDivElement>(null);
   
   // Use either the provided ref or internal one
@@ -115,8 +122,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
   // Update viewport info on scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollLeft, clientWidth } = e.currentTarget;
-    setViewportInfo({ scrollLeft, clientWidth });
+    setViewportInfo(getViewportInfo(e.currentTarget));
     
     // Delegate to timeline hook for expansion logic
     handleTimelineScroll(e);
@@ -232,10 +238,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     if (activeScrollRef.current) {
       didCenterInitialRef.current = true;
       centerOnDate(todayStr, 'auto');
-      setViewportInfo({
-        scrollLeft: activeScrollRef.current.scrollLeft,
-        clientWidth: activeScrollRef.current.clientWidth
-      });
+      setViewportInfo(getViewportInfo(activeScrollRef.current));
     }
   }, [activeScrollRef, todayStr, centerOnDate]);
 
@@ -282,7 +285,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       const desired = pendingDesiredScrollRef.current;
       if (Math.abs(el.scrollLeft - desired) > 0.5) {
         el.scrollLeft = desired;
-        setViewportInfo({ scrollLeft: el.scrollLeft, clientWidth: el.clientWidth });
+        setViewportInfo(getViewportInfo(el));
       }
       pendingDesiredScrollRef.current = null;
     } else if (prevDayWidthRef.current !== dayWidth) {
@@ -293,7 +296,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
       const newCenterX = dayIndex * next;
       const desiredScrollLeft = Math.max(0, newCenterX - el.clientWidth / 2);
       el.scrollLeft = desiredScrollLeft;
-      setViewportInfo({ scrollLeft: el.scrollLeft, clientWidth: el.clientWidth });
+      setViewportInfo(getViewportInfo(el));
     }
     prevDayWidthRef.current = dayWidth;
   }, [dayWidth, activeScrollRef]);
@@ -334,7 +337,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
       // Optimistic viewport update so render uses the target scroll (for header translate + grid vis).
       // The actual scrollLeft adjustment happens in the dayWidth useLayoutEffect *after* new bar styles commit.
-      setViewportInfo({ scrollLeft: desiredScroll, clientWidth: el.clientWidth });
+      setViewportInfo({ ...getViewportInfo(el), scrollLeft: desiredScroll });
 
       setGanttZoomPercent(newP);
       prevDayWidthRef.current = newDW;
@@ -378,7 +381,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
         // Optimistic viewport update so render uses the target scroll.
         // Actual scroll adjustment in layout effect after styles commit.
-        setViewportInfo({ scrollLeft: desiredScroll, clientWidth: el.clientWidth });
+        setViewportInfo({ ...getViewportInfo(el), scrollLeft: desiredScroll });
 
         setGanttZoomPercent(newP);
         prevDayWidthRef.current = newDW;
@@ -531,6 +534,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                 onBreakLink={handleBreakLink}
                 dragState={linkDragState}
                 hoveredTargetTaskId={hoveredTargetTaskId}
+                viewportInfo={viewportInfo}
               />
               {dashboardItems.map((item, index) => {
                 if (isTaskGroupBlock(item)) {
