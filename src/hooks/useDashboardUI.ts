@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { TaskInsertPosition } from '../types';
 
 export function useDashboardUI() {
@@ -15,6 +15,16 @@ export function useDashboardUI() {
   const [isLinkMode, setIsLinkMode] = useState(false);
   const [selectedLinkTaskIds, setSelectedLinkTaskIds] = useState<string[]>([]);
   const [pendingTaskInsertPosition, setPendingTaskInsertPosition] = useState<TaskInsertPosition | null>(null);
+
+  const [ganttZoomPercent, setGanttZoomPercent] = useState(() => {
+    const saved = localStorage.getItem('gantt_zoom_percent');
+    const parsed = saved ? parseInt(saved, 10) : NaN;
+    return (parsed >= 50 && parsed <= 100) ? parsed : 100;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('gantt_zoom_percent', String(ganttZoomPercent));
+  }, [ganttZoomPercent]);
 
   return {
     isProjectModalOpen,
@@ -43,5 +53,7 @@ export function useDashboardUI() {
     setSelectedLinkTaskIds,
     pendingTaskInsertPosition,
     setPendingTaskInsertPosition,
+    ganttZoomPercent,
+    setGanttZoomPercent,
   };
 }

@@ -57,6 +57,8 @@ let dashboardState = {
   setIsLinkMode: vi.fn(),
   selectedLinkTaskIds: [] as string[],
   setSelectedLinkTaskIds: vi.fn(),
+  ganttZoomPercent: 100,
+  setGanttZoomPercent: vi.fn(),
 };
 
 vi.mock('react-i18next', async (importOriginal) => {
@@ -102,6 +104,8 @@ describe('GanttChart focus behavior', () => {
       requestedCenterTaskId: null,
       completeGanttCenterRequest: vi.fn(),
       selectedTaskId: 'task-8',
+      ganttZoomPercent: 100,
+      setGanttZoomPercent: vi.fn(),
     };
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
       configurable: true,

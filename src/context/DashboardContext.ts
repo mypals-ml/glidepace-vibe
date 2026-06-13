@@ -169,6 +169,10 @@ export interface DashboardContextValue {
   centerGanttOnDate: (date: string | null) => void;
   centerGanttOnTask: (taskId: string, date: string | null) => void;
   completeGanttCenterRequest: () => void;
+
+  // Gantt zoom (horizontal only; 50-100 integer percent)
+  ganttZoomPercent: number;
+  setGanttZoomPercent: (percent: number | ((prev: number) => number)) => void;
 }
 
 export const DashboardContext = createContext<DashboardContextValue | null>(null);

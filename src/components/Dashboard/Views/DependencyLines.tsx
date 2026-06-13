@@ -37,8 +37,11 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
   const SNAPPED_DRAG_LINE_STROKE_WIDTH = 2.5;
   // Mirror the group card geometry in GanttChart (CARD_PAD / min span width)
   // so folded-card anchors line up with the rendered card title bar.
+  // Mins are derived from the current dayWidth so that lines continue to attach
+  // to the visual ends of task bars and group cards at any zoom level.
   const GROUP_CARD_PAD = 9;
-  const GROUP_CARD_MIN_SPAN_WIDTH = 120;
+  const MIN_BAR_WIDTH = Math.max(48, Math.floor(dayWidth * 0.8));
+  const GROUP_CARD_MIN_SPAN_WIDTH = Math.max(80, Math.floor(dayWidth));
 
   const getPathStr = (startX: number, startY: number, endX: number, endY: number) => {
     let cp1X, cp2X;
@@ -63,14 +66,14 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
       if (start && end) {
         const x1 = getPositionForDate(start);
         const duration = diffDays(start, end);
-        const x2 = x1 + Math.max(duration * dayWidth, 100);
+        const x2 = x1 + Math.max(duration * dayWidth, MIN_BAR_WIDTH);
         const y = i * ROW_HEIGHT + (ROW_HEIGHT / 2);
         bounds.set(t.id, { x1, x2, y });
         if (t.itemId) bounds.set(t.itemId, { x1, x2, y });
       }
     });
     return bounds;
-  }, [items, getPositionForDate, dayWidth]);
+  }, [items, getPositionForDate, dayWidth, MIN_BAR_WIDTH]);
 
   // Anchor bounds for tasks hidden inside folded group cards, keyed by the
   // hidden task's identity. The anchor is the folded card's title bar so a
@@ -92,7 +95,7 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
       });
     });
     return anchors;
-  }, [items, getPositionForDate, dayWidth]);
+  }, [items, getPositionForDate, dayWidth, GROUP_CARD_MIN_SPAN_WIDTH]);
 
   const lines = useMemo(() => {
     const result: React.ReactNode[] = [];
