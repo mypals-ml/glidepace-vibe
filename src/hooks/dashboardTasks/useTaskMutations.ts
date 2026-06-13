@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { fetchGitHubGraphQL, updateProjectV2ItemField, clearProjectV2ItemField } from '../../lib/githubService';
+import { fetchGitHubGraphQL, updateProjectV2ItemField, batchUpdateProjectV2ItemFields, type ProjectV2FieldWrite } from '../../lib/githubService';
 import { formatToGitHubDate, calculateTargetDate } from '../../lib/dateUtils';
 import { autoCorrectDependencyFields, cascadeTaskDates, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../../lib/taskDependencyUtils';
 import {
@@ -23,7 +23,7 @@ interface UseTaskMutationsProps {
  * successor/predecessor dependency links (with cascading date updates).
  */
 export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, requestStartDateDecision }: UseTaskMutationsProps) {
-  const { githubToken, selectedProject, dateSettings, tasksRef, setTasks } = core;
+  const { githubToken, selectedProject, dateSettings, tasksRef, setTasks, updateSyncTime } = core;
 
   const updateTaskAssignees = useCallback(async (taskId: string, userIds: string[], skipRefresh = false) => {
     const task = tasksRef.current.find(t => t.id === taskId || t.itemId === taskId);
@@ -77,15 +77,15 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
         ));
       }
 
-      if (task.itemId && !skipRefresh) {
-        await fetchSingleProjectItem(task.itemId, githubToken);
-      }
+      // The add/remove mutations return the authoritative assignee node list,
+      // which we applied above; no confirmation refetch needed.
+      if (task.itemId && !skipRefresh) updateSyncTime();
       return true;
     } catch (e) {
       console.error('Update task assignees failed:', e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem, setTasks, tasksRef]);
+  }, [githubToken, fetchSingleProjectItem, setTasks, tasksRef, updateSyncTime]);
 
   const updateTaskStatus = useCallback(async (task: Task, status: TaskStatus, skipRefresh = false): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !task.projectFieldIds?.status || !task.statusOptions || !githubToken) return false;
@@ -102,13 +102,14 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
       ));
 
       const success = await updateProjectV2ItemField(selectedProject.id, task.itemId, task.projectFieldIds.status, { singleSelectOptionId: optionId }, githubToken);
-      if (success && !skipRefresh) fetchSingleProjectItem(task.itemId, githubToken);
+      // Optimistic state already reflects the new status/progress; no refetch.
+      if (success && !skipRefresh) updateSyncTime();
       return success;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, setTasks]);
+  }, [selectedProject?.id, githubToken, setTasks, updateSyncTime]);
 
   const updateTaskDates = useCallback(async (task: Task, startDate?: string | null, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode, skipRefresh = false): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;
@@ -161,10 +162,11 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
 
     let anySuccess = false;
     try {
-      const updateField = async (fieldId: string | undefined, value: Record<string, string | number | boolean | undefined>) => {
-        if (!fieldId) return;
-        const success = await updateProjectV2ItemField(selectedProject.id, task.itemId!, fieldId, value, githubToken);
-        if (success) anySuccess = true;
+      // Accumulate every field write for this item, then persist them all in a
+      // single aliased mutation (one HTTP round trip instead of one per field).
+      const changes: ProjectV2FieldWrite[] = [];
+      const addSet = (fieldId: string | undefined, value: Record<string, string | number | boolean | undefined>) => {
+        if (fieldId) changes.push({ kind: 'set', fieldId, value });
       };
 
       // Auto-calculate new target date if dependencies changed
@@ -182,21 +184,18 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
 
       if (shouldClearStartDate) {
         const fieldId = dateSettings.startDateFieldId || task.projectFieldIds?.startDate;
-        if (fieldId) {
-          const success = await clearProjectV2ItemField(selectedProject.id, task.itemId!, fieldId, githubToken);
-          if (success) anySuccess = true;
-        }
+        if (fieldId) changes.push({ kind: 'clear', fieldId });
       } else if (startDate) {
         const fieldId = dateSettings.startDateFieldId || task.projectFieldIds?.startDate;
-        await updateField(fieldId, { date: formatToGitHubDate(startDate) });
+        addSet(fieldId, { date: formatToGitHubDate(startDate) });
       }
       if (finalTargetDate) {
         const fieldId = dateSettings.targetDateFieldId || task.projectFieldIds?.targetDate;
-        await updateField(fieldId, { date: formatToGitHubDate(finalTargetDate) });
+        addSet(fieldId, { date: formatToGitHubDate(finalTargetDate) });
       }
       if (estimate !== undefined) {
         const fieldId = dateSettings.estimateFieldId || task.projectFieldIds?.estimate;
-        await updateField(fieldId, { number: estimate });
+        addSet(fieldId, { number: estimate });
       }
       if (estimateUnit !== undefined) {
         const fieldId = dateSettings.estimateUnitFieldId || task.projectFieldIds?.estimateUnit;
@@ -213,9 +212,9 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
               const globalOption = globalField.options.find(o => o.name === estimateUnit);
               if (globalOption) optionId = globalOption.id;
             }
-            if (optionId) await updateField(fieldId, { singleSelectOptionId: optionId });
+            if (optionId) addSet(fieldId, { singleSelectOptionId: optionId });
           } else {
-            await updateField(fieldId, { text: estimateUnit });
+            addSet(fieldId, { text: estimateUnit });
           }
         }
       }
@@ -223,9 +222,11 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
       // Handle autoUpdateStartDate persistence if a field is configured
       if (autoUpdateStartDate !== undefined) {
         const fieldId = dateSettings.autoUpdateStartDateFieldId; // New setting
-        if (fieldId) {
-          await updateField(fieldId, { text: autoUpdateStartDate });
-        }
+        if (fieldId) addSet(fieldId, { text: autoUpdateStartDate });
+      }
+
+      if (changes.length > 0) {
+        anySuccess = await batchUpdateProjectV2ItemFields(selectedProject.id, task.itemId!, changes, githubToken);
       }
 
       if (anySuccess) {

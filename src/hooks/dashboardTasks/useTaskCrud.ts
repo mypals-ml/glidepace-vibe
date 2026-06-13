@@ -155,15 +155,17 @@ export function useTaskCrud({
           : t
       ));
       const mutation = task.isDraft ? UPDATE_DRAFT_TITLE_MUTATION : UPDATE_ISSUE_TITLE_MUTATION;
-      const res = await fetchGitHubGraphQL(mutation, { id: task.contentId, title }, githubToken);
+      const res = await fetchGitHubGraphQL(mutation, { id: task.contentId, title }, githubToken, { operationType: 'mutation' });
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
+      // Optimistic local state already reflects the new title; skip the
+      // confirmation refetch (webhook sync reconciles any divergence).
+      updateSyncTime();
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem, setTasks]);
+  }, [githubToken, setTasks, updateSyncTime]);
 
   const updateTaskDescription = useCallback(async (task: Task, description: string): Promise<boolean> => {
     if (!task.contentId || !githubToken) return false;
@@ -175,15 +177,16 @@ export function useTaskCrud({
           : t
       ));
       const mutation = task.isDraft ? UPDATE_DRAFT_BODY_MUTATION : UPDATE_ISSUE_BODY_MUTATION;
-      const res = await fetchGitHubGraphQL(mutation, { id: task.contentId, body: description }, githubToken);
+      const res = await fetchGitHubGraphQL(mutation, { id: task.contentId, body: description }, githubToken, { operationType: 'mutation' });
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) await fetchSingleProjectItem(task.itemId, githubToken);
+      // Optimistic local state already reflects the new body; skip refetch.
+      updateSyncTime();
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem, setTasks]);
+  }, [githubToken, setTasks, updateSyncTime]);
 
   const deleteTask = useCallback(async (task: Task): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;

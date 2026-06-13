@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { USE_MOCK_DATA, MOCK_PROJECTS } from '../lib/mockData';
-import { fetchGitHubGraphQL } from '../lib/githubService';
+import { fetchGitHubGraphQL, isGitHubRateLimitError } from '../lib/githubService';
+import { githubReadCache, READ_CACHE_TTL } from '../lib/githubReadCache';
 import { GET_USER_PROJECTS_QUERY } from '../lib/githubQueries';
 import { MOCK_TOKEN } from '../lib/githubMock';
 import type { ProjectOwnerInfo, GitHubProject, ProjectHistoryItem, SortMethod } from '../types';
@@ -165,7 +166,12 @@ export function useDashboardProjects({
   const fetchProjects = useCallback(async (token: string, accountId: string, forceModal: boolean = false) => {
     setIsRefreshing(prev => ({ ...prev, [accountId]: true }));
     try {
-      const json = await fetchGitHubGraphQL(GET_USER_PROJECTS_QUERY, {}, token);
+      // Short-TTL cache + in-flight dedupe keyed by account: opening/switching
+      // projects within the TTL reuses the list instead of re-querying GitHub.
+      const cacheKey = `userProjects:${accountId}`;
+      const json = await githubReadCache.get(cacheKey, READ_CACHE_TTL.userProjects, () =>
+        fetchGitHubGraphQL(GET_USER_PROJECTS_QUERY, {}, token, { dedupeKey: cacheKey })
+      );
 
       if (json.errors) {
         console.error('GraphQL Errors:', json.errors);
@@ -213,7 +219,9 @@ export function useDashboardProjects({
     } catch (e) {
       console.error('Failed to fetch user projects:', e);
       const error = e as Error;
-      if (error.message.includes('401')) {
+      if (isGitHubRateLimitError(e)) {
+        setApiError('GitHub rate limit reached. Please wait a moment and refresh.');
+      } else if (error.message.includes('401')) {
         setApiError('GitHub rejected this saved credential. Disconnect and reconnect this account, or add a fresh token.');
       } else {
         setApiError(error.message || 'Failed to fetch GitHub projects.');
@@ -376,6 +384,8 @@ export function useDashboardProjects({
   }, [selectedProject]);
 
   const refreshProjects = useCallback(() => {
+    // Explicit user refresh always hits the network.
+    githubReadCache.invalidate(`userProjects:${browsingAccountId}`);
     fetchProjects(githubToken, browsingAccountId, false);
   }, [fetchProjects, githubToken, browsingAccountId]);
 

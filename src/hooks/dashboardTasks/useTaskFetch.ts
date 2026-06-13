@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchGitHubGraphQL, updateProjectV2ItemField } from '../../lib/githubService';
+import { fetchGitHubGraphQL, updateProjectV2ItemField, isGitHubRateLimitError } from '../../lib/githubService';
 import { mapProjectItemToTask } from '../../lib/githubTaskMapper';
 import { registerStatuses } from '../../utils/statusColors';
 import { reconcileProjectSnapshot, reconcileSingleTask } from '../../lib/taskReconciliation';
@@ -35,7 +35,10 @@ export function useTaskFetch({ core, projectAccountId, captureViewportAnchorRef 
   const fetchSingleProjectItem = useCallback(async (itemId: string, token: string): Promise<Task | null> => {
     console.log(`[DashboardTasks] 📡 Fetching single item: ${itemId}`);
     try {
-      const json = await fetchGitHubGraphQL(GET_SINGLE_ITEM_QUERY, { itemId }, token);
+      const json = await fetchGitHubGraphQL(GET_SINGLE_ITEM_QUERY, { itemId }, token, {
+        operationType: 'query',
+        dedupeKey: `singleItem:${itemId}`,
+      });
       console.log(`[DashboardTasks] 📥 GraphQL Response for ${itemId}:`, json);
       const itemData = json.data?.node as GitHubProjectItem;
 
@@ -114,8 +117,15 @@ export function useTaskFetch({ core, projectAccountId, captureViewportAnchorRef 
         const variables: Record<string, string | number | boolean | undefined> = { projectId };
         if (hasNextFields && fieldsCursor) variables.fieldsCursor = fieldsCursor;
         if (hasNextItems && itemsCursor) variables.itemsCursor = itemsCursor;
+        // Once a connection is fully paged, skip re-requesting it on subsequent
+        // iterations instead of fetching a completed connection again.
+        variables.skipFields = !hasNextFields;
+        variables.skipItems = !hasNextItems;
 
-        const json = await fetchGitHubGraphQL(GET_PROJECT_TASKS_QUERY, variables, token);
+        const json = await fetchGitHubGraphQL(GET_PROJECT_TASKS_QUERY, variables, token, {
+          operationType: 'query',
+          priority: isBackground ? 'background' : 'foreground',
+        });
 
         const projectNode = json.data?.node as {
           fields?: {
@@ -243,6 +253,7 @@ export function useTaskFetch({ core, projectAccountId, captureViewportAnchorRef 
       });
     } catch (err) {
       const error = err as Error;
+      const rateLimited = isGitHubRateLimitError(err);
       console.error('Failed to fetch project tasks:', error);
       if (isBackground) {
         logDashboardEvent('[DashboardTasks] Background refresh failed', {
@@ -250,8 +261,20 @@ export function useTaskFetch({ core, projectAccountId, captureViewportAnchorRef 
           projectId,
           reason: options?.reason,
           error: error.message,
+          rateLimited,
         }, 'warn');
-        showToast(t('dashboard.backgroundRefreshFailed', 'Failed to refresh tasks from GitHub. Showing the last known state.'), 'error');
+        // Rate-limit failures keep the existing tasks on screen and show a
+        // distinct, calmer message; ordinary failures use the generic toast.
+        showToast(
+          rateLimited
+            ? t('dashboard.rateLimitShowingStale', 'GitHub rate limit reached. Showing the last known state.')
+            : t('dashboard.backgroundRefreshFailed', 'Failed to refresh tasks from GitHub. Showing the last known state.'),
+          'error'
+        );
+      } else if (rateLimited) {
+        // Foreground (initial) load hit the limit: surface a clear message but
+        // do not blank any tasks we may already have.
+        setApiError(t('dashboard.rateLimitShowingStale', 'GitHub rate limit reached. Showing the last known state.'));
       } else {
         setApiError(error.message || t('dashboard.unknownError'));
       }

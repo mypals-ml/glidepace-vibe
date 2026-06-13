@@ -315,6 +315,8 @@ export interface MockVariables {
   searchQuery?: string;
   nodeId?: string;
   cursor?: string | null;
+  // Aliased batch field mutation variables: fieldId0/value0, fieldId1/value1, …
+  [key: string]: unknown;
 }
 
 export async function handleMockGraphQL(query: string, variables: MockVariables) {
@@ -735,6 +737,40 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
 
     task.contentId = undefined;
     return { data: { deleteIssue: { repository: { id: 'mock-repository-id' } } } };
+  }
+
+  // Aliased batch field update (batchUpdateProjectV2ItemFields). Detected by the
+  // generated operation name; applies each indexed set/clear in order.
+  if (query.includes('mutation BatchUpdateFields')) {
+    const projectId = getVar('projectId');
+    const itemId = getVar('itemId');
+    const task = getAllMockTasks().find(t => t.itemId === itemId);
+    if (!task) return { errors: [{ message: 'Item not found' }] };
+
+    const fields = projectId ? getFieldsForProject(projectId) : Object.values(MOCK_PROJECT_FIELDS_MAP).flat();
+    const data: Record<string, unknown> = {};
+    let i = 0;
+    while (variables[`fieldId${i}`] !== undefined) {
+      const fieldId = variables[`fieldId${i}`] as string;
+      const field = fields.find(f => f.id === fieldId);
+      const value = variables[`value${i}`];
+      if (value !== undefined) {
+        applyMockFieldValue(task, field, value as MockFieldValueInput);
+        data[`u${i}`] = { projectV2Item: { id: task.itemId } };
+      } else {
+        // Clear branch
+        const fieldName = field?.name.toLowerCase() || '';
+        if (field?.id === MOCK_FIELD_IDS.startDate || fieldName.includes('start')) {
+          task.startDate = '';
+          task.fullStartDate = undefined;
+          task.tempStartDate = undefined;
+          task.tempTargetDate = undefined;
+        }
+        data[`c${i}`] = { projectV2Item: { id: task.itemId } };
+      }
+      i++;
+    }
+    return { data };
   }
 
   if (query.includes('updateProjectV2ItemFieldValue(')) {
