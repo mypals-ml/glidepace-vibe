@@ -311,13 +311,35 @@ describe('GanttChart focus behavior', () => {
     expect(getGroupTitleLayout(220)).toMatchObject({
       showTaskCount: true,
       showProgress: true,
+      nameMaxWidth: 68,
     });
     expect(getGroupTitleLayout(150)).toMatchObject({
       showTaskCount: true,
       showProgress: false,
+      nameMaxWidth: 43,
     });
     expect(getGroupTitleLayout(118)).toMatchObject({
       showTaskCount: false,
+      showProgress: false,
+      nameMaxWidth: 68,
+    });
+  });
+
+  it('removes right-side group title metadata before it can leave the card frame', () => {
+    expect(getGroupTitleLayout(193)).toMatchObject({
+      showTaskCount: true,
+      showProgress: false,
+    });
+    expect(getGroupTitleLayout(194)).toMatchObject({
+      showTaskCount: true,
+      showProgress: true,
+    });
+    expect(getGroupTitleLayout(148)).toMatchObject({
+      showTaskCount: false,
+      showProgress: false,
+    });
+    expect(getGroupTitleLayout(149)).toMatchObject({
+      showTaskCount: true,
       showProgress: false,
     });
   });
@@ -362,6 +384,7 @@ describe('GanttChart focus behavior', () => {
     expect(groupTitle.textContent).not.toContain('tasks');
     expect(groupTitle.textContent).not.toContain('50%');
     expect(titleName.className).toContain('text-ellipsis');
+    expect(titleName.getAttribute('style')).toContain('max-width:');
   });
 
   it('builds a horizontal task bar drag plan that shifts the task start date', () => {

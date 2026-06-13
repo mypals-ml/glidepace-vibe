@@ -20,24 +20,27 @@ const GROUP_TITLE_GAP = 9;
 
 export const getGroupTitleLayout = (cardWidth: number) => {
   const innerWidth = Math.max(0, cardWidth - GROUP_TITLE_LEFT_PADDING - GROUP_TITLE_RIGHT_PADDING);
-  const roomAfterName = innerWidth - GROUP_TITLE_CHEVRON_SLOT - GROUP_TITLE_MIN_NAME_WIDTH;
-  const showTaskCount = roomAfterName >= GROUP_TITLE_GAP + GROUP_TITLE_COUNT_MIN_WIDTH;
+  const roomAfterRequiredName = innerWidth - GROUP_TITLE_CHEVRON_SLOT - GROUP_TITLE_MIN_NAME_WIDTH;
+  const showTaskCount = roomAfterRequiredName >= GROUP_TITLE_GAP + GROUP_TITLE_COUNT_MIN_WIDTH;
   const showProgress =
     showTaskCount &&
-    roomAfterName >= GROUP_TITLE_GAP + GROUP_TITLE_COUNT_MIN_WIDTH + GROUP_TITLE_GAP + GROUP_TITLE_PROGRESS_WIDTH;
-  const reservedWidth =
-    GROUP_TITLE_CHEVRON_SLOT +
-    GROUP_TITLE_MIN_NAME_WIDTH +
+    roomAfterRequiredName >= GROUP_TITLE_GAP + GROUP_TITLE_COUNT_MIN_WIDTH + GROUP_TITLE_GAP + GROUP_TITLE_PROGRESS_WIDTH;
+  const metadataWidth =
     (showTaskCount ? GROUP_TITLE_GAP + GROUP_TITLE_COUNT_MIN_WIDTH : 0) +
     (showProgress ? GROUP_TITLE_GAP + GROUP_TITLE_PROGRESS_WIDTH : 0);
+  const reservedMinWidth =
+    GROUP_TITLE_CHEVRON_SLOT +
+    GROUP_TITLE_MIN_NAME_WIDTH +
+    metadataWidth;
+  const nameMaxWidth = Math.max(0, innerWidth - GROUP_TITLE_CHEVRON_SLOT - metadataWidth);
   const countMaxWidth = showTaskCount
     ? Math.max(
       GROUP_TITLE_COUNT_MIN_WIDTH,
-      GROUP_TITLE_COUNT_MIN_WIDTH + Math.max(0, innerWidth - reservedWidth)
+      GROUP_TITLE_COUNT_MIN_WIDTH + Math.max(0, innerWidth - reservedMinWidth)
     )
     : 0;
 
-  return { showTaskCount, showProgress, countMaxWidth };
+  return { showTaskCount, showProgress, nameMaxWidth, countMaxWidth };
 };
 
 const addCalendarDays = (date: string, days: number) => {

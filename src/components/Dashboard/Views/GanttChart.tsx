@@ -753,7 +753,14 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                             chevron_right
                           </span>
                         </span>
-                        <span className="text-sm font-extrabold tracking-[-0.01em] whitespace-nowrap overflow-hidden text-ellipsis flex-1 min-w-0" style={{ color: titleFg }}>
+                        <span
+                          className="text-sm font-extrabold tracking-[-0.01em] whitespace-nowrap overflow-hidden text-ellipsis flex-shrink min-w-0"
+                          style={{
+                            color: titleFg,
+                            maxWidth: `${titleLayout.nameMaxWidth}px`,
+                            minWidth: `${Math.min(titleLayout.nameMaxWidth, 12)}px`,
+                          }}
+                        >
                           {item.name}
                         </span>
                         {titleLayout.showTaskCount && (
