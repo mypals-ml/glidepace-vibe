@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskSidebar } from './TaskSidebar';
 import type { DashboardItem, Task } from '../../types';
@@ -6,6 +6,15 @@ import { getLastUsedFieldGroupStorageKey } from '../../lib/fieldGroupHistory';
 
 const dashboardMock = vi.hoisted(() => ({
   useDashboard: vi.fn(),
+}));
+
+const dndMock = vi.hoisted(() => ({
+  dndContextProps: null as {
+    onDragStart?: (event: { active: { id: string } }) => void;
+    onDragOver?: (event: { over: { id: string } | null }) => void;
+    onDragCancel?: () => void;
+  } | null,
+  useSortable: vi.fn(),
 }));
 
 vi.mock('../../context/DashboardContext', () => ({
@@ -23,7 +32,15 @@ vi.mock('react-i18next', async (importOriginal) => {
 });
 
 vi.mock('@dnd-kit/core', () => ({
-  DndContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  DndContext: (props: {
+    children: React.ReactNode;
+    onDragStart?: (event: { active: { id: string } }) => void;
+    onDragOver?: (event: { over: { id: string } | null }) => void;
+    onDragCancel?: () => void;
+  }) => {
+    dndMock.dndContextProps = props;
+    return <>{props.children}</>;
+  },
   KeyboardSensor: vi.fn(),
   MouseSensor: vi.fn(),
   TouchSensor: Object.assign(vi.fn(), { activators: [{ handler: vi.fn(() => true) }] }),
@@ -35,14 +52,7 @@ vi.mock('@dnd-kit/core', () => ({
 vi.mock('@dnd-kit/sortable', () => ({
   SortableContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   sortableKeyboardCoordinates: vi.fn(),
-  useSortable: () => ({
-    attributes: {},
-    listeners: {},
-    setNodeRef: vi.fn(),
-    transform: null,
-    transition: undefined,
-    isDragging: false,
-  }),
+  useSortable: dndMock.useSortable,
   verticalListSortingStrategy: vi.fn(),
 }));
 
@@ -84,6 +94,15 @@ describe('TaskSidebar hover actions', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    dndMock.dndContextProps = null;
+    dndMock.useSortable.mockReturnValue({
+      attributes: {},
+      listeners: {},
+      setNodeRef: vi.fn(),
+      transform: null,
+      transition: undefined,
+      isDragging: false,
+    });
     localStorage.clear();
     searchQuery = '';
     selectedGroupFieldIds = [];
@@ -150,6 +169,32 @@ describe('TaskSidebar hover actions', () => {
     expect(setDashboardView).toHaveBeenCalledWith('gantt');
     expect(setIsChartVisible).toHaveBeenCalledWith(true);
     expect(centerGanttOnTask).toHaveBeenCalledWith('task-124', '2026-06-01');
+  });
+
+  it('does not rerender sortable rows for duplicate drag-over targets', () => {
+    render(<TaskSidebar />);
+
+    expect(dndMock.dndContextProps?.onDragStart).toBeDefined();
+    expect(dndMock.dndContextProps?.onDragOver).toBeDefined();
+    const initialSortableCalls = dndMock.useSortable.mock.calls.length;
+
+    act(() => {
+      dndMock.dndContextProps?.onDragStart?.({ active: { id: 'task:item-124' } });
+    });
+    const callsAfterDragStart = dndMock.useSortable.mock.calls.length;
+    expect(callsAfterDragStart).toBeGreaterThan(initialSortableCalls);
+
+    act(() => {
+      dndMock.dndContextProps?.onDragOver?.({ over: { id: 'task:item-124' } });
+    });
+    const callsAfterFirstDragOver = dndMock.useSortable.mock.calls.length;
+    expect(callsAfterFirstDragOver).toBeGreaterThan(callsAfterDragStart);
+
+    act(() => {
+      dndMock.dndContextProps?.onDragOver?.({ over: { id: 'task:item-124' } });
+    });
+
+    expect(dndMock.useSortable.mock.calls.length).toBe(callsAfterFirstDragOver);
   });
 
   it('uses the fixed-size assignee icon class for unassigned task rows', () => {

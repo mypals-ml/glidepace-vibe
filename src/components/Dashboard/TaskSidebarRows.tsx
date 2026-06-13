@@ -156,7 +156,7 @@ interface TaskGroupRowProps {
   t: TFunction;
 }
 
-export function TaskGroupRow({
+export const TaskGroupRow = memo(function TaskGroupRow({
   group,
   treeMeta,
   onToggle,
@@ -325,7 +325,7 @@ export function TaskGroupRow({
       )}
     </div>
   );
-}
+});
 
 interface SortableTaskRowProps {
   task: Task;

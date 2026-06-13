@@ -100,6 +100,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const suppressNextClickRef = useRef(false);
   const dragHasMovedRef = useRef(false);
   const justDroppedRef = useRef(false);
+  const dragOverSortIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!movingItemSortId) return;
@@ -221,7 +222,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setIsTaskDetailsOpen(true);
   }, [isLinkMode, setIsCreateMode, setIsTaskDetailsOpen, setSelectedLinkTaskIds, setSelectedTaskId]);
 
-  const handleJumpToChart = (taskId: string) => {
+  const handleJumpToChart = useCallback((taskId: string) => {
     const task = findTaskByOrderId(taskId);
     if (!task) return;
     setIsCreateMode(false);
@@ -236,22 +237,22 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     }
 
     setContextMenu(null);
-  };
+  }, [centerGanttOnTask, findTaskByOrderId, setDashboardView, setIsChartVisible, setIsCreateMode, setIsTaskDetailsOpen, setSelectedTaskId]);
 
-  const handleJumpContextTargetToChart = (target: ContextMenuTarget) => {
+  const handleJumpContextTargetToChart = useCallback((target: ContextMenuTarget) => {
     const boundaryTasks = getContextBoundaryTasks(target);
     if (!boundaryTasks) return;
     handleJumpToChart(boundaryTasks.firstTask.id);
-  };
+  }, [getContextBoundaryTasks, handleJumpToChart]);
 
-  const handleAddSuccessorsFromContext = (target: ContextMenuTarget) => {
+  const handleAddSuccessorsFromContext = useCallback((target: ContextMenuTarget) => {
     const boundaryTasks = getContextBoundaryTasks(target);
     if (!boundaryTasks) return;
 
     setIsLinkMode(true);
     setSelectedLinkTaskIds([boundaryTasks.lastTask.id]);
     setContextMenu(null);
-  };
+  }, [getContextBoundaryTasks, setIsLinkMode, setSelectedLinkTaskIds]);
 
   const getBreakLinkPlanForContext = useCallback((target: ContextMenuTarget, scope: BreakLinkScope) => {
     const boundaryTasks = getContextBoundaryTasks(target);
@@ -393,8 +394,10 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   }, [activeDragItemSortId, dragOverSortId, dashboardItems, tasks, fieldGroupContext]);
 
   const handleDragStart = (event: DragStartEvent) => {
+    const nextActiveSortId = String(event.active.id);
     dragHasMovedRef.current = false;
-    setActiveDragItemSortId(String(event.active.id));
+    dragOverSortIdRef.current = null;
+    setActiveDragItemSortId(nextActiveSortId);
     setDragOverSortId(null);
     suppressNextClickRef.current = true;
     setContextMenu(null);
@@ -402,11 +405,14 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
 
   const handleDragMove = () => {
     dragHasMovedRef.current = true;
-    setContextMenu(null);
+    if (contextMenu) setContextMenu(null);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    setDragOverSortId(event.over ? String(event.over.id) : null);
+    const nextDragOverSortId = event.over ? String(event.over.id) : null;
+    if (dragOverSortIdRef.current === nextDragOverSortId) return;
+    dragOverSortIdRef.current = nextDragOverSortId;
+    setDragOverSortId(nextDragOverSortId);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -440,6 +446,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
         await reorderTaskBlock(movePlan.taskIds, movePlan.afterTaskId);
       }
     } finally {
+      dragOverSortIdRef.current = null;
       setActiveDragItemSortId(null);
       setDragOverSortId(null);
       setMovingItemSortId(null);
@@ -595,6 +602,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
               onDragCancel={() => {
+                dragOverSortIdRef.current = null;
                 setActiveDragItemSortId(null);
                 setDragOverSortId(null);
                 setMovingItemSortId(null);
