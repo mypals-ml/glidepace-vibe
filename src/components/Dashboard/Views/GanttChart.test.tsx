@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GanttChart } from './GanttChart';
+import { buildGanttTaskBarDropPlan, getGroupTitleLayout } from './ganttChartUtils';
 import type { DashboardItem, Task } from '../../../types';
 
 const centerOnDate = vi.fn();
@@ -52,11 +53,18 @@ let dashboardState = {
   selectedTaskId: 'task-8' as string | null,
   setSelectedTaskId: vi.fn(),
   setIsTaskDetailsOpen: vi.fn(),
+  updateTaskDates: vi.fn(),
   updateTaskSuccessors: vi.fn(),
+  selectedGroupFieldIds: [] as string[],
+  projectFields: [],
   isLinkMode: false,
   setIsLinkMode: vi.fn(),
   selectedLinkTaskIds: [] as string[],
   setSelectedLinkTaskIds: vi.fn(),
+  toggleGroupBlockCollapsed: vi.fn(),
+  reorderTask: vi.fn(),
+  reorderTaskBlock: vi.fn(),
+  moveTaskToGroupPath: vi.fn(),
   ganttZoomPercent: 100,
   setGanttZoomPercent: vi.fn(),
 };
@@ -106,6 +114,11 @@ describe('GanttChart focus behavior', () => {
       selectedTaskId: 'task-8',
       ganttZoomPercent: 100,
       setGanttZoomPercent: vi.fn(),
+      updateTaskDates: vi.fn(),
+      updateTaskSuccessors: vi.fn(),
+      reorderTask: vi.fn(),
+      reorderTaskBlock: vi.fn(),
+      moveTaskToGroupPath: vi.fn(),
     };
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
       configurable: true,
@@ -292,5 +305,94 @@ describe('GanttChart focus behavior', () => {
         element.className.includes('w-[46px]')
       )
     ).toBe(false);
+  });
+
+  it('progressively hides group title metadata when the group card is too narrow', () => {
+    expect(getGroupTitleLayout(220)).toMatchObject({
+      showTaskCount: true,
+      showProgress: true,
+    });
+    expect(getGroupTitleLayout(150)).toMatchObject({
+      showTaskCount: true,
+      showProgress: false,
+    });
+    expect(getGroupTitleLayout(118)).toMatchObject({
+      showTaskCount: false,
+      showProgress: false,
+    });
+  });
+
+  it('truncates narrow group titles and hides metadata that would leave the card frame', () => {
+    const groupTasks = [
+      { ...buildTask(1), progress: 100 },
+      { ...buildTask(2), progress: 0 },
+    ];
+    const groupDashboardItems: DashboardItem[] = [
+      {
+        kind: 'group',
+        groupBlockId: 'project-root',
+        name: 'Project with a very long title',
+        path: [],
+        depth: 0,
+        startTaskIndex: 0,
+        endTaskIndex: groupTasks.length - 1,
+        startDate: '2026-05-01',
+        targetDate: '2026-05-01',
+        childTaskIds: groupTasks.map(task => task.id),
+        isExpanded: true,
+        isSyntheticRoot: true,
+      },
+      ...groupTasks,
+    ];
+
+    dashboardState = {
+      ...dashboardState,
+      tasks: groupTasks,
+      filteredTasks: groupTasks,
+      dashboardItems: groupDashboardItems,
+      selectedTaskId: null,
+      ganttZoomPercent: 50,
+    };
+
+    render(<GanttChart />);
+
+    const groupTitle = screen.getByRole('button', { name: /project with a very long title/i });
+    const titleName = screen.getByText('Project with a very long title');
+
+    expect(groupTitle.textContent).not.toContain('tasks');
+    expect(groupTitle.textContent).not.toContain('50%');
+    expect(titleName.className).toContain('text-ellipsis');
+  });
+
+  it('builds a horizontal task bar drag plan that shifts the task start date', () => {
+    const plan = buildGanttTaskBarDropPlan({
+      task: tasks[0],
+      dashboardItems,
+      orderedTasks: tasks,
+      overRowIndex: 1,
+      deltaDays: 3,
+      fieldGroupContext: { fieldIds: [], fields: [] },
+    });
+
+    expect(plan.startDate).toBe('2026-05-04');
+    expect(plan.movePlan).toBeUndefined();
+    expect(plan.groupDropPlan).toBeUndefined();
+  });
+
+  it('builds a vertical task bar drag plan using the existing visible reorder rules', () => {
+    const plan = buildGanttTaskBarDropPlan({
+      task: tasks[0],
+      dashboardItems,
+      orderedTasks: tasks,
+      overRowIndex: 3,
+      deltaDays: 0,
+      fieldGroupContext: { fieldIds: [], fields: [] },
+    });
+
+    expect(plan.startDate).toBeUndefined();
+    expect(plan.movePlan).toMatchObject({
+      taskIds: ['item-1'],
+      afterTaskId: 'item-3',
+    });
   });
 });
