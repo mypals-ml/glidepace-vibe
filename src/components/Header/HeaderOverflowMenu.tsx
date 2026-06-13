@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { useClickOutside } from '../../hooks/useClickOutside';
@@ -41,7 +41,6 @@ export function HeaderOverflowMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sortedLocales = useSortedLocales();
-  const [isStale, setIsStale] = useState(false);
 
   // Register with overflow manager
   const { ref: overflowMenuRef, isOverflowing } = useOverflowMenu<HTMLButtonElement>();
@@ -54,18 +53,6 @@ export function HeaderOverflowMenu() {
   const isLanguageVisible = useIsOverflowItemVisible('language');
   const isAccountVisible = useIsOverflowItemVisible('account');
   const isAboutVisible = useIsOverflowItemVisible('about');
-
-  useEffect(() => {
-    const checkStaleness = () => {
-      if (lastSyncedTime) {
-        setIsStale((Date.now() - lastSyncedTime) > 60000);
-      }
-    };
-    
-    checkStaleness();
-    const interval = setInterval(checkStaleness, 10000);
-    return () => clearInterval(interval);
-  }, [lastSyncedTime]);
 
   useClickOutside(dropdownRef, () => setIsOpen(false), isOpen);
 
@@ -200,10 +187,6 @@ export function HeaderOverflowMenu() {
                   >
                     <div className="relative flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined text-[20px] text-slate-400">sync</span>
-                      <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isStale ? 'bg-slate-300' : 'bg-emerald-400'}`}></span>
-                        <span className={`relative inline-flex rounded-full h-2 w-2 ${isStale ? 'bg-slate-400' : 'bg-emerald-500'}`}></span>
-                      </span>
                     </div>
                     <div className="flex flex-col items-start leading-none min-w-0">
                       <span className="truncate w-full text-left">{t('app.syncNow', 'Sync Now')}</span>
