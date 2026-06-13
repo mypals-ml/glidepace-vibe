@@ -189,7 +189,7 @@
 
   .textarea-resize-handle:hover {
     border-color: rgba(79, 70, 229, 0.36);
-    background: rgba(79, 70, 229, 0.06);
+    background: rgb(248, 250, 252);
   }
 }
 
