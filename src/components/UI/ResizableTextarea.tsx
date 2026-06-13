@@ -1,9 +1,11 @@
-import { forwardRef, useImperativeHandle, useRef, useState, type PointerEvent as ReactPointerEvent, type TextareaHTMLAttributes } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type TextareaHTMLAttributes } from 'react';
 
-type ResizableTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement>;
+type ResizableTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  resizeHandleLabel: string;
+};
 
 export const ResizableTextarea = forwardRef<HTMLTextAreaElement, ResizableTextareaProps>(function ResizableTextarea(
-  { className = '', style, ...props },
+  { className = '', resizeHandleLabel, style, ...props },
   forwardedRef
 ) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -11,13 +13,25 @@ export const ResizableTextarea = forwardRef<HTMLTextAreaElement, ResizableTextar
 
   useImperativeHandle(forwardedRef, () => textareaRef.current as HTMLTextAreaElement, []);
 
-  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const getMinHeight = (textarea: HTMLTextAreaElement) => {
+    return parseFloat(window.getComputedStyle(textarea).minHeight || '0') || 0;
+  };
+
+  const resizeBy = (deltaY: number) => {
+    if (!textareaRef.current) return;
+
+    const textarea = textareaRef.current;
+    const currentHeight = touchHeight ?? textarea.getBoundingClientRect().height;
+    setTouchHeight(Math.max(getMinHeight(textarea), Math.round(currentHeight + deltaY)));
+  };
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!textareaRef.current) return;
 
     event.preventDefault();
 
     const textarea = textareaRef.current;
-    const minHeight = parseFloat(window.getComputedStyle(textarea).minHeight || '0') || 0;
+    const minHeight = getMinHeight(textarea);
     const startY = event.clientY;
     const startHeight = textarea.getBoundingClientRect().height;
 
@@ -37,6 +51,18 @@ export const ResizableTextarea = forwardRef<HTMLTextAreaElement, ResizableTextar
     window.addEventListener('pointercancel', handlePointerUp);
   };
 
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      resizeBy(event.shiftKey ? 40 : 10);
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      resizeBy(event.shiftKey ? -40 : -10);
+    }
+  };
+
   return (
     <div className="resizable-textarea-wrapper">
       <textarea
@@ -48,15 +74,15 @@ export const ResizableTextarea = forwardRef<HTMLTextAreaElement, ResizableTextar
           ...(touchHeight ? { height: `${touchHeight}px` } : null),
         }}
       />
-      <div
+      <button
+        type="button"
         className="textarea-resize-handle"
         onPointerDown={handlePointerDown}
-        aria-hidden="true"
+        onKeyDown={handleKeyDown}
+        aria-label={resizeHandleLabel}
       >
         <span className="textarea-resize-handle-bar" />
-        <span className="textarea-resize-handle-bar" />
-        <span className="textarea-resize-handle-bar" />
-      </div>
+      </button>
     </div>
   );
 });

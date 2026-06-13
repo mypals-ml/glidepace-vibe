@@ -462,6 +462,8 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
     }
   };
 
+  const resizeTextFieldLabel = t('dashboard.resizeTextField', 'Resize text field');
+
   if (isCreateMode) {
     return (
       <div className="space-y-6">
@@ -492,6 +494,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               placeholder={t('dashboard.descriptionPlaceholder', 'Add description...')}
+              resizeHandleLabel={resizeTextFieldLabel}
               className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all min-h-[120px] resize-y resizable-textarea"
             />
           </div>
@@ -691,46 +694,44 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
       </div>
 
       {/* Task Description */}
-      <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
-        <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
-          <label className="text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
-          <div className="flex items-center gap-1">
-            {!editingDesc && (
-              <>
-                <CopyButton text={task.body || ''} t={t} />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingDesc(true)}
-                >
-                  {t('common.edit', 'Edit')}
-                </Button>
-              </>
-            )}
+      {editingDesc ? (
+        <div className="space-y-2">
+          <label className="block px-1 text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
+          <ResizableTextarea
+            value={draftDesc}
+            onChange={(e) => setDraftDesc(e.target.value)}
+            resizeHandleLabel={resizeTextFieldLabel}
+            className="w-full border border-slate-300 rounded-lg bg-white p-3 text-sm shadow-sm focus:ring focus:ring-primary/20 outline-none min-h-[100px] resize-y resizable-textarea"
+            autoFocus
+          />
+          <div className="flex gap-2 justify-end">
+            <Button variant="primary" size="sm" onClick={handleSaveDesc}>{t('common.save')}</Button>
+            <Button variant="secondary" size="sm" onClick={() => { setEditingDesc(false); setDraftDesc(task.body || ''); }}>{t('common.cancel')}</Button>
           </div>
         </div>
-
-        <div className="px-3 pt-3">
-          {editingDesc ? (
-            <div className="space-y-2">
-              <ResizableTextarea
-                value={draftDesc}
-                onChange={(e) => setDraftDesc(e.target.value)}
-                className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[100px] resize-y resizable-textarea"
-                autoFocus
-              />
-              <div className="flex gap-2 justify-end">
-                <Button variant="primary" size="sm" onClick={handleSaveDesc}>{t('common.save')}</Button>
-                <Button variant="secondary" size="sm" onClick={() => { setEditingDesc(false); setDraftDesc(task.body || ''); }}>{t('common.cancel')}</Button>
-              </div>
+      ) : (
+        <div className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group">
+          <div className="flex items-center justify-between bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
+            <label className="text-xs font-medium text-slate-600">{t('dashboard.description')}</label>
+            <div className="flex items-center gap-1">
+              <CopyButton text={task.body || ''} t={t} />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditingDesc(true)}
+              >
+                {t('common.edit', 'Edit')}
+              </Button>
             </div>
-          ) : (
+          </div>
+
+          <div className="px-3 pt-3">
             <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap min-h-[2rem]">
               {task.body || <span className="text-slate-400 italic">{t('dashboard.noDescription')}</span>}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Status */}
       <div className="border-t border-slate-200/60 pt-3 relative">
@@ -915,33 +916,44 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
           <>
             <div className="space-y-2.5">
               {(task.comments || []).map((comment) => (
-                <div key={comment.id} className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group relative">
-                  <div className="flex items-center gap-2 bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${comment.author.avatarColor}`}>
-                      {comment.author.avatarUrl ? (
-                        <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-full h-full rounded-full object-cover" />
-                      ) : comment.author.initials}
-                    </div>
-                    <span className="text-xs font-medium text-slate-700">{comment.author.name}</span>
-                    <span className="text-xs text-slate-500">
-                      {new Date(comment.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-
-                  {editingCommentId === comment.id ? (
-                    <div className="space-y-2">
-                      <ResizableTextarea
-                        value={draftComment}
-                        onChange={(e) => setDraftComment(e.target.value)}
-                        className="w-full border border-slate-300 rounded p-2 text-sm focus:ring focus:ring-primary/20 outline-none min-h-[60px] resize-y resizable-textarea"
-                        autoFocus
-                      />
-                      <div className="flex gap-2 justify-end">
-                        <Button variant="primary" size="sm" onClick={() => handleSaveComment(comment.id)}>{t('common.save')}</Button>
-                        <Button variant="secondary" size="sm" onClick={() => setEditingCommentId(null)}>{t('common.cancel')}</Button>
+                editingCommentId === comment.id ? (
+                  <div key={comment.id} className="space-y-2">
+                    <div className="flex items-center gap-2 px-1">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${comment.author.avatarColor}`}>
+                        {comment.author.avatarUrl ? (
+                          <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-full h-full rounded-full object-cover" />
+                        ) : comment.author.initials}
                       </div>
+                      <span className="text-xs font-medium text-slate-700">{comment.author.name}</span>
+                      <span className="text-xs text-slate-500">
+                        {new Date(comment.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
-                  ) : (
+                    <ResizableTextarea
+                      value={draftComment}
+                      onChange={(e) => setDraftComment(e.target.value)}
+                      resizeHandleLabel={resizeTextFieldLabel}
+                      className="w-full border border-slate-300 rounded-lg bg-white p-3 text-sm shadow-sm focus:ring focus:ring-primary/20 outline-none min-h-[60px] resize-y resizable-textarea"
+                      autoFocus
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="primary" size="sm" onClick={() => handleSaveComment(comment.id)}>{t('common.save')}</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setEditingCommentId(null)}>{t('common.cancel')}</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={comment.id} className="border border-slate-200/60 rounded-lg bg-white/95 pt-0 px-0 pb-3 shadow-sm group relative">
+                    <div className="flex items-center gap-2 bg-slate-50 px-3 h-11 rounded-t-lg border-b border-slate-200/60 mb-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${comment.author.avatarColor}`}>
+                        {comment.author.avatarUrl ? (
+                          <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-full h-full rounded-full object-cover" />
+                        ) : comment.author.initials}
+                      </div>
+                      <span className="text-xs font-medium text-slate-700">{comment.author.name}</span>
+                      <span className="text-xs text-slate-500">
+                        {new Date(comment.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
                     <>
                       <p className="px-3 pt-2 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{comment.body}</p>
                       <div className="absolute top-2 right-2 flex items-center gap-1">
@@ -963,8 +975,8 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                         </Button>
                       </div>
                     </>
-                  )}
-                </div>
+                  </div>
+                )
               ))}
             </div>
 
@@ -977,6 +989,7 @@ function TaskContent({ task, t, isCreateMode = false }: { task: Task | null; t: 
                 value={newCommentBody}
                 onChange={(e) => setNewCommentBody(e.target.value)}
                 placeholder={t('dashboard.addCommentPlaceholder', 'Comment here ...')}
+                resizeHandleLabel={resizeTextFieldLabel}
                 className="w-full border border-slate-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none min-h-[80px] resize-y resizable-textarea bg-white placeholder:text-slate-400"
                 disabled={isSubmittingComment}
               />
