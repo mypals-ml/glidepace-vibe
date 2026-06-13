@@ -1,7 +1,13 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../context/DashboardContext';
 import { DashboardProvider } from '../context/DashboardProvider';
+import {
+  captureViewportAnchor,
+  resolveViewportAnchor,
+  DASHBOARD_ROW_HEIGHT_PX,
+  VIEWPORT_ANCHOR_MAX_AGE_MS,
+} from '../lib/viewportAnchor';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { Header } from './Header/Header';
 import { TaskSidebar } from './Dashboard/TaskSidebar';
@@ -26,7 +32,7 @@ const AboutModal = lazy(() => import('./Modals/AboutModal').then(m => ({ default
 
 function DashboardLayout() {
   const { t } = useTranslation();
-  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, isCreateMode, isTaskDetailsOpen, setIsTaskDetailsOpen, toast, hideToast } = useDashboard();
+  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, isCreateMode, isTaskDetailsOpen, setIsTaskDetailsOpen, toast, hideToast, dashboardItems, registerViewportAnchorController, consumePendingViewportAnchor } = useDashboard();
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const { width: sidebarWidth, isResizing, panelRef, onMouseDown } = useResizablePanel();
   const { width: detailsWidth, panelRef: detailsPanelRef, onMouseDown: onMouseDownDetails } = useResizablePanel({
@@ -37,6 +43,53 @@ function DashboardLayout() {
   });
   const { sidebarRef, timelineRef, onSidebarScroll, onTimelineScroll } = useScrollSync();
   useMobileBackNavigation(!isDesktop);
+
+  // --- Viewport anchoring for background refreshes ---
+  // This component owns the scroll refs, so it registers how to capture an
+  // anchor (called by the refresh path right before applying a snapshot) and
+  // restores the queued anchor right after the new dashboardItems render.
+  const dashboardItemsRef = useRef(dashboardItems);
+  useEffect(() => {
+    dashboardItemsRef.current = dashboardItems;
+  }, [dashboardItems]);
+
+  useEffect(() => {
+    registerViewportAnchorController(() => {
+      const sidebarEl = sidebarRef.current;
+      if (!sidebarEl) return null;
+      return captureViewportAnchor({
+        dashboardItems: dashboardItemsRef.current,
+        scrollTop: sidebarEl.scrollTop,
+        viewportHeight: sidebarEl.clientHeight,
+        rowHeight: DASHBOARD_ROW_HEIGHT_PX,
+      });
+    });
+    return () => registerViewportAnchorController(null);
+  }, [registerViewportAnchorController, sidebarRef]);
+
+  useLayoutEffect(() => {
+    const anchor = consumePendingViewportAnchor();
+    if (!anchor) return;
+    // Drop stale anchors (e.g. queued for a render that never used them).
+    if (Date.now() - anchor.capturedAt > VIEWPORT_ANCHOR_MAX_AGE_MS) return;
+    const sidebarEl = sidebarRef.current;
+    if (!sidebarEl) return;
+
+    const maxScrollTop = Math.max(0, sidebarEl.scrollHeight - sidebarEl.clientHeight);
+    const nextScrollTop = resolveViewportAnchor({
+      anchor,
+      dashboardItems,
+      rowHeight: DASHBOARD_ROW_HEIGHT_PX,
+      maxScrollTop,
+    });
+
+    // Set both synced containers; useScrollSync no-ops when already equal.
+    // Gantt horizontal scrollLeft is intentionally untouched.
+    sidebarEl.scrollTop = nextScrollTop;
+    if (timelineRef.current) {
+      timelineRef.current.scrollTop = nextScrollTop;
+    }
+  }, [dashboardItems, consumePendingViewportAnchor, sidebarRef, timelineRef]);
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
   const shouldRenderTaskDetails = isTaskDetailsOpen && (isCreateMode || selectedTask !== null);

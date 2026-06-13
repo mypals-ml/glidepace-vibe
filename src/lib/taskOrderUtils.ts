@@ -1,4 +1,4 @@
-import type { DashboardItem, GroupPath, Task, TaskGroupBlock, TaskInsertPosition } from '../types';
+import type { DashboardItem, GitHubProjectV2Field, GroupPath, Task, TaskGroupBlock, TaskInsertPosition } from '../types';
 import { groupPathKey, isPathPrefix, isTaskGroupBlock } from './taskGroupUtils';
 
 export type DashboardItemSortId = `task:${string}` | `group:${string}`;
@@ -15,6 +15,61 @@ export interface DashboardGroupDropPlan {
   targetGroupPath: GroupPath;
   afterTaskId: string | null;
   placement: DashboardGroupDropPlacement;
+  fieldValueChanges?: DashboardFieldValueChange[];
+}
+
+export interface DashboardFieldValueChange {
+  fieldId: string;
+  value: string;
+}
+
+export interface DashboardFieldGroupContext {
+  fieldIds: readonly string[];
+  fields?: readonly Pick<GitHubProjectV2Field, 'id' | 'name'>[];
+}
+
+const NO_FIELD_VALUE_SEGMENT = 'No value';
+
+function getFieldGroupValueFromSegment(segment: string, fieldName?: string): string {
+  const trimmedSegment = segment.trim();
+  const trimmedFieldName = fieldName?.trim();
+  const prefix = trimmedFieldName ? `${trimmedFieldName}: ` : '';
+  const value = prefix && trimmedSegment.startsWith(prefix)
+    ? trimmedSegment.slice(prefix.length).trim()
+    : trimmedSegment;
+  return value === NO_FIELD_VALUE_SEGMENT ? '' : value;
+}
+
+export function resolveFieldGroupedTargetPath(
+  visiblePath: GroupPath,
+  fieldGroupContext?: DashboardFieldGroupContext
+): { groupPath: GroupPath; fieldValueChanges: DashboardFieldValueChange[] } {
+  const fieldIds = fieldGroupContext?.fieldIds?.filter(Boolean) || [];
+  if (fieldIds.length === 0) {
+    return { groupPath: [...visiblePath], fieldValueChanges: [] };
+  }
+
+  const fieldsById = new Map((fieldGroupContext?.fields || []).map(field => [field.id, field]));
+  const fieldValueChanges = fieldIds.flatMap((fieldId, index) => {
+    const segment = visiblePath[index];
+    if (segment === undefined) return [];
+    return [{
+      fieldId,
+      value: getFieldGroupValueFromSegment(segment, fieldsById.get(fieldId)?.name),
+    }];
+  });
+
+  return {
+    groupPath: visiblePath.slice(fieldValueChanges.length),
+    fieldValueChanges,
+  };
+}
+
+function withFieldValueChanges<T extends DashboardGroupDropPlan>(
+  plan: T,
+  fieldValueChanges: DashboardFieldValueChange[]
+): T {
+  return fieldValueChanges.length > 0 ? { ...plan, fieldValueChanges } : plan;
 }
 
 export function getTaskOrderId(task: Pick<Task, 'id' | 'itemId'>): string {
@@ -349,7 +404,8 @@ export function getDashboardGroupDropPlan(
   dashboardItems: DashboardItem[],
   activeSortId: string,
   overSortId: string,
-  orderedTasks?: ReadonlyArray<Pick<Task, 'id' | 'itemId'>>
+  orderedTasks?: ReadonlyArray<Pick<Task, 'id' | 'itemId'>>,
+  fieldGroupContext?: DashboardFieldGroupContext
 ): DashboardGroupDropPlan | undefined {
   const activeItem = getDashboardItemBySortId(dashboardItems, activeSortId);
   const overItem = getDashboardItemBySortId(dashboardItems, overSortId, true);
@@ -359,26 +415,28 @@ export function getDashboardGroupDropPlan(
   const movingTaskIdSet = new Set([taskId, activeItem.id]);
 
   if (!isSyntheticRootGroup(overItem) && isDropAboveGroupHeader(dashboardItems, activeSortId, overSortId)) {
+    const resolvedTarget = resolveFieldGroupedTargetPath(overItem.path.slice(0, -1), fieldGroupContext);
     // Dragging upward onto a group header previews the task landing just
     // above the group, so the drop must move it out of the group instead of
     // re-inserting it: the task joins the header's parent container directly
     // above the group's first task.
-    return {
+    return withFieldValueChanges({
       taskId,
-      targetGroupPath: overItem.path.slice(0, -1),
+      targetGroupPath: resolvedTarget.groupPath,
       afterTaskId: getAfterTaskIdForDropAboveGroup(dashboardItems, overItem, movingTaskIdSet, orderedTasks),
-      placement: 'above',
-    };
+      placement: 'above' as const,
+    }, resolvedTarget.fieldValueChanges);
   }
 
   const targetChildTaskIds = overItem.childTaskIds.filter(childTaskId => !movingTaskIdSet.has(childTaskId));
+  const resolvedTarget = resolveFieldGroupedTargetPath(overItem.path, fieldGroupContext);
 
-  return {
+  return withFieldValueChanges({
     taskId,
-    targetGroupPath: [...overItem.path],
+    targetGroupPath: resolvedTarget.groupPath,
     afterTaskId: targetChildTaskIds[targetChildTaskIds.length - 1] ?? null,
-    placement: 'into',
-  };
+    placement: 'into' as const,
+  }, resolvedTarget.fieldValueChanges);
 }
 
 /**
@@ -394,19 +452,20 @@ export function getDashboardDropTargetGroupSortId(
   dashboardItems: DashboardItem[],
   activeSortId: string,
   overSortId: string,
-  orderedTasks?: ReadonlyArray<Pick<Task, 'id' | 'itemId'>>
+  orderedTasks?: ReadonlyArray<Pick<Task, 'id' | 'itemId'>>,
+  fieldGroupContext?: DashboardFieldGroupContext
 ): DashboardItemSortId | null {
   if (activeSortId === overSortId) return null;
 
   const activeItem = getDashboardItemBySortId(dashboardItems, activeSortId);
   if (!activeItem || isTaskGroupBlock(activeItem)) return null;
 
-  const groupDropPlan = getDashboardGroupDropPlan(dashboardItems, activeSortId, overSortId, orderedTasks);
+  const groupDropPlan = getDashboardGroupDropPlan(dashboardItems, activeSortId, overSortId, orderedTasks, fieldGroupContext);
   if (groupDropPlan) {
     return groupDropPlan.placement === 'into' ? (overSortId as DashboardItemSortId) : null;
   }
 
-  const pathMovePlan = getDashboardTaskGroupPathMovePlan(dashboardItems, activeSortId, overSortId, orderedTasks);
+  const pathMovePlan = getDashboardTaskGroupPathMovePlan(dashboardItems, activeSortId, overSortId, orderedTasks, fieldGroupContext);
   if (!pathMovePlan || pathMovePlan.targetGroupPath.length === 0) return null;
   if (isPathPrefix(pathMovePlan.targetGroupPath, activeItem.groupPath || [])) return null;
 
@@ -429,25 +488,31 @@ export function getDashboardTaskGroupPathMovePlan(
   dashboardItems: DashboardItem[],
   activeSortId: string,
   overSortId: string,
-  orderedTasks?: ReadonlyArray<Pick<Task, 'id' | 'itemId'>>
+  orderedTasks?: ReadonlyArray<Pick<Task, 'id' | 'itemId'>>,
+  fieldGroupContext?: DashboardFieldGroupContext
 ): DashboardGroupDropPlan | undefined {
   const activeItem = getDashboardItemBySortId(dashboardItems, activeSortId);
   const overItem = getDashboardItemBySortId(dashboardItems, overSortId);
   if (!activeItem || !overItem || isTaskGroupBlock(activeItem) || isTaskGroupBlock(overItem)) return undefined;
 
-  const activePath = activeItem.groupPath || [];
-  const overPath = overItem.groupPath || [];
-  if (JSON.stringify(activePath) === JSON.stringify(overPath)) return undefined;
+  const activeTarget = resolveFieldGroupedTargetPath(activeItem.groupPath || [], fieldGroupContext);
+  const overTarget = resolveFieldGroupedTargetPath(overItem.groupPath || [], fieldGroupContext);
+  const activePath = activeTarget.groupPath;
+  const overPath = overTarget.groupPath;
+  const fieldValuesChanged = overTarget.fieldValueChanges.some(change =>
+    (activeItem.projectFieldValues?.[change.fieldId] || '') !== change.value
+  );
+  if (JSON.stringify(activePath) === JSON.stringify(overPath) && !fieldValuesChanged) return undefined;
 
   const movePlan = getVisibleDashboardMovePlan(dashboardItems, activeSortId, overSortId, orderedTasks);
   if (!movePlan || movePlan.taskIds.length !== 1) return undefined;
 
-  return {
+  return withFieldValueChanges({
     taskId: movePlan.taskIds[0],
     targetGroupPath: [...overPath],
     afterTaskId: movePlan.afterTaskId,
-    placement: 'into',
-  };
+    placement: 'into' as const,
+  }, overTarget.fieldValueChanges);
 }
 
 export function getGroupPathForCreatedTaskTarget(targetItem: DashboardItem): GroupPath {

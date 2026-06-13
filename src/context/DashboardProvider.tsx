@@ -8,19 +8,44 @@ import { useDashboardAuth } from '../hooks/useDashboardAuth';
 import { useDashboardUI } from '../hooks/useDashboardUI';
 import { useDashboardProjects } from '../hooks/useDashboardProjects';
 import { useDashboardTasks } from '../hooks/useDashboardTasks';
+import type { FetchProjectTasksOptions } from '../hooks/useDashboardTasks';
 import { useDashboardSync } from '../hooks/useDashboardSync';
 import { useFieldSetup } from '../hooks/useFieldSetup';
 import { createRecentLocalReorderTracker } from '../lib/reorderSyncUtils';
+import type { ViewportAnchor } from '../lib/viewportAnchor';
 
 // Service
 import { createProjectV2Field } from '../lib/githubService';
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   // Bridging Refs to break circular dependencies between hooks
-  const fetchProjectTasksRef = useRef<(id: string, token: string) => Promise<void>>(() => Promise.resolve());
+  const fetchProjectTasksRef = useRef<(id: string, token: string, options?: FetchProjectTasksOptions) => Promise<void>>(() => Promise.resolve());
   const fetchSingleItemRef = useRef<(id: string, token: string) => Promise<Task | null>>(() => Promise.resolve(null));
   const updateSyncTimeRef = useRef<() => void>(() => {});
   const recentLocalReorderTrackerRef = useRef(createRecentLocalReorderTracker());
+
+  // Viewport anchoring: the layout registers how to capture an anchor from
+  // its scroll containers; background refreshes queue one right before
+  // applying a new snapshot; the layout consumes it after the next render.
+  const viewportAnchorCaptureRef = useRef<(() => ViewportAnchor | null) | null>(null);
+  const pendingViewportAnchorRef = useRef<ViewportAnchor | null>(null);
+
+  const registerViewportAnchorController = useCallback((capture: (() => ViewportAnchor | null) | null) => {
+    viewportAnchorCaptureRef.current = capture;
+  }, []);
+
+  const captureViewportAnchorForRefresh = useCallback(() => {
+    const anchor = viewportAnchorCaptureRef.current?.() ?? null;
+    if (anchor) {
+      pendingViewportAnchorRef.current = anchor;
+    }
+  }, []);
+
+  const consumePendingViewportAnchor = useCallback((): ViewportAnchor | null => {
+    const anchor = pendingViewportAnchorRef.current;
+    pendingViewportAnchorRef.current = null;
+    return anchor;
+  }, []);
 
   const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -135,6 +160,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     requestStartDateDecision,
     showToast,
     markRecentLocalReorder,
+    captureViewportAnchor: captureViewportAnchorForRefresh,
   });
 
   // Persist selectedTaskId per project
@@ -171,7 +197,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     githubToken: projectToken,
     selectedProject: projects.selectedProject,
     tasks: tasks.tasks,
-    fetchProjectTasks: useCallback((id: string, token: string) => fetchProjectTasksRef.current(id, token), []),
+    fetchProjectTasks: useCallback((id: string, token: string, options?: FetchProjectTasksOptions) => fetchProjectTasksRef.current(id, token, options), []),
     fetchSingleProjectItem: useCallback((id: string, token: string) => fetchSingleItemRef.current(id, token), []),
     shouldSkipRecentLocalReorder,
     shouldSkipRecentLocalReorderSync,
@@ -182,7 +208,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     const fieldId = await createProjectV2Field(projects.selectedProject.id, name, dataType, projectToken, singleSelectOptions);
     if (fieldId) {
       // Trigger a re-fetch of fields and await it to ensure local state is fresh
-      await tasks.fetchProjectTasks(projects.selectedProject.id, projectToken);
+      await tasks.fetchProjectTasks(projects.selectedProject.id, projectToken, { mode: 'background', reason: 'manual_sync' });
     }
     return fieldId;
   }, [projects.selectedProject?.id, projectToken, tasks]);
@@ -229,11 +255,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [browsingAccountId, fetchProjects, hasProject, getTokenById]);
 
-  // Initial data load - Tasks
+  // Initial data load - Tasks. Explicitly 'initial': project open/switch must
+  // show the loading UI and fully replace any previous project's tasks.
   useEffect(() => {
     if (projectToken && selectedProjectId) {
       if (selectedProjectAccountId) {
-        fetchProjectTasks(selectedProjectId, projectToken);
+        fetchProjectTasks(selectedProjectId, projectToken, { mode: 'initial', reason: 'initial_load' });
       }
     }
   }, [projectToken, selectedProjectId, selectedProjectAccountId, fetchProjectTasks]);
@@ -387,7 +414,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setIsStartDatePromptOpen,
     startDatePromptTasks,
     requestStartDateDecision,
-    onStartDatePromptDecision
+    onStartDatePromptDecision,
+    registerViewportAnchorController,
+    consumePendingViewportAnchor
   };
 
   return (

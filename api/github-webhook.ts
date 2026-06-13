@@ -88,30 +88,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (syncType) {
     const projectId = payload.projects_v2_item?.project_node_id || payload.project_v2_item?.project_node_id || payload.projects_v2?.node_id || payload.project_v2?.node_id;
+    const itemId = payload.projects_v2_item?.node_id || payload.project_v2_item?.node_id;
+    const contentId = payload.projects_v2_item?.content_node_id || payload.project_v2_item?.content_node_id || payload.issue?.node_id;
+    const deliveryId = (req.headers['x-github-delivery'] as string) || undefined;
 
-    // Construct broadcast data
-    const broadcastPayload = syncType === 'refresh_task' || syncType === 'reorder'
-      ? {
-        itemId: payload.projects_v2_item?.node_id || payload.project_v2_item?.node_id,
-        contentId: payload.projects_v2_item?.content_node_id || payload.project_v2_item?.content_node_id || payload.issue?.node_id,
-        projectId,
-        action,
-        timestamp: Date.now()
-      }
-      : {
-        message: 'Tasks updated on GitHub',
-        timestamp: Date.now()
-      };
+    // Construct broadcast data. One payload (and one timestamp) is shared by
+    // all channels so clients can fingerprint redundant broadcasts of the
+    // same delivery. `message` is kept for backward compatibility.
+    const broadcastPayload = {
+      deliveryId,
+      sourceEvent: event,
+      action,
+      projectId,
+      itemId,
+      contentId,
+      timestamp: Date.now(),
+      ...(syncType === 'sync' ? { message: 'Tasks updated on GitHub' } : {})
+    };
+
+    // Wait a bit for GitHub API eventual consistency before ANY broadcast,
+    // including issue events that carry no projectId.
+    const delay = syncType === 'sync' ? 2000 : 1000;
+    await new Promise(resolve => setTimeout(resolve, delay));
 
     // INDEPENDENT BROADCASTS: Reach the client via all applicable channels
     // 1. Project Channel (Specific to the project board)
     if (projectId) {
       const channelLabel = `project-${projectId}`;
       const channel = supabase.channel(channelLabel);
-      
-      // For all sync events, wait a bit for GitHub API eventual consistency.
-      const delay = syncType === 'sync' ? 2000 : 1000;
-      await new Promise(resolve => setTimeout(resolve, delay));
 
       const status = await channel.send({
         type: 'broadcast',
