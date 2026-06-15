@@ -141,7 +141,7 @@ export function TaskSidebarContextMenu({
                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                 onClick={() => onBreakLinks(contextMenu.target, 'predecessors')}
               >
-                <span className="material-symbols-outlined text-[16px]">call_received</span>
+                <span className="material-symbols-outlined text-[16px]">north_west</span>
                 {t('dashboard.breakWithPredecessors')}
               </button>
             )}
@@ -150,7 +150,7 @@ export function TaskSidebarContextMenu({
                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                 onClick={() => onBreakLinks(contextMenu.target, 'successors')}
               >
-                <span className="material-symbols-outlined text-[16px]">call_made</span>
+                <span className="material-symbols-outlined text-[16px]">south_east</span>
                 {t('dashboard.breakWithSuccessors')}
               </button>
             )}

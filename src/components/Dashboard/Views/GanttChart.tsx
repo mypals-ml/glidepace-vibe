@@ -989,7 +989,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                       handleBreakLinksFromContext(contextMenu.taskId, 'predecessors');
                     }}
                   >
-                    <span className="material-symbols-outlined text-[16px]">call_received</span>
+                    <span className="material-symbols-outlined text-[16px]">north_west</span>
                     {t('dashboard.breakWithPredecessors')}
                   </button>
                 )}
@@ -1000,7 +1000,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                       handleBreakLinksFromContext(contextMenu.taskId, 'successors');
                     }}
                   >
-                    <span className="material-symbols-outlined text-[16px]">call_made</span>
+                    <span className="material-symbols-outlined text-[16px]">south_east</span>
                     {t('dashboard.breakWithSuccessors')}
                   </button>
                 )}
