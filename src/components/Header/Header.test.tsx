@@ -64,4 +64,11 @@ describe('Header', () => {
 
     expect(setIsAboutModalOpen).toHaveBeenCalledWith(true);
   });
+
+  it('shows GL as the compact mobile app mark', () => {
+    render(<Header />);
+
+    expect(screen.getByText('GL')).toBeTruthy();
+    expect(screen.queryByText('GP')).toBeNull();
+  });
 });

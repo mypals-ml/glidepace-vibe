@@ -42,7 +42,7 @@ export function Header() {
           <h1 className="text-lg md:text-xl font-bold tracking-tight text-slate-900">
             <a href="https://github.com/mypals-ml/glidepace-vibe" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline text-inherit">
               <span className="hidden xs:inline">{t('app.name')}</span>
-              <span className="xs:hidden">GP</span>
+              <span className="xs:hidden">GL</span>
             </a>
           </h1>
         </div>
