@@ -65,10 +65,11 @@ describe('Header', () => {
     expect(setIsAboutModalOpen).toHaveBeenCalledWith(true);
   });
 
-  it('shows GL as the compact mobile app mark', () => {
+  it('shows G as the compact mobile app mark', () => {
     render(<Header />);
 
-    expect(screen.getByText('GL')).toBeTruthy();
+    expect(screen.getByText('G')).toBeTruthy();
+    expect(screen.queryByText('GL')).toBeNull();
     expect(screen.queryByText('GP')).toBeNull();
   });
 });
