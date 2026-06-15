@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GanttChart } from './GanttChart';
 import { buildGanttTaskBarDropPlan, getGroupTitleLayout } from './ganttChartUtils';
@@ -7,6 +7,7 @@ import type { DashboardItem, Task } from '../../../types';
 const centerOnDate = vi.fn();
 const scrollTo = vi.fn();
 let timelineExpansionVersion = 0;
+let isMobileViewport = false;
 
 const buildTask = (index: number): Task => ({
   kind: 'task',
@@ -102,6 +103,7 @@ vi.mock('./DependencyLines', () => ({
 
 describe('GanttChart focus behavior', () => {
   beforeEach(() => {
+    isMobileViewport = false;
     centerOnDate.mockReset();
     centerOnDate.mockReturnValue(true);
     scrollTo.mockReset();
@@ -137,6 +139,23 @@ describe('GanttChart focus behavior', () => {
     Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
       configurable: true,
       value: scrollTo,
+    });
+    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(max-width: 767px)' ? isMobileViewport : false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
     });
   });
 
@@ -417,5 +436,49 @@ describe('GanttChart focus behavior', () => {
       taskIds: ['item-1'],
       afterTaskId: 'item-3',
     });
+  });
+
+  it('moves the whole gantt row visually while a task bar is dragged vertically', () => {
+    render(<GanttChart />);
+
+    const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
+    const taskRow = taskBar.parentElement;
+
+    fireEvent.pointerDown(taskBar, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(taskBar, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      clientX: 116,
+      clientY: 172,
+    });
+
+    expect(taskRow?.getAttribute('style')).toContain('transform: translateY(72px)');
+    expect(taskBar.getAttribute('style')).toContain('transform: translateX(16px)');
+  });
+
+  it('adds a mobile gantt context menu action that arms task bar movement', () => {
+    isMobileViewport = true;
+    const setSelectedTaskId = vi.fn();
+    dashboardState = {
+      ...dashboardState,
+      setSelectedTaskId,
+      selectedTaskId: null,
+    };
+
+    render(<GanttChart />);
+
+    const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
+    fireEvent.contextMenu(taskBar, { clientX: 120, clientY: 120 });
+
+    fireEvent.click(screen.getByRole('button', { name: /move task/i }));
+
+    expect(setSelectedTaskId).toHaveBeenCalledWith('task-1');
+    expect(taskBar.getAttribute('style')).toContain('touch-action: none');
   });
 });

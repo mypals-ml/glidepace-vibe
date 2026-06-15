@@ -6,6 +6,7 @@ import { getStartDateForCal, getTargetDateForCal } from '../../../lib/githubTask
 import { diffDays } from '../../../lib/dateUtils';
 import { IconButton } from '../../UI/IconButton';
 import { useGanttTimeline } from '../../../hooks/useGanttTimeline';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { DependencyLines } from './DependencyLines';
 import { FloatingSequenceBuilder } from '../FloatingSequenceBuilder';
 import { isTaskGroupBlock } from '../../../lib/taskGroupUtils';
@@ -50,7 +51,9 @@ const GROUP_TITLE_PROGRESS_WIDTH = 36;
 export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
   const { t } = useTranslation();
   const { tasks, filteredTasks, dashboardItems, selectedGroupFieldIds, projectFields, isLoadingTasks, requestedCenterDate, requestedCenterTaskId, centerGanttOnDate, completeGanttCenterRequest, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskDates, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds, toggleGroupBlockCollapsed, reorderTask, reorderTaskBlock, moveTaskToGroupPath, ganttZoomPercent, setGanttZoomPercent } = useDashboard();
+  const isMobile = useMediaQuery('(max-width: 767px)');
   const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, scrollTop: 0, clientWidth: 0, clientHeight: 0 });
+  const [mobileMoveTaskId, setMobileMoveTaskId] = useState<string | null>(null);
   const [taskBarDragState, setTaskBarDragState] = useState<{
     taskId: string;
     pointerId: number;
@@ -257,7 +260,8 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
   };
 
   const handleTaskBarPointerDown = (e: React.PointerEvent<HTMLDivElement>, task: Task, rowIndex: number) => {
-    if (isLinkMode || e.button !== 0 || e.pointerType !== 'mouse') return;
+    const canStartDrag = e.pointerType === 'mouse' || (e.pointerType === 'touch' && mobileMoveTaskId === task.id);
+    if (isLinkMode || e.button !== 0 || !canStartDrag) return;
     const target = e.target as HTMLElement;
     if (target.closest('[data-gantt-link-handle="true"]')) return;
 
@@ -327,6 +331,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     if (!dragState.hasMoved) return;
 
     suppressNextClickRef.current = true;
+    setMobileMoveTaskId(null);
     const deltaDays = Math.round(dragState.deltaX / dayWidth);
     const overRowIndex = Math.max(
       0,
@@ -607,6 +612,13 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
         className={`flex-1 overflow-auto relative custom-scrollbar bg-white/40 ${linkDragState ? 'cursor-grabbing' : ''}`} 
         ref={activeScrollRef} 
         onScroll={handleScroll}
+        onPointerDown={(e) => {
+          if (!mobileMoveTaskId) return;
+          const target = e.target as HTMLElement;
+          if (!target.closest('[data-gantt-task-bar="true"]')) {
+            setMobileMoveTaskId(null);
+          }
+        }}
         onMouseMove={handleLinkDragMove}
         onMouseUp={handleLinkDragEnd}
         onMouseLeave={handleLinkDragEnd}
@@ -805,15 +817,28 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                 const isSelected = selectedTaskId === task.id;
                 const isLinkDropTarget = Boolean(linkDragState && linkDragState.sourceTaskId !== task.id);
                 const taskDrag = taskBarDragState?.taskId === task.id ? taskBarDragState : null;
+                const isMobileMoveArmed = mobileMoveTaskId === task.id;
 
                 return (
-                  <div key={task.id} className={`relative h-[72px] w-full flex items-center group px-2 ${isSelected ? 'z-20' : 'z-10'}`}>
+                  <div
+                    key={task.id}
+                    className={`relative h-[72px] w-full flex items-center group px-2 transition-[transform,background-color,box-shadow] ${
+                      isSelected ? 'z-20' : 'z-10'
+                    } ${taskDrag?.hasMoved ? 'bg-primary/[0.04] shadow-sm' : ''}`}
+                    style={{
+                      transform: taskDrag?.hasMoved ? `translateY(${taskDrag.deltaY}px)` : undefined,
+                      zIndex: taskDrag?.hasMoved ? 45 : undefined,
+                    }}
+                  >
                     {isSelected && (
                       <div className="absolute inset-y-0 left-0 right-0 bg-primary/[0.03] pointer-events-none" />
                     )}
                     <div
+                      data-gantt-task-bar="true"
                       className={`absolute h-10 rounded-lg border flex items-center px-4 select-none ${
                         taskDrag?.hasMoved ? 'cursor-grabbing transition-[box-shadow,border-color,ring-color]' : 'cursor-grab transition-[transform,box-shadow,border-color,ring-color]'
+                      } ${
+                        isMobileMoveArmed ? 'ring-2 ring-primary/40 shadow-lg' : ''
                       } ${
                         isSelected 
                           ? `ring-4 ring-primary/30 border-primary shadow-lg scale-[1.02] z-30 ${getStatusColor(task.status).replace('border-slate-200', 'border-primary')}` 
@@ -822,11 +847,11 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                       style={{
                         left: `${left}px`,
                         width: `${displayWidth}px`,
-                        transform: taskDrag?.hasMoved ? `translate(${taskDrag.deltaX}px, ${taskDrag.deltaY}px)` : undefined,
+                        transform: taskDrag?.hasMoved ? `translateX(${taskDrag.deltaX}px)` : undefined,
                         userSelect: 'none',
                         WebkitUserSelect: 'none',
                         WebkitTouchCallout: 'none',
-                        touchAction: 'manipulation',
+                        touchAction: isMobileMoveArmed ? 'none' : 'manipulation',
                         zIndex: taskDrag?.hasMoved ? 45 : undefined,
                       }}
                       onClick={() => {
@@ -852,10 +877,15 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                         clearLongPressTimer();
                         if (taskBarDragState?.taskId === task.id && taskBarDragState.pointerId === e.pointerId) {
                           setTaskBarDragState(null);
+                          setMobileMoveTaskId(null);
                         }
                       }}
                       onPointerLeave={clearLongPressTimer}
                       onPointerDown={(e) => {
+                        if (e.pointerType === 'touch' && mobileMoveTaskId === task.id) {
+                          handleTaskBarPointerDown(e, task, index);
+                          return;
+                        }
                         if (e.pointerType !== 'mouse') {
                           clearLongPressTimer();
                           const { clientX, clientY, currentTarget } = e;
@@ -960,6 +990,19 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {isMobile && (
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                onClick={() => {
+                  setMobileMoveTaskId(contextMenu.taskId);
+                  setSelectedTaskId(contextMenu.taskId);
+                  setContextMenu(null);
+                }}
+              >
+                <span className="material-symbols-outlined text-[16px]">drag_pan</span>
+                {t('dashboard.moveTask', 'Move task')}
+              </button>
+            )}
             <button 
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
               onClick={() => {
