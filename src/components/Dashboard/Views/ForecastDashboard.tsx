@@ -101,7 +101,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
 
   return (
     <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar glass-panel bg-white/80 md:rounded-r-xl border md:border-y md:border-r border-slate-200/60 ${className}`}>
-      <div className="flex min-h-full flex-col gap-4 p-4 lg:p-5">
+      <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col gap-4 p-4 lg:p-5">
         <section className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
