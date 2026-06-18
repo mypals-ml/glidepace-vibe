@@ -41,6 +41,13 @@ export function BurndownChart({ className = '' }: { className?: string }) {
   const { filteredTasks } = useDashboard();
   const chartData = useMemo(() => buildBurndownChartData(filteredTasks), [filteredTasks]);
   const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
+  const yTicks = [
+    { label: formatDays(chartData.totalEstimateDays), y: CHART_TOP },
+    { label: formatDays(chartData.totalEstimateDays / 2), y: CHART_TOP + CHART_PLOT_HEIGHT * 0.5 },
+    { label: '0d', y: CHART_BOTTOM },
+  ];
+  const dateTickStep = Math.max(1, Math.ceil(coordinates.length / 8));
+  const dateTicks = coordinates.filter((_, index) => index % dateTickStep === 0);
   const actualPoints = coordinates.filter((point) => !point.future);
   const projectedPoints = coordinates.filter((point) => point.future);
   if (actualPoints.length && projectedPoints.length) {
@@ -94,11 +101,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
           </div>
           <div className="grid grid-cols-[3rem_minmax(0,1fr)] items-stretch gap-3">
             <div className="relative text-right text-[11px] font-bold text-slate-400">
-              {[
-                { label: formatDays(chartData.totalEstimateDays), y: CHART_TOP },
-                { label: formatDays(chartData.totalEstimateDays / 2), y: CHART_TOP + CHART_PLOT_HEIGHT * 0.5 },
-                { label: '0d', y: CHART_BOTTOM },
-              ].map((tick) => (
+              {yTicks.map((tick) => (
                 <span
                   key={tick.label}
                   className="absolute right-0 -translate-y-1/2"
@@ -113,6 +116,12 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                 <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} stroke="rgb(226 232 240)" strokeWidth="2" />
                 <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} stroke="rgb(226 232 240)" strokeWidth="2" strokeDasharray="8 8" />
                 <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} stroke="rgb(226 232 240)" strokeWidth="2" />
+                {yTicks.map((tick) => (
+                  <line key={`y-${tick.label}`} x1="-10" y1={tick.y} x2="0" y2={tick.y} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
+                ))}
+                {dateTicks.map((tick) => (
+                  <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
+                ))}
                 <path d={areaPath(actualPoints)} fill="rgba(79, 70, 229, 0.18)" />
                 <path d={areaPath(projectedPoints)} fill="rgba(148, 163, 184, 0.18)" />
                 <polyline points={pointList(actualPoints)} fill="none" stroke="var(--color-primary)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
@@ -123,9 +132,15 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                   </circle>
                 ))}
               </svg>
-              <div className="grid text-[11px] font-semibold text-slate-400" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(8, chartData.points.length))}, minmax(0, 1fr))` }}>
-                {chartData.points.filter((_, index) => index % Math.max(1, Math.ceil(chartData.points.length / 8)) === 0).map((point) => (
-                  <span key={point.date}>{dateFormatter.format(new Date(`${point.date}T00:00:00`))}</span>
+              <div className="relative h-5 text-[11px] font-semibold text-slate-400">
+                {dateTicks.map((tick) => (
+                  <span
+                    key={tick.date}
+                    className="absolute top-1 -translate-x-1/2"
+                    style={{ left: `${(tick.x / CHART_WIDTH) * 100}%` }}
+                  >
+                    {dateFormatter.format(new Date(`${tick.date}T00:00:00`))}
+                  </span>
                 ))}
               </div>
             </div>
