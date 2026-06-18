@@ -93,6 +93,7 @@ function DashboardLayout() {
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
   const shouldRenderTaskDetails = isTaskDetailsOpen && (isCreateMode || selectedTask !== null);
+  const shouldShowTaskSidebar = !isChartVisible || (isDesktop && dashboardView !== 'gantt');
   const { setIsChartVisible } = useDashboard();
 
 
@@ -121,22 +122,24 @@ function DashboardLayout() {
             {/* Sidebar: Issues List */}
             <aside
               ref={panelRef as React.RefObject<HTMLElement>}
-              className={`flex-shrink-0 lg:glass-panel md:rounded-l-xl flex flex-col z-10 h-full overflow-hidden bg-white/80 shadow-sm border-r md:border-y md:border-l border-slate-200/60 ${!isResizing ? 'transition-[width] duration-300' : ''} ${isChartVisible ? 'hidden md:flex' : 'flex w-full md:w-auto'
+              className={`flex-shrink-0 lg:glass-panel md:rounded-l-xl flex-col z-10 h-full overflow-hidden bg-white/80 shadow-sm border-r md:border-y md:border-l border-slate-200/60 ${!isResizing ? 'transition-[width] duration-300' : ''} ${shouldShowTaskSidebar ? 'flex w-full md:w-auto' : 'hidden'
                 }`}
-              style={{ width: isDesktop ? `${sidebarWidth}px` : (isChartVisible ? '0' : '100%') }}
+              style={{ width: isDesktop && shouldShowTaskSidebar ? `${sidebarWidth}px` : (!isChartVisible ? '100%' : '0') }}
               aria-label={t('dashboard.issuesList')}
             >
               <TaskSidebar scrollRef={sidebarRef} onScroll={onSidebarScroll} />
             </aside>
 
             {/* Resizer Handle (Left) */}
-            <div
-              className="w-1 hover:bg-slate-300/50 cursor-col-resize z-20 transition-colors -mx-0.5 hidden md:flex items-center justify-center group"
-              onMouseDown={onMouseDown}
-              title="Drag to resize"
-            >
-              <div className="w-0.5 h-8 bg-slate-200 group-hover:bg-slate-400 rounded-full transition-colors"></div>
-            </div>
+            {shouldShowTaskSidebar && (
+              <div
+                className="w-1 hover:bg-slate-300/50 cursor-col-resize z-20 transition-colors -mx-0.5 hidden md:flex items-center justify-center group"
+                onMouseDown={onMouseDown}
+                title="Drag to resize"
+              >
+                <div className="w-0.5 h-8 bg-slate-200 group-hover:bg-slate-400 rounded-full transition-colors"></div>
+              </div>
+            )}
 
             {/* Main View Area */}
             <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative h-full ${isChartVisible ? 'flex' : 'hidden md:flex'}`}>
