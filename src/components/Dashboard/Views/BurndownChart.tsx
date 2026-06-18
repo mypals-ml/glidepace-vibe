@@ -108,16 +108,6 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                   <div className="text-[10px] font-semibold text-slate-500">{t('dashboard.burndownEstimatedCompletion', 'Estimated completion date')}</div>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary">
-                  <span className="h-2 w-2 rounded-full bg-primary"></span>
-                  {t('dashboard.burndownActual', 'Actual')}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-md bg-yellow-50 px-2 py-1 text-yellow-700">
-                  <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
-                  {t('dashboard.burndownProjected', 'Projected')}
-                </span>
-              </div>
             </div>
           </div>
           <div className="grid grid-cols-[2.25rem_minmax(0,1fr)] items-stretch gap-2">
@@ -163,6 +153,16 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                     {dateFormatter.format(new Date(`${tick.date}T00:00:00`))}
                   </span>
                 ))}
+              </div>
+              <div className="mt-2 flex flex-wrap justify-end gap-2 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary">
+                  <span className="h-2 w-2 rounded-full bg-primary"></span>
+                  {t('dashboard.burndownActual', 'Actual')}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-yellow-50 px-2 py-1 text-yellow-700">
+                  <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
+                  {t('dashboard.burndownProjected', 'Projected')}
+                </span>
               </div>
             </div>
           </div>
