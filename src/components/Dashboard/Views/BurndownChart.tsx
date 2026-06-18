@@ -65,6 +65,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
   const completionDate = dateFormatter.format(new Date(`${chartData.completionDate}T00:00:00`));
   const maxWorkerLoad = Math.max(1, ...chartData.workerLoads.flatMap((worker) => worker.days.map((day) => day.loadDays)));
   const totalEstimate = Math.max(1, chartData.totalEstimateDays);
+  const projectedColor = getStatusChartColor('In progress');
   const assumptionStartDate = chartData.points[0]?.date ? dateFormatter.format(new Date(`${chartData.points[0].date}T00:00:00`)) : '-';
   const assumptionWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees)).size;
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
@@ -109,8 +110,8 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                 <span className="h-2 w-2 rounded-full bg-primary"></span>
                 {t('dashboard.burndownActual', 'Actual')}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-slate-600">
-                <span className="h-2 w-2 rounded-full bg-slate-400"></span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-yellow-50 px-2 py-1 text-yellow-700">
+                <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
                 {t('dashboard.burndownProjected', 'Projected')}
               </span>
             </div>
@@ -139,11 +140,11 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                   <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
                 ))}
                 <path d={areaPath(actualPoints)} fill="rgba(79, 70, 229, 0.18)" />
-                <path d={areaPath(projectedPoints)} fill="rgba(148, 163, 184, 0.18)" />
+                <path d={areaPath(projectedPoints)} fill="rgba(234, 179, 8, 0.18)" />
                 <polyline points={pointList(actualPoints)} fill="none" stroke="var(--color-primary)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-                <polyline points={pointList(projectedPoints)} fill="none" stroke="rgb(100 116 139)" strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points={pointList(projectedPoints)} fill="none" stroke={projectedColor} strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
                 {coordinates.map((point) => (
-                  <circle key={point.date} cx={point.x} cy={point.y} r="5" fill={point.future ? 'rgb(100 116 139)' : 'var(--color-primary)'} stroke="white" strokeWidth="3">
+                  <circle key={point.date} cx={point.x} cy={point.y} r="5" fill={point.future ? projectedColor : 'var(--color-primary)'} stroke="white" strokeWidth="3">
                     <title>{`${point.date}: ${formatDays(point.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
                   </circle>
                 ))}
