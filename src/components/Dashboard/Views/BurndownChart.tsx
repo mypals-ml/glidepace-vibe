@@ -90,8 +90,8 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               </span>
             </div>
           </div>
-          <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-3">
-            <div className="relative h-64 text-right text-[11px] font-bold text-slate-400">
+          <div className="grid grid-cols-[3rem_minmax(0,1fr)] items-stretch gap-3">
+            <div className="relative text-right text-[11px] font-bold text-slate-400">
               {[
                 { label: formatDays(chartData.totalEstimateDays), y: CHART_TOP },
                 { label: formatDays(chartData.totalEstimateDays / 2), y: CHART_TOP + CHART_PLOT_HEIGHT * 0.5 },
@@ -107,7 +107,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               ))}
             </div>
             <div className="min-w-0">
-              <svg className="h-64 w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
+              <svg className="aspect-[1000/220] w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
                 <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} stroke="rgb(226 232 240)" strokeWidth="2" />
                 <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} stroke="rgb(226 232 240)" strokeWidth="2" strokeDasharray="8 8" />
                 <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} stroke="rgb(226 232 240)" strokeWidth="2" />
