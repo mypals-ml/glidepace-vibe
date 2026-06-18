@@ -37,6 +37,13 @@ function areaPath(points: Array<BurndownPoint & { x: number; y: number }>) {
   return `${line} L ${last.x.toFixed(1)} ${CHART_BOTTOM} L ${first.x.toFixed(1)} ${CHART_BOTTOM} Z`;
 }
 
+function dateTickCoordinates(points: Array<BurndownPoint & { x: number; y: number }>) {
+  const step = Math.max(1, Math.ceil(points.length / 8));
+  const ticks = points.filter((_, index) => index % step === 0);
+  const last = points[points.length - 1];
+  return last && !ticks.some((tick) => tick.date === last.date) ? [...ticks, last] : ticks;
+}
+
 export function BurndownChart({ className = '' }: { className?: string }) {
   const { t, i18n } = useTranslation();
   const { filteredTasks } = useDashboard();
@@ -47,8 +54,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
     { label: formatDays(chartData.totalEstimateDays / 2), y: CHART_TOP + CHART_PLOT_HEIGHT * 0.5 },
     { label: '0d', y: CHART_BOTTOM },
   ];
-  const dateTickStep = Math.max(1, Math.ceil(coordinates.length / 8));
-  const dateTicks = coordinates.filter((_, index) => index % dateTickStep === 0);
+  const dateTicks = dateTickCoordinates(coordinates);
   const actualPoints = coordinates.filter((point) => !point.future);
   const projectedPoints = coordinates.filter((point) => point.future);
   if (actualPoints.length && projectedPoints.length) {
