@@ -52,6 +52,10 @@ describe('burndown chart calculations', () => {
     expect(data.remainingDays).toBe(3);
     expect(data.completionDate).toBe('2026-06-05');
     expect(data.statusTotals).toEqual({ done: 2, inFlight: 0, todo: 3 });
+    expect(data.statusBreakdown).toEqual([
+      { status: 'Todo', statusKey: 'todo', days: 3 },
+      { status: 'Done', statusKey: 'done', days: 2 },
+    ]);
     expect(data.points.find((point) => point.date === '2026-06-02')?.remainingDays).toBe(3);
     expect(data.points.find((point) => point.date === '2026-06-05')?.remainingDays).toBe(0);
   });

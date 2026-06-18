@@ -6,6 +6,7 @@ export interface BurndownTaskPoint {
   id: string;
   displayId: string;
   title: string;
+  status: string;
   statusKey: BurndownStatusKey;
   estimateDays: number;
   startDate: string;
@@ -32,12 +33,19 @@ export interface BurndownWorkerLoad {
   days: BurndownWorkerDay[];
 }
 
+export interface BurndownStatusTotal {
+  status: string;
+  statusKey: BurndownStatusKey;
+  days: number;
+}
+
 export interface BurndownChartData {
   taskCount: number;
   totalEstimateDays: number;
   remainingDays: number;
   completionDate: string;
   statusTotals: Record<BurndownStatusKey, number>;
+  statusBreakdown: BurndownStatusTotal[];
   points: BurndownPoint[];
   workerLoads: BurndownWorkerLoad[];
   tasks: BurndownTaskPoint[];
@@ -133,6 +141,7 @@ export function buildBurndownChartData(tasks: Task[], today = new Date()): Burnd
       id: task.id,
       displayId: task.displayId,
       title: task.title,
+      status: task.status || 'Todo',
       statusKey,
       estimateDays: getTaskEstimateDays(task),
       startDate,
@@ -148,6 +157,12 @@ export function buildBurndownChartData(tasks: Task[], today = new Date()): Burnd
     return totals;
   }, { done: 0, inFlight: 0, todo: 0 });
   const remainingDays = statusTotals.inFlight + statusTotals.todo;
+  const statusBreakdown = [...chartTasks.reduce<Map<string, BurndownStatusTotal>>((totals, task) => {
+    const existing = totals.get(task.status) || { status: task.status, statusKey: task.statusKey, days: 0 };
+    existing.days += task.estimateDays;
+    totals.set(task.status, existing);
+    return totals;
+  }, new Map()).values()].sort((left, right) => right.days - left.days || left.status.localeCompare(right.status));
 
   const dateValues = chartTasks.flatMap((task) => [task.startDate, task.targetDate, task.doneDate].filter(Boolean) as string[]);
   const fallbackStart = todayIso;
@@ -204,6 +219,7 @@ export function buildBurndownChartData(tasks: Task[], today = new Date()): Burnd
     remainingDays,
     completionDate,
     statusTotals,
+    statusBreakdown,
     points,
     workerLoads,
     tasks: chartTasks,

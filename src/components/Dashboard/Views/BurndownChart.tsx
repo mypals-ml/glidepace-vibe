@@ -9,6 +9,15 @@ const CHART_HEIGHT = 220;
 const CHART_TOP = 14;
 const CHART_BOTTOM = 198;
 const CHART_PLOT_HEIGHT = CHART_BOTTOM - CHART_TOP;
+const STATUS_SEGMENT_COLORS = [
+  'var(--color-status-done-highlight)',
+  'var(--color-primary)',
+  'rgb(14 165 233)',
+  'rgb(245 158 11)',
+  'rgb(16 185 129)',
+  'rgb(244 63 94)',
+  'rgb(148 163 184)',
+];
 
 function formatDays(value: number) {
   return `${value.toFixed(value % 1 === 0 ? 0 : 1)}d`;
@@ -61,11 +70,20 @@ export function BurndownChart({ className = '' }: { className?: string }) {
   const assumptionStartDate = chartData.points[0]?.date ? dateFormatter.format(new Date(`${chartData.points[0].date}T00:00:00`)) : '-';
   const assumptionWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees)).size;
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
-  const inFlightPercent = Math.round((chartData.statusTotals.inFlight / totalEstimate) * 100);
-  const doneDegrees = Math.round((chartData.statusTotals.done / totalEstimate) * 360);
-  const inFlightDegrees = Math.round((chartData.statusTotals.inFlight / totalEstimate) * 360);
+  const statusSegments = chartData.statusBreakdown.map((status, index) => ({
+    ...status,
+    color: STATUS_SEGMENT_COLORS[index % STATUS_SEGMENT_COLORS.length],
+    percent: Math.round((status.days / totalEstimate) * 100),
+  }));
+  const conicStops = statusSegments.reduce<{ stops: string[]; start: number }>((acc, segment) => {
+    const segmentEnd = acc.start + (segment.days / totalEstimate) * 360;
+    return {
+      stops: [...acc.stops, `${segment.color} ${acc.start}deg ${segmentEnd}deg`],
+      start: segmentEnd,
+    };
+  }, { stops: [], start: 0 }).stops;
   const donutStyle = {
-    background: `conic-gradient(var(--color-status-done-highlight) 0deg ${doneDegrees}deg, var(--color-primary) ${doneDegrees}deg ${doneDegrees + inFlightDegrees}deg, var(--color-status-todo-highlight) ${doneDegrees + inFlightDegrees}deg 360deg)`,
+    background: conicStops.length ? `conic-gradient(${conicStops.join(', ')})` : 'rgb(226 232 240)',
   };
 
   return (
@@ -161,9 +179,14 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                 </div>
               </div>
               <ul className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
-                <LegendItem label={t('dashboard.burndownDone', 'Done')} value={`${donePercent}% / ${formatDays(chartData.statusTotals.done)}`} className="bg-status-done-highlight" />
-                <LegendItem label={t('dashboard.burndownInFlight', 'In progress or review')} value={`${inFlightPercent}% / ${formatDays(chartData.statusTotals.inFlight)}`} className="bg-primary" />
-                <LegendItem label={t('dashboard.burndownTodo', 'Todo')} value={`${Math.max(0, 100 - donePercent - inFlightPercent)}% / ${formatDays(chartData.statusTotals.todo)}`} className="bg-status-todo-highlight" />
+                {statusSegments.map((status) => (
+                  <LegendItem
+                    key={status.status}
+                    label={status.status}
+                    value={`${status.percent}% / ${formatDays(status.days)}`}
+                    color={status.color}
+                  />
+                ))}
               </ul>
             </div>
           </div>
@@ -217,11 +240,11 @@ function AssumptionItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LegendItem({ label, value, className }: { label: string; value: string; className: string }) {
+function LegendItem({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <li className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
       <span className="inline-flex min-w-0 items-center gap-2 font-semibold text-slate-600">
-        <span className={`h-2.5 w-2.5 rounded-full ${className}`}></span>
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }}></span>
         <span className="truncate">{label}</span>
       </span>
       <b className="shrink-0 text-slate-900">{value}</b>
