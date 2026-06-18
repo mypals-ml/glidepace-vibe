@@ -62,7 +62,8 @@ export function BurndownChart({ className = '' }: { className?: string }) {
   }
 
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: 'numeric', day: 'numeric' }), [i18n.language]);
-  const completionDate = dateFormatter.format(new Date(`${chartData.completionDate}T00:00:00`));
+  const completionDateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: 'numeric', day: 'numeric' }), [i18n.language]);
+  const completionDate = completionDateFormatter.format(new Date(`${chartData.completionDate}T00:00:00`));
   const maxWorkerLoad = Math.max(1, ...chartData.workerLoads.flatMap((worker) => worker.days.map((day) => day.loadDays)));
   const totalEstimate = Math.max(1, chartData.totalEstimateDays);
   const projectedColor = getStatusChartColor('In progress');
