@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { buildBurndownChartData, type BurndownPoint } from '../../../lib/burndownChartUtils';
-import { getStatusChartColor, getStatusColor, getStatusDotColor } from '../../../utils/statusColors';
+import { getStatusChartColor, getStatusColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
 import { BurndownIcon } from './BurndownIcon';
 
 const CHART_WIDTH = 1000;
@@ -71,6 +71,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
   const maxWorkerLoad = Math.max(1, ...chartData.workerLoads.flatMap((worker) => worker.days.map((day) => day.loadDays)));
   const totalEstimate = Math.max(1, chartData.totalEstimateDays);
   const projectedColor = getStatusChartColor('In progress');
+  const doneTextColor = getStatusTextColor('Done');
   const assumptionStartDate = chartData.points[0]?.date ? dateFormatter.format(new Date(`${chartData.points[0].date}T00:00:00`)) : '-';
   const assumptionWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees)).size;
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
@@ -176,7 +177,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               <div className="relative h-36 w-36 shrink-0 rounded-full" style={donutStyle}>
                 <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center">
                   <span className="text-2xl font-extrabold text-slate-900">{donePercent}%</span>
-                  <span className="text-[10px] font-bold uppercase text-slate-400">{t('dashboard.burndownDone', 'Done')}</span>
+                  <span className={`text-[10px] font-bold uppercase ${doneTextColor}`}>{t('dashboard.burndownDone', 'Done')}</span>
                 </div>
               </div>
               <ul className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
