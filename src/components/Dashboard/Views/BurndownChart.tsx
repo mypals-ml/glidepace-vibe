@@ -110,8 +110,8 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-[2.25rem_minmax(0,1fr)] items-stretch gap-2">
-            <div className="relative text-right text-[11px] font-normal text-slate-400">
+          <div className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-2">
+            <div className="relative row-start-1 text-right text-[11px] font-normal text-slate-400">
               {yTicks.map((tick) => (
                 <span
                   key={tick.label}
@@ -122,48 +122,46 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                 </span>
               ))}
             </div>
-            <div className="min-w-0">
-              <svg className="aspect-[1000/220] w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
-                <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} stroke="rgb(226 232 240)" strokeWidth="2" />
-                <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} stroke="rgb(226 232 240)" strokeWidth="2" strokeDasharray="8 8" />
-                <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} stroke="rgb(226 232 240)" strokeWidth="2" />
-                {yTicks.map((tick) => (
-                  <line key={`y-${tick.label}`} x1="-10" y1={tick.y} x2="0" y2={tick.y} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
-                ))}
-                {dateTicks.map((tick) => (
-                  <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
-                ))}
-                <path d={areaPath(actualPoints)} fill="rgba(79, 70, 229, 0.18)" />
-                <path d={areaPath(projectedPoints)} fill="rgba(234, 179, 8, 0.18)" />
-                <polyline points={pointList(actualPoints)} fill="none" stroke="var(--color-primary)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-                <polyline points={pointList(projectedPoints)} fill="none" stroke={projectedColor} strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
-                {coordinates.map((point) => (
-                  <circle key={point.date} cx={point.x} cy={point.y} r="5" fill={point.future ? projectedColor : 'var(--color-primary)'} stroke="white" strokeWidth="3">
-                    <title>{`${point.date}: ${formatDays(point.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
-                  </circle>
-                ))}
-              </svg>
-              <div className="relative h-5 text-[11px] font-semibold text-slate-400">
-                {dateTicks.map((tick) => (
-                  <span
-                    key={tick.date}
-                    className={`absolute top-1 -translate-x-1/2 ${tick.showLabel ? '' : 'sr-only'}`}
-                    style={{ left: `${(tick.x / CHART_WIDTH) * 100}%` }}
-                  >
-                    {dateFormatter.format(new Date(`${tick.date}T00:00:00`))}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-2 flex flex-wrap justify-end gap-2 text-xs font-semibold">
-                <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary">
-                  <span className="h-2 w-2 rounded-full bg-primary"></span>
-                  {t('dashboard.burndownActual', 'Actual')}
+            <svg className="col-start-2 row-start-1 aspect-[1000/220] w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
+              <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} stroke="rgb(226 232 240)" strokeWidth="2" />
+              <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} stroke="rgb(226 232 240)" strokeWidth="2" strokeDasharray="8 8" />
+              <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} stroke="rgb(226 232 240)" strokeWidth="2" />
+              {yTicks.map((tick) => (
+                <line key={`y-${tick.label}`} x1="-10" y1={tick.y} x2="0" y2={tick.y} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
+              ))}
+              {dateTicks.map((tick) => (
+                <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
+              ))}
+              <path d={areaPath(actualPoints)} fill="rgba(79, 70, 229, 0.18)" />
+              <path d={areaPath(projectedPoints)} fill="rgba(234, 179, 8, 0.18)" />
+              <polyline points={pointList(actualPoints)} fill="none" stroke="var(--color-primary)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points={pointList(projectedPoints)} fill="none" stroke={projectedColor} strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
+              {coordinates.map((point) => (
+                <circle key={point.date} cx={point.x} cy={point.y} r="5" fill={point.future ? projectedColor : 'var(--color-primary)'} stroke="white" strokeWidth="3">
+                  <title>{`${point.date}: ${formatDays(point.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
+                </circle>
+              ))}
+            </svg>
+            <div className="relative col-start-2 row-start-2 h-5 text-[11px] font-semibold text-slate-400">
+              {dateTicks.map((tick) => (
+                <span
+                  key={tick.date}
+                  className={`absolute top-1 -translate-x-1/2 ${tick.showLabel ? '' : 'sr-only'}`}
+                  style={{ left: `${(tick.x / CHART_WIDTH) * 100}%` }}
+                >
+                  {dateFormatter.format(new Date(`${tick.date}T00:00:00`))}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-md bg-yellow-50 px-2 py-1 text-yellow-700">
-                  <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
-                  {t('dashboard.burndownProjected', 'Projected')}
-                </span>
-              </div>
+              ))}
+            </div>
+            <div className="col-start-2 row-start-3 mt-2 flex flex-wrap justify-end gap-2 text-xs font-semibold">
+              <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary">
+                <span className="h-2 w-2 rounded-full bg-primary"></span>
+                {t('dashboard.burndownActual', 'Actual')}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-yellow-50 px-2 py-1 text-yellow-700">
+                <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
+                {t('dashboard.burndownProjected', 'Projected')}
+              </span>
             </div>
           </div>
         </section>
