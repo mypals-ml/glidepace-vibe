@@ -32,17 +32,6 @@ export function DashboardViewSwitcher() {
 
   return (
     <div className="flex p-1 bg-slate-100/80 backdrop-blur-sm rounded-lg border border-slate-200/60 shadow-sm self-center">
-      {/* List View - Only visible on mobile/tablet */}
-      <button
-        onClick={() => handleSwitch('list')}
-        className={`${baseBtnClass} md:hidden ${
-          currentTab === 'list' ? activeBtnClass : inactiveBtnClass
-        }`}
-        title={t('dashboard.viewList', 'List')}
-      >
-        <span className="material-symbols-outlined text-[18px]">format_list_bulleted</span>
-      </button>
-
       {/* Forecast View */}
       <button
         onClick={() => handleSwitch('burndown')}
@@ -52,6 +41,17 @@ export function DashboardViewSwitcher() {
         title={t('dashboard.viewBurndown', 'Forecast')}
       >
         <BurndownIcon size={18} />
+      </button>
+
+      {/* List View - Only visible on mobile/tablet */}
+      <button
+        onClick={() => handleSwitch('list')}
+        className={`${baseBtnClass} md:hidden ${
+          currentTab === 'list' ? activeBtnClass : inactiveBtnClass
+        }`}
+        title={t('dashboard.viewList', 'List')}
+      >
+        <span className="material-symbols-outlined text-[18px]">format_list_bulleted</span>
       </button>
 
       {/* Timeline View */}
