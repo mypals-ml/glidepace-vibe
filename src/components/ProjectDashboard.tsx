@@ -93,18 +93,18 @@ function DashboardLayout() {
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
   const shouldRenderTaskDetails = isTaskDetailsOpen && (isCreateMode || selectedTask !== null);
-  const { setIsChartVisible } = useDashboard();
+  const { setIsChartVisible, setDashboardView } = useDashboard();
 
 
-  // Ensure charts are considered "visible" on desktop to sync state with layout
+  // Keep the default view aligned with the available layout for each viewport.
   useEffect(() => {
     if (isDesktop) {
       setIsChartVisible(true);
     } else {
-      // When narrowing to mobile mode, default to the task list view
-      setIsChartVisible(false);
+      setIsChartVisible(true);
+      setDashboardView('gantt');
     }
-  }, [isDesktop, setIsChartVisible]);
+  }, [isDesktop, setDashboardView, setIsChartVisible]);
 
   return (
     <div className="bg-background-main text-slate-800 font-sans h-full flex flex-col overflow-hidden relative">

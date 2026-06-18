@@ -41,7 +41,11 @@ function dateTickCoordinates(points: Array<BurndownPoint & { x: number; y: numbe
   const step = Math.max(1, Math.ceil(points.length / 8));
   const ticks = points.filter((_, index) => index % step === 0);
   const last = points[points.length - 1];
-  return last && !ticks.some((tick) => tick.date === last.date) ? [...ticks, last] : ticks;
+  const dateTicks = last && !ticks.some((tick) => tick.date === last.date) ? [...ticks, last] : ticks;
+  return dateTicks.map((tick, index) => ({
+    ...tick,
+    showLabel: !(last && index === dateTicks.length - 2 && points.indexOf(last) - points.indexOf(tick) < step),
+  }));
 }
 
 export function BurndownChart({ className = '' }: { className?: string }) {
@@ -153,7 +157,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                 {dateTicks.map((tick) => (
                   <span
                     key={tick.date}
-                    className="absolute top-1 -translate-x-1/2"
+                    className={`absolute top-1 -translate-x-1/2 ${tick.showLabel ? '' : 'sr-only'}`}
                     style={{ left: `${(tick.x / CHART_WIDTH) * 100}%` }}
                   >
                     {dateFormatter.format(new Date(`${tick.date}T00:00:00`))}
