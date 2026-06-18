@@ -62,7 +62,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
   return (
     <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar glass-panel bg-white/80 md:rounded-r-xl border md:border-y md:border-r border-slate-200/60 ${className}`}>
       <div className="flex min-h-full flex-col gap-4 p-4 lg:p-5">
-        <section className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(220px,1fr)_repeat(2,minmax(120px,1fr))]" aria-label={t('dashboard.burndownSummary', 'Burndown summary')}>
+        <section className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(220px,1fr)_minmax(120px,1fr)]" aria-label={t('dashboard.burndownSummary', 'Burndown summary')}>
           <div className="rounded-lg border border-primary/15 bg-primary/5 p-4">
             <div className="mb-3 flex items-center gap-2 text-primary">
               <BurndownIcon size={22} />
@@ -72,7 +72,6 @@ export function BurndownChart({ className = '' }: { className?: string }) {
             <div className="mt-1 text-xs font-medium text-slate-500">{t('dashboard.burndownEstimatedCompletion', 'Estimated completion date')}</div>
           </div>
           <MetricCard label={t('dashboard.burndownRemainingEffort', 'Remaining effort')} value={formatDays(chartData.remainingDays)} />
-          <MetricCard label={t('dashboard.burndownTaskCount', 'Tasks tracked')} value={String(chartData.taskCount)} />
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
