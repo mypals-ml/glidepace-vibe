@@ -260,7 +260,7 @@ function LegendItem({ label, percent, days, color, dotClassName, badgeClassName 
         <span className={`h-2.5 w-2.5 rounded-full ${dotClassName}`} style={{ backgroundColor: color }}></span>
         <span className="truncate">{label}</span>
       </span>
-      <span className="flex flex-wrap gap-2 sm:justify-end">
+      <span className="flex flex-wrap gap-2 pl-[1.125rem] sm:justify-end sm:pl-0">
         <span className="rounded-md bg-white/70 px-2 py-0.5 text-xs font-extrabold text-slate-900 shadow-sm ring-1 ring-black/5">{percent}</span>
         <span className="rounded-md bg-white/70 px-2 py-0.5 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-black/5">{days}</span>
       </span>
