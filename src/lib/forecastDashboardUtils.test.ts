@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildBurndownChartData, getTaskEstimateDays } from './burndownChartUtils';
+import { buildForecastDashboardData, getTaskEstimateDays } from './forecastDashboardUtils';
 import type { Task } from '../types';
 
 const makeTask = (overrides: Partial<Task>): Task => ({
@@ -16,7 +16,7 @@ const makeTask = (overrides: Partial<Task>): Task => ({
   closedAt: overrides.closedAt,
 });
 
-describe('burndown chart calculations', () => {
+describe('forecast dashboard calculations', () => {
   it('normalizes estimate units into days', () => {
     expect(getTaskEstimateDays(makeTask({ estimate: 16, estimateUnit: 'hours' }))).toBe(2);
     expect(getTaskEstimateDays(makeTask({ estimate: 2, estimateUnit: 'weeks' }))).toBe(10);
@@ -31,7 +31,7 @@ describe('burndown chart calculations', () => {
   });
 
   it('builds actual and projected remaining points', () => {
-    const data = buildBurndownChartData([
+    const data = buildForecastDashboardData([
       makeTask({
         id: 'done',
         status: 'Done',
@@ -61,7 +61,7 @@ describe('burndown chart calculations', () => {
   });
 
   it('counts done effort on the task target date instead of the GitHub close date', () => {
-    const data = buildBurndownChartData([
+    const data = buildForecastDashboardData([
       makeTask({
         id: 'done-on-first-day',
         status: 'Done',
@@ -88,7 +88,7 @@ describe('burndown chart calculations', () => {
   });
 
   it('spreads open task effort across the next worker load dates', () => {
-    const data = buildBurndownChartData([
+    const data = buildForecastDashboardData([
       makeTask({
         id: 'assigned',
         status: 'In progress',

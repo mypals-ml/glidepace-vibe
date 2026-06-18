@@ -9,7 +9,7 @@ export function useDashboardUI() {
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [isChartVisible, setIsChartVisible] = useState(true);
-  const [dashboardView, setDashboardView] = useState<'gantt' | 'burndown'>('burndown');
+  const [dashboardView, setDashboardView] = useState<'gantt' | 'forecast'>('forecast');
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isLinkMode, setIsLinkMode] = useState(false);

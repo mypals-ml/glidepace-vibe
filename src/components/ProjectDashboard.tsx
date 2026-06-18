@@ -12,7 +12,7 @@ import { useResizablePanel } from '../hooks/useResizablePanel';
 import { Header } from './Header/Header';
 import { TaskSidebar } from './Dashboard/TaskSidebar';
 import { TimelineChart } from './Dashboard/Views/TimelineChart';
-import { BurndownChart } from './Dashboard/Views/BurndownChart';
+import { ForecastDashboard } from './Dashboard/Views/ForecastDashboard';
 import { EmptyState } from './Dashboard/EmptyState';
 import { useScrollSync } from '../hooks/useScrollSync';
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -102,7 +102,7 @@ function DashboardLayout() {
       setIsChartVisible(true);
     } else {
       setIsChartVisible(true);
-      setDashboardView('burndown');
+      setDashboardView('forecast');
     }
   }, [isDesktop, setDashboardView, setIsChartVisible]);
 
@@ -147,7 +147,7 @@ function DashboardLayout() {
                   onScroll={onTimelineScroll}
                 />
               ) : (
-                <BurndownChart
+                <ForecastDashboard
                   className="flex"
                 />
               )}

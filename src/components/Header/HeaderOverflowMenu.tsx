@@ -4,7 +4,7 @@ import { useDashboard } from '../../context/DashboardContext';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSortedLocales } from '../../hooks/useLocales';
 import { IconButton } from '../UI/IconButton';
-import { BurndownIcon } from '../Dashboard/Views/BurndownIcon';
+import { ForecastIcon } from '../Dashboard/Views/ForecastIcon';
 import { useOverflowMenu, useIsOverflowItemVisible } from '@fluentui/react-overflow';
 
 /**
@@ -65,7 +65,7 @@ export function HeaderOverflowMenu() {
     setIsOpen(false);
   };
 
-  const handleSwitch = (view: 'list' | 'gantt' | 'burndown') => {
+  const handleSwitch = (view: 'list' | 'gantt' | 'forecast') => {
     if (view === 'list') {
       setIsChartVisible(false);
     } else {
@@ -123,14 +123,14 @@ export function HeaderOverflowMenu() {
                     {currentTab === 'gantt' && <span className="material-symbols-outlined text-sm">check</span>}
                   </button>
                   <button
-                    onClick={() => handleSwitch('burndown')}
-                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentTab === 'burndown' ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50'}`}
+                    onClick={() => handleSwitch('forecast')}
+                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${currentTab === 'forecast' ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <BurndownIcon size={20} />
-                      <span>{t('dashboard.viewBurndown', 'Burndown')}</span>
+                      <ForecastIcon size={20} />
+                      <span>{t('dashboard.viewForecast', 'Forecast')}</span>
                     </div>
-                    {currentTab === 'burndown' && <span className="material-symbols-outlined text-sm">check</span>}
+                    {currentTab === 'forecast' && <span className="material-symbols-outlined text-sm">check</span>}
                   </button>
                 </div>
                 {(!isSettingsVisible || !isSyncVisible || !isAccountVisible || !isLanguageVisible || !isProjectSelectorVisible) && <div className="h-px bg-slate-100 my-1 mx-2" />}

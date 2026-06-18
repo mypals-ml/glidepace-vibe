@@ -2,9 +2,9 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
-import { buildBurndownChartData, type BurndownPoint } from '../../../lib/burndownChartUtils';
+import { buildForecastDashboardData, type ForecastPoint } from '../../../lib/forecastDashboardUtils';
 import { getStatusChartColor, getStatusColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
-import { BurndownIcon } from './BurndownIcon';
+import { ForecastIcon } from './ForecastIcon';
 
 const CHART_WIDTH = 1000;
 const CHART_HEIGHT = 220;
@@ -16,7 +16,7 @@ function formatDays(value: number) {
   return `${value.toFixed(value % 1 === 0 ? 0 : 1)}d`;
 }
 
-function pointCoordinates(points: BurndownPoint[], totalEstimateDays: number) {
+function pointCoordinates(points: ForecastPoint[], totalEstimateDays: number) {
   const denominator = Math.max(1, totalEstimateDays);
   const lastIndex = Math.max(1, points.length - 1);
   return points.map((point, index) => ({
@@ -26,11 +26,11 @@ function pointCoordinates(points: BurndownPoint[], totalEstimateDays: number) {
   }));
 }
 
-function pointList(points: Array<BurndownPoint & { x: number; y: number }>) {
+function pointList(points: Array<ForecastPoint & { x: number; y: number }>) {
   return points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ');
 }
 
-function areaPath(points: Array<BurndownPoint & { x: number; y: number }>) {
+function areaPath(points: Array<ForecastPoint & { x: number; y: number }>) {
   if (points.length < 2) return '';
   const line = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
   const first = points[0];
@@ -38,7 +38,7 @@ function areaPath(points: Array<BurndownPoint & { x: number; y: number }>) {
   return `${line} L ${last.x.toFixed(1)} ${CHART_BOTTOM} L ${first.x.toFixed(1)} ${CHART_BOTTOM} Z`;
 }
 
-function dateTickCoordinates(points: Array<BurndownPoint & { x: number; y: number }>) {
+function dateTickCoordinates(points: Array<ForecastPoint & { x: number; y: number }>) {
   const step = Math.max(1, Math.ceil(points.length / 8));
   const ticks = points.filter((_, index) => index % step === 0);
   const last = points[points.length - 1];
@@ -53,12 +53,12 @@ function shouldShowWorkerDateLabel(index: number, total: number, step: number) {
   return index === 0 || index === total - 1 || index % step === 0;
 }
 
-export function BurndownChart({ className = '' }: { className?: string }) {
+export function ForecastDashboard({ className = '' }: { className?: string }) {
   const { t, i18n } = useTranslation();
   const { filteredTasks, isLoadingTasks } = useDashboard();
   const isCompactWorkerLabels = useMediaQuery('(max-width: 639px)');
   const isNarrowWorkerLabels = useMediaQuery('(max-width: 1023px)');
-  const chartData = useMemo(() => buildBurndownChartData(filteredTasks), [filteredTasks]);
+  const chartData = useMemo(() => buildForecastDashboardData(filteredTasks), [filteredTasks]);
   const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
   const yTicks = [
     { label: formatDays(chartData.totalEstimateDays), y: CHART_TOP },
@@ -110,7 +110,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
               <div className="flex min-w-0 items-center gap-2 rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-primary">
-                <BurndownIcon size={18} />
+                <ForecastIcon size={18} />
                 <div className="min-w-0">
                   <div className="text-[10px] font-bold uppercase tracking-wide">{t('dashboard.burndownForecast', 'Estimated completion data')}</div>
                   <div className="truncate text-lg font-extrabold text-slate-900">{completionDate}</div>
@@ -120,7 +120,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
             </div>
           </div>
           {isLoadingTasks ? (
-            <BurndownSectionLoader variant="chart" label={t('dashboard.loadingTasks')} />
+            <ForecastDashboardSectionLoader variant="chart" label={t('dashboard.loadingTasks')} />
           ) : (
             <div className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-2">
               <div className="relative row-start-1 text-right text-[11px] font-normal text-slate-400">
@@ -186,7 +186,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownStatusDaysHint', 'Task duration by status today')}</p>
             </div>
             {isLoadingTasks ? (
-              <BurndownSectionLoader variant="status" label={t('dashboard.loadingTasks')} />
+              <ForecastDashboardSectionLoader variant="status" label={t('dashboard.loadingTasks')} />
             ) : (
               <div className="flex items-center gap-5">
                 <div className="relative h-36 w-36 shrink-0 rounded-full" style={donutStyle}>
@@ -218,7 +218,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownDailyWorkload', 'Daily workload')}</p>
             </div>
             {isLoadingTasks ? (
-              <BurndownSectionLoader variant="workers" label={t('dashboard.loadingTasks')} />
+              <ForecastDashboardSectionLoader variant="workers" label={t('dashboard.loadingTasks')} />
             ) : (
               <div className="space-y-3">
                 {chartData.workerLoads.length ? chartData.workerLoads.map((worker) => (
@@ -257,7 +257,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
             <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownForecastInputs', 'Forecast inputs')}</p>
           </div>
           {isLoadingTasks ? (
-            <BurndownSectionLoader variant="assumptions" label={t('dashboard.loadingTasks')} />
+            <ForecastDashboardSectionLoader variant="assumptions" label={t('dashboard.loadingTasks')} />
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <AssumptionItem label={t('dashboard.burndownAssumptionStartDate', 'Start date')} value={assumptionStartDate} />
@@ -271,7 +271,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
   );
 }
 
-function BurndownSectionLoader({ variant, label }: { variant: 'chart' | 'status' | 'workers' | 'assumptions'; label: string }) {
+function ForecastDashboardSectionLoader({ variant, label }: { variant: 'chart' | 'status' | 'workers' | 'assumptions'; label: string }) {
   return (
     <div className="w-full min-w-0 rounded-lg bg-slate-50/80 p-4 animate-pulse" role="status" aria-live="polite" aria-label={label}>
       {variant === 'chart' && (

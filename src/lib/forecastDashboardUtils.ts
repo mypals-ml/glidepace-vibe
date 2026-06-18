@@ -1,13 +1,13 @@
 import type { Task } from '../types';
 
-export type BurndownStatusKey = 'done' | 'inFlight' | 'todo';
+export type ForecastStatusKey = 'done' | 'inFlight' | 'todo';
 
-export interface BurndownTaskPoint {
+export interface ForecastTaskPoint {
   id: string;
   displayId: string;
   title: string;
   status: string;
-  statusKey: BurndownStatusKey;
+  statusKey: ForecastStatusKey;
   estimateDays: number;
   startDate: string;
   targetDate: string;
@@ -15,40 +15,40 @@ export interface BurndownTaskPoint {
   assignees: string[];
 }
 
-export interface BurndownPoint {
+export interface ForecastPoint {
   date: string;
   doneDays: number;
   remainingDays: number;
   future: boolean;
 }
 
-export interface BurndownWorkerDay {
+export interface ForecastWorkerDay {
   date: string;
   loadDays: number;
 }
 
-export interface BurndownWorkerLoad {
+export interface ForecastWorkerLoad {
   worker: string;
   totalDays: number;
-  days: BurndownWorkerDay[];
+  days: ForecastWorkerDay[];
 }
 
-export interface BurndownStatusTotal {
+export interface ForecastStatusTotal {
   status: string;
-  statusKey: BurndownStatusKey;
+  statusKey: ForecastStatusKey;
   days: number;
 }
 
-export interface BurndownChartData {
+export interface ForecastDashboardData {
   taskCount: number;
   totalEstimateDays: number;
   remainingDays: number;
   completionDate: string;
-  statusTotals: Record<BurndownStatusKey, number>;
-  statusBreakdown: BurndownStatusTotal[];
-  points: BurndownPoint[];
-  workerLoads: BurndownWorkerLoad[];
-  tasks: BurndownTaskPoint[];
+  statusTotals: Record<ForecastStatusKey, number>;
+  statusBreakdown: ForecastStatusTotal[];
+  points: ForecastPoint[];
+  workerLoads: ForecastWorkerLoad[];
+  tasks: ForecastTaskPoint[];
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -104,7 +104,7 @@ function minDate(values: string[]): string {
   return values.reduce((earliest, value) => value < earliest ? value : earliest, values[0]);
 }
 
-export function getBurndownStatusKey(task: Pick<Task, 'status' | 'progress'>): BurndownStatusKey {
+export function getForecastStatusKey(task: Pick<Task, 'status' | 'progress'>): ForecastStatusKey {
   const status = task.status.toLowerCase();
   if (status.includes('done') || status.includes('closed') || task.progress >= 100) {
     return 'done';
@@ -129,10 +129,10 @@ export function getTaskEstimateDays(task: Pick<Task, 'estimate' | 'estimateUnit'
   return diffCalendarDays(startDate, targetDate);
 }
 
-export function buildBurndownChartData(tasks: Task[], today = new Date()): BurndownChartData {
+export function buildForecastDashboardData(tasks: Task[], today = new Date()): ForecastDashboardData {
   const todayIso = toIsoDate(today);
-  const chartTasks: BurndownTaskPoint[] = tasks.map((task) => {
-    const statusKey = getBurndownStatusKey(task);
+  const chartTasks: ForecastTaskPoint[] = tasks.map((task) => {
+    const statusKey = getForecastStatusKey(task);
     const startDate = normalizeDate(task.tempStartDate || task.startDate, todayIso);
     const targetDate = normalizeDate(task.tempTargetDate || task.targetDate, startDate);
     const doneDate = statusKey === 'done' ? targetDate : undefined;
@@ -152,12 +152,12 @@ export function buildBurndownChartData(tasks: Task[], today = new Date()): Burnd
   });
 
   const totalEstimateDays = chartTasks.reduce((sum, task) => sum + task.estimateDays, 0);
-  const statusTotals = chartTasks.reduce<Record<BurndownStatusKey, number>>((totals, task) => {
+  const statusTotals = chartTasks.reduce<Record<ForecastStatusKey, number>>((totals, task) => {
     totals[task.statusKey] += task.estimateDays;
     return totals;
   }, { done: 0, inFlight: 0, todo: 0 });
   const remainingDays = statusTotals.inFlight + statusTotals.todo;
-  const statusBreakdown = [...chartTasks.reduce<Map<string, BurndownStatusTotal>>((totals, task) => {
+  const statusBreakdown = [...chartTasks.reduce<Map<string, ForecastStatusTotal>>((totals, task) => {
     const existing = totals.get(task.status) || { status: task.status, statusKey: task.statusKey, days: 0 };
     existing.days += task.estimateDays;
     totals.set(task.status, existing);

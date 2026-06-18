@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BurndownChart } from './BurndownChart';
+import { ForecastDashboard } from './ForecastDashboard';
 import type { Task } from '../../../types';
 
 let isCompactViewport = false;
@@ -42,7 +42,7 @@ vi.mock('../../../context/DashboardContext', () => ({
   useDashboard: () => dashboardState,
 }));
 
-describe('BurndownChart loading state', () => {
+describe('ForecastDashboard loading state', () => {
   beforeEach(() => {
     isCompactViewport = false;
     isNarrowViewport = false;
@@ -74,7 +74,7 @@ describe('BurndownChart loading state', () => {
       isLoadingTasks: true,
     };
 
-    render(<BurndownChart />);
+    render(<ForecastDashboard />);
 
     expect(screen.getAllByRole('status', { name: 'dashboard.loadingTasks' })).toHaveLength(4);
   });
@@ -83,7 +83,7 @@ describe('BurndownChart loading state', () => {
     isCompactViewport = true;
     isNarrowViewport = true;
 
-    const { container } = render(<BurndownChart />);
+    const { container } = render(<ForecastDashboard />);
 
     expect(container.querySelector('span[title="2026-06-19"]')).toBeTruthy();
     expect(container.querySelector('span[title="2026-06-20"]')).toBeNull();
