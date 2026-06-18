@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getStatusTextColor, registerStatuses } from './statusColors';
+import { getStatusChartColor, getStatusTextColor, registerStatuses } from './statusColors';
 
 describe('statusColors', () => {
   it('returns text color classes for well-known statuses', () => {
@@ -12,5 +12,6 @@ describe('statusColors', () => {
     registerStatuses([{ name: 'Ready for deploy', color: 'GREEN' }]);
 
     expect(getStatusTextColor('Ready for deploy')).toBe('text-green-600');
+    expect(getStatusChartColor('Ready for deploy')).toBe('#22c55e');
   });
 });

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { buildBurndownChartData, type BurndownPoint } from '../../../lib/burndownChartUtils';
+import { getStatusChartColor, getStatusColor, getStatusDotColor } from '../../../utils/statusColors';
 import { BurndownIcon } from './BurndownIcon';
 
 const CHART_WIDTH = 1000;
@@ -9,15 +10,6 @@ const CHART_HEIGHT = 220;
 const CHART_TOP = 14;
 const CHART_BOTTOM = 198;
 const CHART_PLOT_HEIGHT = CHART_BOTTOM - CHART_TOP;
-const STATUS_SEGMENT_COLORS = [
-  'var(--color-status-done-highlight)',
-  'var(--color-primary)',
-  'rgb(14 165 233)',
-  'rgb(245 158 11)',
-  'rgb(16 185 129)',
-  'rgb(244 63 94)',
-  'rgb(148 163 184)',
-];
 
 function formatDays(value: number) {
   return `${value.toFixed(value % 1 === 0 ? 0 : 1)}d`;
@@ -70,9 +62,9 @@ export function BurndownChart({ className = '' }: { className?: string }) {
   const assumptionStartDate = chartData.points[0]?.date ? dateFormatter.format(new Date(`${chartData.points[0].date}T00:00:00`)) : '-';
   const assumptionWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees)).size;
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
-  const statusSegments = chartData.statusBreakdown.map((status, index) => ({
+  const statusSegments = chartData.statusBreakdown.map((status) => ({
     ...status,
-    color: STATUS_SEGMENT_COLORS[index % STATUS_SEGMENT_COLORS.length],
+    color: getStatusChartColor(status.status),
     percent: Math.round((status.days / totalEstimate) * 100),
   }));
   const conicStops = statusSegments.reduce<{ stops: string[]; start: number }>((acc, segment) => {
@@ -185,6 +177,8 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                     label={status.status}
                     value={`${status.percent}% / ${formatDays(status.days)}`}
                     color={status.color}
+                    dotClassName={getStatusDotColor(status.status)}
+                    badgeClassName={getStatusColor(status.status)}
                   />
                 ))}
               </ul>
@@ -240,11 +234,11 @@ function AssumptionItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LegendItem({ label, value, color }: { label: string; value: string; color: string }) {
+function LegendItem({ label, value, color, dotClassName, badgeClassName }: { label: string; value: string; color: string; dotClassName: string; badgeClassName: string }) {
   return (
-    <li className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
+    <li className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${badgeClassName}`}>
       <span className="inline-flex min-w-0 items-center gap-2 font-semibold text-slate-600">
-        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }}></span>
+        <span className={`h-2.5 w-2.5 rounded-full ${dotClassName}`} style={{ backgroundColor: color }}></span>
         <span className="truncate">{label}</span>
       </span>
       <b className="shrink-0 text-slate-900">{value}</b>
