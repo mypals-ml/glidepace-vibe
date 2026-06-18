@@ -11,8 +11,6 @@ import {
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { Header } from './Header/Header';
 import { TaskSidebar } from './Dashboard/TaskSidebar';
-import { TimelineChart } from './Dashboard/Views/TimelineChart';
-import { ForecastDashboard } from './Dashboard/Views/ForecastDashboard';
 import { EmptyState } from './Dashboard/EmptyState';
 import { useScrollSync } from '../hooks/useScrollSync';
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -28,6 +26,8 @@ const PatAuthModal = lazy(() => import('./Modals/PatAuthModal').then(m => ({ def
 const TaskDetailsPanel = lazy(() => import('./Dashboard/TaskDetailsPanel').then(m => ({ default: m.TaskDetailsPanel })));
 const ProjectSettingsModal = lazy(() => import('./Modals/ProjectSettingsModal').then(m => ({ default: m.ProjectSettingsModal })));
 const AboutModal = lazy(() => import('./Modals/AboutModal').then(m => ({ default: m.AboutModal })));
+const TimelineChart = lazy(() => import('./Dashboard/Views/TimelineChart').then(m => ({ default: m.TimelineChart })));
+const ForecastDashboard = lazy(() => import('./Dashboard/Views/ForecastDashboard').then(m => ({ default: m.ForecastDashboard })));
 
 
 function DashboardLayout() {
@@ -140,17 +140,19 @@ function DashboardLayout() {
 
             {/* Main View Area */}
             <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative h-full ${isChartVisible ? 'flex' : 'hidden md:flex'}`}>
-              {dashboardView === 'gantt' ? (
-                <TimelineChart
-                  className="flex"
-                  scrollRef={timelineRef}
-                  onScroll={onTimelineScroll}
-                />
-              ) : (
-                <ForecastDashboard
-                  className="flex"
-                />
-              )}
+              <Suspense fallback={<DashboardViewLoading />}>
+                {dashboardView === 'gantt' ? (
+                  <TimelineChart
+                    className="flex"
+                    scrollRef={timelineRef}
+                    onScroll={onTimelineScroll}
+                  />
+                ) : (
+                  <ForecastDashboard
+                    className="flex"
+                  />
+                )}
+              </Suspense>
             </div>
 
             {/* Task Details Panel Section */}
@@ -213,6 +215,14 @@ function DashboardLayout() {
       <FloatingSequenceBuilder className="hidden md:flex" />
       <StartDateUpdatePromptModal />
 
+    </div>
+  );
+}
+
+function DashboardViewLoading() {
+  return (
+    <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-white/60">
+      <div className="h-10 w-10 rounded-full border-4 border-slate-200 border-t-primary animate-spin"></div>
     </div>
   );
 }
