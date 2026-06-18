@@ -273,15 +273,15 @@ export function BurndownChart({ className = '' }: { className?: string }) {
 
 function BurndownSectionLoader({ variant, label }: { variant: 'chart' | 'status' | 'workers' | 'assumptions'; label: string }) {
   return (
-    <div className="rounded-lg bg-slate-50/80 p-4 animate-pulse" role="status" aria-live="polite" aria-label={label}>
+    <div className="w-full min-w-0 rounded-lg bg-slate-50/80 p-4 animate-pulse" role="status" aria-live="polite" aria-label={label}>
       {variant === 'chart' && (
-        <div className="grid grid-cols-[2rem_minmax(0,1fr)] gap-2">
+        <div className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-2">
           <div className="space-y-8 py-2">
             <span className="block h-3 rounded bg-slate-200"></span>
             <span className="block h-3 rounded bg-slate-200"></span>
             <span className="block h-3 rounded bg-slate-200"></span>
           </div>
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             <span className="block h-20 rounded bg-slate-200"></span>
             <div className="grid grid-cols-6 gap-2">
               {Array.from({ length: 6 }).map((_, index) => (
@@ -292,9 +292,9 @@ function BurndownSectionLoader({ variant, label }: { variant: 'chart' | 'status'
         </div>
       )}
       {variant === 'status' && (
-        <div className="flex items-center gap-5">
+        <div className="flex w-full min-w-0 items-center gap-5">
           <span className="h-32 w-32 shrink-0 rounded-full bg-slate-200"></span>
-          <div className="flex-1 space-y-2">
+          <div className="min-w-0 flex-1 space-y-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <span key={index} className="block h-9 rounded-lg bg-slate-200"></span>
             ))}
@@ -302,11 +302,11 @@ function BurndownSectionLoader({ variant, label }: { variant: 'chart' | 'status'
         </div>
       )}
       {variant === 'workers' && (
-        <div className="space-y-3">
+        <div className="w-full min-w-0 space-y-3">
           {Array.from({ length: 2 }).map((_, rowIndex) => (
-            <div key={rowIndex} className="grid grid-cols-[5rem_minmax(0,1fr)] items-end gap-3">
+            <div key={rowIndex} className="grid w-full min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-end gap-3">
               <span className="h-3 rounded bg-slate-200"></span>
-              <div className="grid h-14 grid-cols-10 items-end gap-1">
+              <div className="grid h-14 min-w-0 grid-cols-10 items-end gap-1">
                 {Array.from({ length: 10 }).map((_, index) => (
                   <span key={index} className="rounded bg-slate-200" style={{ height: `${28 + ((index + rowIndex) % 5) * 14}%` }}></span>
                 ))}
@@ -316,7 +316,7 @@ function BurndownSectionLoader({ variant, label }: { variant: 'chart' | 'status'
         </div>
       )}
       {variant === 'assumptions' && (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-3 md:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="space-y-3 rounded-lg bg-white/70 px-3 py-3">
               <span className="block h-3 w-2/3 rounded bg-slate-200"></span>
