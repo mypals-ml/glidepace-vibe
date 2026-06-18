@@ -120,7 +120,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-[3rem_minmax(0,1fr)] items-stretch gap-3">
+          <div className="grid grid-cols-[2.25rem_minmax(0,1fr)] items-stretch gap-2">
             <div className="relative text-right text-[11px] font-bold text-slate-400">
               {yTicks.map((tick) => (
                 <span
