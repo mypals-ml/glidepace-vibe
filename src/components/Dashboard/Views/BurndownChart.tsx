@@ -50,7 +50,7 @@ function dateTickCoordinates(points: Array<BurndownPoint & { x: number; y: numbe
 
 export function BurndownChart({ className = '' }: { className?: string }) {
   const { t, i18n } = useTranslation();
-  const { filteredTasks } = useDashboard();
+  const { filteredTasks, isLoadingTasks } = useDashboard();
   const chartData = useMemo(() => buildBurndownChartData(filteredTasks), [filteredTasks]);
   const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
   const yTicks = [
@@ -111,60 +111,64 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-2">
-            <div className="relative row-start-1 text-right text-[11px] font-normal text-slate-400">
-              {yTicks.map((tick) => (
-                <span
-                  key={tick.label}
-                  className="absolute right-0 -translate-y-1/2"
-                  style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%` }}
-                >
-                  {tick.label}
+          {isLoadingTasks ? (
+            <BurndownSectionLoader variant="chart" label={t('dashboard.loadingTasks')} />
+          ) : (
+            <div className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-2">
+              <div className="relative row-start-1 text-right text-[11px] font-normal text-slate-400">
+                {yTicks.map((tick) => (
+                  <span
+                    key={tick.label}
+                    className="absolute right-0 -translate-y-1/2"
+                    style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%` }}
+                  >
+                    {tick.label}
+                  </span>
+                ))}
+              </div>
+              <svg className="col-start-2 row-start-1 aspect-[1000/220] w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
+                <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} stroke="rgb(226 232 240)" strokeWidth="2" />
+                <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} stroke="rgb(226 232 240)" strokeWidth="2" strokeDasharray="8 8" />
+                <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} stroke="rgb(226 232 240)" strokeWidth="2" />
+                {yTicks.map((tick) => (
+                  <line key={`y-${tick.label}`} x1="-10" y1={tick.y} x2="0" y2={tick.y} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
+                ))}
+                {dateTicks.map((tick) => (
+                  <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
+                ))}
+                <path d={areaPath(actualPoints)} fill="rgba(79, 70, 229, 0.18)" />
+                <path d={areaPath(projectedPoints)} fill="rgba(234, 179, 8, 0.18)" />
+                <polyline points={pointList(actualPoints)} fill="none" stroke="var(--color-primary)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points={pointList(projectedPoints)} fill="none" stroke={projectedColor} strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
+                {coordinates.map((point) => (
+                  <circle key={point.date} cx={point.x} cy={point.y} r="5" fill={point.future ? projectedColor : 'var(--color-primary)'} stroke="white" strokeWidth="3">
+                    <title>{`${point.date}: ${formatDays(point.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
+                  </circle>
+                ))}
+              </svg>
+              <div className="relative col-start-2 row-start-2 h-5 text-[11px] font-semibold text-slate-400">
+                {dateTicks.map((tick) => (
+                  <span
+                    key={tick.date}
+                    className={`absolute top-1 -translate-x-1/2 ${tick.showLabel ? '' : 'sr-only'}`}
+                    style={{ left: `${(tick.x / CHART_WIDTH) * 100}%` }}
+                  >
+                    {dateFormatter.format(new Date(`${tick.date}T00:00:00`))}
+                  </span>
+                ))}
+              </div>
+              <div className="col-start-2 row-start-3 mt-2 flex flex-wrap justify-end gap-2 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary">
+                  <span className="h-2 w-2 rounded-full bg-primary"></span>
+                  {t('dashboard.burndownActual', 'Actual')}
                 </span>
-              ))}
-            </div>
-            <svg className="col-start-2 row-start-1 aspect-[1000/220] w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
-              <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} stroke="rgb(226 232 240)" strokeWidth="2" />
-              <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} stroke="rgb(226 232 240)" strokeWidth="2" strokeDasharray="8 8" />
-              <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} stroke="rgb(226 232 240)" strokeWidth="2" />
-              {yTicks.map((tick) => (
-                <line key={`y-${tick.label}`} x1="-10" y1={tick.y} x2="0" y2={tick.y} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
-              ))}
-              {dateTicks.map((tick) => (
-                <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
-              ))}
-              <path d={areaPath(actualPoints)} fill="rgba(79, 70, 229, 0.18)" />
-              <path d={areaPath(projectedPoints)} fill="rgba(234, 179, 8, 0.18)" />
-              <polyline points={pointList(actualPoints)} fill="none" stroke="var(--color-primary)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-              <polyline points={pointList(projectedPoints)} fill="none" stroke={projectedColor} strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
-              {coordinates.map((point) => (
-                <circle key={point.date} cx={point.x} cy={point.y} r="5" fill={point.future ? projectedColor : 'var(--color-primary)'} stroke="white" strokeWidth="3">
-                  <title>{`${point.date}: ${formatDays(point.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
-                </circle>
-              ))}
-            </svg>
-            <div className="relative col-start-2 row-start-2 h-5 text-[11px] font-semibold text-slate-400">
-              {dateTicks.map((tick) => (
-                <span
-                  key={tick.date}
-                  className={`absolute top-1 -translate-x-1/2 ${tick.showLabel ? '' : 'sr-only'}`}
-                  style={{ left: `${(tick.x / CHART_WIDTH) * 100}%` }}
-                >
-                  {dateFormatter.format(new Date(`${tick.date}T00:00:00`))}
+                <span className="inline-flex items-center gap-1 rounded-md bg-yellow-50 px-2 py-1 text-yellow-700">
+                  <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
+                  {t('dashboard.burndownProjected', 'Projected')}
                 </span>
-              ))}
+              </div>
             </div>
-            <div className="col-start-2 row-start-3 mt-2 flex flex-wrap justify-end gap-2 text-xs font-semibold">
-              <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary">
-                <span className="h-2 w-2 rounded-full bg-primary"></span>
-                {t('dashboard.burndownActual', 'Actual')}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-yellow-50 px-2 py-1 text-yellow-700">
-                <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
-                {t('dashboard.burndownProjected', 'Projected')}
-              </span>
-            </div>
-          </div>
+          )}
         </section>
 
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(280px,0.8fr)_minmax(360px,1.2fr)]">
@@ -173,27 +177,31 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownStatusDays', 'Current status days')}</h2>
               <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownStatusDaysHint', 'Task duration by status today')}</p>
             </div>
-            <div className="flex items-center gap-5">
-              <div className="relative h-36 w-36 shrink-0 rounded-full" style={donutStyle}>
-                <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center">
-                  <span className="text-2xl font-extrabold text-slate-900">{donePercent}%</span>
-                  <span className={`text-[10px] font-bold uppercase ${doneTextColor}`}>{t('dashboard.burndownDone', 'Done')}</span>
+            {isLoadingTasks ? (
+              <BurndownSectionLoader variant="status" label={t('dashboard.loadingTasks')} />
+            ) : (
+              <div className="flex items-center gap-5">
+                <div className="relative h-36 w-36 shrink-0 rounded-full" style={donutStyle}>
+                  <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center">
+                    <span className="text-2xl font-extrabold text-slate-900">{donePercent}%</span>
+                    <span className={`text-[10px] font-bold uppercase ${doneTextColor}`}>{t('dashboard.burndownDone', 'Done')}</span>
+                  </div>
                 </div>
+                <ul className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
+                  {statusSegments.map((status) => (
+                    <LegendItem
+                      key={status.status}
+                      label={status.status}
+                      percent={`${status.percent}%`}
+                      days={formatDays(status.days)}
+                      color={status.color}
+                      dotClassName={getStatusDotColor(status.status)}
+                      badgeClassName={getStatusColor(status.status)}
+                    />
+                  ))}
+                </ul>
               </div>
-              <ul className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
-                {statusSegments.map((status) => (
-                  <LegendItem
-                    key={status.status}
-                    label={status.status}
-                    percent={`${status.percent}%`}
-                    days={formatDays(status.days)}
-                    color={status.color}
-                    dotClassName={getStatusDotColor(status.status)}
-                    badgeClassName={getStatusColor(status.status)}
-                  />
-                ))}
-              </ul>
-            </div>
+            )}
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm">
@@ -201,31 +209,35 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownWorkerLoads', 'Top worker loads')}</h2>
               <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownDailyWorkload', 'Daily workload')}</p>
             </div>
-            <div className="space-y-3">
-              {chartData.workerLoads.length ? chartData.workerLoads.map((worker) => (
-                <div key={worker.worker} className="grid grid-cols-[7rem_minmax(0,1fr)] items-end gap-3">
-                  <strong className="truncate text-right text-xs font-bold text-slate-600" title={worker.worker}>{worker.worker}</strong>
-                  <div className="min-w-0 space-y-1">
-                    <div className="grid h-14 grid-cols-10 items-end gap-1">
-                      {worker.days.map((day) => (
-                        <span key={day.date} className="flex h-full items-end rounded bg-slate-100" title={`${worker.worker} ${day.date}: ${formatDays(day.loadDays)}`}>
-                          <i className="block w-full rounded bg-primary/75" style={{ height: `${Math.max(4, Math.round((day.loadDays / maxWorkerLoad) * 100))}%` }}></i>
-                        </span>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-10 gap-1 text-center text-[9px] font-bold leading-none text-slate-400">
-                      {worker.days.map((day) => (
-                        <span key={`${day.date}-label`} className="truncate" title={day.date}>
-                          {dateFormatter.format(new Date(`${day.date}T00:00:00`))}
-                        </span>
-                      ))}
+            {isLoadingTasks ? (
+              <BurndownSectionLoader variant="workers" label={t('dashboard.loadingTasks')} />
+            ) : (
+              <div className="space-y-3">
+                {chartData.workerLoads.length ? chartData.workerLoads.map((worker) => (
+                  <div key={worker.worker} className="grid grid-cols-[7rem_minmax(0,1fr)] items-end gap-3">
+                    <strong className="truncate text-right text-xs font-bold text-slate-600" title={worker.worker}>{worker.worker}</strong>
+                    <div className="min-w-0 space-y-1">
+                      <div className="grid h-14 grid-cols-10 items-end gap-1">
+                        {worker.days.map((day) => (
+                          <span key={day.date} className="flex h-full items-end rounded bg-slate-100" title={`${worker.worker} ${day.date}: ${formatDays(day.loadDays)}`}>
+                            <i className="block w-full rounded bg-primary/75" style={{ height: `${Math.max(4, Math.round((day.loadDays / maxWorkerLoad) * 100))}%` }}></i>
+                          </span>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-10 gap-1 text-center text-[9px] font-bold leading-none text-slate-400">
+                        {worker.days.map((day) => (
+                          <span key={`${day.date}-label`} className="truncate" title={day.date}>
+                            {dateFormatter.format(new Date(`${day.date}T00:00:00`))}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )) : (
-                <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-500">{t('dashboard.burndownNoOpenWork', 'No open work is scheduled in the next 10 days.')}</p>
-              )}
-            </div>
+                )) : (
+                  <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-500">{t('dashboard.burndownNoOpenWork', 'No open work is scheduled in the next 10 days.')}</p>
+                )}
+              </div>
+            )}
           </div>
         </section>
 
@@ -234,13 +246,76 @@ export function BurndownChart({ className = '' }: { className?: string }) {
             <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownAssumptions', 'Assumptions')}</h2>
             <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownForecastInputs', 'Forecast inputs')}</p>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <AssumptionItem label={t('dashboard.burndownAssumptionStartDate', 'Start date')} value={assumptionStartDate} />
-            <AssumptionItem label={t('dashboard.burndownAssumptionCapacity', 'Capacity (days per week)')} value={t('dashboard.burndownAssumptionCapacityValue', '5d/week')} />
-            <AssumptionItem label={t('dashboard.burndownAssumptionWorkers', 'Workers count')} value={String(assumptionWorkerCount)} />
-          </div>
+          {isLoadingTasks ? (
+            <BurndownSectionLoader variant="assumptions" label={t('dashboard.loadingTasks')} />
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <AssumptionItem label={t('dashboard.burndownAssumptionStartDate', 'Start date')} value={assumptionStartDate} />
+              <AssumptionItem label={t('dashboard.burndownAssumptionCapacity', 'Capacity (days per week)')} value={t('dashboard.burndownAssumptionCapacityValue', '5d/week')} />
+              <AssumptionItem label={t('dashboard.burndownAssumptionWorkers', 'Workers count')} value={String(assumptionWorkerCount)} />
+            </div>
+          )}
         </section>
       </div>
+    </div>
+  );
+}
+
+function BurndownSectionLoader({ variant, label }: { variant: 'chart' | 'status' | 'workers' | 'assumptions'; label: string }) {
+  return (
+    <div className="rounded-lg bg-slate-50/80 p-4 animate-pulse" role="status" aria-live="polite" aria-label={label}>
+      {variant === 'chart' && (
+        <div className="grid grid-cols-[2rem_minmax(0,1fr)] gap-2">
+          <div className="space-y-8 py-2">
+            <span className="block h-3 rounded bg-slate-200"></span>
+            <span className="block h-3 rounded bg-slate-200"></span>
+            <span className="block h-3 rounded bg-slate-200"></span>
+          </div>
+          <div className="space-y-3">
+            <span className="block h-20 rounded bg-slate-200"></span>
+            <div className="grid grid-cols-6 gap-2">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <span key={index} className="h-3 rounded bg-slate-200"></span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {variant === 'status' && (
+        <div className="flex items-center gap-5">
+          <span className="h-32 w-32 shrink-0 rounded-full bg-slate-200"></span>
+          <div className="flex-1 space-y-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <span key={index} className="block h-9 rounded-lg bg-slate-200"></span>
+            ))}
+          </div>
+        </div>
+      )}
+      {variant === 'workers' && (
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, rowIndex) => (
+            <div key={rowIndex} className="grid grid-cols-[5rem_minmax(0,1fr)] items-end gap-3">
+              <span className="h-3 rounded bg-slate-200"></span>
+              <div className="grid h-14 grid-cols-10 items-end gap-1">
+                {Array.from({ length: 10 }).map((_, index) => (
+                  <span key={index} className="rounded bg-slate-200" style={{ height: `${28 + ((index + rowIndex) % 5) * 14}%` }}></span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {variant === 'assumptions' && (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="space-y-3 rounded-lg bg-white/70 px-3 py-3">
+              <span className="block h-3 w-2/3 rounded bg-slate-200"></span>
+              <span className="block h-6 w-1/2 rounded bg-slate-200"></span>
+            </div>
+          ))}
+        </div>
+      )}
+      <span className="sr-only">{label}</span>
     </div>
   );
 }
