@@ -138,7 +138,7 @@ const zhTW = {
       burndownRemainingEffort: "剩餘工作量",
       burndownTaskCount: "追蹤任務數",
       burndownByDate: "按日期燃盡",
-      burndownProgressBasin: "進度盆地",
+      burndownProgressBasin: "剩餘工作量趨勢",
       burndownActual: "實際",
       burndownProjected: "預測",
       burndownChartAria: "按日期顯示剩餘任務天數",

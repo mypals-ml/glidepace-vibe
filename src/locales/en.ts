@@ -138,7 +138,7 @@ const en = {
       burndownRemainingEffort: "Remaining effort",
       burndownTaskCount: "Tasks tracked",
       burndownByDate: "Burndown by date",
-      burndownProgressBasin: "Progress basin",
+      burndownProgressBasin: "Remaining effort trend",
       burndownActual: "Actual",
       burndownProjected: "Projected",
       burndownChartAria: "Remaining task days by date",

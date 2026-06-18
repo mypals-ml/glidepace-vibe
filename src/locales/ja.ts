@@ -138,7 +138,7 @@ const ja = {
       burndownRemainingEffort: "残工数",
       burndownTaskCount: "追跡タスク数",
       burndownByDate: "日別バーンダウン",
-      burndownProgressBasin: "進捗ベイスン",
+      burndownProgressBasin: "残作業量の推移",
       burndownActual: "実績",
       burndownProjected: "予測",
       burndownChartAria: "日別の残タスク日数",

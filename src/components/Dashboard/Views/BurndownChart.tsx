@@ -97,7 +97,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownByDate', 'Burndown by date')}</h2>
-              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownProgressBasin', 'Progress basin')}</p>
+              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownProgressBasin', 'Remaining effort trend')}</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
               <div className="flex min-w-0 items-center gap-2 rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-primary">

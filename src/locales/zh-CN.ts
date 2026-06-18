@@ -138,7 +138,7 @@ const zhCN = {
       burndownRemainingEffort: "剩余工作量",
       burndownTaskCount: "跟踪任务数",
       burndownByDate: "按日期燃尽",
-      burndownProgressBasin: "进度盆地",
+      burndownProgressBasin: "剩余工作量趋势",
       burndownActual: "实际",
       burndownProjected: "预测",
       burndownChartAria: "按日期显示剩余任务天数",
