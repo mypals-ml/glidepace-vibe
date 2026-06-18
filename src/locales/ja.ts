@@ -132,7 +132,7 @@ const ja = {
       viewGantt: "ガント",
       viewBurndown: "予測",
       burndownSummary: "バーンダウン概要",
-      burndownForecast: "予測",
+      burndownForecast: "完了予定データ",
       burndownEstimatedCompletion: "完了予定日",
       burndownTotalEffort: "総工数",
       burndownRemainingEffort: "残工数",

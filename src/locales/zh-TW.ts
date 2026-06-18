@@ -132,7 +132,7 @@ const zhTW = {
       viewGantt: "甘特圖",
       viewBurndown: "預測",
       burndownSummary: "燃盡圖摘要",
-      burndownForecast: "預測",
+      burndownForecast: "預計完成資料",
       burndownEstimatedCompletion: "預計完成日期",
       burndownTotalEffort: "總工作量",
       burndownRemainingEffort: "剩餘工作量",

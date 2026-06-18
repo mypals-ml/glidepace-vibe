@@ -132,7 +132,7 @@ const zhCN = {
       viewGantt: "甘特图",
       viewBurndown: "预测",
       burndownSummary: "燃尽图摘要",
-      burndownForecast: "预测",
+      burndownForecast: "预计完成数据",
       burndownEstimatedCompletion: "预计完成日期",
       burndownTotalEffort: "总工作量",
       burndownRemainingEffort: "剩余工作量",

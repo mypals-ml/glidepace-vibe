@@ -132,7 +132,7 @@ const en = {
       viewGantt: "Gantt",
       viewBurndown: "Forecast",
       burndownSummary: "Burndown summary",
-      burndownForecast: "Forecast",
+      burndownForecast: "Estimated completion data",
       burndownEstimatedCompletion: "Estimated completion date",
       burndownTotalEffort: "Total effort",
       burndownRemainingEffort: "Remaining effort",

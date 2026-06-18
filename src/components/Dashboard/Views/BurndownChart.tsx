@@ -112,7 +112,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               <div className="flex min-w-0 items-center gap-2 rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-primary">
                 <BurndownIcon size={18} />
                 <div className="min-w-0">
-                  <div className="text-[10px] font-bold uppercase tracking-wide">{t('dashboard.burndownForecast', 'Forecast')}</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wide">{t('dashboard.burndownForecast', 'Estimated completion data')}</div>
                   <div className="truncate text-lg font-extrabold text-slate-900">{completionDate}</div>
                   <div className="text-[10px] font-semibold text-slate-500">{t('dashboard.burndownEstimatedCompletion', 'Estimated completion date')}</div>
                 </div>
