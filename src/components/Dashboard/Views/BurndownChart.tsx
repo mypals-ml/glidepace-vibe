@@ -175,7 +175,8 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                   <LegendItem
                     key={status.status}
                     label={status.status}
-                    value={`${status.percent}% / ${formatDays(status.days)}`}
+                    percent={`${status.percent}%`}
+                    days={formatDays(status.days)}
                     color={status.color}
                     dotClassName={getStatusDotColor(status.status)}
                     badgeClassName={getStatusColor(status.status)}
@@ -234,14 +235,15 @@ function AssumptionItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LegendItem({ label, value, color, dotClassName, badgeClassName }: { label: string; value: string; color: string; dotClassName: string; badgeClassName: string }) {
+function LegendItem({ label, percent, days, color, dotClassName, badgeClassName }: { label: string; percent: string; days: string; color: string; dotClassName: string; badgeClassName: string }) {
   return (
-    <li className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${badgeClassName}`}>
-      <span className="inline-flex min-w-0 items-center gap-2 font-semibold text-slate-600">
+    <li className={`grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-lg border px-3 py-2 ${badgeClassName}`}>
+      <span className="inline-flex min-w-0 items-center gap-2 font-semibold">
         <span className={`h-2.5 w-2.5 rounded-full ${dotClassName}`} style={{ backgroundColor: color }}></span>
         <span className="truncate">{label}</span>
       </span>
-      <b className="shrink-0 text-slate-900">{value}</b>
+      <span className="rounded-md bg-white/70 px-2 py-0.5 text-xs font-extrabold text-slate-900 shadow-sm ring-1 ring-black/5">{percent}</span>
+      <span className="rounded-md bg-white/70 px-2 py-0.5 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-black/5">{days}</span>
     </li>
   );
 }
