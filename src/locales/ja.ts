@@ -130,7 +130,7 @@ const ja = {
       projectNoLongerAccessible: "プロジェクトにアクセスできなくなりました。履歴から削除されました。",
       viewList: "リスト",
       viewGantt: "ガント",
-      viewBurndown: "バーンダウン",
+      viewBurndown: "予測",
       burndownSummary: "バーンダウン概要",
       burndownForecast: "予測",
       burndownEstimatedCompletion: "完了予定日",

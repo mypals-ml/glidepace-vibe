@@ -130,7 +130,7 @@ const zhTW = {
       projectNoLongerAccessible: "專案不再可用。已從您的歷史記錄中移除。",
       viewList: "列表",
       viewGantt: "甘特圖",
-      viewBurndown: "燃盡圖",
+      viewBurndown: "預測",
       burndownSummary: "燃盡圖摘要",
       burndownForecast: "預測",
       burndownEstimatedCompletion: "預計完成日期",

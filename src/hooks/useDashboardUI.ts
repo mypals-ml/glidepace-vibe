@@ -8,8 +8,8 @@ export function useDashboardUI() {
   const [isPatModalOpen, setIsPatModalOpen] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
-  const [isChartVisible, setIsChartVisible] = useState(false);
-  const [dashboardView, setDashboardView] = useState<'gantt' | 'burndown'>('gantt');
+  const [isChartVisible, setIsChartVisible] = useState(true);
+  const [dashboardView, setDashboardView] = useState<'gantt' | 'burndown'>('burndown');
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isLinkMode, setIsLinkMode] = useState(false);

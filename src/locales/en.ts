@@ -130,7 +130,7 @@ const en = {
       projectNoLongerAccessible: "Project no longer accessible. It has been removed from your history.",
       viewList: "List",
       viewGantt: "Gantt",
-      viewBurndown: "Burndown",
+      viewBurndown: "Forecast",
       burndownSummary: "Burndown summary",
       burndownForecast: "Forecast",
       burndownEstimatedCompletion: "Estimated completion date",

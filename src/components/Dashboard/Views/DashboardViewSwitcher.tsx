@@ -43,6 +43,17 @@ export function DashboardViewSwitcher() {
         <span className="material-symbols-outlined text-[18px]">format_list_bulleted</span>
       </button>
 
+      {/* Forecast View */}
+      <button
+        onClick={() => handleSwitch('burndown')}
+        className={`${baseBtnClass} ${
+          currentTab === 'burndown' ? activeBtnClass : inactiveBtnClass
+        }`}
+        title={t('dashboard.viewBurndown', 'Forecast')}
+      >
+        <BurndownIcon size={18} />
+      </button>
+
       {/* Gantt View */}
       <button
         onClick={() => handleSwitch('gantt')}
@@ -57,17 +68,6 @@ export function DashboardViewSwitcher() {
         >
           view_timeline
         </span>
-      </button>
-
-      {/* Burndown View */}
-      <button
-        onClick={() => handleSwitch('burndown')}
-        className={`${baseBtnClass} ${
-          currentTab === 'burndown' ? activeBtnClass : inactiveBtnClass
-        }`}
-        title={t('dashboard.viewBurndown', 'Burndown')}
-      >
-        <BurndownIcon size={18} />
       </button>
     </div>
   );

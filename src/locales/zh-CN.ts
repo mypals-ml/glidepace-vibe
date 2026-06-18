@@ -130,7 +130,7 @@ const zhCN = {
       projectNoLongerAccessible: "项目不再可用。已从您的历史记录中移除。",
       viewList: "列表",
       viewGantt: "甘特图",
-      viewBurndown: "燃尽图",
+      viewBurndown: "预测",
       burndownSummary: "燃尽图摘要",
       burndownForecast: "预测",
       burndownEstimatedCompletion: "预计完成日期",
