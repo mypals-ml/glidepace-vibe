@@ -127,7 +127,7 @@ export function buildBurndownChartData(tasks: Task[], today = new Date()): Burnd
     const statusKey = getBurndownStatusKey(task);
     const startDate = normalizeDate(task.tempStartDate || task.startDate, todayIso);
     const targetDate = normalizeDate(task.tempTargetDate || task.targetDate, startDate);
-    const doneDate = statusKey === 'done' ? (task.closedAt?.slice(0, 10) || targetDate) : undefined;
+    const doneDate = statusKey === 'done' ? targetDate : undefined;
 
     return {
       id: task.id,
@@ -158,13 +158,7 @@ export function buildBurndownChartData(tasks: Task[], today = new Date()): Burnd
 
   const points = dateRange.map((date) => {
     const doneDays = chartTasks.reduce((sum, task) => {
-      if (task.statusKey === 'done') {
-        return task.doneDate && task.doneDate <= date ? sum + task.estimateDays : sum;
-      }
-      if (date > todayIso && task.targetDate <= date) {
-        return sum + task.estimateDays;
-      }
-      return sum;
+      return task.statusKey === 'done' && task.doneDate && task.doneDate <= date ? sum + task.estimateDays : sum;
     }, 0);
 
     return {

@@ -37,7 +37,7 @@ describe('burndown chart calculations', () => {
         status: 'Done',
         estimate: 2,
         targetDate: '2026-06-02',
-        closedAt: '2026-06-02T10:00:00Z',
+        closedAt: '2026-06-04T10:00:00Z',
       }),
       makeTask({
         id: 'open',
@@ -53,7 +53,34 @@ describe('burndown chart calculations', () => {
     expect(data.completionDate).toBe('2026-06-05');
     expect(data.statusTotals).toEqual({ done: 2, inFlight: 0, todo: 3 });
     expect(data.points.find((point) => point.date === '2026-06-02')?.remainingDays).toBe(3);
-    expect(data.points.find((point) => point.date === '2026-06-05')?.remainingDays).toBe(0);
+    expect(data.points.find((point) => point.date === '2026-06-05')?.remainingDays).toBe(3);
+  });
+
+  it('counts done effort on the task target date instead of the GitHub close date', () => {
+    const data = buildBurndownChartData([
+      makeTask({
+        id: 'done-on-first-day',
+        status: 'Done',
+        estimate: 1,
+        startDate: '2026-05-05',
+        targetDate: '2026-05-05',
+        closedAt: '2026-05-08T06:11:01Z',
+      }),
+      makeTask({
+        id: 'open-work',
+        status: 'Todo',
+        estimate: 4,
+        startDate: '2026-05-05',
+        targetDate: '2026-05-08',
+      }),
+    ], new Date(2026, 4, 5));
+
+    expect(data.totalEstimateDays).toBe(5);
+    expect(data.points[0]).toMatchObject({
+      date: '2026-05-05',
+      doneDays: 1,
+      remainingDays: 4,
+    });
   });
 
   it('spreads open task effort across the next worker load dates', () => {
