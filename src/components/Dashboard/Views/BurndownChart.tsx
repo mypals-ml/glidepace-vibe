@@ -51,6 +51,8 @@ export function BurndownChart({ className = '' }: { className?: string }) {
   const completionDate = dateFormatter.format(new Date(`${chartData.completionDate}T00:00:00`));
   const maxWorkerLoad = Math.max(1, ...chartData.workerLoads.flatMap((worker) => worker.days.map((day) => day.loadDays)));
   const totalEstimate = Math.max(1, chartData.totalEstimateDays);
+  const assumptionStartDate = chartData.points[0]?.date ? dateFormatter.format(new Date(`${chartData.points[0].date}T00:00:00`)) : '-';
+  const assumptionWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees)).size;
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
   const inFlightPercent = Math.round((chartData.statusTotals.inFlight / totalEstimate) * 100);
   const doneDegrees = Math.round((chartData.statusTotals.done / totalEstimate) * 360);
@@ -174,7 +176,28 @@ export function BurndownChart({ className = '' }: { className?: string }) {
             </div>
           </div>
         </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm" aria-label={t('dashboard.burndownAssumptions', 'Assumptions')}>
+          <div className="mb-4">
+            <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownAssumptions', 'Assumptions')}</h2>
+            <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownForecastInputs', 'Forecast inputs')}</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <AssumptionItem label={t('dashboard.burndownAssumptionStartDate', 'Start date')} value={assumptionStartDate} />
+            <AssumptionItem label={t('dashboard.burndownAssumptionCapacity', 'Capacity (days per week)')} value={t('dashboard.burndownAssumptionCapacityValue', '5d/week')} />
+            <AssumptionItem label={t('dashboard.burndownAssumptionWorkers', 'Workers count')} value={String(assumptionWorkerCount)} />
+          </div>
+        </section>
       </div>
+    </div>
+  );
+}
+
+function AssumptionItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-slate-50 px-3 py-2">
+      <div className="text-[11px] font-bold uppercase text-slate-400">{label}</div>
+      <div className="mt-1 text-lg font-extrabold text-slate-900">{value}</div>
     </div>
   );
 }
