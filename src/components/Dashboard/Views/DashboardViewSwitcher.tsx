@@ -54,7 +54,7 @@ export function DashboardViewSwitcher() {
         <BurndownIcon size={18} />
       </button>
 
-      {/* Gantt View */}
+      {/* Timeline View */}
       <button
         onClick={() => handleSwitch('gantt')}
         className={`${baseBtnClass} ${

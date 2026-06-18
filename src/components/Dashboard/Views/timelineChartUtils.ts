@@ -49,14 +49,14 @@ const addCalendarDays = (date: string, days: number) => {
   return defaultWorkCalendar.formatDate(next);
 };
 
-export interface GanttTaskBarDropPlan {
+export interface TimelineTaskBarDropPlan {
   startDate?: string;
   groupDropPlan?: ReturnType<typeof getDashboardGroupDropPlan>;
   taskGroupPathMovePlan?: ReturnType<typeof getDashboardTaskGroupPathMovePlan>;
   movePlan?: ReturnType<typeof getVisibleDashboardMovePlan>;
 }
 
-export function buildGanttTaskBarDropPlan({
+export function buildTimelineTaskBarDropPlan({
   task,
   dashboardItems,
   orderedTasks,
@@ -70,7 +70,7 @@ export function buildGanttTaskBarDropPlan({
   overRowIndex: number;
   deltaDays: number;
   fieldGroupContext: DashboardFieldGroupContext;
-}): GanttTaskBarDropPlan {
+}): TimelineTaskBarDropPlan {
   const activeSortId = `task:${getTaskOrderId(task)}` as const;
   const overItem = dashboardItems[overRowIndex];
   const overSortId = overItem ? getDashboardItemSortId(overItem) : null;

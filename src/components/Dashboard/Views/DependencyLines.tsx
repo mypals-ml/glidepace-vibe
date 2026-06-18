@@ -164,7 +164,7 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
   const DEPENDENCY_LINE_DASH_DURATION_SECONDS = 10;
   const DRAG_LINE_STROKE_WIDTH = 2;
   const SNAPPED_DRAG_LINE_STROKE_WIDTH = 2.5;
-  // Mirror the group card geometry in GanttChart (CARD_PAD / min span width)
+  // Mirror the group card geometry in TimelineChart (CARD_PAD / min span width)
   // so folded-card anchors line up with the rendered card title bar.
   // Mins are derived from the current dayWidth so that lines continue to attach
   // to the visual ends of task bars and group cards at any zoom level.

@@ -11,7 +11,7 @@ import {
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { Header } from './Header/Header';
 import { TaskSidebar } from './Dashboard/TaskSidebar';
-import { GanttChart } from './Dashboard/Views/GanttChart';
+import { TimelineChart } from './Dashboard/Views/TimelineChart';
 import { BurndownChart } from './Dashboard/Views/BurndownChart';
 import { EmptyState } from './Dashboard/EmptyState';
 import { useScrollSync } from '../hooks/useScrollSync';
@@ -141,7 +141,7 @@ function DashboardLayout() {
             {/* Main View Area */}
             <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative h-full ${isChartVisible ? 'flex' : 'hidden md:flex'}`}>
               {dashboardView === 'gantt' ? (
-                <GanttChart
+                <TimelineChart
                   className="flex"
                   scrollRef={timelineRef}
                   onScroll={onTimelineScroll}

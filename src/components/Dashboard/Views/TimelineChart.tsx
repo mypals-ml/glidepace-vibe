@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import { getStartDateForCal, getTargetDateForCal } from '../../../lib/githubTaskMapper';
 import { diffDays } from '../../../lib/dateUtils';
 import { IconButton } from '../../UI/IconButton';
-import { useGanttTimeline } from '../../../hooks/useGanttTimeline';
+import { useTimelineChart } from '../../../hooks/useTimelineChart';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { DependencyLines } from './DependencyLines';
 import { FloatingSequenceBuilder } from '../FloatingSequenceBuilder';
@@ -15,10 +15,10 @@ import { getScrollTopForSelectedRow } from '../../../lib/scrollUtils';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../../lib/contextMenuLinkUtils';
 import { getTreeColor, getGroupCardTitleBg, getGroupCardContentBg, getGroupCardBorder, getGroupCardPillBg, getGroupCardTitleFg } from '../../../lib/treeColors';
 import type { DashboardFieldGroupContext } from '../../../lib/taskOrderUtils';
-import { buildGanttTaskBarDropPlan, getGroupTitleLayout, type GanttTaskBarDropPlan } from './ganttChartUtils';
+import { buildTimelineTaskBarDropPlan, getGroupTitleLayout, type TimelineTaskBarDropPlan } from './timelineChartUtils';
 import type { Task } from '../../../types';
 
-export interface GanttChartProps {
+export interface TimelineChartProps {
   className?: string;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   onScroll?: React.UIEventHandler<HTMLDivElement>;
@@ -48,7 +48,7 @@ const GROUP_TITLE_LEFT_PADDING = 6;
 const GROUP_TITLE_RIGHT_PADDING = 13;
 const GROUP_TITLE_PROGRESS_WIDTH = 36;
 
-export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
+export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineChartProps) {
   const { t } = useTranslation();
   const { tasks, filteredTasks, dashboardItems, selectedGroupFieldIds, projectFields, isLoadingTasks, requestedCenterDate, requestedCenterTaskId, centerGanttOnDate, completeGanttCenterRequest, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskDates, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds, toggleGroupBlockCollapsed, reorderTask, reorderTaskBlock, moveTaskToGroupPath, ganttZoomPercent, setGanttZoomPercent } = useDashboard();
   const isMobile = useMediaQuery('(max-width: 767px)');
@@ -93,7 +93,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     getPositionForDate, 
     handleScroll: handleTimelineScroll,
     centerOnDate 
-  } = useGanttTimeline({
+  } = useTimelineChart({
     dayWidth,
     initialBufferDaysLeft: INITIAL_BUFFER_DAYS_LEFT,
     initialBufferDaysRight: INITIAL_BUFFER_DAYS_RIGHT,
@@ -290,7 +290,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     });
   };
 
-  const applyTaskBarDropPlan = async (task: Task, plan: GanttTaskBarDropPlan) => {
+  const applyTaskBarDropPlan = async (task: Task, plan: TimelineTaskBarDropPlan) => {
     if (plan.startDate) {
       await updateTaskDates(task, plan.startDate);
     }
@@ -340,7 +340,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
         Math.floor((dragState.originRowIndex * ROW_HEIGHT + ROW_HEIGHT / 2 + dragState.deltaY) / ROW_HEIGHT)
       )
     );
-    const plan = buildGanttTaskBarDropPlan({
+    const plan = buildTimelineTaskBarDropPlan({
       task,
       dashboardItems,
       orderedTasks: tasks,
@@ -1059,7 +1059,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
         </div>
       )}
 
-      {/* Zoom toolbar - floating at right bottom corner of the Gantt chart (over content).
+      {/* Zoom toolbar - floating at right bottom corner of the timeline chart (over content).
           Row height and fonts are intentionally not scaled. */}
       <div className="absolute bottom-3 right-3 z-40 flex items-center gap-1 rounded-md border border-slate-200/70 bg-white/90 backdrop-blur px-1 py-0.5 shadow-sm">
         <IconButton

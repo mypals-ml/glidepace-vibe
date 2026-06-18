@@ -97,7 +97,7 @@ describe('DependencyLines drag preview', () => {
 });
 
 describe('DependencyLines with folded group cards', () => {
-  // Folded card geometry, mirroring the GanttChart card: span 2026-05-03 ->
+  // Folded card geometry, mirroring the TimelineChart card: span 2026-05-03 ->
   // 2026-05-05 at dayWidth 120 with CARD_PAD 9: left = 240 - 9 = 231,
   // width = 3 * 120 + 18, so right = 609.
 

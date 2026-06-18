@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GanttChart } from './GanttChart';
-import { buildGanttTaskBarDropPlan, getGroupTitleLayout } from './ganttChartUtils';
+import { TimelineChart } from './TimelineChart';
+import { buildTimelineTaskBarDropPlan, getGroupTitleLayout } from './timelineChartUtils';
 import type { DashboardItem, Task } from '../../../types';
 
 const centerOnDate = vi.fn();
@@ -84,8 +84,8 @@ vi.mock('../../../context/DashboardContext', () => ({
   useDashboard: () => dashboardState,
 }));
 
-vi.mock('../../../hooks/useGanttTimeline', () => ({
-  useGanttTimeline: () => ({
+vi.mock('../../../hooks/useTimelineChart', () => ({
+  useTimelineChart: () => ({
     timelineRange: {
       start: new Date('2026-05-01T00:00:00Z'),
       totalDays: 10,
@@ -101,7 +101,7 @@ vi.mock('./DependencyLines', () => ({
   DependencyLines: () => null,
 }));
 
-describe('GanttChart focus behavior', () => {
+describe('TimelineChart focus behavior', () => {
   beforeEach(() => {
     isMobileViewport = false;
     centerOnDate.mockReset();
@@ -164,7 +164,7 @@ describe('GanttChart focus behavior', () => {
   });
 
   it('does not vertically scroll when restoring a saved selected task', () => {
-    render(<GanttChart />);
+    render(<TimelineChart />);
 
     expect(centerOnDate).toHaveBeenCalledWith(expect.any(String), 'auto');
     expect(scrollTo).not.toHaveBeenCalled();
@@ -179,7 +179,7 @@ describe('GanttChart focus behavior', () => {
       completeGanttCenterRequest,
     };
 
-    const { container } = render(<GanttChart />);
+    const { container } = render(<TimelineChart />);
 
     expect(centerOnDate).toHaveBeenCalledWith('2026-05-01', 'smooth');
     expect(container.querySelector('.overflow-auto')?.scrollTop).toBe(468);
@@ -196,7 +196,7 @@ describe('GanttChart focus behavior', () => {
       completeGanttCenterRequest,
     };
 
-    render(<GanttChart />);
+    render(<TimelineChart />);
 
     expect(centerOnDate).toHaveBeenCalledWith('2026-05-01', 'smooth');
     expect(scrollTo).not.toHaveBeenCalled();
@@ -213,7 +213,7 @@ describe('GanttChart focus behavior', () => {
       completeGanttCenterRequest,
     };
 
-    render(<GanttChart />);
+    render(<TimelineChart />);
 
     expect(centerOnDate).toHaveBeenCalledWith('2026-04-01', 'smooth');
     expect(scrollTo).not.toHaveBeenCalled();
@@ -235,14 +235,14 @@ describe('GanttChart focus behavior', () => {
       completeGanttCenterRequest,
     };
 
-    const { container, rerender } = render(<GanttChart />);
+    const { container, rerender } = render(<TimelineChart />);
 
     expect(centerOnDate).toHaveBeenCalledWith('2026-04-01', 'smooth');
     expect(scrollTo).not.toHaveBeenCalled();
     expect(completeGanttCenterRequest).not.toHaveBeenCalled();
 
     timelineExpansionVersion += 1;
-    rerender(<GanttChart />);
+    rerender(<TimelineChart />);
 
     expect(smoothCenterAttempts).toBe(2);
     expect(container.querySelector('.overflow-auto')?.scrollTop).toBe(468);
@@ -251,7 +251,7 @@ describe('GanttChart focus behavior', () => {
   });
 
   it('disables text selection on gantt task bars for long-press interactions', () => {
-    render(<GanttChart />);
+    render(<TimelineChart />);
 
     const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
 
@@ -271,7 +271,7 @@ describe('GanttChart focus behavior', () => {
       selectedTaskId: null,
     };
 
-    render(<GanttChart />);
+    render(<TimelineChart />);
 
     const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
 
@@ -314,7 +314,7 @@ describe('GanttChart focus behavior', () => {
       selectedTaskId: null,
     };
 
-    render(<GanttChart />);
+    render(<TimelineChart />);
 
     const groupTitle = screen.getByRole('button', { name: /project2 tasks50%/i });
 
@@ -395,7 +395,7 @@ describe('GanttChart focus behavior', () => {
       ganttZoomPercent: 50,
     };
 
-    render(<GanttChart />);
+    render(<TimelineChart />);
 
     const groupTitle = screen.getByRole('button', { name: /project with a very long title/i });
     const titleName = screen.getByText('Project with a very long title');
@@ -407,7 +407,7 @@ describe('GanttChart focus behavior', () => {
   });
 
   it('builds a horizontal task bar drag plan that shifts the task start date', () => {
-    const plan = buildGanttTaskBarDropPlan({
+    const plan = buildTimelineTaskBarDropPlan({
       task: tasks[0],
       dashboardItems,
       orderedTasks: tasks,
@@ -422,7 +422,7 @@ describe('GanttChart focus behavior', () => {
   });
 
   it('builds a vertical task bar drag plan using the existing visible reorder rules', () => {
-    const plan = buildGanttTaskBarDropPlan({
+    const plan = buildTimelineTaskBarDropPlan({
       task: tasks[0],
       dashboardItems,
       orderedTasks: tasks,
@@ -439,7 +439,7 @@ describe('GanttChart focus behavior', () => {
   });
 
   it('moves the whole gantt row visually while a task bar is dragged vertically', () => {
-    render(<GanttChart />);
+    render(<TimelineChart />);
 
     const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
     const taskRow = taskBar.parentElement;
@@ -471,7 +471,7 @@ describe('GanttChart focus behavior', () => {
       selectedTaskId: null,
     };
 
-    render(<GanttChart />);
+    render(<TimelineChart />);
 
     const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
     fireEvent.contextMenu(taskBar, { clientX: 120, clientY: 120 });
