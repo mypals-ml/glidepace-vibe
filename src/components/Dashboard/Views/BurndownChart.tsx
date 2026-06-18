@@ -94,10 +94,20 @@ export function BurndownChart({ className = '' }: { className?: string }) {
             </div>
           </div>
           <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-3">
-            <div className="flex h-64 flex-col justify-between py-2 text-right text-[11px] font-bold text-slate-400">
-              <span>{formatDays(chartData.totalEstimateDays)}</span>
-              <span>{formatDays(chartData.totalEstimateDays / 2)}</span>
-              <span>0d</span>
+            <div className="relative h-64 text-right text-[11px] font-bold text-slate-400">
+              {[
+                { label: formatDays(chartData.totalEstimateDays), y: CHART_TOP },
+                { label: formatDays(chartData.totalEstimateDays / 2), y: CHART_TOP + CHART_PLOT_HEIGHT * 0.5 },
+                { label: '0d', y: CHART_BOTTOM },
+              ].map((tick) => (
+                <span
+                  key={tick.label}
+                  className="absolute right-0 -translate-y-1/2"
+                  style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%` }}
+                >
+                  {tick.label}
+                </span>
+              ))}
             </div>
             <div className="min-w-0">
               <svg className="h-64 w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
