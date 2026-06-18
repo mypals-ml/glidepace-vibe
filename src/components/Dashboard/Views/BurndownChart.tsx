@@ -89,32 +89,31 @@ export function BurndownChart({ className = '' }: { className?: string }) {
   return (
     <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar glass-panel bg-white/80 md:rounded-r-xl border md:border-y md:border-r border-slate-200/60 ${className}`}>
       <div className="flex min-h-full flex-col gap-4 p-4 lg:p-5">
-        <section className="grid grid-cols-1 gap-3" aria-label={t('dashboard.burndownSummary', 'Burndown summary')}>
-          <div className="rounded-lg border border-primary/15 bg-primary/5 p-4">
-            <div className="mb-3 flex items-center gap-2 text-primary">
-              <BurndownIcon size={22} />
-              <span className="text-xs font-bold uppercase">{t('dashboard.burndownForecast', 'Forecast')}</span>
-            </div>
-            <div className="text-2xl font-extrabold text-slate-900">{completionDate}</div>
-            <div className="mt-1 text-xs font-medium text-slate-500">{t('dashboard.burndownEstimatedCompletion', 'Estimated completion date')}</div>
-          </div>
-        </section>
-
         <section className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
               <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownByDate', 'Burndown by date')}</h2>
               <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownProgressBasin', 'Progress basin')}</p>
             </div>
-            <div className="flex flex-wrap gap-2 text-xs font-semibold">
-              <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary">
-                <span className="h-2 w-2 rounded-full bg-primary"></span>
-                {t('dashboard.burndownActual', 'Actual')}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-yellow-50 px-2 py-1 text-yellow-700">
-                <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
-                {t('dashboard.burndownProjected', 'Projected')}
-              </span>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
+              <div className="flex min-w-0 items-center gap-2 rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-primary">
+                <BurndownIcon size={18} />
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold uppercase tracking-wide">{t('dashboard.burndownForecast', 'Forecast')}</div>
+                  <div className="truncate text-lg font-extrabold text-slate-900">{completionDate}</div>
+                  <div className="text-[10px] font-semibold text-slate-500">{t('dashboard.burndownEstimatedCompletion', 'Estimated completion date')}</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary">
+                  <span className="h-2 w-2 rounded-full bg-primary"></span>
+                  {t('dashboard.burndownActual', 'Actual')}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-yellow-50 px-2 py-1 text-yellow-700">
+                  <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
+                  {t('dashboard.burndownProjected', 'Projected')}
+                </span>
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-[3rem_minmax(0,1fr)] items-stretch gap-3">
@@ -203,12 +202,21 @@ export function BurndownChart({ className = '' }: { className?: string }) {
               {chartData.workerLoads.length ? chartData.workerLoads.map((worker) => (
                 <div key={worker.worker} className="grid grid-cols-[7rem_minmax(0,1fr)] items-end gap-3">
                   <strong className="truncate text-xs font-bold text-slate-600" title={worker.worker}>{worker.worker}</strong>
-                  <div className="grid h-14 grid-cols-10 items-end gap-1">
-                    {worker.days.map((day) => (
-                      <span key={day.date} className="flex h-full items-end rounded bg-slate-100" title={`${worker.worker} ${day.date}: ${formatDays(day.loadDays)}`}>
-                        <i className="block w-full rounded bg-primary/75" style={{ height: `${Math.max(4, Math.round((day.loadDays / maxWorkerLoad) * 100))}%` }}></i>
-                      </span>
-                    ))}
+                  <div className="min-w-0 space-y-1">
+                    <div className="grid h-14 grid-cols-10 items-end gap-1">
+                      {worker.days.map((day) => (
+                        <span key={day.date} className="flex h-full items-end rounded bg-slate-100" title={`${worker.worker} ${day.date}: ${formatDays(day.loadDays)}`}>
+                          <i className="block w-full rounded bg-primary/75" style={{ height: `${Math.max(4, Math.round((day.loadDays / maxWorkerLoad) * 100))}%` }}></i>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-10 gap-1 text-center text-[9px] font-bold leading-none text-slate-400">
+                      {worker.days.map((day) => (
+                        <span key={`${day.date}-label`} className="truncate" title={day.date}>
+                          {dateFormatter.format(new Date(`${day.date}T00:00:00`))}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )) : (
@@ -245,13 +253,15 @@ function AssumptionItem({ label, value }: { label: string; value: string }) {
 
 function LegendItem({ label, percent, days, color, dotClassName, badgeClassName }: { label: string; percent: string; days: string; color: string; dotClassName: string; badgeClassName: string }) {
   return (
-    <li className={`grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-lg border px-3 py-2 ${badgeClassName}`}>
+    <li className={`grid grid-cols-1 gap-2 rounded-lg border px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${badgeClassName}`}>
       <span className="inline-flex min-w-0 items-center gap-2 font-semibold">
         <span className={`h-2.5 w-2.5 rounded-full ${dotClassName}`} style={{ backgroundColor: color }}></span>
         <span className="truncate">{label}</span>
       </span>
-      <span className="rounded-md bg-white/70 px-2 py-0.5 text-xs font-extrabold text-slate-900 shadow-sm ring-1 ring-black/5">{percent}</span>
-      <span className="rounded-md bg-white/70 px-2 py-0.5 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-black/5">{days}</span>
+      <span className="flex flex-wrap gap-2 sm:justify-end">
+        <span className="rounded-md bg-white/70 px-2 py-0.5 text-xs font-extrabold text-slate-900 shadow-sm ring-1 ring-black/5">{percent}</span>
+        <span className="rounded-md bg-white/70 px-2 py-0.5 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-black/5">{days}</span>
+      </span>
     </li>
   );
 }
