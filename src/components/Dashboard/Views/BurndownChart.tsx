@@ -1,40 +1,194 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
+import { buildBurndownChartData, type BurndownPoint } from '../../../lib/burndownChartUtils';
 import { BurndownIcon } from './BurndownIcon';
 
+const CHART_WIDTH = 1000;
+const CHART_HEIGHT = 220;
+const CHART_TOP = 14;
+const CHART_BOTTOM = 198;
+const CHART_PLOT_HEIGHT = CHART_BOTTOM - CHART_TOP;
+
+function formatDays(value: number) {
+  return `${value.toFixed(value % 1 === 0 ? 0 : 1)}d`;
+}
+
+function pointCoordinates(points: BurndownPoint[], totalEstimateDays: number) {
+  const denominator = Math.max(1, totalEstimateDays);
+  const lastIndex = Math.max(1, points.length - 1);
+  return points.map((point, index) => ({
+    ...point,
+    x: (index / lastIndex) * CHART_WIDTH,
+    y: CHART_TOP + (point.remainingDays / denominator) * CHART_PLOT_HEIGHT,
+  }));
+}
+
+function pointList(points: Array<BurndownPoint & { x: number; y: number }>) {
+  return points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ');
+}
+
+function areaPath(points: Array<BurndownPoint & { x: number; y: number }>) {
+  if (points.length < 2) return '';
+  const line = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
+  const first = points[0];
+  const last = points[points.length - 1];
+  return `${line} L ${last.x.toFixed(1)} ${CHART_BOTTOM} L ${first.x.toFixed(1)} ${CHART_BOTTOM} Z`;
+}
+
 export function BurndownChart({ className = '' }: { className?: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { filteredTasks } = useDashboard();
+  const chartData = useMemo(() => buildBurndownChartData(filteredTasks), [filteredTasks]);
+  const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
+  const actualPoints = coordinates.filter((point) => !point.future);
+  const projectedPoints = coordinates.filter((point) => point.future);
+  if (actualPoints.length && projectedPoints.length) {
+    projectedPoints.unshift(actualPoints[actualPoints.length - 1]);
+  }
+
+  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: 'numeric', day: 'numeric' }), [i18n.language]);
+  const completionDate = dateFormatter.format(new Date(`${chartData.completionDate}T00:00:00`));
+  const maxWorkerLoad = Math.max(1, ...chartData.workerLoads.flatMap((worker) => worker.days.map((day) => day.loadDays)));
+  const totalEstimate = Math.max(1, chartData.totalEstimateDays);
+  const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
+  const inFlightPercent = Math.round((chartData.statusTotals.inFlight / totalEstimate) * 100);
+  const doneDegrees = Math.round((chartData.statusTotals.done / totalEstimate) * 360);
+  const inFlightDegrees = Math.round((chartData.statusTotals.inFlight / totalEstimate) * 360);
+  const donutStyle = {
+    background: `conic-gradient(var(--color-status-done-highlight) 0deg ${doneDegrees}deg, var(--color-primary) ${doneDegrees}deg ${doneDegrees + inFlightDegrees}deg, var(--color-status-todo-highlight) ${doneDegrees + inFlightDegrees}deg 360deg)`,
+  };
 
   return (
-    <div className={`flex-1 flex flex-col items-center justify-center p-8 glass-panel bg-white/80 md:rounded-r-xl border md:border-y md:border-r border-slate-200/60 overflow-hidden relative ${className}`}>
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(148,163,184,0.15) 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
-      
-      <div className="z-10 flex flex-col items-center text-center max-w-md">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-          <BurndownIcon size={32} className="text-primary" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-2">
-          {t('dashboard.viewBurndown', 'Burndown Chart')}
-        </h2>
-        <p className="text-sm text-slate-500 mb-8">
-          {t('dashboard.burndownChartPlaceholder', 'This feature is coming soon! It will allow you to track the remaining work in your project over time.')}
-        </p>
-        
-        {/* Mock Stats */}
-        <div className="grid grid-cols-2 gap-4 w-full">
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Tasks</div>
-            <div className="text-2xl font-extrabold text-slate-800">{filteredTasks.length}</div>
+    <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar glass-panel bg-white/80 md:rounded-r-xl border md:border-y md:border-r border-slate-200/60 ${className}`}>
+      <div className="flex min-h-full flex-col gap-4 p-4 lg:p-5">
+        <section className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(220px,0.8fr)_repeat(3,minmax(120px,1fr))]" aria-label={t('dashboard.burndownSummary', 'Burndown summary')}>
+          <div className="rounded-lg border border-primary/15 bg-primary/5 p-4">
+            <div className="mb-3 flex items-center gap-2 text-primary">
+              <BurndownIcon size={22} />
+              <span className="text-xs font-bold uppercase">{t('dashboard.burndownForecast', 'Forecast')}</span>
+            </div>
+            <div className="text-2xl font-extrabold text-slate-900">{completionDate}</div>
+            <div className="mt-1 text-xs font-medium text-slate-500">{t('dashboard.burndownEstimatedCompletion', 'Estimated completion date')}</div>
           </div>
-          <div className="bg-orange-50 border border-orange-100 rounded-lg p-4">
-            <div className="text-[10px] font-bold text-orange-600/60 uppercase tracking-wider mb-1">Remaining</div>
-            <div className="text-2xl font-extrabold text-orange-700">
-              {filteredTasks.filter(t => t.status !== 'Done').length}
+          <MetricCard label={t('dashboard.burndownTotalEffort', 'Total effort')} value={formatDays(chartData.totalEstimateDays)} />
+          <MetricCard label={t('dashboard.burndownRemainingEffort', 'Remaining effort')} value={formatDays(chartData.remainingDays)} />
+          <MetricCard label={t('dashboard.burndownTaskCount', 'Tasks tracked')} value={String(chartData.taskCount)} />
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownByDate', 'Burndown by date')}</h2>
+              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownProgressBasin', 'Progress basin')}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs font-semibold">
+              <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary">
+                <span className="h-2 w-2 rounded-full bg-primary"></span>
+                {t('dashboard.burndownActual', 'Actual')}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-slate-600">
+                <span className="h-2 w-2 rounded-full bg-slate-400"></span>
+                {t('dashboard.burndownProjected', 'Projected')}
+              </span>
             </div>
           </div>
-        </div>
+          <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-3">
+            <div className="flex h-64 flex-col justify-between py-2 text-right text-[11px] font-bold text-slate-400">
+              <span>{formatDays(chartData.totalEstimateDays)}</span>
+              <span>{formatDays(chartData.totalEstimateDays / 2)}</span>
+              <span>0d</span>
+            </div>
+            <div className="min-w-0">
+              <svg className="h-64 w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
+                <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} stroke="rgb(226 232 240)" strokeWidth="2" />
+                <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} stroke="rgb(226 232 240)" strokeWidth="2" strokeDasharray="8 8" />
+                <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} stroke="rgb(226 232 240)" strokeWidth="2" />
+                <path d={areaPath(actualPoints)} fill="rgba(79, 70, 229, 0.18)" />
+                <path d={areaPath(projectedPoints)} fill="rgba(148, 163, 184, 0.18)" />
+                <polyline points={pointList(actualPoints)} fill="none" stroke="var(--color-primary)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points={pointList(projectedPoints)} fill="none" stroke="rgb(100 116 139)" strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
+                {coordinates.map((point) => (
+                  <circle key={point.date} cx={point.x} cy={point.y} r="5" fill={point.future ? 'rgb(100 116 139)' : 'var(--color-primary)'} stroke="white" strokeWidth="3">
+                    <title>{`${point.date}: ${formatDays(point.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
+                  </circle>
+                ))}
+              </svg>
+              <div className="grid text-[11px] font-semibold text-slate-400" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(8, chartData.points.length))}, minmax(0, 1fr))` }}>
+                {chartData.points.filter((_, index) => index % Math.max(1, Math.ceil(chartData.points.length / 8)) === 0).map((point) => (
+                  <span key={point.date}>{dateFormatter.format(new Date(`${point.date}T00:00:00`))}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(280px,0.8fr)_minmax(360px,1.2fr)]">
+          <div className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownStatusDays', 'Current status days')}</h2>
+              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownStatusDaysHint', 'Task duration by status today')}</p>
+            </div>
+            <div className="flex items-center gap-5">
+              <div className="relative h-36 w-36 shrink-0 rounded-full" style={donutStyle}>
+                <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center">
+                  <span className="text-2xl font-extrabold text-slate-900">{donePercent}%</span>
+                  <span className="text-[10px] font-bold uppercase text-slate-400">{t('dashboard.burndownDone', 'Done')}</span>
+                </div>
+              </div>
+              <ul className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
+                <LegendItem label={t('dashboard.burndownDone', 'Done')} value={`${donePercent}% / ${formatDays(chartData.statusTotals.done)}`} className="bg-status-done-highlight" />
+                <LegendItem label={t('dashboard.burndownInFlight', 'In progress or review')} value={`${inFlightPercent}% / ${formatDays(chartData.statusTotals.inFlight)}`} className="bg-primary" />
+                <LegendItem label={t('dashboard.burndownTodo', 'Todo')} value={`${Math.max(0, 100 - donePercent - inFlightPercent)}% / ${formatDays(chartData.statusTotals.todo)}`} className="bg-status-todo-highlight" />
+              </ul>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownWorkerLoads', 'Top worker loads')}</h2>
+              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownDailyWorkload', 'Daily workload')}</p>
+            </div>
+            <div className="space-y-3">
+              {chartData.workerLoads.length ? chartData.workerLoads.map((worker) => (
+                <div key={worker.worker} className="grid grid-cols-[7rem_minmax(0,1fr)] items-end gap-3">
+                  <strong className="truncate text-xs font-bold text-slate-600" title={worker.worker}>{worker.worker}</strong>
+                  <div className="grid h-14 grid-cols-10 items-end gap-1">
+                    {worker.days.map((day) => (
+                      <span key={day.date} className="flex h-full items-end rounded bg-slate-100" title={`${worker.worker} ${day.date}: ${formatDays(day.loadDays)}`}>
+                        <i className="block w-full rounded bg-primary/75" style={{ height: `${Math.max(4, Math.round((day.loadDays / maxWorkerLoad) * 100))}%` }}></i>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )) : (
+                <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-500">{t('dashboard.burndownNoOpenWork', 'No open work is scheduled in the next 10 days.')}</p>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
     </div>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm">
+      <div className="text-xs font-bold uppercase text-slate-400">{label}</div>
+      <div className="mt-2 text-2xl font-extrabold text-slate-900">{value}</div>
+    </div>
+  );
+}
+
+function LegendItem({ label, value, className }: { label: string; value: string; className: string }) {
+  return (
+    <li className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
+      <span className="inline-flex min-w-0 items-center gap-2 font-semibold text-slate-600">
+        <span className={`h-2.5 w-2.5 rounded-full ${className}`}></span>
+        <span className="truncate">{label}</span>
+      </span>
+      <b className="shrink-0 text-slate-900">{value}</b>
+    </li>
   );
 }
