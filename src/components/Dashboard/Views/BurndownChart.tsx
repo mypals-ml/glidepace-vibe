@@ -20,7 +20,7 @@ function pointCoordinates(points: BurndownPoint[], totalEstimateDays: number) {
   return points.map((point, index) => ({
     ...point,
     x: (index / lastIndex) * CHART_WIDTH,
-    y: CHART_TOP + (point.remainingDays / denominator) * CHART_PLOT_HEIGHT,
+    y: CHART_BOTTOM - (point.remainingDays / denominator) * CHART_PLOT_HEIGHT,
   }));
 }
 
