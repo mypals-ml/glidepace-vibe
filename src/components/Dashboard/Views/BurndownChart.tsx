@@ -204,7 +204,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
             <div className="space-y-3">
               {chartData.workerLoads.length ? chartData.workerLoads.map((worker) => (
                 <div key={worker.worker} className="grid grid-cols-[7rem_minmax(0,1fr)] items-end gap-3">
-                  <strong className="truncate text-xs font-bold text-slate-600" title={worker.worker}>{worker.worker}</strong>
+                  <strong className="truncate text-right text-xs font-bold text-slate-600" title={worker.worker}>{worker.worker}</strong>
                   <div className="min-w-0 space-y-1">
                     <div className="grid h-14 grid-cols-10 items-end gap-1">
                       {worker.days.map((day) => (
