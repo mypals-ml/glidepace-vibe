@@ -102,7 +102,7 @@ function DashboardLayout() {
       setIsChartVisible(true);
     } else {
       setIsChartVisible(true);
-      setDashboardView('gantt');
+      setDashboardView('burndown');
     }
   }, [isDesktop, setDashboardView, setIsChartVisible]);
 
