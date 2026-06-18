@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { buildBurndownChartData, type BurndownPoint } from '../../../lib/burndownChartUtils';
 import { getStatusChartColor, getStatusColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
 import { BurndownIcon } from './BurndownIcon';
@@ -48,9 +49,15 @@ function dateTickCoordinates(points: Array<BurndownPoint & { x: number; y: numbe
   }));
 }
 
+function shouldShowWorkerDateLabel(index: number, total: number, step: number) {
+  return index === 0 || index === total - 1 || index % step === 0;
+}
+
 export function BurndownChart({ className = '' }: { className?: string }) {
   const { t, i18n } = useTranslation();
   const { filteredTasks, isLoadingTasks } = useDashboard();
+  const isCompactWorkerLabels = useMediaQuery('(max-width: 639px)');
+  const isNarrowWorkerLabels = useMediaQuery('(max-width: 1023px)');
   const chartData = useMemo(() => buildBurndownChartData(filteredTasks), [filteredTasks]);
   const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
   const yTicks = [
@@ -72,6 +79,7 @@ export function BurndownChart({ className = '' }: { className?: string }) {
   const totalEstimate = Math.max(1, chartData.totalEstimateDays);
   const projectedColor = getStatusChartColor('In progress');
   const doneTextColor = getStatusTextColor('Done');
+  const workerDateLabelStep = isCompactWorkerLabels ? 3 : isNarrowWorkerLabels ? 2 : 1;
   const assumptionStartDate = chartData.points[0]?.date ? dateFormatter.format(new Date(`${chartData.points[0].date}T00:00:00`)) : '-';
   const assumptionWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees)).size;
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
@@ -225,10 +233,12 @@ export function BurndownChart({ className = '' }: { className?: string }) {
                         ))}
                       </div>
                       <div className="grid grid-cols-10 gap-1 text-center text-[9px] font-bold leading-none text-slate-400">
-                        {worker.days.map((day) => (
+                        {worker.days.map((day, index) => shouldShowWorkerDateLabel(index, worker.days.length, workerDateLabelStep) ? (
                           <span key={`${day.date}-label`} className="truncate" title={day.date}>
                             {dateFormatter.format(new Date(`${day.date}T00:00:00`))}
                           </span>
+                        ) : (
+                          <span key={`${day.date}-label`} aria-hidden="true"></span>
                         ))}
                       </div>
                     </div>

@@ -1,7 +1,10 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BurndownChart } from './BurndownChart';
 import type { Task } from '../../../types';
+
+let isCompactViewport = false;
+let isNarrowViewport = false;
 
 const tasks: Task[] = [
   {
@@ -11,11 +14,11 @@ const tasks: Task[] = [
     displayId: '#1',
     title: 'Task 1',
     status: 'Todo',
-    startDate: '2026-05-05',
-    targetDate: '2026-05-08',
+    startDate: '2026-06-19',
+    targetDate: '2026-06-28',
     assignees: [],
     progress: 0,
-    estimate: 4,
+    estimate: 10,
   },
 ];
 
@@ -40,6 +43,31 @@ vi.mock('../../../context/DashboardContext', () => ({
 }));
 
 describe('BurndownChart loading state', () => {
+  beforeEach(() => {
+    isCompactViewport = false;
+    isNarrowViewport = false;
+    dashboardState = {
+      filteredTasks: tasks,
+      isLoadingTasks: false,
+    };
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches:
+          query === '(max-width: 639px)' ? isCompactViewport :
+          query === '(max-width: 1023px)' ? isNarrowViewport :
+          false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
   it('shows section loading indicators while tasks are loading', () => {
     dashboardState = {
       filteredTasks: [],
@@ -49,5 +77,18 @@ describe('BurndownChart loading state', () => {
     render(<BurndownChart />);
 
     expect(screen.getAllByRole('status', { name: 'dashboard.loadingTasks' })).toHaveLength(4);
+  });
+
+  it('omits intermediate worker date labels in compact layouts', () => {
+    isCompactViewport = true;
+    isNarrowViewport = true;
+
+    const { container } = render(<BurndownChart />);
+
+    expect(container.querySelector('span[title="2026-06-19"]')).toBeTruthy();
+    expect(container.querySelector('span[title="2026-06-20"]')).toBeNull();
+    expect(container.querySelector('span[title="2026-06-22"]')).toBeTruthy();
+    expect(container.querySelector('span[title="2026-06-25"]')).toBeTruthy();
+    expect(container.querySelector('span[title="2026-06-28"]')).toBeTruthy();
   });
 });
