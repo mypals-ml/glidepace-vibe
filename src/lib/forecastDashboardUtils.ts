@@ -4,6 +4,7 @@ import {
   computeCapacityBasedCompletion as computeCapacityCompletion,
   simulateFutureRemaining,
   getStatusRemainingWorkloadFactor,
+  type ForecastCompletionAssumptions,
 } from './forecastCompletion';
 
 export type ForecastStatusKey = 'done' | 'inFlight' | 'todo';
@@ -57,8 +58,12 @@ export interface ForecastDashboardData {
   tasks: ForecastTaskPoint[];
 }
 
+export interface ForecastDashboardAssumptions extends ForecastCompletionAssumptions {
+  startDate?: string;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_WORKER = 'Unassigned';
+export const DEFAULT_WORKER = 'Unassigned';
 
 function parseDate(value?: string): Date | null {
   if (!value) return null;
@@ -135,8 +140,9 @@ export function getTaskEstimateDays(task: Pick<Task, 'estimate' | 'estimateUnit'
   return diffCalendarDays(startDate, targetDate);
 }
 
-export function buildForecastDashboardData(tasks: Task[], today = new Date()): ForecastDashboardData {
+export function buildForecastDashboardData(tasks: Task[], today = new Date(), assumptions: ForecastDashboardAssumptions = {}): ForecastDashboardData {
   const todayIso = toIsoDate(today);
+  const assumedStartDate = parseDate(assumptions.startDate) ? assumptions.startDate!.slice(0, 10) : undefined;
   const chartTasks: ForecastTaskPoint[] = tasks.map((task) => {
     const statusKey = getForecastStatusKey(task);
     const startDate = normalizeDate(task.tempStartDate || task.startDate, todayIso);
@@ -166,7 +172,7 @@ export function buildForecastDashboardData(tasks: Task[], today = new Date()): F
   // Use status-based remaining workload % for forecasting (and effective remaining)
   const remainingDays = chartTasks
     .filter(task => task.statusKey !== 'done')
-    .reduce((sum, task) => sum + task.estimateDays * getStatusRemainingWorkloadFactor(task.status), 0);
+    .reduce((sum, task) => sum + task.estimateDays * getStatusRemainingWorkloadFactor(task.status, assumptions), 0);
   const statusBreakdown = [...chartTasks.reduce<Map<string, ForecastStatusTotal>>((totals, task) => {
     const existing = totals.get(task.status) || { status: task.status, statusKey: task.statusKey, days: 0 };
     existing.days += task.estimateDays;
@@ -179,15 +185,16 @@ export function buildForecastDashboardData(tasks: Task[], today = new Date()): F
   const dateBasedStart = dateValues.length ? minDate([...dateValues, todayIso]) : fallbackStart;
 
   // Capacity-based estimated completion + future workload projection (encapsulated in forecastCompletion.ts)
-  const workByAssignee = allocateForCompletion(chartTasks);
-  const { projectCompletion: capacityCompletion } = computeCapacityCompletion(workByAssignee, today);
+  const workByAssignee = allocateForCompletion(chartTasks, assumptions);
+  const { projectCompletion: capacityCompletion } = computeCapacityCompletion(workByAssignee, today, assumptions);
 
   // date range start prefers historical dates; end uses capacity-derived when there is remaining work
-  const startDate = dateBasedStart;
+  const startDate = assumedStartDate ?? dateBasedStart;
   const hasRemainingWork = remainingDays > 0.01;
-  const completionDate = hasRemainingWork && capacityCompletion > todayIso
+  const calculatedCompletionDate = hasRemainingWork && capacityCompletion > todayIso
     ? capacityCompletion
     : (dateValues.length ? maxDate([...dateValues, todayIso]) : todayIso);
+  const completionDate = maxDate([calculatedCompletionDate, startDate]);
 
   const dateRange = eachDate(startDate, completionDate);
 
@@ -227,7 +234,8 @@ export function buildForecastDashboardData(tasks: Task[], today = new Date()): F
     const projectedRems = simulateFutureRemaining(
       futureDates,
       remainingDays,
-      workByAssignee
+      workByAssignee,
+      assumptions
     );
 
     for (let i = 0; i < projectedRems.length; i++) {

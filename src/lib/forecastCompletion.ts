@@ -8,6 +8,38 @@ export interface CompletionTask {
 
 export const DEFAULT_WORKER = 'Unassigned';
 
+export interface ForecastCompletionAssumptions {
+  capacityDaysPerWeek?: number;
+  statusRemainingPercent?: Partial<{
+    draft: number;
+    todo: number;
+    inProgress: number;
+    inReview: number;
+    done: number;
+    other: number;
+  }>;
+}
+
+const DEFAULT_STATUS_REMAINING_PERCENT = {
+  draft: 0,
+  todo: 100,
+  inProgress: 50,
+  inReview: 20,
+  done: 0,
+  other: 50,
+};
+
+function normalizePercent(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : fallback;
+}
+
+function normalizeDailyCapacity(capacityDaysPerWeek: number | undefined): number {
+  if (typeof capacityDaysPerWeek !== 'number' || !Number.isFinite(capacityDaysPerWeek) || capacityDaysPerWeek <= 0) {
+    return 1;
+  }
+  return capacityDaysPerWeek / 5;
+}
+
 function parseDate(value?: string): Date | null {
   if (!value) return null;
   const [year, month, day] = value.slice(0, 10).split('-').map(Number);
@@ -61,14 +93,15 @@ export function addWorkdays(base: Date, workDays: number): Date {
  * - Done: 0%
  * - All other statuses: 50%
  */
-export function getStatusRemainingWorkloadFactor(status: string): number {
+export function getStatusRemainingWorkloadFactor(status: string, assumptions: ForecastCompletionAssumptions = {}): number {
   const s = (status || '').toLowerCase();
-  if (s.includes('done') || s.includes('closed')) return 0;
-  if (s.includes('draft')) return 0;
-  if (s.includes('todo')) return 1;
-  if (s.includes('progress')) return 0.5;
-  if (s.includes('review')) return 0.2;
-  return 0.5; // all other
+  const percent = assumptions.statusRemainingPercent ?? {};
+  if (s.includes('done') || s.includes('closed')) return normalizePercent(percent.done, DEFAULT_STATUS_REMAINING_PERCENT.done) / 100;
+  if (s.includes('draft')) return normalizePercent(percent.draft, DEFAULT_STATUS_REMAINING_PERCENT.draft) / 100;
+  if (s.includes('todo')) return normalizePercent(percent.todo, DEFAULT_STATUS_REMAINING_PERCENT.todo) / 100;
+  if (s.includes('progress')) return normalizePercent(percent.inProgress, DEFAULT_STATUS_REMAINING_PERCENT.inProgress) / 100;
+  if (s.includes('review')) return normalizePercent(percent.inReview, DEFAULT_STATUS_REMAINING_PERCENT.inReview) / 100;
+  return normalizePercent(percent.other, DEFAULT_STATUS_REMAINING_PERCENT.other) / 100;
 }
 
 /**
@@ -86,7 +119,7 @@ export function getStatusRemainingWorkloadFactor(status: string): number {
  * This produces per-assignee workloads used both for the project completion date and for
  * simulating future daily workload (projected dots).
  */
-export function allocateRemainingWork(chartTasks: CompletionTask[]): Map<string, number> {
+export function allocateRemainingWork(chartTasks: CompletionTask[], assumptions: ForecastCompletionAssumptions = {}): Map<string, number> {
   const openTasks = chartTasks.filter(t => t.statusKey !== 'done');
   const workByAssignee = new Map<string, number>();
   const activeAssignees = new Set<string>();
@@ -98,7 +131,7 @@ export function allocateRemainingWork(chartTasks: CompletionTask[]): Map<string,
 
     realAssignees.forEach(a => activeAssignees.add(a));
 
-    const factor = getStatusRemainingWorkloadFactor(task.status);
+    const factor = getStatusRemainingWorkloadFactor(task.status, assumptions);
     const effort = task.estimateDays * factor;  // scale by status remaining workload %
     const share = effort / realAssignees.length;
     realAssignees.forEach(a => {
@@ -112,7 +145,7 @@ export function allocateRemainingWork(chartTasks: CompletionTask[]): Map<string,
       const hasReal = task.assignees.some(a => a !== DEFAULT_WORKER);
       if (hasReal) return;
 
-      const factor = getStatusRemainingWorkloadFactor(task.status);
+      const factor = getStatusRemainingWorkloadFactor(task.status, assumptions);
       const effort = task.estimateDays * factor;
       const share = effort / activeAssignees.size;
       activeAssignees.forEach(a => {
@@ -124,7 +157,7 @@ export function allocateRemainingWork(chartTasks: CompletionTask[]): Map<string,
     let unassignedTotal = 0;
     openTasks.forEach(task => {
       if (task.assignees.includes(DEFAULT_WORKER) || task.assignees.length === 0) {
-        const factor = getStatusRemainingWorkloadFactor(task.status);
+        const factor = getStatusRemainingWorkloadFactor(task.status, assumptions);
         unassignedTotal += task.estimateDays * factor;
       }
     });
@@ -145,14 +178,16 @@ export function allocateRemainingWork(chartTasks: CompletionTask[]): Map<string,
  */
 export function computeCapacityBasedCompletion(
   workByAssignee: Map<string, number>,
-  today: Date
+  today: Date,
+  assumptions: ForecastCompletionAssumptions = {}
 ): { assigneeCompletions: Array<{ assignee: string; work: number; completion: string }>; projectCompletion: string } {
   const assigneeCompletions: Array<{ assignee: string; work: number; completion: string }> = [];
   let latest = toIsoDate(today);
+  const dailyCapacity = normalizeDailyCapacity(assumptions.capacityDaysPerWeek);
 
   workByAssignee.forEach((work, assignee) => {
     if (work <= 0) return;
-    const workDays = Math.ceil(work);
+    const workDays = Math.ceil(work / dailyCapacity);
     const finishDate = addWorkdays(today, workDays);
     const completion = toIsoDate(finishDate);
     assigneeCompletions.push({ assignee, work, completion });
@@ -178,13 +213,15 @@ export function computeCapacityBasedCompletion(
 export function simulateFutureRemaining(
   dateRange: string[],
   initialRemaining: number,
-  workByAssignee: Map<string, number>
+  workByAssignee: Map<string, number>,
+  assumptions: ForecastCompletionAssumptions = {}
 ): number[] {
   const remainingAtDate: number[] = [];
   const simWork = new Map<string, number>();
   workByAssignee.forEach((w, a) => simWork.set(a, w));
 
   let currentRem = initialRemaining;
+  const dailyCapacity = normalizeDailyCapacity(assumptions.capacityDaysPerWeek);
 
   for (const dateStr of dateRange) {
     const d = parseDate(dateStr)!;
@@ -194,7 +231,7 @@ export function simulateFutureRemaining(
     if (isWd && currentRem > 0) {
       simWork.forEach((left, a) => {
         if (left > 0.01) {
-          const burn = Math.min(1, left);
+          const burn = Math.min(dailyCapacity, left);
           dayBurn += burn;
           simWork.set(a, Math.max(0, left - burn));
         }

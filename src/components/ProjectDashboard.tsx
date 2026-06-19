@@ -102,9 +102,9 @@ function DashboardLayout() {
     if (isDesktop) {
       setIsChartVisible(true);
     } else {
-      // On narrow viewports, fall back to the task list rather than forcing
-      // the forecast dashboard — preserves the user's context when resizing.
-      setIsChartVisible(false);
+      // Narrow viewports open directly to the chart workspace; dashboardView
+      // defaults to forecast, while users can still switch back to the list.
+      setIsChartVisible(true);
     }
   }, [isDesktop, setIsChartVisible]);
 
