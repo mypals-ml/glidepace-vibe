@@ -83,6 +83,11 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const assumptionStartDate = chartData.points[0]?.date ? dateFormatter.format(new Date(`${chartData.points[0].date}T00:00:00`)) : '-';
   const rawWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees)).size;
   const assumptionWorkerCount = Math.max(1, rawWorkerCount);
+  // Collect other statuses present (for dynamic "other" in assumptions)
+  const knownStatusNames = ['draft', 'todo', 'progress', 'review', 'done'];
+  const otherStatusesPresent = Array.from(
+    new Set(chartData.statusBreakdown.map(s => s.status))
+  ).filter(st => !knownStatusNames.some(k => st.toLowerCase().includes(k))).join(', ') || 'none';
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
   const statusSegments = chartData.statusBreakdown.map((status) => ({
     ...status,
@@ -312,11 +317,44 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
           {isLoadingTasks ? (
             <ForecastDashboardSectionLoader variant="assumptions" label={t('dashboard.loadingTasks')} />
           ) : (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <AssumptionItem label={t('dashboard.burndownAssumptionStartDate', 'Start date')} value={assumptionStartDate} />
-              <AssumptionItem label={t('dashboard.burndownAssumptionCapacity', 'Capacity (days per week)')} value={t('dashboard.burndownAssumptionCapacityValue', '5d/week')} />
-              <AssumptionItem label={t('dashboard.burndownAssumptionWorkers', 'Workers count')} value={String(assumptionWorkerCount)} />
-            </div>
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <AssumptionItem label={t('dashboard.burndownAssumptionStartDate', 'Start date')} value={assumptionStartDate} />
+                <AssumptionItem label={t('dashboard.burndownAssumptionCapacity', 'Capacity (days per week)')} value={t('dashboard.burndownAssumptionCapacityValue', '5d/week')} />
+                <AssumptionItem label={t('dashboard.burndownAssumptionWorkers', 'Workers count')} value={String(assumptionWorkerCount)} />
+              </div>
+
+              {/* Grouped visual design for task status remaining workload assumptions (used in forecasting) */}
+              <div className="mt-4 pt-3 border-t border-slate-200/60">
+                <div className="text-[11px] font-bold uppercase text-slate-400 mb-2">Task status remaining workload</div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-center">
+                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                    <div className="text-[10px] text-slate-500">Draft</div>
+                    <div className="text-sm font-bold text-slate-800">0%</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                    <div className="text-[10px] text-slate-500">Todo</div>
+                    <div className="text-sm font-bold text-slate-800">100%</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                    <div className="text-[10px] text-slate-500">In progress</div>
+                    <div className="text-sm font-bold text-slate-800">50%</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                    <div className="text-[10px] text-slate-500">In review</div>
+                    <div className="text-sm font-bold text-slate-800">20%</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                    <div className="text-[10px] text-slate-500">Done</div>
+                    <div className="text-sm font-bold text-slate-800">0%</div>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                    <div className="text-[10px] text-slate-500">Other ({otherStatusesPresent})</div>
+                    <div className="text-sm font-bold text-slate-800">50%</div>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </section>
       </div>

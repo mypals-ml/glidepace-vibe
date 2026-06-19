@@ -1,6 +1,7 @@
 // Minimal shape needed for allocation (avoids circular dependency with forecastDashboardUtils)
 export interface CompletionTask {
   statusKey: 'done' | 'inFlight' | 'todo';
+  status: string;
   estimateDays: number;
   assignees: string[];
 }
@@ -49,6 +50,28 @@ export function addWorkdays(base: Date, workDays: number): Date {
 }
 
 /**
+ * Returns the remaining workload percentage (as factor 0-1) for a given task status.
+ * Used in the forecasting algorithm to scale the effective remaining effort
+ * based on how much work is actually left for that status.
+ *
+ * - Draft: 0%
+ * - Todo: 100%
+ * - In progress: 50%
+ * - In review: 20%
+ * - Done: 0%
+ * - All other statuses: 50%
+ */
+export function getStatusRemainingWorkloadFactor(status: string): number {
+  const s = (status || '').toLowerCase();
+  if (s.includes('done') || s.includes('closed')) return 0;
+  if (s.includes('draft')) return 0;
+  if (s.includes('todo')) return 1;
+  if (s.includes('progress')) return 0.5;
+  if (s.includes('review')) return 0.2;
+  return 0.5; // all other
+}
+
+/**
  * Allocate remaining effort (person-days) to assignees.
  *
  * Rules (user's proposal + refinements for correctness):
@@ -75,7 +98,8 @@ export function allocateRemainingWork(chartTasks: CompletionTask[]): Map<string,
 
     realAssignees.forEach(a => activeAssignees.add(a));
 
-    const effort = task.estimateDays;
+    const factor = getStatusRemainingWorkloadFactor(task.status);
+    const effort = task.estimateDays * factor;  // scale by status remaining workload %
     const share = effort / realAssignees.length;
     realAssignees.forEach(a => {
       workByAssignee.set(a, (workByAssignee.get(a) || 0) + share);
@@ -88,7 +112,8 @@ export function allocateRemainingWork(chartTasks: CompletionTask[]): Map<string,
       const hasReal = task.assignees.some(a => a !== DEFAULT_WORKER);
       if (hasReal) return;
 
-      const effort = task.estimateDays;
+      const factor = getStatusRemainingWorkloadFactor(task.status);
+      const effort = task.estimateDays * factor;
       const share = effort / activeAssignees.size;
       activeAssignees.forEach(a => {
         workByAssignee.set(a, (workByAssignee.get(a) || 0) + share);
@@ -99,7 +124,8 @@ export function allocateRemainingWork(chartTasks: CompletionTask[]): Map<string,
     let unassignedTotal = 0;
     openTasks.forEach(task => {
       if (task.assignees.includes(DEFAULT_WORKER) || task.assignees.length === 0) {
-        unassignedTotal += task.estimateDays;
+        const factor = getStatusRemainingWorkloadFactor(task.status);
+        unassignedTotal += task.estimateDays * factor;
       }
     });
     if (unassignedTotal > 0) {

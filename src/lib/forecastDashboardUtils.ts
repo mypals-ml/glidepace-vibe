@@ -3,6 +3,7 @@ import {
   allocateRemainingWork as allocateForCompletion,
   computeCapacityBasedCompletion as computeCapacityCompletion,
   simulateFutureRemaining,
+  getStatusRemainingWorkloadFactor,
 } from './forecastCompletion';
 
 export type ForecastStatusKey = 'done' | 'inFlight' | 'todo';
@@ -142,13 +143,14 @@ export function buildForecastDashboardData(tasks: Task[], today = new Date()): F
     const targetDate = normalizeDate(task.tempTargetDate || task.targetDate, startDate);
     const doneDate = statusKey === 'done' ? targetDate : undefined;
 
+    const estimateDays = getTaskEstimateDays(task);
     return {
       id: task.id,
       displayId: task.displayId,
       title: task.title,
       status: task.status || 'Todo',
       statusKey,
-      estimateDays: getTaskEstimateDays(task),
+      estimateDays,
       startDate,
       targetDate,
       doneDate,
@@ -161,7 +163,10 @@ export function buildForecastDashboardData(tasks: Task[], today = new Date()): F
     totals[task.statusKey] += task.estimateDays;
     return totals;
   }, { done: 0, inFlight: 0, todo: 0 });
-  const remainingDays = statusTotals.inFlight + statusTotals.todo;
+  // Use status-based remaining workload % for forecasting (and effective remaining)
+  const remainingDays = chartTasks
+    .filter(task => task.statusKey !== 'done')
+    .reduce((sum, task) => sum + task.estimateDays * getStatusRemainingWorkloadFactor(task.status), 0);
   const statusBreakdown = [...chartTasks.reduce<Map<string, ForecastStatusTotal>>((totals, task) => {
     const existing = totals.get(task.status) || { status: task.status, statusKey: task.statusKey, days: 0 };
     existing.days += task.estimateDays;
