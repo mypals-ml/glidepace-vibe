@@ -131,8 +131,8 @@ export interface DashboardContextValue {
   // UI state
   isChartVisible: boolean;
   setIsChartVisible: (visible: boolean) => void;
-  dashboardView: 'gantt' | 'burndown';
-  setDashboardView: (view: 'gantt' | 'burndown') => void;
+  dashboardView: 'gantt' | 'forecast';
+  setDashboardView: (view: 'gantt' | 'forecast') => void;
   isTaskDetailsOpen: boolean;
   setIsTaskDetailsOpen: (open: boolean) => void;
   selectedTaskId: string | null;
@@ -169,6 +169,10 @@ export interface DashboardContextValue {
   centerGanttOnDate: (date: string | null) => void;
   centerGanttOnTask: (taskId: string, date: string | null) => void;
   completeGanttCenterRequest: () => void;
+
+  // Gantt zoom (horizontal only; 50-100 integer percent)
+  ganttZoomPercent: number;
+  setGanttZoomPercent: (percent: number | ((prev: number) => number)) => void;
 }
 
 export const DashboardContext = createContext<DashboardContextValue | null>(null);

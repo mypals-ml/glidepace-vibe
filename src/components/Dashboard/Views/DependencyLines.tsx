@@ -19,6 +19,7 @@ interface DependencyLinesProps {
   onBreakLink: (taskId: string, targetId: string) => void;
   dragState: { startX: number; startY: number; currentX: number; currentY: number } | null;
   hoveredTargetTaskId?: string | null;
+  viewportInfo?: DependencyLineViewportInfo;
 }
 
 interface LineAnchor {
@@ -29,27 +30,150 @@ interface LineAnchor {
   groupBlockId?: string;
 }
 
-export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, onBreakLink, dragState, hoveredTargetTaskId }: DependencyLinesProps) {
+interface DependencyLineViewportInfo {
+  scrollLeft: number;
+  scrollTop: number;
+  clientWidth: number;
+  clientHeight: number;
+}
+
+interface DependencyPathControlPoints {
+  cp1X: number;
+  cp2X: number;
+}
+
+interface DependencyLinePoint {
+  x: number;
+  y: number;
+}
+
+const BREAK_LINK_BUTTON_SIZE = 24;
+const BREAK_LINK_BUTTON_HALF_SIZE = BREAK_LINK_BUTTON_SIZE / 2;
+
+const clampBreakLinkButtonCenter = (
+  center: number,
+  viewportStart: number,
+  viewportSize: number,
+): number => {
+  if (viewportSize <= 0) return center;
+  if (viewportSize <= BREAK_LINK_BUTTON_SIZE) {
+    return viewportStart + viewportSize / 2;
+  }
+
+  const min = viewportStart + BREAK_LINK_BUTTON_HALF_SIZE;
+  const max = viewportStart + viewportSize - BREAK_LINK_BUTTON_HALF_SIZE;
+  return Math.min(Math.max(center, min), max);
+};
+
+const getDependencyPathControlPoints = (startX: number, endX: number): DependencyPathControlPoints => {
+  if (endX > startX) {
+    const offset = Math.max(100, (endX - startX) / 2);
+    return { cp1X: startX + offset, cp2X: endX - offset };
+  }
+
+  return { cp1X: startX + 100, cp2X: endX - 100 };
+};
+
+const getCubicBezierPoint = (
+  t: number,
+  startX: number,
+  startY: number,
+  cp1X: number,
+  cp1Y: number,
+  cp2X: number,
+  cp2Y: number,
+  endX: number,
+  endY: number,
+): DependencyLinePoint => {
+  const inverseT = 1 - t;
+  const inverseTSquared = inverseT * inverseT;
+  const tSquared = t * t;
+
+  return {
+    x:
+      inverseTSquared * inverseT * startX +
+      3 * inverseTSquared * t * cp1X +
+      3 * inverseT * tSquared * cp2X +
+      tSquared * t * endX,
+    y:
+      inverseTSquared * inverseT * startY +
+      3 * inverseTSquared * t * cp1Y +
+      3 * inverseT * tSquared * cp2Y +
+      tSquared * t * endY,
+  };
+};
+
+const getBreakLinkButtonCenter = (
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  viewportInfo?: DependencyLineViewportInfo,
+): DependencyLinePoint | null => {
+  const { cp1X, cp2X } = getDependencyPathControlPoints(startX, endX);
+  const defaultPoint = getCubicBezierPoint(0.5, startX, startY, cp1X, startY, cp2X, endY, endX, endY);
+
+  if (!viewportInfo || viewportInfo.clientWidth <= 0 || viewportInfo.clientHeight <= 0) {
+    return defaultPoint;
+  }
+
+  const visibleLeft = viewportInfo.scrollLeft + BREAK_LINK_BUTTON_HALF_SIZE;
+  const visibleRight = viewportInfo.scrollLeft + viewportInfo.clientWidth - BREAK_LINK_BUTTON_HALF_SIZE;
+  const visibleTop = viewportInfo.scrollTop + BREAK_LINK_BUTTON_HALF_SIZE;
+  const visibleBottom = viewportInfo.scrollTop + viewportInfo.clientHeight - BREAK_LINK_BUTTON_HALF_SIZE;
+
+  if (visibleLeft > visibleRight || visibleTop > visibleBottom) {
+    return {
+      x: clampBreakLinkButtonCenter(defaultPoint.x, viewportInfo.scrollLeft, viewportInfo.clientWidth),
+      y: clampBreakLinkButtonCenter(defaultPoint.y, viewportInfo.scrollTop, viewportInfo.clientHeight),
+    };
+  }
+
+  const isVisible = (point: DependencyLinePoint) =>
+    point.x >= visibleLeft &&
+    point.x <= visibleRight &&
+    point.y >= visibleTop &&
+    point.y <= visibleBottom;
+
+  if (isVisible(defaultPoint)) {
+    return defaultPoint;
+  }
+
+  const SAMPLE_COUNT = 80;
+  let closestVisiblePoint: DependencyLinePoint | null = null;
+  let closestDistanceFromMiddle = Number.POSITIVE_INFINITY;
+
+  for (let sampleIndex = 0; sampleIndex <= SAMPLE_COUNT; sampleIndex += 1) {
+    const t = sampleIndex / SAMPLE_COUNT;
+    const point = getCubicBezierPoint(t, startX, startY, cp1X, startY, cp2X, endY, endX, endY);
+    if (!isVisible(point)) continue;
+
+    const distanceFromMiddle = Math.abs(t - 0.5);
+    if (distanceFromMiddle < closestDistanceFromMiddle) {
+      closestVisiblePoint = point;
+      closestDistanceFromMiddle = distanceFromMiddle;
+    }
+  }
+
+  return closestVisiblePoint;
+};
+
+export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, onBreakLink, dragState, hoveredTargetTaskId, viewportInfo }: DependencyLinesProps) {
   const { t } = useTranslation();
   const ROW_HEIGHT = 72;
   const DEPENDENCY_LINE_DASH_DURATION_SECONDS = 10;
   const DRAG_LINE_STROKE_WIDTH = 2;
   const SNAPPED_DRAG_LINE_STROKE_WIDTH = 2.5;
-  // Mirror the group card geometry in GanttChart (CARD_PAD / min span width)
+  // Mirror the group card geometry in TimelineChart (CARD_PAD / min span width)
   // so folded-card anchors line up with the rendered card title bar.
+  // Mins are derived from the current dayWidth so that lines continue to attach
+  // to the visual ends of task bars and group cards at any zoom level.
   const GROUP_CARD_PAD = 9;
-  const GROUP_CARD_MIN_SPAN_WIDTH = 120;
+  const MIN_BAR_WIDTH = Math.max(48, Math.floor(dayWidth * 0.8));
+  const GROUP_CARD_MIN_SPAN_WIDTH = Math.max(80, Math.floor(dayWidth));
 
   const getPathStr = (startX: number, startY: number, endX: number, endY: number) => {
-    let cp1X, cp2X;
-    if (endX > startX) {
-      const offset = Math.max(100, (endX - startX) / 2);
-      cp1X = startX + offset;
-      cp2X = endX - offset;
-    } else {
-      cp1X = startX + 100;
-      cp2X = endX - 100;
-    }
+    const { cp1X, cp2X } = getDependencyPathControlPoints(startX, endX);
     return `M ${startX} ${startY} C ${cp1X} ${startY}, ${cp2X} ${endY}, ${endX} ${endY}`;
   };
 
@@ -63,14 +187,14 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
       if (start && end) {
         const x1 = getPositionForDate(start);
         const duration = diffDays(start, end);
-        const x2 = x1 + Math.max(duration * dayWidth, 100);
+        const x2 = x1 + Math.max(duration * dayWidth, MIN_BAR_WIDTH);
         const y = i * ROW_HEIGHT + (ROW_HEIGHT / 2);
         bounds.set(t.id, { x1, x2, y });
         if (t.itemId) bounds.set(t.itemId, { x1, x2, y });
       }
     });
     return bounds;
-  }, [items, getPositionForDate, dayWidth]);
+  }, [items, getPositionForDate, dayWidth, MIN_BAR_WIDTH]);
 
   // Anchor bounds for tasks hidden inside folded group cards, keyed by the
   // hidden task's identity. The anchor is the folded card's title bar so a
@@ -92,7 +216,7 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
       });
     });
     return anchors;
-  }, [items, getPositionForDate, dayWidth]);
+  }, [items, getPositionForDate, dayWidth, GROUP_CARD_MIN_SPAN_WIDTH]);
 
   const lines = useMemo(() => {
     const result: React.ReactNode[] = [];
@@ -126,6 +250,7 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
           const endY = target.y;
 
           const pathStr = getPathStr(startX, startY, endX, endY);
+          const breakLinkCenter = getBreakLinkButtonCenter(startX, startY, endX, endY, viewportInfo);
 
           result.push(
             <g key={`${task.id}-${targetId}`} className="group/line cursor-pointer">
@@ -142,15 +267,17 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
                 style={{ animation: `dash ${DEPENDENCY_LINE_DASH_DURATION_SECONDS}s linear infinite` }}
               />
               {/* Break link icon on hover */}
-              <foreignObject x={(startX + endX) / 2 - 12} y={(startY + endY) / 2 - 12} width="24" height="24" className="opacity-0 group-hover/line:opacity-100">
-                <div 
-                  className="w-6 h-6 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center shadow hover:bg-rose-500 hover:text-white transition-colors"
-                  onClick={(e) => { e.stopPropagation(); onBreakLink(task.id, targetId); }}
-                  title={t('dashboard.breakLink') || "Break link"}
-                >
-                  <span className="material-symbols-outlined text-[14px]">link_off</span>
-                </div>
-              </foreignObject>
+              {breakLinkCenter && (
+                <foreignObject x={breakLinkCenter.x - BREAK_LINK_BUTTON_HALF_SIZE} y={breakLinkCenter.y - BREAK_LINK_BUTTON_HALF_SIZE} width={BREAK_LINK_BUTTON_SIZE} height={BREAK_LINK_BUTTON_SIZE} className="opacity-0 group-hover/line:opacity-100">
+                  <div
+                    className="w-6 h-6 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center shadow hover:bg-rose-500 hover:text-white transition-colors"
+                    onClick={(e) => { e.stopPropagation(); onBreakLink(task.id, targetId); }}
+                    title={t('dashboard.breakLink') || "Break link"}
+                  >
+                    <span className="material-symbols-outlined text-[14px]">link_off</span>
+                  </div>
+                </foreignObject>
+              )}
             </g>
           );
         });
@@ -158,7 +285,7 @@ export function DependencyLines({ items, tasks, getPositionForDate, dayWidth, on
     });
 
     return result;
-  }, [items, tasks, boundsMap, foldedCardAnchorMap, onBreakLink, t]);
+  }, [items, tasks, boundsMap, foldedCardAnchorMap, onBreakLink, t, viewportInfo]);
 
   const dragPathInfo = useMemo(() => {
     if (!dragState) return null;

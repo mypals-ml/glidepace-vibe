@@ -110,7 +110,7 @@ export function useDashboardTasks({
     updateTaskComment,
     deleteTaskComment,
     addTaskComment,
-  } = useTaskComments({ core, fetchSingleProjectItem });
+  } = useTaskComments({ core });
 
   const {
     updateTaskAssignees,

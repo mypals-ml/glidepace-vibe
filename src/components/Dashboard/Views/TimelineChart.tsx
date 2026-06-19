@@ -5,7 +5,8 @@ import { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import { getStartDateForCal, getTargetDateForCal } from '../../../lib/githubTaskMapper';
 import { diffDays } from '../../../lib/dateUtils';
 import { IconButton } from '../../UI/IconButton';
-import { useGanttTimeline } from '../../../hooks/useGanttTimeline';
+import { useTimelineChart } from '../../../hooks/useTimelineChart';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { DependencyLines } from './DependencyLines';
 import { FloatingSequenceBuilder } from '../FloatingSequenceBuilder';
 import { isTaskGroupBlock } from '../../../lib/taskGroupUtils';
@@ -13,28 +14,78 @@ import { defaultWorkCalendar } from '../../../lib/workCalendar';
 import { getScrollTopForSelectedRow } from '../../../lib/scrollUtils';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../../lib/contextMenuLinkUtils';
 import { getTreeColor, getGroupCardTitleBg, getGroupCardContentBg, getGroupCardBorder, getGroupCardPillBg, getGroupCardTitleFg } from '../../../lib/treeColors';
+import type { DashboardFieldGroupContext } from '../../../lib/taskOrderUtils';
+import { buildTimelineTaskBarDropPlan, getGroupTitleLayout, type TimelineTaskBarDropPlan } from './timelineChartUtils';
+import type { Task } from '../../../types';
 
-export interface GanttChartProps {
+export interface TimelineChartProps {
   className?: string;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   onScroll?: React.UIEventHandler<HTMLDivElement>;
 }
 
-const DAY_WIDTH = 120;
+const BASE_DAY_WIDTH = 120;
 const INITIAL_BUFFER_DAYS_LEFT = 14;
 const INITIAL_BUFFER_DAYS_RIGHT = 30;
 const EXPANSION_THRESHOLD_PX = 300;
 const EXPANSION_DAYS = 14;
 const ROW_HEIGHT = 72;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 1;
+const TASK_BAR_DRAG_THRESHOLD_PX = 6;
 
-export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartProps) {
+const getViewportInfo = (el: HTMLDivElement) => ({
+  scrollLeft: el.scrollLeft,
+  scrollTop: el.scrollTop,
+  clientWidth: el.clientWidth,
+  clientHeight: el.clientHeight,
+});
+
+const GROUP_CARD_PAD = 9;
+const GROUP_CARD_TITLE_HEIGHT = 40;
+const GROUP_CARD_RADIUS = 8;
+const GROUP_TITLE_LEFT_PADDING = 6;
+const GROUP_TITLE_RIGHT_PADDING = 13;
+const GROUP_TITLE_PROGRESS_WIDTH = 36;
+
+export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineChartProps) {
   const { t } = useTranslation();
-  const { tasks, filteredTasks, dashboardItems, isLoadingTasks, requestedCenterDate, requestedCenterTaskId, centerGanttOnDate, completeGanttCenterRequest, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds, toggleGroupBlockCollapsed } = useDashboard();
-  const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, clientWidth: 0 });
+  const { tasks, filteredTasks, dashboardItems, selectedGroupFieldIds, projectFields, isLoadingTasks, requestedCenterDate, requestedCenterTaskId, centerGanttOnDate, completeGanttCenterRequest, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskDates, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds, toggleGroupBlockCollapsed, reorderTask, reorderTaskBlock, moveTaskToGroupPath, ganttZoomPercent, setGanttZoomPercent } = useDashboard();
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, scrollTop: 0, clientWidth: 0, clientHeight: 0 });
+  const [mobileMoveTaskId, setMobileMoveTaskId] = useState<string | null>(null);
+  const [taskBarDragState, setTaskBarDragState] = useState<{
+    taskId: string;
+    pointerId: number;
+    originClientX: number;
+    originClientY: number;
+    originRowIndex: number;
+    deltaX: number;
+    deltaY: number;
+    hasMoved: boolean;
+  } | null>(null);
   const internalScrollRef = useRef<HTMLDivElement>(null);
   
   // Use either the provided ref or internal one
   const activeScrollRef = scrollRef || internalScrollRef;
+
+  const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, (ganttZoomPercent ?? 100) / 100));
+  const dayWidth = Math.round(BASE_DAY_WIDTH * zoom);
+
+  const prevDayWidthRef = useRef(dayWidth);
+
+  // Live value refs for native event handlers (wheel/pinch) so we always have fresh numbers
+  // without stale closures. Also used for focal-point zoom calculations.
+  const dayWidthRef = useRef(dayWidth);
+  const zoomPercentRef = useRef(ganttZoomPercent);
+  const lastPinchDistRef = useRef<number | null>(null);
+  const pinchAnchorDayIndexRef = useRef<number | null>(null);
+  const pendingDesiredScrollRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    dayWidthRef.current = dayWidth;
+    zoomPercentRef.current = ganttZoomPercent;
+  }, [dayWidth, ganttZoomPercent]);
 
   const { 
     timelineRange, 
@@ -42,8 +93,8 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     getPositionForDate, 
     handleScroll: handleTimelineScroll,
     centerOnDate 
-  } = useGanttTimeline({
-    dayWidth: DAY_WIDTH,
+  } = useTimelineChart({
+    dayWidth,
     initialBufferDaysLeft: INITIAL_BUFFER_DAYS_LEFT,
     initialBufferDaysRight: INITIAL_BUFFER_DAYS_RIGHT,
     expansionThresholdPx: EXPANSION_THRESHOLD_PX,
@@ -53,6 +104,10 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() => defaultWorkCalendar.formatDate(today), [today]);
+  const fieldGroupContext = useMemo<DashboardFieldGroupContext>(() => ({
+    fieldIds: selectedGroupFieldIds,
+    fields: projectFields,
+  }), [selectedGroupFieldIds, projectFields]);
 
   // Weighted progress for a group block (Design 7 group card): weight each
   // child task's progress by its duration in days, matching the design's
@@ -95,8 +150,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
   // Update viewport info on scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollLeft, clientWidth } = e.currentTarget;
-    setViewportInfo({ scrollLeft, clientWidth });
+    setViewportInfo(getViewportInfo(e.currentTarget));
     
     // Delegate to timeline hook for expansion logic
     handleTimelineScroll(e);
@@ -205,6 +259,99 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     setIsTaskDetailsOpen(true);
   };
 
+  const handleTaskBarPointerDown = (e: React.PointerEvent<HTMLDivElement>, task: Task, rowIndex: number) => {
+    const canStartDrag = e.pointerType === 'mouse' || (e.pointerType === 'touch' && mobileMoveTaskId === task.id);
+    if (isLinkMode || e.button !== 0 || !canStartDrag) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-gantt-link-handle="true"]')) return;
+
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setContextMenu(null);
+    setTaskBarDragState({
+      taskId: task.id,
+      pointerId: e.pointerId,
+      originClientX: e.clientX,
+      originClientY: e.clientY,
+      originRowIndex: rowIndex,
+      deltaX: 0,
+      deltaY: 0,
+      hasMoved: false,
+    });
+  };
+
+  const handleTaskBarPointerMove = (e: React.PointerEvent<HTMLDivElement>, taskId: string) => {
+    setTaskBarDragState(prev => {
+      if (!prev || prev.taskId !== taskId || prev.pointerId !== e.pointerId) return prev;
+      const deltaX = e.clientX - prev.originClientX;
+      const deltaY = e.clientY - prev.originClientY;
+      const hasMoved = prev.hasMoved || Math.hypot(deltaX, deltaY) >= TASK_BAR_DRAG_THRESHOLD_PX;
+      if (hasMoved) clearLongPressTimer();
+      return { ...prev, deltaX, deltaY, hasMoved };
+    });
+  };
+
+  const applyTaskBarDropPlan = async (task: Task, plan: TimelineTaskBarDropPlan) => {
+    if (plan.startDate) {
+      await updateTaskDates(task, plan.startDate);
+    }
+
+    if (plan.groupDropPlan) {
+      await moveTaskToGroupPath(
+        plan.groupDropPlan.taskId,
+        plan.groupDropPlan.targetGroupPath,
+        plan.groupDropPlan.afterTaskId,
+        plan.groupDropPlan.fieldValueChanges
+      );
+      return;
+    }
+
+    if (plan.taskGroupPathMovePlan) {
+      await moveTaskToGroupPath(
+        plan.taskGroupPathMovePlan.taskId,
+        plan.taskGroupPathMovePlan.targetGroupPath,
+        plan.taskGroupPathMovePlan.afterTaskId,
+        plan.taskGroupPathMovePlan.fieldValueChanges
+      );
+      return;
+    }
+
+    if (!plan.movePlan) return;
+    if (plan.movePlan.taskIds.length === 1) {
+      await reorderTask(plan.movePlan.taskIds[0], plan.movePlan.afterTaskId);
+    } else {
+      await reorderTaskBlock(plan.movePlan.taskIds, plan.movePlan.afterTaskId);
+    }
+  };
+
+  const handleTaskBarPointerEnd = async (e: React.PointerEvent<HTMLDivElement>, task: Task) => {
+    const dragState = taskBarDragState;
+    if (!dragState || dragState.taskId !== task.id || dragState.pointerId !== e.pointerId) return;
+
+    setTaskBarDragState(null);
+    if (!dragState.hasMoved) return;
+
+    suppressNextClickRef.current = true;
+    setMobileMoveTaskId(null);
+    const deltaDays = Math.round(dragState.deltaX / dayWidth);
+    const overRowIndex = Math.max(
+      0,
+      Math.min(
+        dashboardItems.length - 1,
+        Math.floor((dragState.originRowIndex * ROW_HEIGHT + ROW_HEIGHT / 2 + dragState.deltaY) / ROW_HEIGHT)
+      )
+    );
+    const plan = buildTimelineTaskBarDropPlan({
+      task,
+      dashboardItems,
+      orderedTasks: tasks,
+      overRowIndex,
+      deltaDays,
+      fieldGroupContext,
+    });
+
+    await applyTaskBarDropPlan(task, plan);
+  };
+
   // Handle initial centering
   useEffect(() => {
     if (didCenterInitialRef.current) return;
@@ -212,10 +359,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     if (activeScrollRef.current) {
       didCenterInitialRef.current = true;
       centerOnDate(todayStr, 'auto');
-      setViewportInfo({
-        scrollLeft: activeScrollRef.current.scrollLeft,
-        clientWidth: activeScrollRef.current.clientWidth
-      });
+      setViewportInfo(getViewportInfo(activeScrollRef.current));
     }
   }, [activeScrollRef, todayStr, centerOnDate]);
 
@@ -248,9 +392,149 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
     completeGanttCenterRequest();
   }, [requestedCenterDate, requestedCenterTaskId, activeScrollRef, centerOnDate, completeGanttCenterRequest, dashboardItems, timelineExpansionVersion]);
 
+  // Re-anchor scroll when zoom (dayWidth) changes so the same date stays near viewport center.
+  // Also applies any pending focal scroll from live gestures *after* the new bar styles have committed,
+  // to avoid a paint frame with new scroll + old left/width on the task bars.
+  useLayoutEffect(() => {
+    const el = activeScrollRef.current;
+    if (!el) {
+      prevDayWidthRef.current = dayWidth;
+      return;
+    }
+
+    if (pendingDesiredScrollRef.current != null) {
+      const desired = pendingDesiredScrollRef.current;
+      if (Math.abs(el.scrollLeft - desired) > 0.5) {
+        el.scrollLeft = desired;
+        setViewportInfo(getViewportInfo(el));
+      }
+      pendingDesiredScrollRef.current = null;
+    } else if (prevDayWidthRef.current !== dayWidth) {
+      const prev = prevDayWidthRef.current;
+      const next = dayWidth;
+      const centerX = el.scrollLeft + el.clientWidth / 2;
+      const dayIndex = centerX / prev;
+      const newCenterX = dayIndex * next;
+      const desiredScrollLeft = Math.max(0, newCenterX - el.clientWidth / 2);
+      el.scrollLeft = desiredScrollLeft;
+      setViewportInfo(getViewportInfo(el));
+    }
+    prevDayWidthRef.current = dayWidth;
+  }, [dayWidth, activeScrollRef]);
+
+  // Native listeners for Ctrl/Cmd + wheel zoom and two-finger pinch-to-zoom.
+  // These use passive:false so we can preventDefault and stop the browser's own page zoom.
+  // We compute focal point and keep the logical date under that point stable (zoom-to-cursor / zoom-to-pinch-center).
+  // We use optimistic setViewportInfo + pendingDesiredScrollRef (applied in useLayoutEffect after styles commit)
+  // to avoid mismatched paint frames during zoom. We still update prevDayWidthRef to suppress center-reanchor for gestures.
+  useEffect(() => {
+    const el = activeScrollRef.current;
+    if (!el) return;
+
+    const getTouchDist = (touches: TouchList) => {
+      const t0 = touches[0];
+      const t1 = touches[1];
+      return Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+    };
+
+    const handleWheelNative = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+
+      const rect = el.getBoundingClientRect();
+      const focalViewportX = e.clientX - rect.left;
+      const focalContentX = el.scrollLeft + focalViewportX;
+
+      const currDW = dayWidthRef.current || 120;
+      const anchorDay = currDW > 0 ? focalContentX / currDW : 0;
+
+      const currP = zoomPercentRef.current;
+      const delta = e.deltaY < 0 ? 5 : -5;
+      const newP = Math.max(50, Math.min(100, currP + delta));
+      const newDW = Math.round(BASE_DAY_WIDTH * (newP / 100));
+
+      const newContentFocal = anchorDay * newDW;
+      const desiredScroll = Math.max(0, newContentFocal - focalViewportX);
+
+      // Optimistic viewport update so render uses the target scroll (for header translate + grid vis).
+      // The actual scrollLeft adjustment happens in the dayWidth useLayoutEffect *after* new bar styles commit.
+      setViewportInfo({ ...getViewportInfo(el), scrollLeft: desiredScroll });
+
+      setGanttZoomPercent(newP);
+      prevDayWidthRef.current = newDW;
+      pendingDesiredScrollRef.current = desiredScroll;
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        lastPinchDistRef.current = getTouchDist(e.touches);
+
+        const rect = el.getBoundingClientRect();
+        const midClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const focalViewportX = midClientX - rect.left;
+        const focalContentX = el.scrollLeft + focalViewportX;
+        const currDW = dayWidthRef.current || BASE_DAY_WIDTH;
+        pinchAnchorDayIndexRef.current = currDW > 0 ? focalContentX / currDW : 0;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && lastPinchDistRef.current != null && pinchAnchorDayIndexRef.current != null) {
+        e.preventDefault();
+
+        const dist = getTouchDist(e.touches);
+        const ratio = lastPinchDistRef.current > 0 ? dist / lastPinchDistRef.current : 1;
+        lastPinchDistRef.current = dist;
+
+        const currZoom = zoomPercentRef.current / 100;
+        let nextZoom = currZoom * ratio;
+        nextZoom = Math.max(0.5, Math.min(1, nextZoom));
+
+        const newP = Math.round(nextZoom * 100);
+        const newDW = Math.round(BASE_DAY_WIDTH * nextZoom);
+
+        const rect = el.getBoundingClientRect();
+        const midClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const focalViewportX = midClientX - rect.left;
+        const targetContentX = pinchAnchorDayIndexRef.current * newDW;
+
+        const desiredScroll = Math.max(0, targetContentX - focalViewportX);
+
+        // Optimistic viewport update so render uses the target scroll.
+        // Actual scroll adjustment in layout effect after styles commit.
+        setViewportInfo({ ...getViewportInfo(el), scrollLeft: desiredScroll });
+
+        setGanttZoomPercent(newP);
+        prevDayWidthRef.current = newDW;
+        pendingDesiredScrollRef.current = desiredScroll;
+      }
+    };
+
+    const handleTouchEndOrCancel = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        lastPinchDistRef.current = null;
+        pinchAnchorDayIndexRef.current = null;
+      }
+    };
+
+    el.addEventListener('wheel', handleWheelNative, { passive: false });
+    el.addEventListener('touchstart', handleTouchStart, { passive: false });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEndOrCancel);
+    el.addEventListener('touchcancel', handleTouchEndOrCancel);
+
+    return () => {
+      el.removeEventListener('wheel', handleWheelNative);
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEndOrCancel);
+      el.removeEventListener('touchcancel', handleTouchEndOrCancel);
+    };
+  }, [activeScrollRef, setGanttZoomPercent]);
+
   // Vertical Virtualization: Calculate visible days
-  const visibleStartIndex = Math.max(0, Math.floor(viewportInfo.scrollLeft / DAY_WIDTH) - 2);
-  const visibleEndIndex = Math.min(timelineRange.totalDays, Math.ceil((viewportInfo.scrollLeft + viewportInfo.clientWidth) / DAY_WIDTH) + 2);
+  const visibleStartIndex = Math.max(0, Math.floor(viewportInfo.scrollLeft / dayWidth) - 2);
+  const visibleEndIndex = Math.min(timelineRange.totalDays, Math.ceil((viewportInfo.scrollLeft + viewportInfo.clientWidth) / dayWidth) + 2);
 
   const visibleTimelineDays = useMemo(() => {
     const days = [];
@@ -285,7 +569,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
         <div 
           className="flex text-[10px] font-bold text-slate-500 select-none uppercase tracking-wider relative"
           style={{ 
-            width: `${timelineRange.totalDays * DAY_WIDTH}px`,
+            width: `${timelineRange.totalDays * dayWidth}px`,
             transform: `translateX(-${viewportInfo.scrollLeft}px)`
           }}
         >
@@ -294,8 +578,8 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
               key={day.date} 
               className={`flex-shrink-0 border-r border-slate-100 flex flex-col justify-center items-center gap-px absolute top-0 bottom-0 ${day.isNonWorkday ? 'bg-slate-200/70 text-slate-500' : ''} ${day.isToday ? '!bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500/35' : ''}`}
               style={{ 
-                width: `${DAY_WIDTH}px`,
-                left: `${day.index * DAY_WIDTH}px`
+                width: `${dayWidth}px`,
+                left: `${day.index * dayWidth}px`
               }}
             >
               <span className={day.isToday ? 'rounded-full bg-indigo-600 px-1.5 py-0 text-[9px] leading-[10px] font-black text-white shadow-sm' : 'opacity-60'}>
@@ -328,11 +612,18 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
         className={`flex-1 overflow-auto relative custom-scrollbar bg-white/40 ${linkDragState ? 'cursor-grabbing' : ''}`} 
         ref={activeScrollRef} 
         onScroll={handleScroll}
+        onPointerDown={(e) => {
+          if (!mobileMoveTaskId) return;
+          const target = e.target as HTMLElement;
+          if (!target.closest('[data-gantt-task-bar="true"]')) {
+            setMobileMoveTaskId(null);
+          }
+        }}
         onMouseMove={handleLinkDragMove}
         onMouseUp={handleLinkDragEnd}
         onMouseLeave={handleLinkDragEnd}
       >
-        <div className="relative pb-[var(--search-bar-height)]" style={{ width: `${timelineRange.totalDays * DAY_WIDTH}px`, minHeight: '100%' }}>
+        <div className="relative pb-[var(--search-bar-height)]" style={{ width: `${timelineRange.totalDays * dayWidth}px`, minHeight: '100%' }}>
           {/* Background Grid */}
           <div className="absolute inset-0 flex pointer-events-none z-0">
             {visibleTimelineDays.map((day) => (
@@ -340,8 +631,8 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                 key={day.date} 
                 className={`flex-shrink-0 border-r border-slate-100/50 absolute top-0 bottom-0 ${day.isNonWorkday ? 'bg-slate-200/45' : ''} ${day.isToday && !day.isNonWorkday ? 'bg-indigo-50/20' : ''}`}
                 style={{ 
-                  width: `${DAY_WIDTH}px`,
-                  left: `${day.index * DAY_WIDTH}px`
+                  width: `${dayWidth}px`,
+                  left: `${day.index * dayWidth}px`
                 }}
               />
             ))}
@@ -367,10 +658,11 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                 items={dashboardItems}
                 tasks={filteredTasks}
                 getPositionForDate={getPositionForDate}
-                dayWidth={DAY_WIDTH} 
+                dayWidth={dayWidth} 
                 onBreakLink={handleBreakLink}
                 dragState={linkDragState}
                 hoveredTargetTaskId={hoveredTargetTaskId}
+                viewportInfo={viewportInfo}
               />
               {dashboardItems.map((item, index) => {
                 if (isTaskGroupBlock(item)) {
@@ -410,22 +702,21 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                   // ---- Design 7: "group as a card". ----
                   // The card surface wraps the title row AND every descendant
                   // row; the group bar is the card's title row sitting at the top.
-                  const CARD_PAD = 9;
-                  const TITLE_H = 40;
-                  const CARD_RADIUS = 8;
                   const spanLeft = getPositionForDate(groupStart);
                   const duration = diffDays(groupStart, groupEnd);
-                  const spanWidth = duration * DAY_WIDTH;
-                  const cardLeft = spanLeft - CARD_PAD;
-                  const cardWidth = Math.max(spanWidth, 120) + CARD_PAD * 2;
+                  const spanWidth = duration * dayWidth;
+                  const cardLeft = spanLeft - GROUP_CARD_PAD;
+                  const groupMinWidth = Math.max(80, Math.floor(dayWidth));
+                  const cardWidth = Math.max(spanWidth, groupMinWidth) + GROUP_CARD_PAD * 2;
                   const weightedProgress = getGroupWeightedProgress(item);
                   const isOpen = item.isExpanded;
                   const rowSpan = groupRowSpans[item.groupBlockId] ?? 1;
+                  const titleLayout = getGroupTitleLayout(cardWidth);
                   // Card height: own row + descendant rows when expanded, else just the title row.
                   const cardHeight = isOpen
-                    ? (rowSpan - 1) * ROW_HEIGHT + TITLE_H + (72 - TITLE_H) / 2
-                    : TITLE_H;
-                  const titleTop = (72 - TITLE_H) / 2;
+                    ? (rowSpan - 1) * ROW_HEIGHT + GROUP_CARD_TITLE_HEIGHT + (72 - GROUP_CARD_TITLE_HEIGHT) / 2
+                    : GROUP_CARD_TITLE_HEIGHT;
+                  const titleTop = (72 - GROUP_CARD_TITLE_HEIGHT) / 2;
 
                   return (
                     <div key={item.groupBlockId} className="relative h-[72px] w-full px-2" style={{ zIndex: 5 }}>
@@ -439,7 +730,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                           height: `${cardHeight}px`,
                           background: contentBg,
                           border: `1px solid ${cardBorder}`,
-                          borderRadius: `${CARD_RADIUS}px`,
+                          borderRadius: `${GROUP_CARD_RADIUS}px`,
                           zIndex: 0,
                         }}
                       />
@@ -447,17 +738,17 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                       <button
                         type="button"
                         onClick={() => toggleGroupBlockCollapsed(item.groupBlockId)}
-                        className="absolute flex items-center gap-[9px] text-left"
+                        className="absolute flex items-center gap-[9px] text-left overflow-hidden"
                         style={{
                           left: `${cardLeft}px`,
                           width: `${cardWidth}px`,
                           top: `${titleTop}px`,
-                          height: `${TITLE_H}px`,
-                          padding: '0 13px 0 6px',
+                          height: `${GROUP_CARD_TITLE_HEIGHT}px`,
+                          padding: `0 ${GROUP_TITLE_RIGHT_PADDING}px 0 ${GROUP_TITLE_LEFT_PADDING}px`,
                           background: titleBg,
                           borderRadius: isOpen
-                            ? `${CARD_RADIUS}px ${CARD_RADIUS}px 0 0`
-                            : `${CARD_RADIUS}px`,
+                            ? `${GROUP_CARD_RADIUS}px ${GROUP_CARD_RADIUS}px 0 0`
+                            : `${GROUP_CARD_RADIUS}px`,
                           borderBottom: isOpen ? `1px solid ${cardBorder}` : 'none',
                           zIndex: 5,
                         }}
@@ -474,18 +765,39 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                             chevron_right
                           </span>
                         </span>
-                        <span className="text-sm font-extrabold tracking-[-0.01em] whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: titleFg }}>
+                        <span
+                          className="text-sm font-extrabold tracking-[-0.01em] whitespace-nowrap overflow-hidden text-ellipsis flex-shrink min-w-0"
+                          style={{
+                            color: titleFg,
+                            maxWidth: `${titleLayout.nameMaxWidth}px`,
+                            minWidth: `${Math.min(titleLayout.nameMaxWidth, 12)}px`,
+                          }}
+                        >
                           {item.name}
                         </span>
-                        <span
-                          className="inline-flex items-center text-[10px] font-extrabold px-[7px] py-[2px] rounded-full whitespace-nowrap flex-shrink-0"
-                          style={{ color: nodeColor, background: getGroupCardPillBg(item.depth), border: `1px solid ${getGroupCardBorder(item.depth)}` }}
-                        >
-                          {item.childTaskIds.length} {t('dashboard.tasksLabel', 'tasks')}
-                        </span>
-                        <span className="ml-auto flex items-center flex-shrink-0">
-                          <span className="text-[11px] font-black tabular-nums" style={{ color: nodeColor }}>{weightedProgress}%</span>
-                        </span>
+                        {titleLayout.showTaskCount && (
+                          <span
+                            className="inline-flex items-center text-[10px] font-extrabold px-[7px] py-[2px] rounded-full whitespace-nowrap overflow-hidden text-ellipsis flex-shrink min-w-0"
+                            style={{
+                              color: nodeColor,
+                              background: getGroupCardPillBg(item.depth),
+                              border: `1px solid ${getGroupCardBorder(item.depth)}`,
+                              maxWidth: `${titleLayout.countMaxWidth}px`,
+                            }}
+                          >
+                            <span className="overflow-hidden text-ellipsis">
+                              {item.childTaskIds.length} {t('dashboard.tasksLabel', 'tasks')}
+                            </span>
+                          </span>
+                        )}
+                        {titleLayout.showProgress && (
+                          <span
+                            className="ml-auto flex items-center flex-shrink-0 overflow-hidden"
+                            style={{ width: `${GROUP_TITLE_PROGRESS_WIDTH}px` }}
+                          >
+                            <span className="block w-full overflow-hidden text-ellipsis whitespace-nowrap text-right text-[11px] font-black tabular-nums" style={{ color: nodeColor }}>{weightedProgress}%</span>
+                          </span>
+                        )}
                       </button>
                     </div>
                   );
@@ -499,28 +811,48 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
 
                 const left = getPositionForDate(start);
                 const duration = diffDays(start, end);
-                const width = duration * DAY_WIDTH;
+                const width = duration * dayWidth;
+                const minBarWidth = Math.max(48, Math.floor(dayWidth * 0.8));
+                const displayWidth = Math.max(width, minBarWidth);
                 const isSelected = selectedTaskId === task.id;
                 const isLinkDropTarget = Boolean(linkDragState && linkDragState.sourceTaskId !== task.id);
+                const taskDrag = taskBarDragState?.taskId === task.id ? taskBarDragState : null;
+                const isMobileMoveArmed = mobileMoveTaskId === task.id;
 
                 return (
-                  <div key={task.id} className={`relative h-[72px] w-full flex items-center group px-2 ${isSelected ? 'z-20' : 'z-10'}`}>
+                  <div
+                    key={task.id}
+                    className={`relative h-[72px] w-full flex items-center group px-2 transition-[transform,background-color,box-shadow] ${
+                      isSelected ? 'z-20' : 'z-10'
+                    } ${taskDrag?.hasMoved ? 'bg-primary/[0.04] shadow-sm' : ''}`}
+                    style={{
+                      transform: taskDrag?.hasMoved ? `translateY(${taskDrag.deltaY}px)` : undefined,
+                      zIndex: taskDrag?.hasMoved ? 45 : undefined,
+                    }}
+                  >
                     {isSelected && (
                       <div className="absolute inset-y-0 left-0 right-0 bg-primary/[0.03] pointer-events-none" />
                     )}
                     <div
-                      className={`absolute h-10 rounded-lg border flex items-center px-4 cursor-pointer select-none transition-all ${
+                      data-gantt-task-bar="true"
+                      className={`absolute h-10 rounded-lg border flex items-center px-4 select-none ${
+                        taskDrag?.hasMoved ? 'cursor-grabbing transition-[box-shadow,border-color,ring-color]' : 'cursor-grab transition-[transform,box-shadow,border-color,ring-color]'
+                      } ${
+                        isMobileMoveArmed ? 'ring-2 ring-primary/40 shadow-lg' : ''
+                      } ${
                         isSelected 
                           ? `ring-4 ring-primary/30 border-primary shadow-lg scale-[1.02] z-30 ${getStatusColor(task.status).replace('border-slate-200', 'border-primary')}` 
                           : `shadow-md hover:scale-[1.02] hover:z-20 active:scale-[0.98] ${getStatusColor(task.status)}`
                       }`}
                       style={{
                         left: `${left}px`,
-                        width: `${Math.max(width, 100)}px`, // Min width for visibility
+                        width: `${displayWidth}px`,
+                        transform: taskDrag?.hasMoved ? `translateX(${taskDrag.deltaX}px)` : undefined,
                         userSelect: 'none',
                         WebkitUserSelect: 'none',
                         WebkitTouchCallout: 'none',
-                        touchAction: 'manipulation',
+                        touchAction: isMobileMoveArmed ? 'none' : 'manipulation',
+                        zIndex: taskDrag?.hasMoved ? 45 : undefined,
                       }}
                       onClick={() => {
                         if (suppressNextClickRef.current) {
@@ -533,19 +865,38 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                         e.preventDefault();
                         openContextMenu(e.clientX, e.clientY, task.id, e.currentTarget);
                       }}
-                      onPointerDown={(e) => {
-                        if (e.pointerType === 'mouse') return;
+                      onPointerMove={(e) => {
                         clearLongPressTimer();
-                        const { clientX, clientY, currentTarget } = e;
-                        longPressTimerRef.current = setTimeout(() => {
-                          suppressNextClickRef.current = true;
-                          openContextMenu(clientX, clientY, task.id, currentTarget);
-                        }, 550);
+                        handleTaskBarPointerMove(e, task.id);
                       }}
-                      onPointerMove={clearLongPressTimer}
-                      onPointerUp={clearLongPressTimer}
-                      onPointerCancel={clearLongPressTimer}
+                      onPointerUp={(e) => {
+                        clearLongPressTimer();
+                        handleTaskBarPointerEnd(e, task);
+                      }}
+                      onPointerCancel={(e) => {
+                        clearLongPressTimer();
+                        if (taskBarDragState?.taskId === task.id && taskBarDragState.pointerId === e.pointerId) {
+                          setTaskBarDragState(null);
+                          setMobileMoveTaskId(null);
+                        }
+                      }}
                       onPointerLeave={clearLongPressTimer}
+                      onPointerDown={(e) => {
+                        if (e.pointerType === 'touch' && mobileMoveTaskId === task.id) {
+                          handleTaskBarPointerDown(e, task, index);
+                          return;
+                        }
+                        if (e.pointerType !== 'mouse') {
+                          clearLongPressTimer();
+                          const { clientX, clientY, currentTarget } = e;
+                          longPressTimerRef.current = setTimeout(() => {
+                            suppressNextClickRef.current = true;
+                            openContextMenu(clientX, clientY, task.id, currentTarget);
+                          }, 550);
+                          return;
+                        }
+                        handleTaskBarPointerDown(e, task, index);
+                      }}
                       aria-pressed={isLinkMode ? selectedLinkTaskIds.includes(task.id) : undefined}
                       role="button"
                       tabIndex={0}
@@ -570,7 +921,8 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                     </div>
                      {/* Start Connector Node */}
                     <div 
-                      className={`absolute z-40 flex items-center justify-center rounded-full cursor-crosshair transition-all ${
+                      data-gantt-link-handle="true"
+                      className={`absolute z-40 flex items-center justify-center rounded-full cursor-crosshair transition-[transform,box-shadow,border-color,ring-color,opacity] ${
                         hoveredTargetTaskId === task.id
                           ? 'w-6 h-6 bg-emerald-50 opacity-100 ring-2 ring-emerald-400/80 shadow-md shadow-emerald-500/20 scale-105'
                           : isLinkDropTarget
@@ -606,10 +958,11 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                     </div>
                     {/* End Connector Node */}
                     <div 
-                      className="absolute w-3 h-3 rounded-full bg-indigo-500 border-2 border-white opacity-0 group-hover:opacity-100 transition-opacity z-40 cursor-grab active:cursor-grabbing hover:scale-125 shadow-sm"
-                      style={{ left: `${left + Math.max(width, 100) - 6}px`, top: '50%', transform: 'translateY(-50%)' }}
+                      data-gantt-link-handle="true"
+                      className="absolute w-3 h-3 rounded-full bg-indigo-500 border-2 border-white opacity-0 group-hover:opacity-100 transition-[opacity,transform] z-40 cursor-grab active:cursor-grabbing hover:scale-125 shadow-sm"
+                      style={{ left: `${left + displayWidth - 6}px`, top: '50%', transform: 'translateY(-50%)' }}
                       onMouseDown={(e) => {
-                        handleLinkDragStart(e, task.id, left + Math.max(width, 100), index * 72 + 36);
+                        handleLinkDragStart(e, task.id, left + displayWidth, index * 72 + 36);
                       }}
                       title={t('dashboard.dragToLink') || "Drag to link to successor"}
                     />
@@ -637,6 +990,19 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {isMobile && (
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                onClick={() => {
+                  setMobileMoveTaskId(contextMenu.taskId);
+                  setSelectedTaskId(contextMenu.taskId);
+                  setContextMenu(null);
+                }}
+              >
+                <span className="material-symbols-outlined text-[16px]">drag_pan</span>
+                {t('dashboard.moveTask', 'Move task')}
+              </button>
+            )}
             <button 
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
               onClick={() => {
@@ -666,7 +1032,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                       handleBreakLinksFromContext(contextMenu.taskId, 'predecessors');
                     }}
                   >
-                    <span className="material-symbols-outlined text-[16px]">call_received</span>
+                    <span className="material-symbols-outlined text-[16px]">north_west</span>
                     {t('dashboard.breakWithPredecessors')}
                   </button>
                 )}
@@ -677,7 +1043,7 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
                       handleBreakLinksFromContext(contextMenu.taskId, 'successors');
                     }}
                   >
-                    <span className="material-symbols-outlined text-[16px]">call_made</span>
+                    <span className="material-symbols-outlined text-[16px]">south_east</span>
                     {t('dashboard.breakWithSuccessors')}
                   </button>
                 )}
@@ -692,6 +1058,38 @@ export function GanttChart({ className = '', scrollRef, onScroll }: GanttChartPr
           <FloatingSequenceBuilder variant="inline" />
         </div>
       )}
+
+      {/* Zoom toolbar - floating at right bottom corner of the timeline chart (over content).
+          Row height and fonts are intentionally not scaled. */}
+      <div className="absolute bottom-3 right-3 z-40 flex items-center gap-1 rounded-md border border-slate-200/70 bg-white/90 backdrop-blur px-1 py-0.5 shadow-sm">
+        <IconButton
+          icon="zoom_out"
+          variant="ghost"
+          size="xs"
+          onClick={() => setGanttZoomPercent(p => Math.max(50, p - 5))}
+          aria-label={t('dashboard.zoomOut', 'Zoom out')}
+          title={t('dashboard.zoomOut', 'Zoom out')}
+          disabled={ganttZoomPercent <= 50}
+        />
+        <button
+          type="button"
+          onClick={() => setGanttZoomPercent(100)}
+          className="text-[10px] tabular-nums font-bold text-slate-500 hover:text-primary px-1 select-none"
+          title={t('dashboard.resetZoom', 'Reset zoom') || 'Reset zoom'}
+          aria-label={t('dashboard.resetZoom', 'Reset zoom') || 'Reset zoom'}
+        >
+          {ganttZoomPercent}%
+        </button>
+        <IconButton
+          icon="zoom_in"
+          variant="ghost"
+          size="xs"
+          onClick={() => setGanttZoomPercent(p => Math.min(100, p + 5))}
+          aria-label={t('dashboard.zoomIn', 'Zoom in')}
+          title={t('dashboard.zoomIn', 'Zoom in')}
+          disabled={ganttZoomPercent >= 100}
+        />
+      </div>
     </main>
   );
 }

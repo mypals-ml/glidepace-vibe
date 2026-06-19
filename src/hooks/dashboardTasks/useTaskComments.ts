@@ -12,11 +12,10 @@ import type { DashboardTasksCore } from './types';
 
 interface UseTaskCommentsProps {
   core: DashboardTasksCore;
-  fetchSingleProjectItem: (itemId: string, token: string) => Promise<Task | null>;
 }
 
 /** Paginated comment fetching plus add/update/delete comment mutations. */
-export function useTaskComments({ core, fetchSingleProjectItem }: UseTaskCommentsProps) {
+export function useTaskComments({ core }: UseTaskCommentsProps) {
   const { githubToken, setTasks } = core;
 
   const [isFetchingComments, setIsFetchingComments] = useState<Record<string, boolean>>({});
@@ -114,20 +113,16 @@ export function useTaskComments({ core, fetchSingleProjectItem }: UseTaskComment
         }
         return t;
       }));
-      const res = await fetchGitHubGraphQL(UPDATE_ISSUE_COMMENT_MUTATION, { id: commentId, body }, githubToken);
+      const res = await fetchGitHubGraphQL(UPDATE_ISSUE_COMMENT_MUTATION, { id: commentId, body }, githubToken, { operationType: 'mutation' });
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) {
-        await fetchSingleProjectItem(task.itemId, githubToken);
-      }
-      if (task.contentId) {
-        await fetchTaskComments(task.id, task.contentId, githubToken);
-      }
+      // Local comment state already reflects the edit; no item refresh or
+      // full comment re-page needed.
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem, fetchTaskComments, setTasks]);
+  }, [githubToken, setTasks]);
 
   const deleteTaskComment = useCallback(async (task: Task, commentId: string): Promise<boolean> => {
     if (!githubToken) return false;
@@ -140,25 +135,20 @@ export function useTaskComments({ core, fetchSingleProjectItem }: UseTaskComment
         }
         return t;
       }));
-      const res = await fetchGitHubGraphQL(DELETE_ISSUE_COMMENT_MUTATION, { id: commentId }, githubToken);
+      const res = await fetchGitHubGraphQL(DELETE_ISSUE_COMMENT_MUTATION, { id: commentId }, githubToken, { operationType: 'mutation' });
       if (res.errors) throw new Error(res.errors[0]?.message);
-      if (task.itemId) {
-        await fetchSingleProjectItem(task.itemId, githubToken);
-      }
-      if (task.contentId) {
-        await fetchTaskComments(task.id, task.contentId, githubToken);
-      }
+      // Local state already removed the comment; no refetch/re-page needed.
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem, fetchTaskComments, setTasks]);
+  }, [githubToken, setTasks]);
 
   const addTaskComment = useCallback(async (task: Task, body: string): Promise<boolean> => {
     if (!task.contentId || !githubToken || task.isDraft) return false;
     try {
-      const res = await fetchGitHubGraphQL(ADD_ISSUE_COMMENT_MUTATION, { subjectId: task.contentId, body }, githubToken);
+      const res = await fetchGitHubGraphQL(ADD_ISSUE_COMMENT_MUTATION, { subjectId: task.contentId, body }, githubToken, { operationType: 'mutation' });
       if (res.errors) throw new Error(res.errors[0]?.message);
 
       const addedNode = res.data?.addComment?.commentEdge?.node;
@@ -189,18 +179,14 @@ export function useTaskComments({ core, fetchSingleProjectItem }: UseTaskComment
         return t;
       }));
 
-      if (task.itemId) {
-        await fetchSingleProjectItem(task.itemId, githubToken);
-      }
-      if (task.contentId) {
-        await fetchTaskComments(task.id, task.contentId, githubToken);
-      }
+      // The add mutation returns the created comment node, applied above; no
+      // item refresh or full comment re-page needed.
       return true;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [githubToken, fetchSingleProjectItem, fetchTaskComments, setTasks]);
+  }, [githubToken, setTasks]);
 
   return {
     isFetchingComments,

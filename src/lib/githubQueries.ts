@@ -11,11 +11,11 @@ export const GET_SINGLE_ITEM_QUERY = `
 `;
 
 export const GET_PROJECT_TASKS_QUERY = `
-  query($projectId: ID!, $fieldsCursor: String, $itemsCursor: String) {
+  query($projectId: ID!, $fieldsCursor: String, $itemsCursor: String, $skipFields: Boolean = false, $skipItems: Boolean = false) {
     node(id: $projectId) {
       ... on ProjectV2 {
         public
-        fields(first: 50, after: $fieldsCursor) {
+        fields(first: 50, after: $fieldsCursor) @skip(if: $skipFields) {
           totalCount
           pageInfo {
             hasNextPage
@@ -32,7 +32,7 @@ export const GET_PROJECT_TASKS_QUERY = `
             }
           }
         }
-        items(first: 50, after: $itemsCursor) {
+        items(first: 50, after: $itemsCursor) @skip(if: $skipItems) {
           pageInfo {
             hasNextPage
             endCursor

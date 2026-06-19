@@ -33,7 +33,7 @@ export function AboutModal() {
           <p className="max-w-xl text-sm leading-6 text-slate-600">
             {t(
               'about.description',
-              'Glidelines turns GitHub Projects into a synchronized planning workspace with timeline, list, and burndown views.'
+              'Glidelines turns GitHub Projects into a synchronized planning workspace with timeline, list, and forecast views.'
             )}
           </p>
         </div>
@@ -53,7 +53,7 @@ export function AboutModal() {
                 {t('about.cardViewsLabel', 'Views')}
               </p>
               <p className="mt-2 text-sm font-semibold text-slate-900">
-                {t('about.cardViewsValue', 'List, Gantt, Burndown')}
+                {t('about.cardViewsValue', 'List, Gantt, Forecast')}
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">

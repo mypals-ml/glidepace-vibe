@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
-import { BurndownIcon } from './BurndownIcon';
+import { ForecastIcon } from './ForecastIcon';
 
 /**
  * View switcher for the dashboard header.
@@ -17,7 +17,7 @@ export function DashboardViewSwitcher() {
 
   const currentTab = !isChartVisible ? 'list' : dashboardView;
 
-  const handleSwitch = (view: 'list' | 'gantt' | 'burndown') => {
+  const handleSwitch = (view: 'list' | 'gantt' | 'forecast') => {
     if (view === 'list') {
       setIsChartVisible(false);
     } else {
@@ -32,6 +32,17 @@ export function DashboardViewSwitcher() {
 
   return (
     <div className="flex p-1 bg-slate-100/80 backdrop-blur-sm rounded-lg border border-slate-200/60 shadow-sm self-center">
+      {/* Forecast View */}
+      <button
+        onClick={() => handleSwitch('forecast')}
+        className={`${baseBtnClass} ${
+          currentTab === 'forecast' ? activeBtnClass : inactiveBtnClass
+        }`}
+        title={t('dashboard.viewForecast', 'Forecast')}
+      >
+        <ForecastIcon size={18} />
+      </button>
+
       {/* List View - Only visible on mobile/tablet */}
       <button
         onClick={() => handleSwitch('list')}
@@ -43,7 +54,7 @@ export function DashboardViewSwitcher() {
         <span className="material-symbols-outlined text-[18px]">format_list_bulleted</span>
       </button>
 
-      {/* Gantt View */}
+      {/* Timeline View */}
       <button
         onClick={() => handleSwitch('gantt')}
         className={`${baseBtnClass} ${
@@ -57,17 +68,6 @@ export function DashboardViewSwitcher() {
         >
           view_timeline
         </span>
-      </button>
-
-      {/* Burndown View */}
-      <button
-        onClick={() => handleSwitch('burndown')}
-        className={`${baseBtnClass} ${
-          currentTab === 'burndown' ? activeBtnClass : inactiveBtnClass
-        }`}
-        title={t('dashboard.viewBurndown', 'Burndown')}
-      >
-        <BurndownIcon size={18} />
       </button>
     </div>
   );

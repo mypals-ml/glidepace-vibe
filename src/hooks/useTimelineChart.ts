@@ -7,7 +7,7 @@ interface TimelineRange {
   totalDays: number;
 }
 
-interface UseGanttTimelineProps {
+interface UseTimelineChartProps {
   dayWidth: number;
   initialBufferDaysLeft: number;
   initialBufferDaysRight: number;
@@ -17,7 +17,7 @@ interface UseGanttTimelineProps {
   onTimelineUpdate?: (range: TimelineRange) => void;
 }
 
-export function useGanttTimeline({
+export function useTimelineChart({
   dayWidth,
   initialBufferDaysLeft,
   initialBufferDaysRight,
@@ -25,7 +25,7 @@ export function useGanttTimeline({
   expansionDays,
   scrollRef,
   onTimelineUpdate
-}: UseGanttTimelineProps) {
+}: UseTimelineChartProps) {
   const [timelineRange, setTimelineRange] = useState<TimelineRange>(() => {
     const start = new Date();
     start.setHours(0, 0, 0, 0);

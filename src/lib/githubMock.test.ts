@@ -96,6 +96,42 @@ describe('githubMock in-memory project fields', () => {
     vi.useRealTimers();
   });
 
+  it('applies an aliased batch field mutation to a mock item', async () => {
+    vi.useFakeTimers();
+
+    const projectId = 'PVT_3';
+    const itemId = 'item-pat-support';
+
+    const initialProject = await resolveMockGraphQL(GET_PROJECT_TASKS_QUERY, { projectId }) as MockProjectResponse;
+    const estimateField = initialProject.data.node.fields.nodes.find(field => field.name === 'Estimate');
+    const successorField = initialProject.data.node.fields.nodes.find(field => field.name === 'Successors');
+    expect(estimateField?.id).toBeTruthy();
+    expect(successorField?.id).toBeTruthy();
+
+    const batchMutation = `mutation BatchUpdateFields($projectId: ID!, $itemId: ID!, $fieldId0: ID!, $value0: ProjectV2FieldValue!, $fieldId1: ID!, $value1: ProjectV2FieldValue!) {
+      u0: updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId0, value: $value0 }) { projectV2Item { id } }
+      u1: updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId1, value: $value1 }) { projectV2Item { id } }
+    }`;
+
+    const result = await resolveMockGraphQL(batchMutation, {
+      projectId,
+      itemId,
+      fieldId0: estimateField?.id,
+      value0: { number: 7 },
+      fieldId1: successorField?.id,
+      value1: { text: 'item-z-index-fix' },
+    }) as { data: Record<string, unknown> };
+
+    expect(result.data.u0).toMatchObject({ projectV2Item: { id: itemId } });
+    expect(result.data.u1).toMatchObject({ projectV2Item: { id: itemId } });
+
+    const refetched = await resolveMockGraphQL(GET_SINGLE_ITEM_QUERY, { itemId }) as MockItemResponse;
+    const successors = refetched.data.node.fieldValues.nodes.find(fv => fv.field.id === successorField?.id);
+    expect(successors?.text).toBe('item-z-index-fix');
+
+    vi.useRealTimers();
+  });
+
   it('persists project item position changes across project fetches', async () => {
     vi.useFakeTimers();
     const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});

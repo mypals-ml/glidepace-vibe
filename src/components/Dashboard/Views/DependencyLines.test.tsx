@@ -47,6 +47,15 @@ const getPosition = (dateStr: string) => POSITIONS[dateStr] ?? 0;
 const getLinePaths = (container: HTMLElement): string[] =>
   Array.from(container.querySelectorAll('.dependency-line')).map(path => path.getAttribute('d') || '');
 
+const getBreakLinkButton = (container: HTMLElement): Element => {
+  const button = container.querySelector('foreignObject');
+  expect(button).not.toBeNull();
+  return button as Element;
+};
+
+const getBreakLinkButtons = (container: HTMLElement): Element[] =>
+  Array.from(container.querySelectorAll('foreignObject'));
+
 vi.mock('react-i18next', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-i18next')>();
   return {
@@ -88,7 +97,7 @@ describe('DependencyLines drag preview', () => {
 });
 
 describe('DependencyLines with folded group cards', () => {
-  // Folded card geometry, mirroring the GanttChart card: span 2026-05-03 ->
+  // Folded card geometry, mirroring the TimelineChart card: span 2026-05-03 ->
   // 2026-05-05 at dayWidth 120 with CARD_PAD 9: left = 240 - 9 = 231,
   // width = 3 * 120 + 18, so right = 609.
 
@@ -201,5 +210,48 @@ describe('DependencyLines with folded group cards', () => {
     );
 
     expect(getLinePaths(container)).toHaveLength(1);
+  });
+});
+
+describe('DependencyLines break-link button placement', () => {
+  it('keeps the hover break-link button visible on the dependency line', () => {
+    const source = { ...buildTask(1), successorIds: ['item-6'] };
+    const target = buildTask(6);
+    const items: DashboardItem[] = [source, target];
+
+    const { container } = render(
+      <DependencyLines
+        items={items}
+        getPositionForDate={getPosition}
+        dayWidth={120}
+        onBreakLink={vi.fn()}
+        dragState={null}
+        viewportInfo={{ scrollLeft: 500, scrollTop: 90, clientWidth: 100, clientHeight: 80 }}
+      />
+    );
+
+    const breakLinkButton = getBreakLinkButton(container);
+
+    expect(breakLinkButton.getAttribute('x')).toBe('508.108125');
+    expect(breakLinkButton.getAttribute('y')).toBe('90.15675');
+  });
+
+  it('does not render a disconnected hover break-link button when the line is outside the viewport', () => {
+    const source = { ...buildTask(1), successorIds: ['item-6'] };
+    const target = buildTask(6);
+    const items: DashboardItem[] = [source, target];
+
+    const { container } = render(
+      <DependencyLines
+        items={items}
+        getPositionForDate={getPosition}
+        dayWidth={120}
+        onBreakLink={vi.fn()}
+        dragState={null}
+        viewportInfo={{ scrollLeft: 0, scrollTop: 0, clientWidth: 100, clientHeight: 200 }}
+      />
+    );
+
+    expect(getBreakLinkButtons(container)).toHaveLength(0);
   });
 });

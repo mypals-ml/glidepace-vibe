@@ -43,7 +43,10 @@ export function useUserSearch({ githubToken, selectedProject, projectsData, proj
       if (repository) {
         const [owner, name] = repository.split('/');
         if (owner && name) {
-          const assignableJson = await fetchGitHubGraphQL(SEARCH_ASSIGNABLE_USERS_QUERY, { owner, name, query: searchTerm || undefined }, githubToken);
+          const assignableJson = await fetchGitHubGraphQL(SEARCH_ASSIGNABLE_USERS_QUERY, { owner, name, query: searchTerm || undefined }, githubToken, {
+            operationType: 'query',
+            dedupeKey: `assignable:${owner}/${name}:${searchTerm || ''}`,
+          });
           const assignableNodes = (assignableJson.data?.repository?.assignableUsers?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
 
           assignableNodes.forEach((n, idx) => {
@@ -65,7 +68,10 @@ export function useUserSearch({ githubToken, selectedProject, projectsData, proj
 
       if (!searchTerm && !repository && currentOwner) {
         if (currentOwner.isOrg) {
-          const orgJson = await fetchGitHubGraphQL(SEARCH_ORG_MEMBERS_QUERY, { login: currentOwner.login }, githubToken);
+          const orgJson = await fetchGitHubGraphQL(SEARCH_ORG_MEMBERS_QUERY, { login: currentOwner.login }, githubToken, {
+            operationType: 'query',
+            dedupeKey: `orgMembers:${currentOwner.login}`,
+          });
           const orgNodes = (orgJson.data?.organization?.membersWithRole?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
 
           orgNodes.forEach((n, idx) => {
@@ -96,7 +102,10 @@ export function useUserSearch({ githubToken, selectedProject, projectsData, proj
         }
 
         if (shouldGlobalSearch) {
-          const globalJson = await fetchGitHubGraphQL(SEARCH_GLOBAL_USERS_QUERY, { searchQuery: queryStr }, githubToken);
+          const globalJson = await fetchGitHubGraphQL(SEARCH_GLOBAL_USERS_QUERY, { searchQuery: queryStr }, githubToken, {
+            operationType: 'query',
+            dedupeKey: `globalUsers:${queryStr}`,
+          });
           const globalNodes = (globalJson.data?.search?.nodes || []) as Array<{ id?: string, login?: string, name?: string, avatarUrl?: string }>;
 
           globalNodes.forEach((n, idx) => {
