@@ -81,7 +81,8 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const doneTextColor = getStatusTextColor('Done');
   const workerDateLabelStep = isCompactWorkerLabels ? 3 : isNarrowWorkerLabels ? 2 : 1;
   const assumptionStartDate = chartData.points[0]?.date ? dateFormatter.format(new Date(`${chartData.points[0].date}T00:00:00`)) : '-';
-  const assumptionWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees)).size;
+  const rawWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees)).size;
+  const assumptionWorkerCount = Math.max(1, rawWorkerCount);
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
   const statusSegments = chartData.statusBreakdown.map((status) => ({
     ...status,

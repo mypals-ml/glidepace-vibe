@@ -1,4 +1,9 @@
 import type { Task } from '../types';
+import {
+  allocateRemainingWork as allocateForCompletion,
+  computeCapacityBasedCompletion as computeCapacityCompletion,
+  simulateFutureRemaining,
+} from './forecastCompletion';
 
 export type ForecastStatusKey = 'done' | 'inFlight' | 'todo';
 
@@ -166,29 +171,82 @@ export function buildForecastDashboardData(tasks: Task[], today = new Date()): F
 
   const dateValues = chartTasks.flatMap((task) => [task.startDate, task.targetDate, task.doneDate].filter(Boolean) as string[]);
   const fallbackStart = todayIso;
-  const startDate = dateValues.length ? minDate([...dateValues, todayIso]) : fallbackStart;
-  const openTargets = chartTasks.filter((task) => task.statusKey !== 'done').map((task) => task.targetDate);
-  const completionDate = openTargets.length ? maxDate([...openTargets, todayIso]) : (dateValues.length ? maxDate([...dateValues, todayIso]) : todayIso);
+  const dateBasedStart = dateValues.length ? minDate([...dateValues, todayIso]) : fallbackStart;
+
+  // Capacity-based estimated completion + future workload projection (encapsulated in forecastCompletion.ts)
+  const workByAssignee = allocateForCompletion(chartTasks);
+  const { projectCompletion: capacityCompletion } = computeCapacityCompletion(workByAssignee, today);
+
+  // date range start prefers historical dates; end uses capacity-derived when there is remaining work
+  const startDate = dateBasedStart;
+  const hasRemainingWork = remainingDays > 0.01;
+  const completionDate = hasRemainingWork && capacityCompletion > todayIso
+    ? capacityCompletion
+    : (dateValues.length ? maxDate([...dateValues, todayIso]) : todayIso);
+
   const dateRange = eachDate(startDate, completionDate);
 
-  const points = dateRange.map((date) => {
+  // Build skeleton
+  let points: ForecastPoint[] = dateRange.map((date) => ({
+    date,
+    doneDays: 0,
+    remainingDays: 0,
+    future: date > todayIso,
+  }));
+
+  // Fill ACTUAL points (dates <= today) using task target/done dates
+  points = points.map((p) => {
+    if (p.future) return p;
+
     const doneDays = chartTasks.reduce((sum, task) => {
       if (task.statusKey === 'done') {
-        return task.doneDate && task.doneDate <= date ? sum + task.estimateDays : sum;
+        return task.doneDate && task.doneDate <= p.date ? sum + task.estimateDays : sum;
       }
-      if (date > todayIso && task.targetDate <= date) {
+      if (task.targetDate <= p.date) {
         return sum + task.estimateDays;
       }
       return sum;
     }, 0);
 
     return {
-      date,
+      ...p,
       doneDays: Math.min(totalEstimateDays, doneDays),
       remainingDays: Math.max(0, totalEstimateDays - doneDays),
-      future: date > todayIso,
     };
   });
+
+  // Fill PROJECTED points — delegated to the encapsulated algorithm
+  const projStartIdx = points.findIndex((p) => p.future);
+  if (projStartIdx !== -1 && hasRemainingWork) {
+    const futureDates = dateRange.slice(projStartIdx);
+    const projectedRems = simulateFutureRemaining(
+      futureDates,
+      remainingDays,
+      workByAssignee
+    );
+
+    for (let i = 0; i < projectedRems.length; i++) {
+      const idx = projStartIdx + i;
+      const rem = projectedRems[i];
+      points[idx] = {
+        ...points[idx],
+        doneDays: Math.min(totalEstimateDays, totalEstimateDays - rem),
+        remainingDays: rem,
+      };
+    }
+
+    // Guarantee final point is zero
+    const lastIdx = points.length - 1;
+    points[lastIdx] = {
+      ...points[lastIdx],
+      doneDays: totalEstimateDays,
+      remainingDays: 0,
+    };
+  } else if (projStartIdx !== -1) {
+    for (let i = projStartIdx; i < points.length; i++) {
+      points[i] = { ...points[i], doneDays: totalEstimateDays, remainingDays: 0 };
+    }
+  }
 
   const workerWindow = eachDate(todayIso, toIsoDate(addDays(today, 9)));
   const workerMap = new Map<string, number[]>();
