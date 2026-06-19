@@ -269,13 +269,44 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   });
   
   if (statusField?.field?.id) projectFieldIds.status = statusField.field.id;
-  if (startDateField?.field?.id) projectFieldIds.startDate = startDateField.field.id;
-  if (targetDateField?.field?.id) projectFieldIds.targetDate = targetDateField.field.id;
-  if (estimateField?.field?.id) projectFieldIds.estimate = estimateField.field.id;
-  if (unitField?.field?.id) projectFieldIds.estimateUnit = unitField.field.id;
-  if (successorField?.field?.id) projectFieldIds.successor = successorField.field.id;
-  if (predecessorField?.field?.id) projectFieldIds.predecessor = predecessorField.field.id;
-  if (groupPathField?.field?.id) projectFieldIds.groupPath = groupPathField.field.id;
+  // Always prefer configured IDs from dateSettings (populated at project load / field detection).
+  // Fall back to value-derived only if no configured ID. This guarantees field IDs are available
+  // for updates even on items that have no value yet for the field (e.g. first-time Start Date set).
+  if (dateSettings?.startDateFieldId) {
+    projectFieldIds.startDate = dateSettings.startDateFieldId;
+  } else if (startDateField?.field?.id) {
+    projectFieldIds.startDate = startDateField.field.id;
+  }
+  if (dateSettings?.targetDateFieldId) {
+    projectFieldIds.targetDate = dateSettings.targetDateFieldId;
+  } else if (targetDateField?.field?.id) {
+    projectFieldIds.targetDate = targetDateField.field.id;
+  }
+  if (dateSettings?.estimateFieldId) {
+    projectFieldIds.estimate = dateSettings.estimateFieldId;
+  } else if (estimateField?.field?.id) {
+    projectFieldIds.estimate = estimateField.field.id;
+  }
+  if (dateSettings?.estimateUnitFieldId) {
+    projectFieldIds.estimateUnit = dateSettings.estimateUnitFieldId;
+  } else if (unitField?.field?.id) {
+    projectFieldIds.estimateUnit = unitField.field.id;
+  }
+  if (dateSettings?.successorFieldId) {
+    projectFieldIds.successor = dateSettings.successorFieldId;
+  } else if (successorField?.field?.id) {
+    projectFieldIds.successor = successorField.field.id;
+  }
+  if (dateSettings?.predecessorFieldId) {
+    projectFieldIds.predecessor = dateSettings.predecessorFieldId;
+  } else if (predecessorField?.field?.id) {
+    projectFieldIds.predecessor = predecessorField.field.id;
+  }
+  if (dateSettings?.groupPathFieldId) {
+    projectFieldIds.groupPath = dateSettings.groupPathFieldId;
+  } else if (groupPathField?.field?.id) {
+    projectFieldIds.groupPath = groupPathField.field.id;
+  }
   
   if (statusField?.field?.options) {
     statusField.field.options.forEach((opt: { id: string, name: string, color?: string }) => {
@@ -360,8 +391,10 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     estimate: actualEstimate,
     estimateUnit: estimateUnit,
     groupPath,
-    tempStartDate: partialTask.tempStartDate,
-    tempTargetDate: partialTask.tempTargetDate,
+    // Force-clear temps when GH provides real values; ensures get*ForCal and UI prefer authoritative GH values
+    // (fixes external "Start Date" edits on GitHub being shadowed).
+    tempStartDate: actualStartDate ? undefined : partialTask.tempStartDate,
+    tempTargetDate: actualTargetDate ? undefined : partialTask.tempTargetDate,
     tempEstimate: partialTask.tempEstimate,
     tempEstimateUnit: partialTask.tempEstimateUnit,
     closedAt: partialTask.closedAt,

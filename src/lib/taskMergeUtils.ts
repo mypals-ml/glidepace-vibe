@@ -16,10 +16,13 @@ export function mergeFetchedTaskWithLocalState(existing: Task, fetched: Task, no
       ? existing.comments
       : (fetched.comments !== undefined ? fetched.comments : existing.comments),
     assignees: isRecentlyUpdatedLocally ? existing.assignees : fetched.assignees,
-    startDate: isRecentlyUpdatedLocally ? existing.startDate : fetched.startDate,
-    targetDate: isRecentlyUpdatedLocally ? existing.targetDate : fetched.targetDate,
-    tempStartDate: isRecentlyUpdatedLocally ? existing.tempStartDate : fetched.tempStartDate,
-    tempTargetDate: isRecentlyUpdatedLocally ? existing.tempTargetDate : fetched.tempTargetDate,
+    // Always adopt fetched date values (no local protection). This ensures external GitHub changes
+    // to "Start Date" (and target) are always reflected. Our optimistic writes + webhook refresh
+    // (with delay) ensure post-edit UI stays correct without relying on immediate stale fetches.
+    startDate: fetched.startDate,
+    targetDate: fetched.targetDate,
+    tempStartDate: fetched.tempStartDate,
+    tempTargetDate: fetched.tempTargetDate,
     autoUpdateStartDate: isRecentlyUpdatedLocally ? existing.autoUpdateStartDate : fetched.autoUpdateStartDate,
     successorIds: isRecentlyUpdatedLocally ? existing.successorIds : fetched.successorIds,
     predecessorIds: isRecentlyUpdatedLocally ? existing.predecessorIds : fetched.predecessorIds,

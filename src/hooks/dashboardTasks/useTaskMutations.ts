@@ -185,9 +185,9 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
       if (shouldClearStartDate) {
         const fieldId = dateSettings.startDateFieldId || task.projectFieldIds?.startDate;
         if (fieldId) changes.push({ kind: 'clear', fieldId });
-      } else if (startDate) {
+      } else if (normalizedStartDate) {
         const fieldId = dateSettings.startDateFieldId || task.projectFieldIds?.startDate;
-        addSet(fieldId, { date: formatToGitHubDate(startDate) });
+        addSet(fieldId, { date: formatToGitHubDate(normalizedStartDate) });
       }
       if (finalTargetDate) {
         const fieldId = dateSettings.targetDateFieldId || task.projectFieldIds?.targetDate;
@@ -231,7 +231,11 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
 
       if (anySuccess) {
         await persistDependencyFieldCorrections(dependencyRepair.corrections, nextTasks, selectedProject.id, githubToken, dateSettings);
-        if (!skipRefresh) fetchSingleProjectItem(task.itemId, githubToken);
+        // Skip immediate fetchSingle when we just edited dates: avoids reading potentially stale GH value
+        // due to eventual consistency (webhook 'refresh_task' will reconcile later with authoritative data).
+        // This + always-adopt-dates in merge prevents masking external GH Start Date edits.
+        const didDateEdit = startDate !== undefined || targetDate !== undefined;
+        if (!skipRefresh && !didDateEdit) fetchSingleProjectItem(task.itemId, githubToken);
       } else {
         setTasks(oldTasks);
       }
