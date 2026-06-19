@@ -124,8 +124,10 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   }
 
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: 'short', day: '2-digit' }), [i18n.language]);
-  const completionDateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: 'short', day: '2-digit' }), [i18n.language]);
-  const completionDate = completionDateFormatter.format(new Date(`${chartData.completionDate}T00:00:00`));
+  const completionDateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { weekday: 'short', year: 'numeric', month: 'short', day: '2-digit' }), [i18n.language]);
+  const completionDate = chartData.completionDate
+    ? completionDateFormatter.format(new Date(`${chartData.completionDate}T00:00:00`))
+    : '';
   const todayLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()), [i18n.language]);
   const maxWorkerLoad = Math.max(1, ...chartData.workerLoads.flatMap((worker) => worker.days.map((day) => day.loadDays)));
   const totalEstimate = Math.max(1, chartData.totalEstimateDays);
@@ -544,7 +546,7 @@ function MetricTile({
           </button>
         )}
       </div>
-      <div className={`mt-1 truncate text-xl font-black tracking-normal ${valueClassName}`}>{value}</div>
+      <div className={`mt-1 min-w-fit whitespace-nowrap text-xl font-black tracking-normal ${valueClassName}`}>{value}</div>
     </div>
   );
 }
@@ -587,6 +589,18 @@ function ForecastRulesDialog({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               {rule}
             </p>
           ))}
+        </div>
+        <div className="border-t border-slate-100 px-6 py-3 text-[10px] text-slate-400">
+          This specification is generated based on the file{' '}
+          <a
+            href="https://github.com/mypals-ml/glidepace-vibe/blob/develop/docs/FORECAST_ESTIMATION_RULES.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-slate-300 hover:text-primary"
+          >
+            docs/FORECAST_ESTIMATION_RULES.md
+          </a>{' '}
+          in the source code repository on GitHub.
         </div>
       </div>
     </div>
@@ -650,7 +664,7 @@ function AssumptionInput({
     : 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-extrabold text-slate-950 shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
 
   return (
-    <label className={`block ${className}`}>
+    <label className={`block min-w-[140px] ${className}`}>
       <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</span>
       <input
         className={inputClassName}
@@ -685,11 +699,11 @@ function AssumptionNumberInput({
   onChange: (value: number) => void;
 }) {
   return (
-    <label className={`block ${className}`}>
+    <label className={`block min-w-[140px] ${className}`}>
       <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</span>
       <span className="flex h-11 items-center rounded-lg border border-slate-200 bg-white px-3 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
         <input
-          className="min-w-0 flex-1 bg-transparent text-base font-extrabold text-slate-950 outline-none"
+          className="min-w-12 flex-1 bg-transparent text-base font-extrabold text-slate-950 outline-none"
           type="number"
           aria-label={label}
           min={min}
@@ -716,11 +730,11 @@ function AssumptionPercentInput({
   onChange: (value: number) => void;
 }) {
   return (
-    <label className={`block rounded-lg border border-primary/15 bg-white px-3 py-2 shadow-sm ${className}`}>
+    <label className={`block rounded-lg border border-primary/15 bg-white px-3 py-2 shadow-sm min-w-fit ${className}`}>
       <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">{label}</span>
       <span className="flex h-9 items-center rounded-md border border-primary/20 bg-white px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
         <input
-          className="min-w-0 flex-1 bg-transparent text-lg font-black text-slate-950 outline-none"
+          className="min-w-12 flex-1 bg-transparent text-lg font-black text-slate-950 outline-none"
           type="number"
           aria-label={label}
           min={0}
@@ -729,7 +743,7 @@ function AssumptionPercentInput({
           value={value}
           onChange={(event) => onChange(clampNumber(event.currentTarget.valueAsNumber, 0, 100))}
         />
-        <span className="text-sm font-bold text-primary/60">%</span>
+        <span className="shrink-0 text-sm font-bold text-primary/60">%</span>
       </span>
     </label>
   );
