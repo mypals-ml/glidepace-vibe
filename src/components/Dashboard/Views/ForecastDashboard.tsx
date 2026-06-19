@@ -1,8 +1,8 @@
-import { useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
-import { buildForecastDashboardData, type ForecastPoint } from '../../../lib/forecastDashboardUtils';
+import { DEFAULT_WORKER, buildForecastDashboardData, type ForecastPoint } from '../../../lib/forecastDashboardUtils';
 import { getStatusChartColor, getStatusColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
 
 const CHART_WIDTH = 1000;
@@ -37,18 +37,53 @@ function areaPath(points: Array<ForecastPoint & { x: number; y: number }>) {
   return `${line} L ${last.x.toFixed(1)} ${CHART_BOTTOM} L ${first.x.toFixed(1)} ${CHART_BOTTOM} Z`;
 }
 
+type DateTickLabel = ForecastPoint & {
+  x: number;
+  y: number;
+  labelKind: 'start' | 'today' | 'completion';
+};
+
 function dateTickCoordinates(points: Array<ForecastPoint & { x: number; y: number }>) {
   const first = points[0];
   const last = points[points.length - 1];
   const actualBoundary = [...points].reverse().find((point) => !point.future);
-  const dateTicks = [first, actualBoundary, last].filter((tick, index, ticks): tick is ForecastPoint & { x: number; y: number } => {
+  return [first, actualBoundary, last].filter((tick, index, ticks): tick is ForecastPoint & { x: number; y: number } => {
     if (!tick) return false;
     return ticks.findIndex((candidate) => candidate?.date === tick.date) === index;
   });
-  return dateTicks.map((tick, index) => ({
-    ...tick,
-    showLabel: index === 0 || index === dateTicks.length - 1 || (last ? Math.abs(last.x - tick.x) > 120 : true),
-  }));
+}
+
+function dateTickLabels(points: Array<ForecastPoint & { x: number; y: number }>): DateTickLabel[] {
+  const first = points[0];
+  const last = points[points.length - 1];
+  const actualBoundary = [...points].reverse().find((point) => !point.future);
+  if (!first || !last) return [];
+
+  const labels: DateTickLabel[] = [{ ...first, labelKind: 'start' }];
+  if (last.date !== first.date) {
+    labels.push({ ...last, labelKind: 'completion' });
+  }
+  if (actualBoundary && actualBoundary.date !== first.date && actualBoundary.date !== last.date) {
+    labels.push({ ...actualBoundary, labelKind: 'today' });
+  }
+  return labels;
+}
+
+function dateTickLabelClassName(labelKind: DateTickLabel['labelKind'], x: number) {
+  if (labelKind === 'start') return 'absolute left-0 top-1 whitespace-nowrap text-left';
+  if (labelKind === 'completion') return 'absolute right-0 top-1 whitespace-nowrap text-right';
+  return x < CHART_WIDTH / 2
+    ? 'absolute top-1 translate-x-2 whitespace-nowrap text-left'
+    : 'absolute top-1 -translate-x-[calc(100%+0.5rem)] whitespace-nowrap text-right';
+}
+
+function dateTickLabelStyle(labelKind: DateTickLabel['labelKind'], x: number): CSSProperties | undefined {
+  if (labelKind !== 'today') return undefined;
+  return { left: `${(x / CHART_WIDTH) * 100}%` };
+}
+
+function formatReadOnlyDate(value: string) {
+  return value ? value.replaceAll('-', '/') : '-';
 }
 
 function shouldShowWorkerDateLabel(index: number, total: number, step: number) {
@@ -60,13 +95,28 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const { filteredTasks, isLoadingTasks, selectedProject } = useDashboard();
   const isCompactWorkerLabels = useMediaQuery('(max-width: 639px)');
   const isNarrowWorkerLabels = useMediaQuery('(max-width: 1023px)');
-  const chartData = useMemo(() => buildForecastDashboardData(filteredTasks), [filteredTasks]);
+  const [isForecastRulesOpen, setIsForecastRulesOpen] = useState(false);
+  const [capacityDaysPerWeek, setCapacityDaysPerWeek] = useState(5);
+  const [statusRemainingPercent, setStatusRemainingPercent] = useState({
+    draft: 0,
+    todo: 100,
+    inProgress: 50,
+    inReview: 20,
+    done: 0,
+    other: 50,
+  });
+  const forecastAssumptions = useMemo(() => ({
+    capacityDaysPerWeek,
+    statusRemainingPercent,
+  }), [capacityDaysPerWeek, statusRemainingPercent]);
+  const chartData = useMemo(() => buildForecastDashboardData(filteredTasks, new Date(), forecastAssumptions), [filteredTasks, forecastAssumptions]);
   const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
   const chartGuideTicks = [
     { label: '100%', y: CHART_TOP },
     { label: '50%', y: CHART_TOP + CHART_PLOT_HEIGHT * 0.5 },
   ];
   const dateTicks = dateTickCoordinates(coordinates);
+  const xAxisLabels = dateTickLabels(coordinates);
   const actualPoints = coordinates.filter((point) => !point.future);
   const projectedPoints = coordinates.filter((point) => point.future);
   if (actualPoints.length && projectedPoints.length) {
@@ -82,8 +132,9 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const projectedColor = getStatusChartColor('In progress');
   const doneTextColor = getStatusTextColor('Done');
   const workerDateLabelStep = isCompactWorkerLabels ? 3 : isNarrowWorkerLabels ? 2 : 1;
-  const assumptionStartDate = chartData.points[0]?.date ? dateFormatter.format(new Date(`${chartData.points[0].date}T00:00:00`)) : '-';
-  const rawWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees)).size;
+  const assumptionStartDateValue = formatReadOnlyDate(chartData.points[0]?.date || '');
+  const rawWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees).filter((assignee) => assignee !== DEFAULT_WORKER)).size;
+  const shouldShowWorkerLoads = isLoadingTasks || chartData.workerLoads.some((worker) => worker.worker !== DEFAULT_WORKER);
   const assumptionWorkerCount = Math.max(1, rawWorkerCount);
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
   const statusSegments = chartData.statusBreakdown.map((status) => ({
@@ -136,12 +187,12 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const remainingPercent = Math.round((chartData.remainingDays / totalEstimate) * 100);
   const actualBoundary = actualPoints[actualPoints.length - 1];
   const assumptionStatusWorkloads = [
-    { label: t('dashboard.burndownAssumptionDraft', 'Draft'), value: '0' },
-    { label: t('dashboard.burndownAssumptionTodo', 'Todo'), value: '100' },
-    { label: t('dashboard.burndownAssumptionInProgress', 'In progress'), value: '50' },
-    { label: t('dashboard.burndownAssumptionInReview', 'In review'), value: '20' },
-    { label: t('dashboard.burndownAssumptionDone', 'Done'), value: '0' },
-    { label: t('dashboard.burndownAssumptionOther', 'Other'), value: '50' },
+    { key: 'draft', label: t('dashboard.burndownAssumptionDraft', 'Draft'), value: statusRemainingPercent.draft },
+    { key: 'todo', label: t('dashboard.burndownAssumptionTodo', 'Todo'), value: statusRemainingPercent.todo },
+    { key: 'inProgress', label: t('dashboard.burndownAssumptionInProgress', 'In progress'), value: statusRemainingPercent.inProgress },
+    { key: 'inReview', label: t('dashboard.burndownAssumptionInReview', 'In review'), value: statusRemainingPercent.inReview },
+    { key: 'done', label: t('dashboard.burndownAssumptionDone', 'Done'), value: statusRemainingPercent.done },
+    { key: 'other', label: t('dashboard.burndownAssumptionOther', 'Other'), value: statusRemainingPercent.other },
   ];
 
   return (
@@ -151,10 +202,8 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
         <div className="absolute left-1/2 top-8 h-64 w-64 -translate-x-1/2 rounded-full bg-indigo-200/35 blur-3xl"></div>
       </div>
       <div className="relative z-10 mx-auto flex min-h-full w-full max-w-4xl flex-col gap-5 px-4 pb-6 pt-10 sm:px-6 lg:pb-8 lg:pt-12">
-        <header className="space-y-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-slate-500">{t('dashboard.viewForecast', 'Forecast')}</p>
-          <h1 className="text-2xl font-extrabold tracking-normal text-slate-950 sm:text-3xl">{t('dashboard.forecastDashboardTitle', 'Forecast Dashboard')}</h1>
-          <p className="text-sm font-medium text-slate-500">{t('dashboard.forecastDashboardSubtitle', 'A stacked planning summary from the current filtered task set.')}</p>
+        <header>
+          <h1 className="pl-2 text-2xl font-extrabold tracking-normal text-slate-950 sm:pl-3 sm:text-3xl">{t('dashboard.forecastDashboardTitle', 'Forecast Dashboard')}</h1>
         </header>
 
         <section className="rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_18px_60px_rgba(79,70,229,0.10)] sm:p-5" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
@@ -166,22 +215,14 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
             <ForecastDashboardSectionLoader variant="chart" label={t('dashboard.loadingTasks')} />
           ) : (
             <div className="space-y-5">
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
+              <div className="grid gap-3">
                 <MetricTile
                   label={t('dashboard.burndownEstimatedCompletion', 'Estimated completion')}
                   value={completionDate}
                   className="bg-primary/10 text-primary ring-primary/20 sm:col-span-1"
                   valueClassName="text-2xl sm:text-3xl"
-                />
-                <MetricTile
-                  label={t('dashboard.burndownRemainingEffort', 'Remaining')}
-                  value={formatDays(chartData.remainingDays)}
-                  className="bg-white text-slate-950 ring-slate-200"
-                />
-                <MetricTile
-                  label={t('dashboard.burndownTotalEffort', 'Total')}
-                  value={formatDays(chartData.totalEstimateDays)}
-                  className="bg-white text-slate-950 ring-slate-200 sm:col-start-1 sm:w-24"
+                  infoLabel={t('dashboard.burndownRulesInfoAria', 'How forecast calculations work')}
+                  onInfoClick={() => setIsForecastRulesOpen(true)}
                 />
               </div>
 
@@ -215,12 +256,12 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                     </circle>
                   ))}
                 </svg>
-                <div className="relative h-7 text-[12px] font-semibold text-slate-500">
-                  {dateTicks.map((tick) => (
+                <div className="relative h-7 text-[12px] font-semibold text-slate-500" data-testid="burndown-x-axis-labels">
+                  {xAxisLabels.map((tick) => (
                     <span
-                      key={tick.date}
-                      className={`absolute top-1 -translate-x-1/2 whitespace-nowrap ${tick.showLabel ? '' : 'sr-only'}`}
-                      style={{ left: `${(tick.x / CHART_WIDTH) * 100}%` }}
+                      key={`${tick.labelKind}-${tick.date}`}
+                      className={dateTickLabelClassName(tick.labelKind, tick.x)}
+                      style={dateTickLabelStyle(tick.labelKind, tick.x)}
                     >
                       {dateFormatter.format(new Date(`${tick.date}T00:00:00`))}
                     </span>
@@ -244,10 +285,15 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
           )}
         </section>
 
+        <ForecastRulesDialog
+          isOpen={isForecastRulesOpen}
+          onClose={() => setIsForecastRulesOpen(false)}
+        />
+
         <section className="flex flex-col gap-5">
           <DashboardCard>
             <div className="mb-4">
-              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownStatusDays', 'Task Duration by Status')}</h2>
+              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownStatusDays', 'Work Loads by Task Status')}</h2>
               <p className="text-sm font-medium text-slate-500">{todayLabel}</p>
             </div>
             {isLoadingTasks ? (
@@ -306,65 +352,71 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
             )}
           </DashboardCard>
 
-          <DashboardCard>
-            <div className="mb-4">
-              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownWorkerLoads', 'Top worker loads')}</h2>
-              <p className="text-sm font-medium text-slate-500">{t('dashboard.burndownDailyWorkload', 'Daily workload · next 10 days')}</p>
-            </div>
-            {isLoadingTasks ? (
-              <ForecastDashboardSectionLoader variant="workers" label={t('dashboard.loadingTasks')} />
-            ) : (
-              <div className="space-y-4">
-                {chartData.workerLoads.length ? chartData.workerLoads.map((worker) => (
-                  <div key={worker.worker} className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-end gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
-                    <strong className="truncate text-right text-sm font-bold text-slate-600" title={worker.worker}>{worker.worker}</strong>
-                    <div className="min-w-0 space-y-1.5">
-                      <div className="grid h-14 grid-cols-10 items-end gap-1.5">
-                        {worker.days.map((day) => (
-                          <span key={day.date} className="flex h-full items-end rounded-md bg-slate-100" title={`${worker.worker} ${day.date}: ${formatDays(day.loadDays)}`}>
-                            <i className="block w-full rounded-md bg-primary/80" style={{ height: `${Math.max(8, Math.round((day.loadDays / maxWorkerLoad) * 100))}%` }}></i>
-                          </span>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-10 gap-1 text-center text-[9px] font-bold leading-none text-slate-400 sm:text-[10px]">
-                        {worker.days.map((day, index) => shouldShowWorkerDateLabel(index, worker.days.length, workerDateLabelStep) ? (
-                          <span key={`${day.date}-label`} className="truncate" title={day.date}>
-                            {dateFormatter.format(new Date(`${day.date}T00:00:00`))}
-                          </span>
-                        ) : (
-                          <span key={`${day.date}-label`} aria-hidden="true"></span>
-                        ))}
+          {shouldShowWorkerLoads && (
+            <DashboardCard>
+              <div className="mb-4">
+                <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownWorkerLoads', 'Top worker loads')}</h2>
+                <p className="text-sm font-medium text-slate-500">{t('dashboard.burndownDailyWorkload', 'Daily workload · next 10 days')}</p>
+              </div>
+              {isLoadingTasks ? (
+                <ForecastDashboardSectionLoader variant="workers" label={t('dashboard.loadingTasks')} />
+              ) : (
+                <div className="space-y-4">
+                  {chartData.workerLoads.length ? chartData.workerLoads.map((worker) => (
+                    <div key={worker.worker} className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-end gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                      <strong className="truncate text-right text-sm font-bold text-slate-600" title={worker.worker}>{worker.worker}</strong>
+                      <div className="min-w-0 space-y-1.5">
+                        <div className="grid h-14 grid-cols-10 items-end gap-1.5">
+                          {worker.days.map((day) => (
+                            <span key={day.date} className="flex h-full items-end rounded-md bg-slate-100" title={`${worker.worker} ${day.date}: ${formatDays(day.loadDays)}`}>
+                              <i className="block w-full rounded-md bg-primary/80" style={{ height: `${Math.max(8, Math.round((day.loadDays / maxWorkerLoad) * 100))}%` }}></i>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-10 gap-1 text-center text-[9px] font-bold leading-none text-slate-400 sm:text-[10px]">
+                          {worker.days.map((day, index) => shouldShowWorkerDateLabel(index, worker.days.length, workerDateLabelStep) ? (
+                            <span key={`${day.date}-label`} className="truncate" title={day.date}>
+                              {dateFormatter.format(new Date(`${day.date}T00:00:00`))}
+                            </span>
+                          ) : (
+                            <span key={`${day.date}-label`} aria-hidden="true"></span>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )) : (
-                  <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-500">{t('dashboard.burndownNoOpenWork', 'No open work is scheduled in the next 10 days.')}</p>
-                )}
-              </div>
-            )}
-          </DashboardCard>
+                  )) : (
+                    <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-500">{t('dashboard.burndownNoOpenWork', 'No open work is scheduled in the next 10 days.')}</p>
+                  )}
+                </div>
+              )}
+            </DashboardCard>
+          )}
         </section>
 
         <DashboardCard ariaLabel={t('dashboard.burndownAssumptions', 'Assumptions')}>
-          <div className="mb-5 flex items-center gap-2">
-            <h2 className="text-lg font-extrabold uppercase tracking-[0.2em] text-slate-950">{t('dashboard.burndownAssumptions', 'Assumptions')}</h2>
-            <button
-              type="button"
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-[11px] font-extrabold italic text-slate-400"
-              title={t('dashboard.burndownForecastInputs', 'Forecast inputs')}
-              aria-label={t('dashboard.burndownForecastInputs', 'Forecast inputs')}
-            >
-              i
-            </button>
+          <div className="mb-5">
+            <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownAssumptions', 'Assumptions')}</h2>
           </div>
           {isLoadingTasks ? (
             <ForecastDashboardSectionLoader variant="assumptions" label={t('dashboard.loadingTasks')} />
           ) : (
             <>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <AssumptionInput label={t('dashboard.burndownAssumptionStartDate', 'Start date')} value={assumptionStartDate} />
-                <AssumptionInput label={t('dashboard.burndownAssumptionCapacity', 'Capacity')} value={t('dashboard.burndownAssumptionCapacityValue', '5d / week')} />
-                <AssumptionInput label={t('dashboard.burndownAssumptionWorkers', 'Workers')} value={String(assumptionWorkerCount)} className="sm:col-span-2" />
+                <AssumptionInput
+                  label={t('dashboard.burndownAssumptionStartDate', 'Start date')}
+                  value={assumptionStartDateValue}
+                  readOnly
+                />
+                <AssumptionNumberInput
+                  label={t('dashboard.burndownAssumptionCapacity', 'Capacity')}
+                  value={capacityDaysPerWeek}
+                  min={0.1}
+                  max={35}
+                  step={0.1}
+                  suffix={t('dashboard.burndownAssumptionCapacityUnit', 'd / week')}
+                  onChange={setCapacityDaysPerWeek}
+                />
+                <AssumptionInput label={t('dashboard.burndownAssumptionWorkers', 'Workers')} value={String(assumptionWorkerCount)} className="sm:col-span-2" readOnly />
               </div>
 
               <div className="mt-5 border-t border-slate-100 pt-5">
@@ -376,6 +428,12 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                       label={status.label}
                       value={status.value}
                       className={index >= 4 ? 'md:col-span-2' : ''}
+                      onChange={(value) => {
+                        setStatusRemainingPercent((current) => ({
+                          ...current,
+                          [status.key]: value,
+                        }));
+                      }}
                     />
                   ))}
                 </div>
@@ -455,11 +513,82 @@ function DashboardCard({ children, ariaLabel }: { children: ReactNode; ariaLabel
   );
 }
 
-function MetricTile({ label, value, className = '', valueClassName = '' }: { label: string; value: string; className?: string; valueClassName?: string }) {
+function MetricTile({
+  label,
+  value,
+  className = '',
+  valueClassName = '',
+  infoLabel,
+  onInfoClick,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+  valueClassName?: string;
+  infoLabel?: string;
+  onInfoClick?: () => void;
+}) {
   return (
     <div className={`rounded-xl px-4 py-3 ring-1 ${className}`}>
-      <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] opacity-70">{label}</div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] opacity-70">{label}</div>
+        {onInfoClick && infoLabel && (
+          <button
+            type="button"
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-white/70 text-xs font-extrabold italic text-primary shadow-sm transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
+            aria-label={infoLabel}
+            title={infoLabel}
+            onClick={onInfoClick}
+          >
+            i
+          </button>
+        )}
+      </div>
       <div className={`mt-1 truncate text-xl font-black tracking-normal ${valueClassName}`}>{value}</div>
+    </div>
+  );
+}
+
+function ForecastRulesDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useTranslation();
+  if (!isOpen) return null;
+
+  const rules = [
+    t('dashboard.burndownRulesCompletion', 'Estimated completion uses the remaining workload allocated across available workers and the capacity assumption in days per week. The latest worker completion date becomes the project completion date.'),
+    t('dashboard.burndownRulesRemaining', 'Remaining workload starts from task estimates when available, otherwise inclusive task duration. Each open task is multiplied by its status remaining-workload percentage.'),
+    t('dashboard.burndownRulesProjected', 'The projected line simulates future workday burn-down from today using the same worker allocation and capacity. The line reaches zero on the estimated completion date.'),
+    t('dashboard.burndownRulesWorkers', 'Tasks with assignees split workload evenly across those assignees. Unassigned work is spread across active assignees, or one virtual worker when no assignees exist.'),
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="forecast-rules-title">
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+              {t('dashboard.burndownRulesEyebrow', 'Forecast rules')}
+            </p>
+            <h3 id="forecast-rules-title" className="mt-1 text-xl font-extrabold text-slate-950">
+              {t('dashboard.burndownRulesTitle', 'How the forecast is calculated')}
+            </h3>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            aria-label={t('common.close', 'Close')}
+            onClick={onClose}
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+        <div className="space-y-3 px-6 py-5">
+          {rules.map((rule) => (
+            <p key={rule} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-700">
+              {rule}
+            </p>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -496,30 +625,111 @@ function DonutGraphic({
   );
 }
 
-function AssumptionInput({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+function clampNumber(value: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+function AssumptionInput({
+  label,
+  value,
+  className = '',
+  type = 'text',
+  readOnly = false,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+  type?: 'text' | 'date';
+  readOnly?: boolean;
+  onChange?: (value: string) => void;
+}) {
+  const inputClassName = readOnly
+    ? 'h-11 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 text-base font-extrabold text-slate-500 shadow-inner outline-none'
+    : 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-extrabold text-slate-950 shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
+
   return (
     <label className={`block ${className}`}>
       <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</span>
       <input
-        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-extrabold text-slate-950 shadow-sm outline-none"
-        readOnly
+        className={inputClassName}
+        type={type}
+        aria-label={label}
+        aria-readonly={readOnly}
+        readOnly={readOnly}
         value={value}
+        onChange={(event) => onChange?.(event.target.value)}
       />
     </label>
   );
 }
 
-function AssumptionPercentInput({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+function AssumptionNumberInput({
+  label,
+  value,
+  suffix,
+  className = '',
+  min = 0,
+  max = 100,
+  step = 1,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  suffix: string;
+  className?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  onChange: (value: number) => void;
+}) {
   return (
-    <label className={`block rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm ${className}`}>
+    <label className={`block ${className}`}>
+      <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</span>
+      <span className="flex h-11 items-center rounded-lg border border-slate-200 bg-white px-3 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+        <input
+          className="min-w-0 flex-1 bg-transparent text-base font-extrabold text-slate-950 outline-none"
+          type="number"
+          aria-label={label}
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(event) => onChange(clampNumber(event.currentTarget.valueAsNumber, min, max))}
+        />
+        <span className="ml-2 shrink-0 text-sm font-bold text-slate-400">{suffix}</span>
+      </span>
+    </label>
+  );
+}
+
+function AssumptionPercentInput({
+  label,
+  value,
+  className = '',
+  onChange,
+}: {
+  label: string;
+  value: number;
+  className?: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className={`block rounded-lg border border-primary/15 bg-white px-3 py-2 shadow-sm ${className}`}>
       <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">{label}</span>
-      <span className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3">
+      <span className="flex h-9 items-center rounded-md border border-primary/20 bg-white px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
         <input
           className="min-w-0 flex-1 bg-transparent text-lg font-black text-slate-950 outline-none"
-          readOnly
+          type="number"
+          aria-label={label}
+          min={0}
+          max={100}
+          step={1}
           value={value}
+          onChange={(event) => onChange(clampNumber(event.currentTarget.valueAsNumber, 0, 100))}
         />
-        <span className="text-sm font-bold text-slate-400">%</span>
+        <span className="text-sm font-bold text-primary/60">%</span>
       </span>
     </label>
   );
