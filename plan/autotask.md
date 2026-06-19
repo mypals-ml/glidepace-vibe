@@ -38,7 +38,7 @@ Browser/profile requirement:
 
 Task workflow:
 
-- Open the Glidelines task board: {working_task_board}
+- In the browser, open the Glidelines task board: {working_task_board}
 
 - Find the first task whose state is `Todo`.
 
