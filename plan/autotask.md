@@ -64,7 +64,8 @@ Implementation workflow:
 
 - Run appropriate tests.
 
-
+- Verify the results in the browser if necessary.
+  - Add logs for verifying and debugging when necessary.
 
 
 
