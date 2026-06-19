@@ -76,7 +76,7 @@ describe('ForecastDashboard loading state', () => {
 
     render(<ForecastDashboard />);
 
-    expect(screen.getAllByRole('status', { name: 'dashboard.loadingTasks' })).toHaveLength(4);
+    expect(screen.getAllByRole('status', { name: 'dashboard.loadingTasks' })).toHaveLength(5);
   });
 
   it('omits intermediate worker date labels in compact layouts', () => {

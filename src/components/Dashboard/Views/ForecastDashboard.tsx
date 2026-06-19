@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
@@ -38,13 +38,16 @@ function areaPath(points: Array<ForecastPoint & { x: number; y: number }>) {
 }
 
 function dateTickCoordinates(points: Array<ForecastPoint & { x: number; y: number }>) {
-  const step = Math.max(1, Math.ceil(points.length / 8));
-  const ticks = points.filter((_, index) => index % step === 0);
+  const first = points[0];
   const last = points[points.length - 1];
-  const dateTicks = last && !ticks.some((tick) => tick.date === last.date) ? [...ticks, last] : ticks;
+  const actualBoundary = [...points].reverse().find((point) => !point.future);
+  const dateTicks = [first, actualBoundary, last].filter((tick, index, ticks): tick is ForecastPoint & { x: number; y: number } => {
+    if (!tick) return false;
+    return ticks.findIndex((candidate) => candidate?.date === tick.date) === index;
+  });
   return dateTicks.map((tick, index) => ({
     ...tick,
-    showLabel: !(last && index === dateTicks.length - 2 && points.indexOf(last) - points.indexOf(tick) < step),
+    showLabel: index === 0 || index === dateTicks.length - 1 || (last ? Math.abs(last.x - tick.x) > 120 : true),
   }));
 }
 
@@ -59,10 +62,9 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const isNarrowWorkerLabels = useMediaQuery('(max-width: 1023px)');
   const chartData = useMemo(() => buildForecastDashboardData(filteredTasks), [filteredTasks]);
   const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
-  const yTicks = [
-    { label: formatDays(chartData.totalEstimateDays), y: CHART_TOP },
-    { label: formatDays(chartData.totalEstimateDays / 2), y: CHART_TOP + CHART_PLOT_HEIGHT * 0.5 },
-    { label: '0d', y: CHART_BOTTOM },
+  const chartGuideTicks = [
+    { label: '100%', y: CHART_TOP },
+    { label: '50%', y: CHART_TOP + CHART_PLOT_HEIGHT * 0.5 },
   ];
   const dateTicks = dateTickCoordinates(coordinates);
   const actualPoints = coordinates.filter((point) => !point.future);
@@ -71,8 +73,8 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
     projectedPoints.unshift(actualPoints[actualPoints.length - 1]);
   }
 
-  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: 'numeric', day: 'numeric' }), [i18n.language]);
-  const completionDateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: 'numeric', day: 'numeric' }), [i18n.language]);
+  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: 'short', day: '2-digit' }), [i18n.language]);
+  const completionDateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: 'short', day: '2-digit' }), [i18n.language]);
   const completionDate = completionDateFormatter.format(new Date(`${chartData.completionDate}T00:00:00`));
   const todayLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()), [i18n.language]);
   const maxWorkerLoad = Math.max(1, ...chartData.workerLoads.flatMap((worker) => worker.days.map((day) => day.loadDays)));
@@ -83,11 +85,6 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const assumptionStartDate = chartData.points[0]?.date ? dateFormatter.format(new Date(`${chartData.points[0].date}T00:00:00`)) : '-';
   const rawWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees)).size;
   const assumptionWorkerCount = Math.max(1, rawWorkerCount);
-  // Collect other statuses present (for dynamic "other" in assumptions)
-  const knownStatusNames = ['draft', 'todo', 'progress', 'review', 'done'];
-  const otherStatusesPresent = Array.from(
-    new Set(chartData.statusBreakdown.map(s => s.status))
-  ).filter(st => !knownStatusNames.some(k => st.toLowerCase().includes(k))).join(', ') || 'none';
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
   const statusSegments = chartData.statusBreakdown.map((status) => ({
     ...status,
@@ -108,8 +105,20 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   // Project summary: completed vs. remaining effort across the whole project.
   const completedDays = Math.max(0, chartData.totalEstimateDays - chartData.remainingDays);
   const projectSummarySegments = [
-    { label: t('dashboard.burndownSummaryCompleted', 'Completed'), days: completedDays, color: getStatusChartColor('Done'), textClassName: getStatusTextColor('Done') },
-    { label: t('dashboard.burndownSummaryRemaining', 'Remaining'), days: chartData.remainingDays, color: getStatusChartColor('Blocked'), textClassName: getStatusTextColor('Blocked') },
+    {
+      label: t('dashboard.burndownSummaryCompleted', 'Completed'),
+      days: completedDays,
+      color: getStatusChartColor('Done'),
+      textClassName: getStatusTextColor('Done'),
+      badgeClassName: getStatusColor('Done'),
+    },
+    {
+      label: t('dashboard.burndownSummaryRemaining', 'Remaining'),
+      days: chartData.remainingDays,
+      color: getStatusChartColor('Blocked'),
+      textClassName: getStatusTextColor('Blocked'),
+      badgeClassName: getStatusColor('Blocked'),
+    },
   ].map((segment) => ({
     ...segment,
     percent: Math.round((segment.days / totalEstimate) * 100),
@@ -124,102 +133,129 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const summaryDonutStyle = {
     background: summaryConicStops.length ? `conic-gradient(${summaryConicStops.join(', ')})` : 'rgb(226 232 240)',
   };
-  const completedPercent = Math.round((completedDays / totalEstimate) * 100);
+  const remainingPercent = Math.round((chartData.remainingDays / totalEstimate) * 100);
+  const actualBoundary = actualPoints[actualPoints.length - 1];
+  const assumptionStatusWorkloads = [
+    { label: t('dashboard.burndownAssumptionDraft', 'Draft'), value: '0' },
+    { label: t('dashboard.burndownAssumptionTodo', 'Todo'), value: '100' },
+    { label: t('dashboard.burndownAssumptionInProgress', 'In progress'), value: '50' },
+    { label: t('dashboard.burndownAssumptionInReview', 'In review'), value: '20' },
+    { label: t('dashboard.burndownAssumptionDone', 'Done'), value: '0' },
+    { label: t('dashboard.burndownAssumptionOther', 'Other'), value: '50' },
+  ];
 
   return (
-    <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar glass-panel bg-white/80 md:rounded-r-xl border md:border-y md:border-r border-slate-200/60 ${className}`}>
-      <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col gap-4 p-4 lg:p-5">
-        <section className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
-          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownByDate', 'Estimated completion')}</h2>
-              <div className="truncate text-2xl font-extrabold text-primary">{completionDate}</div>
-              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownProgressBasin', 'Forecasted finish based on remaining effort')}</p>
-            </div>
+    <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-[#f7f8ff] md:rounded-r-xl border md:border-y md:border-r border-slate-200/60 ${className}`}>
+      <div className="pointer-events-none sticky top-0 z-0 h-0">
+        <div className="absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_1px_1px,rgba(99,102,241,0.13)_1px,transparent_0)] [background-size:18px_18px]"></div>
+        <div className="absolute left-1/2 top-8 h-64 w-64 -translate-x-1/2 rounded-full bg-indigo-200/35 blur-3xl"></div>
+      </div>
+      <div className="relative z-10 mx-auto flex min-h-full w-full max-w-4xl flex-col gap-5 px-4 pb-6 pt-10 sm:px-6 lg:pb-8 lg:pt-12">
+        <header className="space-y-1">
+          <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-slate-500">{t('dashboard.viewForecast', 'Forecast')}</p>
+          <h1 className="text-2xl font-extrabold tracking-normal text-slate-950 sm:text-3xl">{t('dashboard.forecastDashboardTitle', 'Forecast Dashboard')}</h1>
+          <p className="text-sm font-medium text-slate-500">{t('dashboard.forecastDashboardSubtitle', 'A stacked planning summary from the current filtered task set.')}</p>
+        </header>
+
+        <section className="rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_18px_60px_rgba(79,70,229,0.10)] sm:p-5" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
+          <div className="mb-4">
+            <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownChartTitle', 'Burndown Chart')}</h2>
+            <p className="text-sm font-medium text-slate-500">{t('dashboard.burndownProgressBasin', 'Remaining effort over time')}</p>
           </div>
           {isLoadingTasks ? (
             <ForecastDashboardSectionLoader variant="chart" label={t('dashboard.loadingTasks')} />
           ) : (
-            <div className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-2">
-              <div className="relative row-start-1 text-right text-[11px] font-normal text-slate-400">
-                {yTicks.map((tick) => (
+            <div className="space-y-5">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
+                <MetricTile
+                  label={t('dashboard.burndownEstimatedCompletion', 'Estimated completion')}
+                  value={completionDate}
+                  className="bg-primary/10 text-primary ring-primary/20 sm:col-span-1"
+                  valueClassName="text-2xl sm:text-3xl"
+                />
+                <MetricTile
+                  label={t('dashboard.burndownRemainingEffort', 'Remaining')}
+                  value={formatDays(chartData.remainingDays)}
+                  className="bg-white text-slate-950 ring-slate-200"
+                />
+                <MetricTile
+                  label={t('dashboard.burndownTotalEffort', 'Total')}
+                  value={formatDays(chartData.totalEstimateDays)}
+                  className="bg-white text-slate-950 ring-slate-200 sm:col-start-1 sm:w-24"
+                />
+              </div>
+
+              <div className="relative pt-1">
+                {chartGuideTicks.map((tick) => (
                   <span
                     key={tick.label}
-                    className="absolute right-0 -translate-y-1/2"
+                    className="absolute right-0 z-10 -translate-y-1/2 text-[9px] font-bold text-slate-300"
                     style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%` }}
                   >
                     {tick.label}
                   </span>
                 ))}
+                <svg className="aspect-[1000/220] w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
+                  <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} stroke="rgb(226 232 240)" strokeWidth="2" />
+                  <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} stroke="rgb(226 232 240)" strokeWidth="2" strokeDasharray="8 8" />
+                  <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} stroke="rgb(226 232 240)" strokeWidth="2" />
+                  {actualBoundary && (
+                    <line x1={actualBoundary.x} y1={CHART_TOP} x2={actualBoundary.x} y2={CHART_BOTTOM} stroke="rgb(203 213 225)" strokeWidth="2" strokeDasharray="4 4" />
+                  )}
+                  {dateTicks.map((tick) => (
+                    <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} stroke="rgb(203 213 225)" strokeWidth="2" strokeLinecap="round" />
+                  ))}
+                  <path d={areaPath(actualPoints)} fill="rgba(79, 70, 229, 0.13)" />
+                  <path d={areaPath(projectedPoints)} fill="rgba(234, 179, 8, 0.18)" />
+                  <polyline points={pointList(actualPoints)} fill="none" stroke="var(--color-primary)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+                  <polyline points={pointList(projectedPoints)} fill="none" stroke={projectedColor} strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
+                  {coordinates.map((point) => (
+                    <circle key={point.date} cx={point.x} cy={point.y} r="5" fill={point.future ? projectedColor : 'var(--color-primary)'} stroke="white" strokeWidth="3">
+                      <title>{`${point.date}: ${formatDays(point.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
+                    </circle>
+                  ))}
+                </svg>
+                <div className="relative h-7 text-[12px] font-semibold text-slate-500">
+                  {dateTicks.map((tick) => (
+                    <span
+                      key={tick.date}
+                      className={`absolute top-1 -translate-x-1/2 whitespace-nowrap ${tick.showLabel ? '' : 'sr-only'}`}
+                      style={{ left: `${(tick.x / CHART_WIDTH) * 100}%` }}
+                    >
+                      {dateFormatter.format(new Date(`${tick.date}T00:00:00`))}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <svg className="col-start-2 row-start-1 aspect-[1000/220] w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
-                <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} stroke="rgb(226 232 240)" strokeWidth="2" />
-                <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} stroke="rgb(226 232 240)" strokeWidth="2" strokeDasharray="8 8" />
-                <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} stroke="rgb(226 232 240)" strokeWidth="2" />
-                {yTicks.map((tick) => (
-                  <line key={`y-${tick.label}`} x1="-10" y1={tick.y} x2="0" y2={tick.y} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
-                ))}
-                {dateTicks.map((tick) => (
-                  <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} stroke="rgb(148 163 184)" strokeWidth="2" strokeLinecap="round" />
-                ))}
-                <path d={areaPath(actualPoints)} fill="rgba(79, 70, 229, 0.18)" />
-                <path d={areaPath(projectedPoints)} fill="rgba(234, 179, 8, 0.18)" />
-                <polyline points={pointList(actualPoints)} fill="none" stroke="var(--color-primary)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-                <polyline points={pointList(projectedPoints)} fill="none" stroke={projectedColor} strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
-                {coordinates.map((point) => (
-                  <circle key={point.date} cx={point.x} cy={point.y} r="5" fill={point.future ? projectedColor : 'var(--color-primary)'} stroke="white" strokeWidth="3">
-                    <title>{`${point.date}: ${formatDays(point.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
-                  </circle>
-                ))}
-              </svg>
-              <div className="relative col-start-2 row-start-2 h-5 text-[11px] font-semibold text-slate-400">
-                {dateTicks.map((tick) => (
-                  <span
-                    key={tick.date}
-                    className={`absolute top-1 -translate-x-1/2 ${tick.showLabel ? '' : 'sr-only'}`}
-                    style={{ left: `${(tick.x / CHART_WIDTH) * 100}%` }}
-                  >
-                    {dateFormatter.format(new Date(`${tick.date}T00:00:00`))}
-                  </span>
-                ))}
-              </div>
-              <div className="col-start-2 row-start-3 mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
+
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm font-bold">
                 {selectedProject?.title && (
-                  <span className="min-w-0 truncate text-slate-600" title={selectedProject.title}>{selectedProject.title}</span>
+                  <span className="inline-flex min-w-0 items-center gap-2 truncate text-slate-900" title={selectedProject.title}>
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary"></span>
+                    <span className="truncate">{selectedProject.title}</span>
+                  </span>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary">
-                  <span className="h-2 w-2 rounded-full bg-primary"></span>
-                  {t('dashboard.burndownActual', 'Actual')}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-md bg-yellow-50 px-2 py-1 text-yellow-700">
-                  <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
-                  {t('dashboard.burndownProjected', 'Projected')}
-                </span>
+                  <ChartPill label={t('dashboard.burndownActual', 'Actual')} color="bg-primary" className="bg-primary/10 text-primary" />
+                  <ChartPill label={t('dashboard.burndownProjected', 'Projected')} color="bg-yellow-500" className="bg-yellow-50 text-yellow-700" />
                 </div>
               </div>
             </div>
           )}
         </section>
 
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(280px,0.8fr)_minmax(360px,1.2fr)]">
-          <div className="flex flex-col gap-4">
-          <div className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm">
+        <section className="flex flex-col gap-5">
+          <DashboardCard>
             <div className="mb-4">
-              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownStatusDays', "Today's Summary")}</h2>
-              <p className="text-xs font-medium text-slate-500">{todayLabel} · {t('dashboard.burndownStatusDaysHint', 'Task duration by status')}</p>
+              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownStatusDays', 'Task Duration by Status')}</h2>
+              <p className="text-sm font-medium text-slate-500">{todayLabel}</p>
             </div>
             {isLoadingTasks ? (
               <ForecastDashboardSectionLoader variant="status" label={t('dashboard.loadingTasks')} />
             ) : (
-              <div className="flex items-center gap-5">
-                <div className="relative h-36 w-36 shrink-0 rounded-full" style={donutStyle}>
-                  <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center">
-                    <span className="text-2xl font-extrabold text-slate-900">{donePercent}%</span>
-                    <span className={`text-[10px] font-bold uppercase ${doneTextColor}`}>{t('dashboard.burndownDone', 'Done')}</span>
-                  </div>
-                </div>
-                <ul className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                <DonutGraphic style={donutStyle} percent={donePercent} label={t('dashboard.burndownDone', 'Done')} labelClassName={doneTextColor} />
+                <ul className="flex min-w-0 flex-1 flex-col gap-3 text-sm">
                   {statusSegments.map((status) => (
                     <LegendItem
                       key={status.status}
@@ -234,24 +270,25 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                 </ul>
               </div>
             )}
-          </div>
+          </DashboardCard>
 
-          <div className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm">
+          <DashboardCard>
             <div className="mb-4">
-              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownSummaryTitle', 'Project summary')}</h2>
-              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownSummaryHint', 'Completed vs. remaining effort')}</p>
+              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownSummaryTitle', 'Effort Remaining')}</h2>
+              <p className="text-sm font-medium text-slate-500">{t('dashboard.burndownSummaryHint', 'Completed vs. remaining effort')}</p>
             </div>
             {isLoadingTasks ? (
               <ForecastDashboardSectionLoader variant="status" label={t('dashboard.loadingTasks')} />
             ) : (
-              <div className="flex items-center gap-5">
-                <div className="relative h-36 w-36 shrink-0 rounded-full" style={summaryDonutStyle}>
-                  <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center">
-                    <span className="text-2xl font-extrabold text-slate-900">{completedPercent}%</span>
-                    <span className={`text-[10px] font-bold uppercase ${doneTextColor}`}>{t('dashboard.burndownSummaryCompleted', 'Completed')}</span>
-                  </div>
-                </div>
-                <ul className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                <DonutGraphic
+                  style={summaryDonutStyle}
+                  percent={remainingPercent}
+                  label={t('dashboard.burndownSummaryRemaining', 'Remaining')}
+                  labelClassName={getStatusTextColor('Blocked')}
+                  valueClassName={getStatusTextColor('Blocked')}
+                />
+                <ul className="flex min-w-0 flex-1 flex-col gap-3 text-sm">
                   {projectSummarySegments.map((segment) => (
                     <LegendItem
                       key={segment.label}
@@ -260,37 +297,36 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                       days={formatDays(segment.days)}
                       color={segment.color}
                       dotClassName=""
-                      badgeClassName="border-slate-200 bg-slate-50 text-slate-700"
+                      badgeClassName={segment.badgeClassName}
                       labelClassName={segment.textClassName}
                     />
                   ))}
                 </ul>
               </div>
             )}
-          </div>
-          </div>
+          </DashboardCard>
 
-          <div className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm">
+          <DashboardCard>
             <div className="mb-4">
-              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownWorkerLoads', 'Top worker loads')}</h2>
-              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownDailyWorkload', 'Daily workload')}</p>
+              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownWorkerLoads', 'Top worker loads')}</h2>
+              <p className="text-sm font-medium text-slate-500">{t('dashboard.burndownDailyWorkload', 'Daily workload · next 10 days')}</p>
             </div>
             {isLoadingTasks ? (
               <ForecastDashboardSectionLoader variant="workers" label={t('dashboard.loadingTasks')} />
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {chartData.workerLoads.length ? chartData.workerLoads.map((worker) => (
-                  <div key={worker.worker} className="grid grid-cols-[7rem_minmax(0,1fr)] items-end gap-3">
-                    <strong className="truncate text-right text-xs font-bold text-slate-600" title={worker.worker}>{worker.worker}</strong>
-                    <div className="min-w-0 space-y-1">
-                      <div className="grid h-14 grid-cols-10 items-end gap-1">
+                  <div key={worker.worker} className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-end gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                    <strong className="truncate text-right text-sm font-bold text-slate-600" title={worker.worker}>{worker.worker}</strong>
+                    <div className="min-w-0 space-y-1.5">
+                      <div className="grid h-14 grid-cols-10 items-end gap-1.5">
                         {worker.days.map((day) => (
-                          <span key={day.date} className="flex h-full items-end rounded bg-slate-100" title={`${worker.worker} ${day.date}: ${formatDays(day.loadDays)}`}>
-                            <i className="block w-full rounded bg-primary/75" style={{ height: `${Math.max(4, Math.round((day.loadDays / maxWorkerLoad) * 100))}%` }}></i>
+                          <span key={day.date} className="flex h-full items-end rounded-md bg-slate-100" title={`${worker.worker} ${day.date}: ${formatDays(day.loadDays)}`}>
+                            <i className="block w-full rounded-md bg-primary/80" style={{ height: `${Math.max(8, Math.round((day.loadDays / maxWorkerLoad) * 100))}%` }}></i>
                           </span>
                         ))}
                       </div>
-                      <div className="grid grid-cols-10 gap-1 text-center text-[9px] font-bold leading-none text-slate-400">
+                      <div className="grid grid-cols-10 gap-1 text-center text-[9px] font-bold leading-none text-slate-400 sm:text-[10px]">
                         {worker.days.map((day, index) => shouldShowWorkerDateLabel(index, worker.days.length, workerDateLabelStep) ? (
                           <span key={`${day.date}-label`} className="truncate" title={day.date}>
                             {dateFormatter.format(new Date(`${day.date}T00:00:00`))}
@@ -306,57 +342,47 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                 )}
               </div>
             )}
-          </div>
+          </DashboardCard>
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm" aria-label={t('dashboard.burndownAssumptions', 'Assumptions')}>
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownAssumptions', 'Assumptions')}</h2>
-            <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownForecastInputs', 'Forecast inputs')}</p>
+        <DashboardCard ariaLabel={t('dashboard.burndownAssumptions', 'Assumptions')}>
+          <div className="mb-5 flex items-center gap-2">
+            <h2 className="text-lg font-extrabold uppercase tracking-[0.2em] text-slate-950">{t('dashboard.burndownAssumptions', 'Assumptions')}</h2>
+            <button
+              type="button"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-[11px] font-extrabold italic text-slate-400"
+              title={t('dashboard.burndownForecastInputs', 'Forecast inputs')}
+              aria-label={t('dashboard.burndownForecastInputs', 'Forecast inputs')}
+            >
+              i
+            </button>
           </div>
           {isLoadingTasks ? (
             <ForecastDashboardSectionLoader variant="assumptions" label={t('dashboard.loadingTasks')} />
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <AssumptionItem label={t('dashboard.burndownAssumptionStartDate', 'Start date')} value={assumptionStartDate} />
-                <AssumptionItem label={t('dashboard.burndownAssumptionCapacity', 'Capacity (days per week)')} value={t('dashboard.burndownAssumptionCapacityValue', '5d/week')} />
-                <AssumptionItem label={t('dashboard.burndownAssumptionWorkers', 'Workers count')} value={String(assumptionWorkerCount)} />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <AssumptionInput label={t('dashboard.burndownAssumptionStartDate', 'Start date')} value={assumptionStartDate} />
+                <AssumptionInput label={t('dashboard.burndownAssumptionCapacity', 'Capacity')} value={t('dashboard.burndownAssumptionCapacityValue', '5d / week')} />
+                <AssumptionInput label={t('dashboard.burndownAssumptionWorkers', 'Workers')} value={String(assumptionWorkerCount)} className="sm:col-span-2" />
               </div>
 
-              {/* Grouped visual design for task status remaining workload assumptions (used in forecasting) */}
-              <div className="mt-4 pt-3 border-t border-slate-200/60">
-                <div className="text-[11px] font-bold uppercase text-slate-400 mb-2">Task status remaining workload</div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-center">
-                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
-                    <div className="text-[10px] text-slate-500">Draft</div>
-                    <div className="text-sm font-bold text-slate-800">0%</div>
-                  </div>
-                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
-                    <div className="text-[10px] text-slate-500">Todo</div>
-                    <div className="text-sm font-bold text-slate-800">100%</div>
-                  </div>
-                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
-                    <div className="text-[10px] text-slate-500">In progress</div>
-                    <div className="text-sm font-bold text-slate-800">50%</div>
-                  </div>
-                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
-                    <div className="text-[10px] text-slate-500">In review</div>
-                    <div className="text-sm font-bold text-slate-800">20%</div>
-                  </div>
-                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
-                    <div className="text-[10px] text-slate-500">Done</div>
-                    <div className="text-sm font-bold text-slate-800">0%</div>
-                  </div>
-                  <div className="rounded-lg bg-slate-50 px-2 py-1.5">
-                    <div className="text-[10px] text-slate-500">Other ({otherStatusesPresent})</div>
-                    <div className="text-sm font-bold text-slate-800">50%</div>
-                  </div>
+              <div className="mt-5 border-t border-slate-100 pt-5">
+                <div className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">{t('dashboard.burndownTaskStatusRemainingWorkload', 'Task status remaining workload')}</div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
+                  {assumptionStatusWorkloads.map((status, index) => (
+                    <AssumptionPercentInput
+                      key={status.label}
+                      label={status.label}
+                      value={status.value}
+                      className={index >= 4 ? 'md:col-span-2' : ''}
+                    />
+                  ))}
                 </div>
               </div>
             </>
           )}
-        </section>
+        </DashboardCard>
       </div>
     </div>
   );
@@ -421,25 +447,94 @@ function ForecastDashboardSectionLoader({ variant, label }: { variant: 'chart' |
   );
 }
 
-function AssumptionItem({ label, value }: { label: string; value: string }) {
+function DashboardCard({ children, ariaLabel }: { children: ReactNode; ariaLabel?: string }) {
   return (
-    <div className="rounded-lg bg-slate-50 px-3 py-2">
-      <div className="text-[11px] font-bold uppercase text-slate-400">{label}</div>
-      <div className="mt-1 text-lg font-extrabold text-slate-900">{value}</div>
+    <section className="rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_18px_60px_rgba(15,23,42,0.07)] sm:p-5" aria-label={ariaLabel}>
+      {children}
+    </section>
+  );
+}
+
+function MetricTile({ label, value, className = '', valueClassName = '' }: { label: string; value: string; className?: string; valueClassName?: string }) {
+  return (
+    <div className={`rounded-xl px-4 py-3 ring-1 ${className}`}>
+      <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] opacity-70">{label}</div>
+      <div className={`mt-1 truncate text-xl font-black tracking-normal ${valueClassName}`}>{value}</div>
     </div>
+  );
+}
+
+function ChartPill({ label, color, className }: { label: string; color: string; className: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-extrabold ${className}`}>
+      <span className={`h-2 w-2 rounded-full ${color}`}></span>
+      {label}
+    </span>
+  );
+}
+
+function DonutGraphic({
+  style,
+  percent,
+  label,
+  labelClassName,
+  valueClassName = 'text-primary',
+}: {
+  style: CSSProperties;
+  percent: number;
+  label: string;
+  labelClassName: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="relative mx-auto h-36 w-36 shrink-0 rounded-full sm:mx-0" style={style}>
+      <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center shadow-[inset_0_0_0_1px_rgba(226,232,240,0.7)]">
+        <span className={`text-3xl font-black tracking-normal ${valueClassName}`}>{percent}%</span>
+        <span className={`text-[10px] font-extrabold uppercase tracking-[0.08em] ${labelClassName}`}>{label}</span>
+      </div>
+    </div>
+  );
+}
+
+function AssumptionInput({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</span>
+      <input
+        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-extrabold text-slate-950 shadow-sm outline-none"
+        readOnly
+        value={value}
+      />
+    </label>
+  );
+}
+
+function AssumptionPercentInput({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+  return (
+    <label className={`block rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm ${className}`}>
+      <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">{label}</span>
+      <span className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3">
+        <input
+          className="min-w-0 flex-1 bg-transparent text-lg font-black text-slate-950 outline-none"
+          readOnly
+          value={value}
+        />
+        <span className="text-sm font-bold text-slate-400">%</span>
+      </span>
+    </label>
   );
 }
 
 function LegendItem({ label, percent, days, color, dotClassName, badgeClassName, labelClassName = '' }: { label: string; percent: string; days: string; color: string; dotClassName: string; badgeClassName: string; labelClassName?: string }) {
   return (
-    <li className={`grid grid-cols-1 gap-2 rounded-lg border px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${badgeClassName}`}>
+    <li className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 ${badgeClassName}`}>
       <span className={`inline-flex min-w-0 items-center gap-2 font-semibold ${labelClassName}`}>
         <span className={`h-2.5 w-2.5 rounded-full ${dotClassName}`} style={{ backgroundColor: color }}></span>
         <span className="truncate">{label}</span>
       </span>
-      <span className="flex flex-wrap gap-2 pl-[1.125rem] sm:justify-end sm:pl-0">
-        <span className="rounded-md bg-white/70 px-2 py-0.5 text-xs font-extrabold text-slate-900 shadow-sm ring-1 ring-black/5">{percent}</span>
-        <span className="rounded-md bg-white/70 px-2 py-0.5 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-black/5">{days}</span>
+      <span className="flex flex-wrap justify-end gap-2">
+        <span className="rounded-md bg-white/75 px-2 py-0.5 text-xs font-extrabold text-slate-900 shadow-sm ring-1 ring-black/5">{percent}</span>
+        <span className="rounded-md bg-white/55 px-2 py-0.5 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-black/5">{days}</span>
       </span>
     </li>
   );
