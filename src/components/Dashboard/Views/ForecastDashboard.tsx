@@ -4,7 +4,6 @@ import { useDashboard } from '../../../context/DashboardContext';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { buildForecastDashboardData, type ForecastPoint } from '../../../lib/forecastDashboardUtils';
 import { getStatusChartColor, getStatusColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
-import { ForecastIcon } from './ForecastIcon';
 
 const CHART_WIDTH = 1000;
 const CHART_HEIGHT = 220;
@@ -55,7 +54,7 @@ function shouldShowWorkerDateLabel(index: number, total: number, step: number) {
 
 export function ForecastDashboard({ className = '' }: { className?: string }) {
   const { t, i18n } = useTranslation();
-  const { filteredTasks, isLoadingTasks } = useDashboard();
+  const { filteredTasks, isLoadingTasks, selectedProject } = useDashboard();
   const isCompactWorkerLabels = useMediaQuery('(max-width: 639px)');
   const isNarrowWorkerLabels = useMediaQuery('(max-width: 1023px)');
   const chartData = useMemo(() => buildForecastDashboardData(filteredTasks), [filteredTasks]);
@@ -75,6 +74,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: 'numeric', day: 'numeric' }), [i18n.language]);
   const completionDateFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: 'numeric', day: 'numeric' }), [i18n.language]);
   const completionDate = completionDateFormatter.format(new Date(`${chartData.completionDate}T00:00:00`));
+  const todayLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()), [i18n.language]);
   const maxWorkerLoad = Math.max(1, ...chartData.workerLoads.flatMap((worker) => worker.days.map((day) => day.loadDays)));
   const totalEstimate = Math.max(1, chartData.totalEstimateDays);
   const projectedColor = getStatusChartColor('In progress');
@@ -99,24 +99,36 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
     background: conicStops.length ? `conic-gradient(${conicStops.join(', ')})` : 'rgb(226 232 240)',
   };
 
+  // Project summary: completed vs. remaining effort across the whole project.
+  const completedDays = Math.max(0, chartData.totalEstimateDays - chartData.remainingDays);
+  const projectSummarySegments = [
+    { label: t('dashboard.burndownSummaryCompleted', 'Completed'), days: completedDays, color: getStatusChartColor('Done'), textClassName: getStatusTextColor('Done') },
+    { label: t('dashboard.burndownSummaryRemaining', 'Remaining'), days: chartData.remainingDays, color: getStatusChartColor('Blocked'), textClassName: getStatusTextColor('Blocked') },
+  ].map((segment) => ({
+    ...segment,
+    percent: Math.round((segment.days / totalEstimate) * 100),
+  }));
+  const summaryConicStops = projectSummarySegments.reduce<{ stops: string[]; start: number }>((acc, segment) => {
+    const segmentEnd = acc.start + (segment.days / totalEstimate) * 360;
+    return {
+      stops: [...acc.stops, `${segment.color} ${acc.start}deg ${segmentEnd}deg`],
+      start: segmentEnd,
+    };
+  }, { stops: [], start: 0 }).stops;
+  const summaryDonutStyle = {
+    background: summaryConicStops.length ? `conic-gradient(${summaryConicStops.join(', ')})` : 'rgb(226 232 240)',
+  };
+  const completedPercent = Math.round((completedDays / totalEstimate) * 100);
+
   return (
     <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar glass-panel bg-white/80 md:rounded-r-xl border md:border-y md:border-r border-slate-200/60 ${className}`}>
       <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col gap-4 p-4 lg:p-5">
         <section className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
-              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownByDate', 'Burndown by date')}</h2>
-              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownProgressBasin', 'Remaining effort trend')}</p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
-              <div className="flex min-w-0 items-center gap-2 rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-primary">
-                <ForecastIcon size={18} />
-                <div className="min-w-0">
-                  <div className="text-[10px] font-bold uppercase tracking-wide">{t('dashboard.burndownForecast', 'Estimated completion data')}</div>
-                  <div className="truncate text-lg font-extrabold text-slate-900">{completionDate}</div>
-                  <div className="text-[10px] font-semibold text-slate-500">{t('dashboard.burndownEstimatedCompletion', 'Estimated completion date')}</div>
-                </div>
-              </div>
+              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownByDate', 'Estimated completion')}</h2>
+              <div className="truncate text-2xl font-extrabold text-primary">{completionDate}</div>
+              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownProgressBasin', 'Forecasted finish based on remaining effort')}</p>
             </div>
           </div>
           {isLoadingTasks ? (
@@ -165,7 +177,11 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                   </span>
                 ))}
               </div>
-              <div className="col-start-2 row-start-3 mt-2 flex flex-wrap justify-end gap-2 text-xs font-semibold">
+              <div className="col-start-2 row-start-3 mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
+                {selectedProject?.title && (
+                  <span className="min-w-0 truncate text-slate-600" title={selectedProject.title}>{selectedProject.title}</span>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary">
                   <span className="h-2 w-2 rounded-full bg-primary"></span>
                   {t('dashboard.burndownActual', 'Actual')}
@@ -174,16 +190,18 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                   <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
                   {t('dashboard.burndownProjected', 'Projected')}
                 </span>
+                </div>
               </div>
             </div>
           )}
         </section>
 
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(280px,0.8fr)_minmax(360px,1.2fr)]">
+          <div className="flex flex-col gap-4">
           <div className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm">
             <div className="mb-4">
-              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownStatusDays', 'Current status days')}</h2>
-              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownStatusDaysHint', 'Task duration by status today')}</p>
+              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownStatusDays', "Today's Summary")}</h2>
+              <p className="text-xs font-medium text-slate-500">{todayLabel} · {t('dashboard.burndownStatusDaysHint', 'Task duration by status')}</p>
             </div>
             {isLoadingTasks ? (
               <ForecastDashboardSectionLoader variant="status" label={t('dashboard.loadingTasks')} />
@@ -210,6 +228,40 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                 </ul>
               </div>
             )}
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-base font-bold text-slate-900">{t('dashboard.burndownSummaryTitle', 'Project summary')}</h2>
+              <p className="text-xs font-medium text-slate-500">{t('dashboard.burndownSummaryHint', 'Completed vs. remaining effort')}</p>
+            </div>
+            {isLoadingTasks ? (
+              <ForecastDashboardSectionLoader variant="status" label={t('dashboard.loadingTasks')} />
+            ) : (
+              <div className="flex items-center gap-5">
+                <div className="relative h-36 w-36 shrink-0 rounded-full" style={summaryDonutStyle}>
+                  <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center">
+                    <span className="text-2xl font-extrabold text-slate-900">{completedPercent}%</span>
+                    <span className={`text-[10px] font-bold uppercase ${doneTextColor}`}>{t('dashboard.burndownSummaryCompleted', 'Completed')}</span>
+                  </div>
+                </div>
+                <ul className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
+                  {projectSummarySegments.map((segment) => (
+                    <LegendItem
+                      key={segment.label}
+                      label={segment.label}
+                      percent={`${segment.percent}%`}
+                      days={formatDays(segment.days)}
+                      color={segment.color}
+                      dotClassName=""
+                      badgeClassName="border-slate-200 bg-slate-50 text-slate-700"
+                      labelClassName={segment.textClassName}
+                    />
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-white/75 p-4 shadow-sm">
@@ -339,10 +391,10 @@ function AssumptionItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LegendItem({ label, percent, days, color, dotClassName, badgeClassName }: { label: string; percent: string; days: string; color: string; dotClassName: string; badgeClassName: string }) {
+function LegendItem({ label, percent, days, color, dotClassName, badgeClassName, labelClassName = '' }: { label: string; percent: string; days: string; color: string; dotClassName: string; badgeClassName: string; labelClassName?: string }) {
   return (
     <li className={`grid grid-cols-1 gap-2 rounded-lg border px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${badgeClassName}`}>
-      <span className="inline-flex min-w-0 items-center gap-2 font-semibold">
+      <span className={`inline-flex min-w-0 items-center gap-2 font-semibold ${labelClassName}`}>
         <span className={`h-2.5 w-2.5 rounded-full ${dotClassName}`} style={{ backgroundColor: color }}></span>
         <span className="truncate">{label}</span>
       </span>
