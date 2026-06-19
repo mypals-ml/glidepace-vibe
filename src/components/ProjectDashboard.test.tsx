@@ -20,8 +20,9 @@ vi.mock('../context/DashboardContext', () => ({
     tasks: [],
     selectedTaskId: null,
     isCreateMode: false,
-    isTaskDetailsOpen: false,
+    isTaskDetailsOpen: true,  // set true to verify forecast guard hides details even if flag true
     setIsTaskDetailsOpen: vi.fn(),
+    setIsCreateMode: vi.fn(),
     toast: null,
     hideToast: vi.fn(),
     dashboardItems: [],
@@ -122,6 +123,8 @@ describe('ProjectDashboard responsive defaults', () => {
     render(<ProjectDashboard />);
 
     expect(await screen.findByText('Forecast dashboard')).toBeTruthy();
+    // Guard: even with isTaskDetailsOpen=true in mock, details should NOT render on forecast
+    expect(screen.queryByText('Task details')).toBeNull();
     await waitFor(() => {
       expect(dashboardMock.setIsChartVisible).toHaveBeenCalledWith(true);
     });

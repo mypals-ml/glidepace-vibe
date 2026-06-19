@@ -30,6 +30,8 @@ export function HeaderOverflowMenu() {
     setDashboardView,
     isChartVisible,
     setIsChartVisible,
+    setIsTaskDetailsOpen,
+    setIsCreateMode,
     githubAccounts,
     isLoadingAuth,
     handleOpenAuth,
@@ -70,6 +72,12 @@ export function HeaderOverflowMenu() {
       setIsChartVisible(false);
     } else {
       setIsChartVisible(true);
+      if (view === 'forecast') {
+        // Dismiss task details (and create) when switching to Forecast Dashboard.
+        // Addresses: if details view showing, click Forecast button should dismiss it.
+        setIsTaskDetailsOpen(false);
+        setIsCreateMode(false);
+      }
       setDashboardView(view);
     }
     setIsOpen(false);
