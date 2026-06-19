@@ -50,14 +50,20 @@ describe('forecast dashboard calculations', () => {
 
     expect(data.totalEstimateDays).toBe(5);
     expect(data.remainingDays).toBe(3);
-    expect(data.completionDate).toBe('2026-06-05');
+    // New capacity-based rule for unassigned work (DEFAULT_WORKER treated as capacity-1 worker):
+    // 3 days effort from 2026-06-03 requires 3 workdays → lands on a later date after weekend.
+    expect(data.completionDate).toBe('2026-06-08');
     expect(data.statusTotals).toEqual({ done: 2, inFlight: 0, todo: 3 });
     expect(data.statusBreakdown).toEqual([
       { status: 'Todo', statusKey: 'todo', days: 3 },
       { status: 'Done', statusKey: 'done', days: 2 },
     ]);
     expect(data.points.find((point) => point.date === '2026-06-02')?.remainingDays).toBe(3);
-    expect(data.points.find((point) => point.date === '2026-06-05')?.remainingDays).toBe(0);
+    // With projected simulation, remaining reaches 0 on the capacity completion date
+    expect(data.points.find((point) => point.date === '2026-06-08')?.remainingDays).toBe(0);
+    // There should now be future projected points
+    const futurePoints = data.points.filter(p => p.future);
+    expect(futurePoints.length).toBeGreaterThan(0);
   });
 
   it('counts done effort on the task target date instead of the GitHub close date', () => {
