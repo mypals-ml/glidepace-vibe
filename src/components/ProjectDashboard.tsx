@@ -93,7 +93,7 @@ function DashboardLayout() {
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
   const shouldRenderTaskDetails = isTaskDetailsOpen && (isCreateMode || selectedTask !== null);
-  const { setIsChartVisible, setDashboardView } = useDashboard();
+  const { setIsChartVisible } = useDashboard();
   const shouldShowTaskListPane = !isChartVisible || (isDesktop && dashboardView === 'gantt');
 
 
@@ -102,10 +102,11 @@ function DashboardLayout() {
     if (isDesktop) {
       setIsChartVisible(true);
     } else {
-      setIsChartVisible(true);
-      setDashboardView('forecast');
+      // On narrow viewports, fall back to the task list rather than forcing
+      // the forecast dashboard — preserves the user's context when resizing.
+      setIsChartVisible(false);
     }
-  }, [isDesktop, setDashboardView, setIsChartVisible]);
+  }, [isDesktop, setIsChartVisible]);
 
   return (
     <div className="bg-background-main text-slate-800 font-sans h-full flex flex-col overflow-hidden relative">
