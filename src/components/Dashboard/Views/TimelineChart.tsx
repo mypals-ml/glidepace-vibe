@@ -6,7 +6,6 @@ import { getStartDateForCal, getTargetDateForCal } from '../../../lib/githubTask
 import { diffDays } from '../../../lib/dateUtils';
 import { IconButton } from '../../UI/IconButton';
 import { useTimelineChart } from '../../../hooks/useTimelineChart';
-import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { DependencyLines } from './DependencyLines';
 import { FloatingSequenceBuilder } from '../FloatingSequenceBuilder';
 import { isTaskGroupBlock } from '../../../lib/taskGroupUtils';
@@ -51,9 +50,7 @@ const GROUP_TITLE_PROGRESS_WIDTH = 36;
 export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineChartProps) {
   const { t } = useTranslation();
   const { tasks, filteredTasks, dashboardItems, selectedGroupFieldIds, projectFields, isLoadingTasks, requestedCenterDate, requestedCenterTaskId, centerGanttOnDate, completeGanttCenterRequest, selectedTaskId, setSelectedTaskId, setIsTaskDetailsOpen, updateTaskDates, updateTaskSuccessors, isLinkMode, setIsLinkMode, selectedLinkTaskIds, setSelectedLinkTaskIds, toggleGroupBlockCollapsed, reorderTask, reorderTaskBlock, moveTaskToGroupPath, ganttZoomPercent, setGanttZoomPercent } = useDashboard();
-  const isMobile = useMediaQuery('(max-width: 767px)');
   const [viewportInfo, setViewportInfo] = useState({ scrollLeft: 0, scrollTop: 0, clientWidth: 0, clientHeight: 0 });
-  const [mobileMoveTaskId, setMobileMoveTaskId] = useState<string | null>(null);
   const [taskBarDragState, setTaskBarDragState] = useState<{
     taskId: string;
     pointerId: number;
@@ -260,8 +257,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
   };
 
   const handleTaskBarPointerDown = (e: React.PointerEvent<HTMLDivElement>, task: Task, rowIndex: number) => {
-    const canStartDrag = e.pointerType === 'mouse' || (e.pointerType === 'touch' && mobileMoveTaskId === task.id);
-    if (isLinkMode || e.button !== 0 || !canStartDrag) return;
+    if (isLinkMode || e.button !== 0 || e.pointerType !== 'mouse') return;
     const target = e.target as HTMLElement;
     if (target.closest('[data-gantt-link-handle="true"]')) return;
 
@@ -331,7 +327,6 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
     if (!dragState.hasMoved) return;
 
     suppressNextClickRef.current = true;
-    setMobileMoveTaskId(null);
     const deltaDays = Math.round(dragState.deltaX / dayWidth);
     const overRowIndex = Math.max(
       0,
@@ -612,13 +607,6 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
         className={`flex-1 overflow-auto relative custom-scrollbar bg-white/40 ${linkDragState ? 'cursor-grabbing' : ''}`} 
         ref={activeScrollRef} 
         onScroll={handleScroll}
-        onPointerDown={(e) => {
-          if (!mobileMoveTaskId) return;
-          const target = e.target as HTMLElement;
-          if (!target.closest('[data-gantt-task-bar="true"]')) {
-            setMobileMoveTaskId(null);
-          }
-        }}
         onMouseMove={handleLinkDragMove}
         onMouseUp={handleLinkDragEnd}
         onMouseLeave={handleLinkDragEnd}
@@ -817,17 +805,17 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                 const isSelected = selectedTaskId === task.id;
                 const isLinkDropTarget = Boolean(linkDragState && linkDragState.sourceTaskId !== task.id);
                 const taskDrag = taskBarDragState?.taskId === task.id ? taskBarDragState : null;
-                const isMobileMoveArmed = mobileMoveTaskId === task.id;
+                const isDraggingTaskBar = Boolean(taskDrag);
+                const hideLinkHandles = isDraggingTaskBar;
 
                 return (
                   <div
                     key={task.id}
-                    className={`relative h-[72px] w-full flex items-center group px-2 pointer-events-none transition-[transform,background-color,box-shadow] ${
+                    className={`relative h-[72px] w-full flex items-center group px-2 pointer-events-none transition-all duration-200 ${
                       isSelected ? 'z-20' : 'z-10'
-                    } ${taskDrag?.hasMoved ? 'bg-primary/[0.04] shadow-sm' : ''}`}
+                    } ${taskDrag?.hasMoved ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''}`}
                     style={{
                       transform: taskDrag?.hasMoved ? `translateY(${taskDrag.deltaY}px)` : undefined,
-                      zIndex: taskDrag?.hasMoved ? 45 : undefined,
                     }}
                   >
                     {isSelected && (
@@ -838,9 +826,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                       className={`absolute h-10 rounded-lg border flex items-center px-4 select-none pointer-events-auto ${
                         taskDrag?.hasMoved ? 'cursor-grabbing transition-[box-shadow,border-color,ring-color]' : 'cursor-grab transition-[transform,box-shadow,border-color,ring-color]'
                       } ${
-                        isMobileMoveArmed ? 'ring-2 ring-primary/40 shadow-lg' : ''
-                      } ${
-                        isSelected 
+                        isSelected
                           ? `ring-4 ring-primary/30 border-primary shadow-lg scale-[1.02] z-30 ${getStatusColor(task.status).replace('border-slate-200', 'border-primary')}` 
                           : `shadow-md hover:scale-[1.02] hover:z-20 active:scale-[0.98] ${getStatusColor(task.status)}`
                       }`}
@@ -851,8 +837,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                         userSelect: 'none',
                         WebkitUserSelect: 'none',
                         WebkitTouchCallout: 'none',
-                        touchAction: isMobileMoveArmed ? 'none' : 'manipulation',
-                        zIndex: taskDrag?.hasMoved ? 45 : undefined,
+                        touchAction: 'manipulation',
                       }}
                       onClick={() => {
                         if (suppressNextClickRef.current) {
@@ -877,15 +862,10 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                         clearLongPressTimer();
                         if (taskBarDragState?.taskId === task.id && taskBarDragState.pointerId === e.pointerId) {
                           setTaskBarDragState(null);
-                          setMobileMoveTaskId(null);
                         }
                       }}
                       onPointerLeave={clearLongPressTimer}
                       onPointerDown={(e) => {
-                        if (e.pointerType === 'touch' && mobileMoveTaskId === task.id) {
-                          handleTaskBarPointerDown(e, task, index);
-                          return;
-                        }
                         if (e.pointerType !== 'mouse') {
                           clearLongPressTimer();
                           const { clientX, clientY, currentTarget } = e;
@@ -923,7 +903,9 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                     <div 
                       data-gantt-link-handle="true"
                       className={`absolute z-40 flex items-center justify-center rounded-full cursor-crosshair pointer-events-auto transition-[transform,box-shadow,border-color,ring-color,opacity] ${
-                        hoveredTargetTaskId === task.id
+                        hideLinkHandles
+                          ? 'opacity-0 pointer-events-none'
+                          : hoveredTargetTaskId === task.id
                           ? 'w-6 h-6 bg-emerald-50 opacity-100 ring-2 ring-emerald-400/80 shadow-md shadow-emerald-500/20 scale-105'
                           : isLinkDropTarget
                             ? 'w-5 h-5 bg-indigo-100/80 opacity-100 ring-2 ring-indigo-300/60 shadow-md shadow-indigo-500/20'
@@ -959,7 +941,9 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                     {/* End Connector Node */}
                     <div 
                       data-gantt-link-handle="true"
-                      className="absolute w-3 h-3 rounded-full bg-indigo-500 border-2 border-white opacity-0 group-hover:opacity-100 transition-[opacity,transform] z-40 cursor-grab active:cursor-grabbing hover:scale-125 shadow-sm pointer-events-auto"
+                      className={`absolute w-3 h-3 rounded-full bg-indigo-500 border-2 border-white transition-[opacity,transform] z-40 cursor-crosshair hover:scale-125 shadow-sm pointer-events-auto ${
+                        hideLinkHandles ? 'opacity-0 pointer-events-none' : 'opacity-0 group-hover:opacity-100'
+                      }`}
                       style={{ left: `${left + displayWidth - 6}px`, top: '50%', transform: 'translateY(-50%)' }}
                       onMouseDown={(e) => {
                         handleLinkDragStart(e, task.id, left + displayWidth, index * 72 + 36);
@@ -990,20 +974,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {isMobile && (
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
-                onClick={() => {
-                  setMobileMoveTaskId(contextMenu.taskId);
-                  setSelectedTaskId(contextMenu.taskId);
-                  setContextMenu(null);
-                }}
-              >
-                <span className="material-symbols-outlined text-[16px]">drag_pan</span>
-                {t('dashboard.moveTask', 'Move task')}
-              </button>
-            )}
-            <button 
+            <button
               className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
               onClick={() => {
                 setIsLinkMode(true);

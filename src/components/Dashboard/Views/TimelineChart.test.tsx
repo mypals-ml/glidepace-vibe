@@ -459,6 +459,9 @@ describe('TimelineChart focus behavior', () => {
     });
 
     expect(taskRow?.getAttribute('style')).toContain('transform: translateY(72px)');
+    expect(taskRow?.className).toContain('shadow-lg');
+    expect(taskRow?.className).toContain('ring-primary/20');
+    expect(taskRow?.className).toContain('bg-white');
     expect(taskBar.getAttribute('style')).toContain('transform: translateX(16px)');
   });
 
@@ -473,23 +476,44 @@ describe('TimelineChart focus behavior', () => {
     expect(container.querySelectorAll('[data-gantt-link-handle="true"]')[0]?.className).toContain('pointer-events-auto');
   });
 
-  it('adds a mobile gantt context menu action that arms task bar movement', () => {
+  it('does not show a mobile gantt context menu move action', () => {
     isMobileViewport = true;
-    const setSelectedTaskId = vi.fn();
-    dashboardState = {
-      ...dashboardState,
-      setSelectedTaskId,
-      selectedTaskId: null,
-    };
 
     render(<TimelineChart />);
 
     const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
     fireEvent.contextMenu(taskBar, { clientX: 120, clientY: 120 });
 
-    fireEvent.click(screen.getByRole('button', { name: /move task/i }));
+    expect(screen.queryByRole('button', { name: /move task/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /addSuccessors/i })).toBeTruthy();
+  });
 
-    expect(setSelectedTaskId).toHaveBeenCalledWith('task-1');
-    expect(taskBar.getAttribute('style')).toContain('touch-action: none');
+  it('hides gantt link handles while a task bar is being dragged', () => {
+    const { container } = render(<TimelineChart />);
+
+    const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
+    fireEvent.pointerDown(taskBar, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 100,
+      clientY: 100,
+    });
+
+    const linkHandles = container.querySelectorAll('[data-gantt-link-handle="true"]');
+    const taskOneHandles = Array.from(linkHandles).filter((handle) =>
+      handle.className.includes('pointer-events-none') && handle.className.includes('opacity-0')
+    );
+
+    expect(taskOneHandles.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('uses a crosshair cursor on gantt link handles', () => {
+    const { container } = render(<TimelineChart />);
+
+    const linkHandles = container.querySelectorAll('[data-gantt-link-handle="true"]');
+    linkHandles.forEach((handle) => {
+      expect(handle.className).toContain('cursor-crosshair');
+    });
   });
 });
