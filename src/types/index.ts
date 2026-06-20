@@ -161,6 +161,15 @@ export interface GitHubProjectContent {
   comments?: {
     nodes: GitHubComment[];
   };
+  // Org-level issue-backed fields (e.g. Start/Target date) are stored on the
+  // issue itself and never surface in the ProjectV2 item `fieldValues`.
+  issueFieldValues?: {
+    nodes: Array<{
+      __typename?: string;
+      date?: string;
+      field?: { id?: string; name?: string };
+    }>;
+  };
   __typename?: string;
 }
 

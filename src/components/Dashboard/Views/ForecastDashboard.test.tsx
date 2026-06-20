@@ -57,6 +57,8 @@ vi.mock('../../../context/DashboardContext', () => ({
 
 describe('ForecastDashboard loading state', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-19T12:00:00Z'));
     isCompactViewport = false;
     isNarrowViewport = false;
     dashboardState = {

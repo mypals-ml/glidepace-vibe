@@ -172,4 +172,20 @@ describe('TaskDetailsPanel actions', () => {
       expect(updateTaskGroupPath).toHaveBeenCalledWith('task-125', ['Planning', 'UI']);
     });
   });
+
+  it('shows persisted GitHub dates before dependency temp dates in details', () => {
+    const taskWithTempDates: Task = {
+      ...task,
+      startDate: '2026-06-02',
+      targetDate: '2026-06-03',
+      tempStartDate: '2026-06-10',
+      tempTargetDate: '2026-06-11',
+    };
+    const { container } = render(<TaskDetailsPanel task={taskWithTempDates} onClose={vi.fn()} />);
+
+    const dateInputs = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="date"]'));
+
+    expect(dateInputs[0].value).toBe('2026-06-02');
+    expect(dateInputs[1].value).toBe('2026-06-03');
+  });
 });

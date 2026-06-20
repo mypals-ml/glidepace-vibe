@@ -235,6 +235,101 @@ describe('batchUpdateProjectV2ItemFields (Phase 5)', () => {
     expect(body.query).not.toContain('u0:');
   });
 
+  const ISSUE_FIELD_REQUIRED_ERROR = {
+    message: 'Issue field values cannot be updated using the updateProjectV2ItemFieldValue mutation, they must be updated using the updateIssueFieldValue mutation',
+  };
+
+  function issueFieldsResponse(nodes: Array<{ id: string; name: string; dataType: string }>) {
+    return jsonResponse({ data: { node: { repository: { id: 'REPO', issueFields: { nodes } } } } });
+  }
+
+  it('resolves the backing issue field and retries with updateIssueFieldValue when ProjectV2 rejects it', async () => {
+    fetchMock
+      // 1) Plain ProjectV2 write is rejected: this field is issue-backed.
+      .mockResolvedValueOnce(jsonResponse({
+        data: { updateProjectV2ItemFieldValue: null },
+        errors: [ISSUE_FIELD_REQUIRED_ERROR],
+      }))
+      // 2) Issue-field definitions for the repo (resolve backing id by name + type).
+      .mockResolvedValueOnce(issueFieldsResponse([
+        { id: 'IFSS_OTHER', name: 'Priority', dataType: 'SINGLE_SELECT' },
+        { id: 'IFD_START', name: 'Start date', dataType: 'DATE' },
+      ]))
+      // 3) The issue-field mutation succeeds.
+      .mockResolvedValueOnce(jsonResponse({ data: { updateIssueFieldValue: { issue: { id: 'ISSUE' } } } }));
+
+    const ok = await batchUpdateProjectV2ItemFields(
+      'PROJ',
+      'ITEM',
+      [{ kind: 'set', fieldId: 'F_START', value: { date: '2026-05-27' }, name: 'Start date' }],
+      REAL_TOKEN,
+      { issueId: 'ISSUE' }
+    );
+
+    expect(ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const retryBody = lastBody();
+    expect(retryBody.query).toContain('updateIssueFieldValue');
+    expect(retryBody.variables.issueId).toBe('ISSUE');
+    // Uses the resolved IFD_… id, not the ProjectV2 PVTF_… id.
+    expect(retryBody.variables.issueField).toEqual({
+      fieldId: 'IFD_START',
+      dateValue: '2026-05-27',
+    });
+  });
+
+  it('returns false when the backing issue field cannot be resolved', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({
+        data: { updateProjectV2ItemFieldValue: null },
+        errors: [ISSUE_FIELD_REQUIRED_ERROR],
+      }))
+      // No DATE field named "Start date" -> unresolved.
+      .mockResolvedValueOnce(issueFieldsResponse([
+        { id: 'IFD_TARGET', name: 'Target date', dataType: 'DATE' },
+      ]))
+      // Falls back to a plain ProjectV2 write, which is rejected again.
+      .mockResolvedValueOnce(jsonResponse({
+        data: { updateProjectV2ItemFieldValue: null },
+        errors: [ISSUE_FIELD_REQUIRED_ERROR],
+      }));
+
+    const ok = await batchUpdateProjectV2ItemFields(
+      'PROJ',
+      'ITEM',
+      [{ kind: 'set', fieldId: 'F_START', value: { date: '2026-05-27' }, name: 'Start date' }],
+      REAL_TOKEN,
+      { issueId: 'ISSUE' }
+    );
+
+    expect(ok).toBe(false);
+    // No updateIssueFieldValue mutation was attempted (resolution failed).
+    const calls = fetchMock.mock.calls.map((c) => JSON.parse((c[1] as RequestInit).body as string).query);
+    expect(calls.some((q: string) => q.includes('updateIssueFieldValue'))).toBe(false);
+  });
+
+  it('returns false if an issue-field retry mutation fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({
+        data: { updateProjectV2ItemFieldValue: null },
+        errors: [ISSUE_FIELD_REQUIRED_ERROR],
+      }))
+      .mockResolvedValueOnce(issueFieldsResponse([
+        { id: 'IFD_START', name: 'Start date', dataType: 'DATE' },
+      ]))
+      .mockResolvedValueOnce(jsonResponse({ errors: [{ message: 'bad issue field' }] }));
+
+    const ok = await batchUpdateProjectV2ItemFields(
+      'PROJ',
+      'ITEM',
+      [{ kind: 'set', fieldId: 'F_START', value: { date: '2026-05-27' }, name: 'Start date' }],
+      REAL_TOKEN,
+      { issueId: 'ISSUE' }
+    );
+
+    expect(ok).toBe(false);
+  });
+
   it('returns false if the batch reports errors', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ errors: [{ message: 'bad field' }] }));
     const ok = await batchUpdateProjectV2ItemFields(

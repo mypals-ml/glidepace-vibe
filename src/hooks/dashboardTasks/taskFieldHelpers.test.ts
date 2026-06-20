@@ -4,6 +4,7 @@ import {
   getProjectFixedStartDateMode,
   preserveUniqueIds,
   getExistingPredecessorIds,
+  findProjectFieldId,
   getProjectFieldUpdateValue,
   applyTaskFieldValueChanges,
 } from './taskFieldHelpers';
@@ -51,6 +52,30 @@ describe('getProjectFixedStartDateMode', () => {
 describe('preserveUniqueIds', () => {
   it('drops falsy entries and deduplicates while preserving order', () => {
     expect(preserveUniqueIds(['a', '', 'b', 'a', 'c', 'b'])).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('findProjectFieldId', () => {
+  const fields: GitHubProjectV2Field[] = [
+    { __typename: 'ProjectV2Field', id: 'title-field', name: 'Title', dataType: 'TITLE' },
+    { __typename: 'ProjectV2Field', id: 'start-field', name: 'Start date', dataType: 'DATE' },
+    { __typename: 'ProjectV2SingleSelectField', id: 'unit-field', name: 'Estimate Unit', dataType: 'SINGLE_SELECT' },
+  ];
+
+  it('finds a field by name and type constraints', () => {
+    expect(findProjectFieldId(fields, {
+      names: ['start'],
+      dataTypes: ['DATE'],
+      typenames: ['ProjectV2Field'],
+    })).toBe('start-field');
+  });
+
+  it('returns undefined when the type does not match', () => {
+    expect(findProjectFieldId(fields, {
+      names: ['start'],
+      dataTypes: ['NUMBER'],
+      typenames: ['ProjectV2Field'],
+    })).toBeUndefined();
   });
 });
 

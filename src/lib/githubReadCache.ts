@@ -84,6 +84,8 @@ export const READ_CACHE_TTL = {
   userProjects: 30_000,
   /** Repository node IDs are effectively immutable. */
   repositoryId: 10 * 60_000,
+  /** Repository issue-field definitions change rarely during a session. */
+  issueFields: 5 * 60_000,
 };
 
 export const githubReadCache = new GitHubReadCache();

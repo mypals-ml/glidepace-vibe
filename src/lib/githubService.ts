@@ -323,61 +323,284 @@ export async function clearProjectV2ItemField(projectId: string, itemId: string,
  * top-level mutation fields serially in document order.
  */
 export type ProjectV2FieldWrite =
-  | { kind: 'set'; fieldId: string; value: unknown }
-  | { kind: 'clear'; fieldId: string };
+  | { kind: 'set'; fieldId: string; value: unknown; name?: string }
+  | { kind: 'clear'; fieldId: string; name?: string };
+
+interface GraphQLErrorLike {
+  message?: string;
+}
+
+interface BatchUpdateProjectV2ItemFieldsOptions {
+  issueId?: string;
+}
+
+const UPDATE_ISSUE_FIELD_VALUE_MUTATION = `
+mutation UpdateIssueFieldValue($issueId: ID!, $issueField: IssueFieldCreateOrUpdateInput!) {
+  updateIssueFieldValue(input: { issueId: $issueId, issueField: $issueField }) {
+    issue { id }
+  }
+}`;
+
+/**
+ * Some ProjectV2 fields (e.g. the org-level `Start date` / `Target date`) are
+ * actually backed by repository-level *issue fields*. They appear in the project
+ * metadata with a `PVTF_…` id, but GitHub rejects writes through
+ * `updateProjectV2ItemFieldValue` for them and demands `updateIssueFieldValue`,
+ * which only accepts the backing issue-field id (`IFD_…`, `IFSS_…`, …).
+ *
+ * This query lists the issue-field definitions for the issue's repository so we
+ * can resolve the backing id by name + data type.
+ */
+const GET_ISSUE_FIELDS_QUERY = `
+query IssueFields($issueId: ID!) {
+  node(id: $issueId) {
+    ... on Issue {
+      repository {
+        id
+        issueFields(first: 50) {
+          nodes {
+            ... on Node { id }
+            ... on IssueFieldCommon { name dataType }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+interface IssueFieldDefinition {
+  id: string;
+  name: string;
+  dataType: string;
+}
+
+function isIssueFieldUpdateRequired(errors: unknown): boolean {
+  return Array.isArray(errors) && errors.some((error: GraphQLErrorLike) =>
+    typeof error?.message === 'string' &&
+    error.message.includes('Issue field values cannot be updated') &&
+    error.message.includes('updateIssueFieldValue')
+  );
+}
+
+/** Map a ProjectV2 field value/clear to the issue-field data type used for matching. */
+function issueFieldDataType(change: ProjectV2FieldWrite): string | null {
+  if (change.kind === 'clear') return null;
+  const value = change.value as Record<string, unknown>;
+  if (typeof value.date === 'string') return 'DATE';
+  if (typeof value.number === 'number') return 'NUMBER';
+  if (typeof value.text === 'string') return 'TEXT';
+  // Single-select option ids differ between project and issue fields, so the
+  // issue-field fallback intentionally does not handle them.
+  return null;
+}
+
+/** Translate a project field write into the `IssueFieldCreateOrUpdateInput` shape. */
+function toIssueFieldInput(change: ProjectV2FieldWrite, issueFieldId: string): Record<string, unknown> | null {
+  if (change.kind === 'clear') {
+    return { fieldId: issueFieldId, delete: true };
+  }
+
+  const value = change.value as Record<string, unknown>;
+  const issueField: Record<string, unknown> = { fieldId: issueFieldId };
+
+  if (typeof value.date === 'string') {
+    issueField.dateValue = value.date;
+  } else if (typeof value.number === 'number') {
+    issueField.numberValue = value.number;
+  } else if (typeof value.text === 'string') {
+    issueField.textValue = value.text;
+  } else {
+    return null;
+  }
+
+  return issueField;
+}
+
+/** Fetch (and cache) the issue-field definitions for the issue's repository. */
+async function getIssueFieldDefinitions(issueId: string, token: string): Promise<IssueFieldDefinition[]> {
+  const key = `issueFields:${tokenKey(token)}:${issueId}`;
+  return githubReadCache.get(key, READ_CACHE_TTL.issueFields, async () => {
+    const json = await fetchGitHubGraphQL(GET_ISSUE_FIELDS_QUERY, { issueId }, token);
+    const nodes =
+      (json.data as { node?: { repository?: { issueFields?: { nodes?: unknown[] } } } })
+        ?.node?.repository?.issueFields?.nodes ?? [];
+    return nodes
+      .filter((node): node is IssueFieldDefinition =>
+        typeof (node as IssueFieldDefinition)?.id === 'string' &&
+        typeof (node as IssueFieldDefinition)?.name === 'string')
+      .map((node) => ({ id: node.id, name: node.name, dataType: node.dataType }));
+  });
+}
+
+/**
+ * Resolve the backing issue-field id for a project field change by matching on
+ * the field name (and data type, when known). Returns null when no unambiguous
+ * match exists.
+ */
+async function resolveIssueFieldId(
+  issueId: string,
+  name: string | undefined,
+  dataType: string | null,
+  token: string
+): Promise<string | null> {
+  if (!name) return null;
+  const definitions = await getIssueFieldDefinitions(issueId, token);
+  const targetName = name.trim().toLowerCase();
+  const matches = definitions.filter(
+    (def) =>
+      def.name.trim().toLowerCase() === targetName &&
+      (dataType ? def.dataType === dataType : true)
+  );
+  if (matches.length !== 1) return null;
+  return matches[0].id;
+}
+
+/** Resolve the backing issue-field id for a change (matched by name + data type). */
+async function resolveIssueFieldIdForChange(issueId: string, change: ProjectV2FieldWrite, token: string): Promise<string | null> {
+  // For a clear we have no value to infer the type from, so match by name only.
+  const dataType = change.kind === 'clear' ? null : issueFieldDataType(change);
+  if (change.kind === 'set' && !dataType) return null; // unsupported value shape (e.g. single-select)
+  return resolveIssueFieldId(issueId, change.name, dataType, token);
+}
+
+async function updateIssueFieldValueById(
+  issueId: string,
+  change: ProjectV2FieldWrite,
+  issueFieldId: string,
+  token: string
+): Promise<boolean> {
+  const issueField = toIssueFieldInput(change, issueFieldId);
+  if (!issueField) {
+    console.error('Issue field update failed: unsupported value shape', change);
+    return false;
+  }
+
+  try {
+    const res = await fetchGitHubGraphQL(
+      UPDATE_ISSUE_FIELD_VALUE_MUTATION,
+      { issueId, issueField },
+      token,
+      { operationType: 'mutation' }
+    );
+    if (res.errors) {
+      console.error('Issue field update failed:', res.errors);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('Issue field update failed:', e);
+    return false;
+  }
+}
+
+/**
+ * Apply a single field write, preferring `updateIssueFieldValue` when the field
+ * is backed by a repository issue field (resolved by name + data type) and
+ * otherwise using the plain ProjectV2 mutation. Used as the per-field fallback
+ * after a batched ProjectV2 write is rejected for touching issue-backed fields.
+ */
+async function applyFieldWriteWithIssueFallback(
+  projectId: string,
+  itemId: string,
+  change: ProjectV2FieldWrite,
+  token: string,
+  issueId: string
+): Promise<boolean> {
+  const issueFieldId = await resolveIssueFieldIdForChange(issueId, change, token);
+  if (issueFieldId) {
+    return updateIssueFieldValueById(issueId, change, issueFieldId, token);
+  }
+
+  // Not an issue-backed field (or unsupported shape): plain ProjectV2 write.
+  const res = await runProjectFieldWrites(projectId, itemId, [change], token);
+  if (!res.ok) console.error('Update field failed:', res.errors);
+  return res.ok;
+}
+
+/**
+ * Perform the field writes via the plain ProjectV2 mutations (single field or
+ * one aliased multi-field request). Returns the GraphQL errors (if any) so the
+ * caller can decide whether an issue-field fallback is warranted.
+ */
+async function runProjectFieldWrites(
+  projectId: string,
+  itemId: string,
+  changes: ProjectV2FieldWrite[],
+  token: string
+): Promise<{ ok: boolean; errors?: unknown }> {
+  try {
+    if (changes.length === 1) {
+      // No benefit to aliasing a single change; use the simple named mutation.
+      const only = changes[0];
+      const res = only.kind === 'clear'
+        ? await fetchGitHubGraphQL(CLEAR_PROJECT_ITEM_FIELD_VALUE_MUTATION, { projectId, itemId, fieldId: only.fieldId }, token, { operationType: 'mutation' })
+        : await fetchGitHubGraphQL(UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION, { projectId, itemId, fieldId: only.fieldId, value: only.value }, token, { operationType: 'mutation' });
+      if (res.errors) return { ok: false, errors: res.errors };
+      return { ok: true };
+    }
+
+    // Build variable declarations + aliased mutation fields so multi-field saves
+    // cost a single round trip.
+    const varDecls: string[] = ['$projectId: ID!', '$itemId: ID!'];
+    const fields: string[] = [];
+    const variables: Record<string, unknown> = { projectId, itemId };
+
+    changes.forEach((change, i) => {
+      const fieldVar = `fieldId${i}`;
+      varDecls.push(`$${fieldVar}: ID!`);
+      variables[fieldVar] = change.fieldId;
+
+      if (change.kind === 'clear') {
+        fields.push(
+          `c${i}: clearProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $${fieldVar} }) { projectV2Item { id } }`
+        );
+      } else {
+        const valueVar = `value${i}`;
+        varDecls.push(`$${valueVar}: ProjectV2FieldValue!`);
+        variables[valueVar] = change.value;
+        fields.push(
+          `u${i}: updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $${fieldVar}, value: $${valueVar} }) { projectV2Item { id } }`
+        );
+      }
+    });
+
+    const mutation = `mutation BatchUpdateFields(${varDecls.join(', ')}) {\n  ${fields.join('\n  ')}\n}`;
+    const res = await fetchGitHubGraphQL(mutation, variables, token, { operationType: 'mutation' });
+    if (res.errors) return { ok: false, errors: res.errors };
+    return { ok: true };
+  } catch (e) {
+    console.error('Batch field update failed:', e);
+    return { ok: false };
+  }
+}
 
 export async function batchUpdateProjectV2ItemFields(
   projectId: string,
   itemId: string,
   changes: ProjectV2FieldWrite[],
-  token: string
+  token: string,
+  options: BatchUpdateProjectV2ItemFieldsOptions = {}
 ): Promise<boolean> {
   if (changes.length === 0) return true;
-  if (changes.length === 1) {
-    // No benefit to aliasing a single change; use the simple path.
-    const only = changes[0];
-    return only.kind === 'clear'
-      ? clearProjectV2ItemField(projectId, itemId, only.fieldId, token)
-      : updateProjectV2ItemField(projectId, itemId, only.fieldId, only.value, token);
-  }
 
-  // Build variable declarations + aliased mutation fields.
-  const varDecls: string[] = ['$projectId: ID!', '$itemId: ID!'];
-  const fields: string[] = [];
-  const variables: Record<string, unknown> = { projectId, itemId };
+  const plain = await runProjectFieldWrites(projectId, itemId, changes, token);
+  if (plain.ok) return true;
 
-  changes.forEach((change, i) => {
-    const fieldVar = `fieldId${i}`;
-    varDecls.push(`$${fieldVar}: ID!`);
-    variables[fieldVar] = change.fieldId;
-
-    if (change.kind === 'clear') {
-      fields.push(
-        `c${i}: clearProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $${fieldVar} }) { projectV2Item { id } }`
-      );
-    } else {
-      const valueVar = `value${i}`;
-      varDecls.push(`$${valueVar}: ProjectV2FieldValue!`);
-      variables[valueVar] = change.value;
-      fields.push(
-        `u${i}: updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $${fieldVar}, value: $${valueVar} }) { projectV2Item { id } }`
-      );
-    }
-  });
-
-  const mutation = `mutation BatchUpdateFields(${varDecls.join(', ')}) {\n  ${fields.join('\n  ')}\n}`;
-
-  try {
-    const res = await fetchGitHubGraphQL(mutation, variables, token, { operationType: 'mutation' });
-    if (res.errors) {
-      console.error('Batch field update failed:', res.errors);
-      return false;
+  // Some fields (org-level Start/Target date) are issue-backed and reject the
+  // ProjectV2 mutation. Retry each change individually, falling back to
+  // updateIssueFieldValue for the ones GitHub demands it for. The plain set
+  // mutations are idempotent, so re-applying the non-issue fields is safe.
+  if (options.issueId && isIssueFieldUpdateRequired(plain.errors)) {
+    const issueId = options.issueId;
+    for (const change of changes) {
+      const ok = await applyFieldWriteWithIssueFallback(projectId, itemId, change, token, issueId);
+      if (!ok) return false;
     }
     return true;
-  } catch (e) {
-    console.error('Batch field update failed:', e);
-    return false;
   }
+
+  console.error('Batch field update failed:', plain.errors);
+  return false;
 }
 
 export async function updateProjectV2ItemPosition(projectId: string, itemId: string, afterId: string | null, token: string): Promise<boolean> {
