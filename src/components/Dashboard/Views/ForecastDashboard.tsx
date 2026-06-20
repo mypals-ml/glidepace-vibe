@@ -1,15 +1,17 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useId, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { DEFAULT_WORKER, buildForecastDashboardData, type ForecastPoint } from '../../../lib/forecastDashboardUtils';
-import { getStatusAssumptionClasses, getStatusChartColor, getStatusChartFillClass, getStatusColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
+import { getStatusAssumptionClasses, getStatusChartColor, getStatusColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
 
 const CHART_WIDTH = 1000;
 const CHART_HEIGHT = 220;
 const CHART_TOP = 14;
 const CHART_BOTTOM = 198;
 const CHART_PLOT_HEIGHT = CHART_BOTTOM - CHART_TOP;
+const CHART_ACTUAL_FILL_OPACITY = 0.22;
+const CHART_PROJECTED_FILL_OPACITY = 0.2;
 
 function formatDays(value: number) {
   return `${value.toFixed(value % 1 === 0 ? 0 : 1)}d`;
@@ -132,7 +134,9 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const maxWorkerLoad = Math.max(1, ...chartData.workerLoads.flatMap((worker) => worker.days.map((day) => day.loadDays)));
   const totalEstimate = Math.max(1, chartData.totalEstimateDays);
   const projectedColor = getStatusChartColor('Blocked');
-  const projectedFillClass = getStatusChartFillClass('Blocked');
+  const chartFillGradientId = useId().replace(/:/g, '');
+  const actualFillGradientId = `${chartFillGradientId}-actual`;
+  const projectedFillGradientId = `${chartFillGradientId}-projected`;
   const doneTextColor = getStatusTextColor('Done');
   const workerDateLabelStep = isCompactWorkerLabels ? 3 : isNarrowWorkerLabels ? 2 : 1;
   const assumptionStartDateValue = formatReadOnlyDate(chartData.points[0]?.date || '');
@@ -240,6 +244,16 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                   </span>
                 ))}
                 <svg className="aspect-[1000/220] w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
+                  <defs>
+                    <linearGradient id={actualFillGradientId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={CHART_ACTUAL_FILL_OPACITY} />
+                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0" />
+                    </linearGradient>
+                    <linearGradient id={projectedFillGradientId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={projectedColor} stopOpacity={CHART_PROJECTED_FILL_OPACITY} />
+                      <stop offset="100%" stopColor={projectedColor} stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
                   <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} className="stroke-slate-200" strokeWidth="2" />
                   <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} className="stroke-slate-200" strokeWidth="2" strokeDasharray="8 8" />
                   <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} className="stroke-slate-200" strokeWidth="2" />
@@ -249,8 +263,8 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                   {dateTicks.map((tick) => (
                     <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} className="stroke-slate-300" strokeWidth="2" strokeLinecap="round" />
                   ))}
-                  <path d={areaPath(actualPoints)} className="fill-primary/13" />
-                  <path d={areaPath(projectedPoints)} className={projectedFillClass} />
+                  <path d={areaPath(actualPoints)} fill={`url(#${actualFillGradientId})`} />
+                  <path d={areaPath(projectedPoints)} fill={`url(#${projectedFillGradientId})`} />
                   <polyline points={pointList(actualPoints)} fill="none" className="stroke-primary" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
                   <polyline points={pointList(projectedPoints)} fill="none" stroke={projectedColor} strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
                   {coordinates.map((point) => (

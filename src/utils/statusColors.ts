@@ -19,7 +19,6 @@ interface StatusColors {
   dot: string;    // dot indicator colour (+ optional animate)
   text: string;   // text colour matching the status accent
   chart: string;  // raw CSS colour for SVG/canvas/chart surfaces
-  chartFill: string; // Tailwind fill class for translucent chart areas
   assumptionInput: string; // focus ring classes for assumption inputs
 }
 
@@ -30,7 +29,6 @@ const GITHUB_COLOR_MAP: Record<string, StatusColors> = {
     dot:   'bg-slate-400',
     text:  'text-slate-500',
     chart: '#94a3b8',
-    chartFill: 'fill-slate-400/14',
     assumptionInput: 'border-slate-200 focus-within:border-slate-500 focus-within:ring-slate-500/20',
   },
   BLUE: {
@@ -38,7 +36,6 @@ const GITHUB_COLOR_MAP: Record<string, StatusColors> = {
     dot:   'bg-blue-500',
     text:  'text-blue-600',
     chart: '#3b82f6',
-    chartFill: 'fill-blue-500/14',
     assumptionInput: 'border-blue-200 focus-within:border-blue-500 focus-within:ring-blue-500/20',
   },
   GREEN: {
@@ -46,7 +43,6 @@ const GITHUB_COLOR_MAP: Record<string, StatusColors> = {
     dot:   'bg-green-500',
     text:  'text-green-600',
     chart: '#22c55e',
-    chartFill: 'fill-green-500/14',
     assumptionInput: 'border-green-200 focus-within:border-green-500 focus-within:ring-green-500/20',
   },
   YELLOW: {
@@ -54,7 +50,6 @@ const GITHUB_COLOR_MAP: Record<string, StatusColors> = {
     dot:   'bg-yellow-500 animate-pulse',
     text:  'text-yellow-600',
     chart: '#eab308',
-    chartFill: 'fill-yellow-500/14',
     assumptionInput: 'border-yellow-200 focus-within:border-yellow-500 focus-within:ring-yellow-500/20',
   },
   ORANGE: {
@@ -62,7 +57,6 @@ const GITHUB_COLOR_MAP: Record<string, StatusColors> = {
     dot:   'bg-orange-500',
     text:  'text-orange-600',
     chart: '#f97316',
-    chartFill: 'fill-orange-500/14',
     assumptionInput: 'border-orange-200 focus-within:border-orange-500 focus-within:ring-orange-500/20',
   },
   RED: {
@@ -70,7 +64,6 @@ const GITHUB_COLOR_MAP: Record<string, StatusColors> = {
     dot:   'bg-red-500',
     text:  'text-red-600',
     chart: '#ef4444',
-    chartFill: 'fill-red-500/14',
     assumptionInput: 'border-red-200 focus-within:border-red-500 focus-within:ring-red-500/20',
   },
   PINK: {
@@ -78,7 +71,6 @@ const GITHUB_COLOR_MAP: Record<string, StatusColors> = {
     dot:   'bg-pink-500',
     text:  'text-pink-600',
     chart: '#ec4899',
-    chartFill: 'fill-pink-500/14',
     assumptionInput: 'border-pink-200 focus-within:border-pink-500 focus-within:ring-pink-500/20',
   },
   PURPLE: {
@@ -86,7 +78,6 @@ const GITHUB_COLOR_MAP: Record<string, StatusColors> = {
     dot:   'bg-purple-500',
     text:  'text-purple-600',
     chart: '#a855f7',
-    chartFill: 'fill-purple-500/14',
     assumptionInput: 'border-purple-200 focus-within:border-purple-500 focus-within:ring-purple-500/20',
   },
 };
@@ -185,11 +176,6 @@ export function getStatusTextColor(status: string): string {
 /** Returns a raw CSS colour for charts that should match the status dot. */
 export function getStatusChartColor(status: string): string {
   return resolve(status).chart;
-}
-
-/** Returns a Tailwind fill class for translucent chart areas. */
-export function getStatusChartFillClass(status: string): string {
-  return resolve(status).chartFill;
 }
 
 /** Returns Tailwind classes for forecast assumption inputs. */
