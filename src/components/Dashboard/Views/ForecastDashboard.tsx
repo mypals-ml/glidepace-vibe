@@ -131,7 +131,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const todayLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()), [i18n.language]);
   const maxWorkerLoad = Math.max(1, ...chartData.workerLoads.flatMap((worker) => worker.days.map((day) => day.loadDays)));
   const totalEstimate = Math.max(1, chartData.totalEstimateDays);
-  const projectedColor = getStatusChartColor('In progress');
+  const projectedColor = getStatusChartColor('Blocked');
   const doneTextColor = getStatusTextColor('Done');
   const workerDateLabelStep = isCompactWorkerLabels ? 3 : isNarrowWorkerLabels ? 2 : 1;
   const assumptionStartDateValue = formatReadOnlyDate(chartData.points[0]?.date || '');
@@ -189,12 +189,12 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const remainingPercent = Math.round((chartData.remainingDays / totalEstimate) * 100);
   const actualBoundary = actualPoints[actualPoints.length - 1];
   const assumptionStatusWorkloads = [
-    { key: 'draft', label: t('dashboard.burndownAssumptionDraft', 'Draft'), value: statusRemainingPercent.draft },
-    { key: 'todo', label: t('dashboard.burndownAssumptionTodo', 'Todo'), value: statusRemainingPercent.todo },
-    { key: 'inProgress', label: t('dashboard.burndownAssumptionInProgress', 'In progress'), value: statusRemainingPercent.inProgress },
-    { key: 'inReview', label: t('dashboard.burndownAssumptionInReview', 'In review'), value: statusRemainingPercent.inReview },
-    { key: 'done', label: t('dashboard.burndownAssumptionDone', 'Done'), value: statusRemainingPercent.done },
-    { key: 'other', label: t('dashboard.burndownAssumptionOther', 'Other'), value: statusRemainingPercent.other },
+    { key: 'draft', status: 'Draft', label: t('dashboard.burndownAssumptionDraft', 'Draft'), value: statusRemainingPercent.draft },
+    { key: 'todo', status: 'Todo', label: t('dashboard.burndownAssumptionTodo', 'Todo'), value: statusRemainingPercent.todo },
+    { key: 'inProgress', status: 'In progress', label: t('dashboard.burndownAssumptionInProgress', 'In progress'), value: statusRemainingPercent.inProgress },
+    { key: 'inReview', status: 'In review', label: t('dashboard.burndownAssumptionInReview', 'In review'), value: statusRemainingPercent.inReview },
+    { key: 'done', status: 'Done', label: t('dashboard.burndownAssumptionDone', 'Done'), value: statusRemainingPercent.done },
+    { key: 'other', status: 'Other', label: t('dashboard.burndownAssumptionOther', 'Other'), value: statusRemainingPercent.other },
   ];
 
   return (
@@ -249,7 +249,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                     <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} stroke="rgb(203 213 225)" strokeWidth="2" strokeLinecap="round" />
                   ))}
                   <path d={areaPath(actualPoints)} fill="rgba(79, 70, 229, 0.13)" />
-                  <path d={areaPath(projectedPoints)} fill="rgba(234, 179, 8, 0.18)" />
+                  <path d={areaPath(projectedPoints)} fill="rgba(239, 68, 68, 0.14)" />
                   <polyline points={pointList(actualPoints)} fill="none" stroke="var(--color-primary)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
                   <polyline points={pointList(projectedPoints)} fill="none" stroke={projectedColor} strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
                   {coordinates.map((point) => (
@@ -280,7 +280,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                 )}
                 <div className="flex flex-wrap items-center gap-2">
                   <ChartPill label={t('dashboard.burndownActual', 'Actual')} color="bg-primary" className="bg-primary/10 text-primary" />
-                  <ChartPill label={t('dashboard.burndownProjected', 'Projected')} color="bg-yellow-500" className="bg-yellow-50 text-yellow-700" />
+                  <ChartPill label={t('dashboard.burndownProjected', 'Projected')} color="bg-red-500" className="bg-red-50 text-red-700" />
                 </div>
               </div>
             </div>
@@ -428,6 +428,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                     <AssumptionPercentInput
                       key={status.label}
                       label={status.label}
+                      status={status.status}
                       value={status.value}
                       className={index >= 4 ? 'md:col-span-2' : ''}
                       onChange={(value) => {
@@ -660,8 +661,8 @@ function AssumptionInput({
   onChange?: (value: string) => void;
 }) {
   const inputClassName = readOnly
-    ? 'h-11 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 text-base font-extrabold text-slate-500 shadow-inner outline-none'
-    : 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-extrabold text-slate-950 shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
+    ? 'h-11 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 text-base font-extrabold text-slate-500 outline-none'
+    : 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-extrabold text-slate-950 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
 
   return (
     <label className={`block min-w-[140px] ${className}`}>
@@ -701,7 +702,7 @@ function AssumptionNumberInput({
   return (
     <label className={`block min-w-[140px] ${className}`}>
       <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</span>
-      <span className="flex h-11 items-center rounded-lg border border-slate-200 bg-white px-3 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+      <span className="flex h-11 items-center rounded-lg border border-slate-200 bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
         <input
           className="min-w-12 flex-1 bg-transparent text-base font-extrabold text-slate-950 outline-none"
           type="number"
@@ -720,19 +721,25 @@ function AssumptionNumberInput({
 
 function AssumptionPercentInput({
   label,
+  status,
   value,
   className = '',
   onChange,
 }: {
   label: string;
+  status: string;
   value: number;
   className?: string;
   onChange: (value: number) => void;
 }) {
+  const statusClassName = getAssumptionStatusClassName(status);
   return (
-    <label className={`block rounded-lg border border-primary/15 bg-white px-3 py-2 shadow-sm min-w-fit ${className}`}>
-      <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">{label}</span>
-      <span className="flex h-9 items-center rounded-md border border-primary/20 bg-white px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+    <label className={`block min-w-fit rounded-lg border px-3 py-2 ${statusClassName.wrapper} ${className}`}>
+      <span className={`mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold ${statusClassName.label}`}>
+        <span className={`h-2 w-2 rounded-full ${statusClassName.dot}`}></span>
+        {label}
+      </span>
+      <span className={`flex h-9 items-center rounded-md border bg-white/80 px-3 focus-within:ring-2 ${statusClassName.input}`}>
         <input
           className="min-w-12 flex-1 bg-transparent text-lg font-black text-slate-950 outline-none"
           type="number"
@@ -743,10 +750,57 @@ function AssumptionPercentInput({
           value={value}
           onChange={(event) => onChange(clampNumber(event.currentTarget.valueAsNumber, 0, 100))}
         />
-        <span className="shrink-0 text-sm font-bold text-primary/60">%</span>
+        <span className={`shrink-0 text-sm font-bold ${statusClassName.label}`}>%</span>
       </span>
     </label>
   );
+}
+
+function getAssumptionStatusClassName(status: string) {
+  switch (status.toLowerCase()) {
+    case 'draft':
+      return {
+        wrapper: 'border-blue-200 bg-blue-50/70',
+        input: 'border-blue-200 focus-within:border-blue-500 focus-within:ring-blue-500/20',
+        label: 'text-blue-700',
+        dot: 'bg-blue-500',
+      };
+    case 'todo':
+      return {
+        wrapper: 'border-green-200 bg-green-50/70',
+        input: 'border-green-200 focus-within:border-green-500 focus-within:ring-green-500/20',
+        label: 'text-green-700',
+        dot: 'bg-green-500',
+      };
+    case 'in progress':
+      return {
+        wrapper: 'border-yellow-200 bg-yellow-50/70',
+        input: 'border-yellow-200 focus-within:border-yellow-500 focus-within:ring-yellow-500/20',
+        label: 'text-yellow-700',
+        dot: 'bg-yellow-500',
+      };
+    case 'in review':
+      return {
+        wrapper: 'border-pink-200 bg-pink-50/70',
+        input: 'border-pink-200 focus-within:border-pink-500 focus-within:ring-pink-500/20',
+        label: 'text-pink-700',
+        dot: 'bg-pink-500',
+      };
+    case 'done':
+      return {
+        wrapper: 'border-purple-200 bg-purple-50/70',
+        input: 'border-purple-200 focus-within:border-purple-500 focus-within:ring-purple-500/20',
+        label: 'text-purple-700',
+        dot: 'bg-purple-500',
+      };
+    default:
+      return {
+        wrapper: 'border-slate-200 bg-slate-50/80',
+        input: 'border-slate-200 focus-within:border-slate-500 focus-within:ring-slate-500/20',
+        label: 'text-slate-600',
+        dot: 'bg-slate-400',
+      };
+  }
 }
 
 function LegendItem({ label, percent, days, color, dotClassName, badgeClassName, labelClassName = '' }: { label: string; percent: string; days: string; color: string; dotClassName: string; badgeClassName: string; labelClassName?: string }) {
@@ -757,8 +811,8 @@ function LegendItem({ label, percent, days, color, dotClassName, badgeClassName,
         <span className="truncate">{label}</span>
       </span>
       <span className="flex flex-wrap justify-end gap-2">
-        <span className="rounded-md bg-white/75 px-2 py-0.5 text-xs font-extrabold text-slate-900 shadow-sm ring-1 ring-black/5">{percent}</span>
-        <span className="rounded-md bg-white/55 px-2 py-0.5 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-black/5">{days}</span>
+        <span className="rounded-md border border-current/20 bg-current/10 px-2 py-0.5 text-xs font-extrabold">{percent}</span>
+        <span className="rounded-md border border-current/20 bg-current/10 px-2 py-0.5 text-xs font-bold">{days}</span>
       </span>
     </li>
   );
