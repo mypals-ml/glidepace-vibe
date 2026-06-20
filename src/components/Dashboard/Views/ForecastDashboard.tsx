@@ -1,8 +1,9 @@
 import { useId, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
-import { DEFAULT_WORKER, buildForecastDashboardData, type ForecastPoint } from '../../../lib/forecastDashboardUtils';
+import { DEFAULT_WORKER, buildForecastDashboardData, type ForecastPoint, type ForecastStatusKey } from '../../../lib/forecastDashboardUtils';
 import { getStatusAssumptionClasses, getStatusChartColor, getStatusColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
 
 const CHART_WIDTH = 1000;
@@ -15,6 +16,53 @@ const CHART_PROJECTED_FILL_OPACITY = 0.2;
 
 function formatDays(value: number) {
   return `${value.toFixed(value % 1 === 0 ? 0 : 1)}d`;
+}
+
+function formatLocalizedDays(value: number, t: TFunction) {
+  const count = value.toFixed(value % 1 === 0 ? 0 : 1);
+  const template = t('dashboard.burndownDaysValue', { count, defaultValue: '{{count}}d' });
+  return typeof template === 'string' ? template.replace('{{count}}', count) : `${count}d`;
+}
+
+function normalizeForecastStatusLabel(status: string) {
+  return status.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function translateForecastStatusLabel(status: string, statusKey: ForecastStatusKey, t: TFunction) {
+  const translationByStatus: Record<string, { key: string; defaultValue: string }> = {
+    draft: { key: 'dashboard.burndownAssumptionDraft', defaultValue: 'Draft' },
+    todo: { key: 'dashboard.burndownAssumptionTodo', defaultValue: 'Todo' },
+    'to do': { key: 'dashboard.burndownAssumptionTodo', defaultValue: 'Todo' },
+    backlog: { key: 'dashboard.burndownTodo', defaultValue: 'Todo' },
+    open: { key: 'dashboard.burndownTodo', defaultValue: 'Todo' },
+    'not started': { key: 'dashboard.burndownTodo', defaultValue: 'Todo' },
+    'in progress': { key: 'dashboard.burndownAssumptionInProgress', defaultValue: 'In progress' },
+    'in review': { key: 'dashboard.burndownAssumptionInReview', defaultValue: 'In review' },
+    review: { key: 'dashboard.burndownAssumptionInReview', defaultValue: 'In review' },
+    wip: { key: 'dashboard.burndownInFlight', defaultValue: 'In progress or review' },
+    done: { key: 'dashboard.burndownAssumptionDone', defaultValue: 'Done' },
+    closed: { key: 'dashboard.burndownDone', defaultValue: 'Done' },
+    completed: { key: 'dashboard.burndownDone', defaultValue: 'Done' },
+    merged: { key: 'dashboard.burndownDone', defaultValue: 'Done' },
+    blocked: { key: 'dashboard.burndownAssumptionOther', defaultValue: 'Other' },
+    'on hold': { key: 'dashboard.burndownAssumptionOther', defaultValue: 'Other' },
+    cancelled: { key: 'dashboard.burndownAssumptionOther', defaultValue: 'Other' },
+    canceled: { key: 'dashboard.burndownAssumptionOther', defaultValue: 'Other' },
+    other: { key: 'dashboard.burndownAssumptionOther', defaultValue: 'Other' },
+  };
+  const exactTranslation = translationByStatus[normalizeForecastStatusLabel(status)];
+  if (exactTranslation) {
+    return t(exactTranslation.key, exactTranslation.defaultValue);
+  }
+
+  const translationByStatusKey: Record<ForecastStatusKey, { key: string; defaultValue: string }> = {
+    done: { key: 'dashboard.burndownAssumptionDone', defaultValue: 'Done' },
+    todo: { key: 'dashboard.burndownTodo', defaultValue: 'Todo' },
+    inFlight: { key: 'dashboard.burndownInFlight', defaultValue: 'In progress or review' },
+  };
+
+  const fallbackTranslation = translationByStatusKey[statusKey];
+  return t(fallbackTranslation.key, fallbackTranslation.defaultValue);
 }
 
 function pointCoordinates(points: ForecastPoint[], totalEstimateDays: number) {
@@ -322,9 +370,9 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                   {statusSegments.map((status) => (
                     <LegendItem
                       key={status.status}
-                      label={status.status}
+                      label={translateForecastStatusLabel(status.status, status.statusKey, t)}
                       percent={`${status.percent}%`}
-                      days={formatDays(status.days)}
+                      days={formatLocalizedDays(status.days, t)}
                       color={status.color}
                       dotClassName={getStatusDotColor(status.status)}
                       badgeClassName={getStatusColor(status.status)}
@@ -358,7 +406,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                       key={segment.label}
                       label={segment.label}
                       percent={`${segment.percent}%`}
-                      days={formatDays(segment.days)}
+                      days={formatLocalizedDays(segment.days, t)}
                       color={segment.color}
                       dotClassName=""
                       badgeClassName={segment.badgeClassName}
@@ -679,7 +727,7 @@ function AssumptionInput({
   onChange?: (value: string) => void;
 }) {
   const inputClassName = readOnly
-    ? 'h-11 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 text-base font-extrabold text-slate-500 outline-none'
+    ? 'h-11 w-full cursor-default rounded-lg border-0 bg-slate-50 px-3 text-base font-extrabold text-slate-500 outline-none'
     : 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-extrabold text-slate-950 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
 
   return (

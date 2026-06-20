@@ -138,6 +138,7 @@ const en = {
       burndownSummaryHint: "Completed vs. remaining effort",
       burndownSummaryCompleted: "Completed",
       burndownSummaryRemaining: "Remaining",
+      burndownDaysValue: "{{count}}d",
       burndownForecast: "Estimated completion",
       burndownEstimatedCompletion: "Estimated completion",
       burndownTotalEffort: "Total effort",

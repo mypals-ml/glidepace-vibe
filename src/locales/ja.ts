@@ -35,7 +35,7 @@ const ja = {
       addAccountPermissionNotice: "新しいアカウントを追加するには、Githubアカウントからの追加の権限が必要になる場合があります。"
     },
     about: {
-      button: "About",
+      button: "概要",
       eyebrow: "概要",
       title: "Glidelines について",
       description: "Glidelines は GitHub Projects を、タイムライン、リスト、予測ビューを備えた同期型の計画ワークスペースに変換します。",
@@ -134,6 +134,9 @@ const ja = {
       burndownSummary: "バーンダウン概要",
       burndownSummaryTitle: "残工数",
       burndownSummaryHint: "完了済み工数と残工数",
+      burndownSummaryCompleted: "完了済み",
+      burndownSummaryRemaining: "残り",
+      burndownDaysValue: "{{count}}日",
       burndownForecast: "完了予定データ",
       burndownEstimatedCompletion: "完了予定日",
       burndownTotalEffort: "総工数",
@@ -172,7 +175,7 @@ const ja = {
       burndownAssumptionWorkers: "作業者",
       burndownTaskStatusRemainingWorkload: "ステータス別の残作業率",
       burndownAssumptionDraft: "下書き",
-      burndownAssumptionTodo: "Todo",
+      burndownAssumptionTodo: "未着手",
       burndownAssumptionInProgress: "進行中",
       burndownAssumptionInReview: "レビュー中",
       burndownAssumptionDone: "完了",

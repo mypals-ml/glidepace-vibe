@@ -41,6 +41,7 @@
   --dashboard-header-height: 1.8rem;
   --search-bar-height: 61px;
   --header-gap: 8px;
+  --header-divider-gap: 8px;
 
   /* Button Tokens */
   --btn-h-md: 2.5rem;

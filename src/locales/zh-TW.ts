@@ -35,7 +35,7 @@ const zhTW = {
       addAccountPermissionNotice: "添加新帳戶可能需要您的 Github 帳戶提供額外權限。"
     },
     about: {
-      button: "About",
+      button: "關於",
       eyebrow: "關於",
       title: "關於 Glidelines",
       description: "Glidelines 會把 GitHub Projects 轉換成帶有時間線、清單與預測檢視的同步規劃工作區。",
@@ -136,6 +136,9 @@ const zhTW = {
       forecastDashboardSubtitle: "基於目前篩選任務的堆疊式規劃摘要。",
       burndownSummaryTitle: "剩餘工作量",
       burndownSummaryHint: "已完成與剩餘工作量",
+      burndownSummaryCompleted: "已完成",
+      burndownSummaryRemaining: "剩餘",
+      burndownDaysValue: "{{count}}天",
       burndownForecast: "預計完成資料",
       burndownEstimatedCompletion: "預計完成日期",
       burndownTotalEffort: "總工作量",

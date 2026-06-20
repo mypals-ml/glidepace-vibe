@@ -45,7 +45,14 @@ vi.mock('react-i18next', async (importOriginal) => {
   return {
     ...actual,
     useTranslation: () => ({
-      t: (key: string, fallback?: string) => fallback || key,
+      t: (key: string, fallback?: string | { defaultValue?: string; count?: string | number }) => {
+        if (typeof fallback === 'string') return fallback || key;
+        if (fallback && typeof fallback === 'object') {
+          const template = fallback.defaultValue || key;
+          return template.replace('{{count}}', String(fallback.count ?? ''));
+        }
+        return key;
+      },
       i18n: { language: 'en' },
     }),
   };
@@ -184,6 +191,22 @@ describe('ForecastDashboard loading state', () => {
     expect((workersInput as HTMLInputElement).readOnly).toBe(true);
     expect(workersInput.className).toContain('bg-slate-50');
     expect(workersInput.className).not.toContain('shadow');
+  });
+
+  it('translates status legend labels via exact match and status-key fallback', () => {
+    dashboardState = {
+      filteredTasks: [{
+        ...tasks[0],
+        status: 'Ready for deploy',
+        progress: 0,
+      }],
+      isLoadingTasks: false,
+    };
+
+    render(<ForecastDashboard />);
+
+    expect(screen.getAllByText('Todo').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Ready for deploy')).toBeNull();
   });
 
   it('uses matching colors for status workload assumptions', () => {

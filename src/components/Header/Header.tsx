@@ -38,7 +38,7 @@ export function Header() {
     <header className={`glass-panel border-b border-surface-border z-20 sticky top-0 bg-white/70 shadow-sm px-4 md:px-6 py-3 transition-all duration-300 ${hasOverflow ? 'header-compressed' : ''}`}>
       <div className="flex items-center">
         {/* ── Fixed left ── */}
-        <div className="flex items-center shrink-0" style={{ marginRight: 'var(--header-gap)' }}>
+        <div className="flex items-center shrink-0">
           <h1 className="text-lg md:text-xl font-bold tracking-tight text-slate-900">
             <a href="https://github.com/mypals-ml/glidepace-vibe" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline text-inherit">
               <span className="hidden xs:inline">{t('app.name')}</span>
@@ -47,7 +47,10 @@ export function Header() {
           </h1>
         </div>
         
-        <div className="h-6 w-px bg-slate-200 hidden sm:block shrink-0" style={{ marginRight: 'var(--header-gap)' }}></div>
+        <div
+          className="h-6 w-px shrink-0 bg-slate-200"
+          style={{ marginLeft: 'var(--header-divider-gap)', marginRight: 'var(--header-divider-gap)' }}
+        ></div>
 
         {/* ── Overflow zone ── */}
         <Overflow padding={4} onOverflowChange={(_, data) => setHasOverflow(data.hasOverflow)}>
