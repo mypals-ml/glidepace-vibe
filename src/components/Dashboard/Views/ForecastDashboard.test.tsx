@@ -176,7 +176,7 @@ describe('ForecastDashboard loading state', () => {
     const todoInput = screen.getByLabelText('Todo');
     fireEvent.change(todoInput, { target: { value: '75' } });
     expect((todoInput as HTMLInputElement).value).toBe('75');
-    expect(todoInput.closest('label')?.className).toContain('bg-green-50');
+    expect(todoInput.closest('label')?.className).toContain('bg-slate-100');
     expect(todoInput.parentElement?.className).not.toContain('shadow');
 
     const workersInput = screen.getByLabelText('Workers');
@@ -189,12 +189,12 @@ describe('ForecastDashboard loading state', () => {
   it('uses matching colors for status workload assumptions', () => {
     render(<ForecastDashboard />);
 
-    expect(screen.getByLabelText('Draft').closest('label')?.className).toContain('bg-blue-50');
-    expect(screen.getByLabelText('Todo').closest('label')?.className).toContain('bg-green-50');
+    expect(screen.getByLabelText('Draft').closest('label')?.className).toContain('bg-slate-100');
+    expect(screen.getByLabelText('Todo').closest('label')?.className).toContain('bg-slate-100');
     expect(screen.getByLabelText('In progress').closest('label')?.className).toContain('bg-yellow-50');
-    expect(screen.getByLabelText('In review').closest('label')?.className).toContain('bg-pink-50');
-    expect(screen.getByLabelText('Done').closest('label')?.className).toContain('bg-purple-50');
-    expect(screen.getByLabelText('Other').closest('label')?.className).toContain('bg-slate-50');
+    expect(screen.getByLabelText('In review').closest('label')?.className).toContain('bg-yellow-50');
+    expect(screen.getByLabelText('Done').closest('label')?.className).toContain('bg-purple-100');
+    expect(screen.getByLabelText('Other').closest('label')?.className).toContain('bg-slate-100');
   });
 
   it('anchors start and completion labels and side-places today when distinct', () => {
