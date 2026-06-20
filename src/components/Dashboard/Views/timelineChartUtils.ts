@@ -38,6 +38,21 @@ export function getGroupWeightedProgress(
   return totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
 }
 
+export function getGanttDropRowIndex(
+  dragState: { originRowIndex: number; deltaY: number; hasMoved: boolean } | null,
+  rowCount: number,
+  rowHeight = 72,
+): number | null {
+  if (!dragState?.hasMoved) return null;
+  return Math.max(
+    0,
+    Math.min(
+      rowCount - 1,
+      Math.floor((dragState.originRowIndex * rowHeight + rowHeight / 2 + dragState.deltaY) / rowHeight),
+    ),
+  );
+}
+
 export function getTimelineTaskBarLayout(
   task: Task,
   dayWidth: number,

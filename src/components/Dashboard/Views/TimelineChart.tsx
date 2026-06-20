@@ -13,6 +13,7 @@ import type { DashboardFieldGroupContext } from '../../../lib/taskOrderUtils';
 import {
   buildTimelineTaskBarDropPlan,
   computeGroupRowSpans,
+  getGanttDropRowIndex,
   getGroupWeightedProgress,
   getTimelineTaskBarLayout,
   type TimelineTaskBarDropPlan,
@@ -86,6 +87,10 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
   }), [selectedGroupFieldIds, projectFields]);
 
   const groupRowSpans = useMemo(() => computeGroupRowSpans(dashboardItems), [dashboardItems]);
+  const ganttDropTargetRowIndex = useMemo(
+    () => getGanttDropRowIndex(taskBarDragState, dashboardItems.length, ROW_HEIGHT),
+    [taskBarDragState, dashboardItems.length],
+  );
 
   useTimelineChartZoomGestures({
     activeScrollRef,
@@ -473,6 +478,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                       weightedProgress={getGroupWeightedProgress(item, filteredTasks)}
                       getPositionForDate={getPositionForDate}
                       onToggleCollapsed={toggleGroupBlockCollapsed}
+                      isDropTarget={ganttDropTargetRowIndex === index}
                     />
                   );
                 }
@@ -494,6 +500,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                     isLinkMode={isLinkMode}
                     isLinkSelected={selectedLinkTaskIds.includes(task.id)}
                     isLinkDropTarget={Boolean(linkDragState && linkDragState.sourceTaskId !== task.id)}
+                    isGanttDropTarget={ganttDropTargetRowIndex === index}
                     hoveredTargetTaskId={hoveredTargetTaskId}
                     taskDrag={taskDrag}
                     onTaskActivate={handleTaskActivate}

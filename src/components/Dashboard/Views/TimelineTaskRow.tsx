@@ -22,6 +22,7 @@ interface TimelineTaskRowProps {
   isLinkMode: boolean;
   isLinkSelected: boolean;
   isLinkDropTarget: boolean;
+  isGanttDropTarget: boolean;
   hoveredTargetTaskId: string | null;
   taskDrag: TimelineTaskBarDragState | null;
   onTaskActivate: (taskId: string) => void;
@@ -50,6 +51,7 @@ export function TimelineTaskRow({
   isLinkMode,
   isLinkSelected,
   isLinkDropTarget,
+  isGanttDropTarget,
   hoveredTargetTaskId,
   taskDrag,
   onTaskActivate,
@@ -76,7 +78,9 @@ export function TimelineTaskRow({
       key={task.id}
       className={`relative h-[72px] w-full flex items-center group px-2 pointer-events-none transition-all duration-200 ${
         isSelected ? 'z-20' : 'z-10'
-      } ${taskDrag?.hasMoved ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-white' : ''}`}
+      } ${taskDrag?.hasMoved ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-primary/[0.04]' : ''} ${
+        isGanttDropTarget ? 'bg-primary/[0.06] ring-2 ring-inset ring-primary/30' : ''
+      }`}
       style={{
         transform: taskDrag?.hasMoved ? `translateY(${taskDrag.deltaY}px)` : undefined,
       }}
@@ -158,7 +162,7 @@ export function TimelineTaskRow({
       </div>
       <div
         data-gantt-link-handle="true"
-        className={`absolute z-40 flex items-center justify-center rounded-full cursor-crosshair pointer-events-auto transition-[transform,box-shadow,border-color,ring-color,opacity] ${
+        className={`absolute z-40 flex items-center justify-center rounded-full cursor-grab pointer-events-auto transition-[transform,box-shadow,border-color,ring-color,opacity] ${
           hideLinkHandles
             ? 'opacity-0 pointer-events-none'
             : hoveredTargetTaskId === task.id

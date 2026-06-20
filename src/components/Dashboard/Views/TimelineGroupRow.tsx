@@ -27,6 +27,7 @@ interface TimelineGroupRowProps {
   weightedProgress: number;
   getPositionForDate: (dateStr: string) => number;
   onToggleCollapsed: (groupBlockId: string) => void;
+  isDropTarget?: boolean;
 }
 
 export function TimelineGroupRow({
@@ -36,7 +37,9 @@ export function TimelineGroupRow({
   weightedProgress,
   getPositionForDate,
   onToggleCollapsed,
+  isDropTarget = false,
 }: TimelineGroupRowProps) {
+  const dropTargetClassName = isDropTarget ? 'bg-primary/[0.06] ring-2 ring-inset ring-primary/30' : '';
   const { t } = useTranslation();
   const groupStart = item.startDate;
   const groupEnd = item.targetDate;
@@ -48,7 +51,7 @@ export function TimelineGroupRow({
 
   if (!groupStart || !groupEnd) {
     return (
-      <div key={item.groupBlockId} className="relative h-[72px] w-full flex items-center px-2 bg-slate-50/40 pointer-events-none">
+      <div key={item.groupBlockId} className={`relative h-[72px] w-full flex items-center px-2 bg-slate-50/40 pointer-events-none ${dropTargetClassName}`}>
         <button
           type="button"
           onClick={() => onToggleCollapsed(item.groupBlockId)}
@@ -81,7 +84,7 @@ export function TimelineGroupRow({
   const titleTop = (72 - GROUP_CARD_TITLE_HEIGHT) / 2;
 
   return (
-    <div key={item.groupBlockId} className="relative h-[72px] w-full px-2 pointer-events-none" style={{ zIndex: 5 }}>
+    <div key={item.groupBlockId} className={`relative h-[72px] w-full px-2 pointer-events-none ${dropTargetClassName}`} style={{ zIndex: 5 }}>
       <div
         className="absolute pointer-events-none"
         style={{

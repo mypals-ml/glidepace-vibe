@@ -461,7 +461,7 @@ describe('TimelineChart focus behavior', () => {
     expect(taskRow?.getAttribute('style')).toContain('transform: translateY(72px)');
     expect(taskRow?.className).toContain('shadow-lg');
     expect(taskRow?.className).toContain('ring-primary/20');
-    expect(taskRow?.className).toContain('bg-white');
+    expect(taskRow?.className).toContain('bg-primary/[0.04]');
     expect(taskBar.getAttribute('style')).toContain('transform: translateX(16px)');
   });
 
@@ -508,12 +508,36 @@ describe('TimelineChart focus behavior', () => {
     expect(taskOneHandles.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('uses a crosshair cursor on gantt link handles', () => {
+  it('uses grab on the start link handle and crosshair on the end link handle', () => {
     const { container } = render(<TimelineChart />);
 
-    const linkHandles = container.querySelectorAll('[data-gantt-link-handle="true"]');
-    linkHandles.forEach((handle) => {
-      expect(handle.className).toContain('cursor-crosshair');
+    const taskRows = container.querySelectorAll('[data-gantt-task-bar="true"]');
+    const firstTaskBar = taskRows[0]?.parentElement;
+    const linkHandles = firstTaskBar?.querySelectorAll('[data-gantt-link-handle="true"]') ?? [];
+
+    expect(linkHandles[0]?.className).toContain('cursor-grab');
+    expect(linkHandles[1]?.className).toContain('cursor-crosshair');
+  });
+
+  it('highlights the gantt drop destination row while vertically dragging a task bar', () => {
+    render(<TimelineChart />);
+
+    const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
+    fireEvent.pointerDown(taskBar, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 100,
+      clientY: 100,
     });
+    fireEvent.pointerMove(taskBar, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      clientX: 100,
+      clientY: 172,
+    });
+
+    const destinationRow = screen.getByRole('button', { name: /#2 task 2/i }).parentElement;
+    expect(destinationRow?.className).toContain('ring-primary/30');
   });
 });
