@@ -462,6 +462,17 @@ describe('TimelineChart focus behavior', () => {
     expect(taskBar.getAttribute('style')).toContain('transform: translateX(16px)');
   });
 
+  it('lets dependency lines receive hover events through empty gantt row space', () => {
+    const { container } = render(<TimelineChart />);
+
+    const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
+    const taskRow = taskBar.parentElement;
+
+    expect(taskRow?.className).toContain('pointer-events-none');
+    expect(taskBar.className).toContain('pointer-events-auto');
+    expect(container.querySelectorAll('[data-gantt-link-handle="true"]')[0]?.className).toContain('pointer-events-auto');
+  });
+
   it('adds a mobile gantt context menu action that arms task bar movement', () => {
     isMobileViewport = true;
     const setSelectedTaskId = vi.fn();

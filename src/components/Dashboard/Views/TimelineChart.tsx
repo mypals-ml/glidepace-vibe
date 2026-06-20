@@ -680,11 +680,11 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                   // No-date fallback: keep a sticky label (Design 7 has no card to draw without a span).
                   if (!groupStart || !groupEnd) {
                     return (
-                      <div key={item.groupBlockId} className="relative h-[72px] w-full flex items-center px-2 bg-slate-50/40">
+                      <div key={item.groupBlockId} className="relative h-[72px] w-full flex items-center px-2 bg-slate-50/40 pointer-events-none">
                         <button
                           type="button"
                           onClick={() => toggleGroupBlockCollapsed(item.groupBlockId)}
-                          className="sticky left-3 inline-flex items-center gap-2 text-sm font-extrabold tracking-[-0.01em]"
+                          className="sticky left-3 inline-flex items-center gap-2 text-sm font-extrabold tracking-[-0.01em] pointer-events-auto"
                           style={{ color: titleFg }}
                         >
                           <span
@@ -719,7 +719,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                   const titleTop = (72 - GROUP_CARD_TITLE_HEIGHT) / 2;
 
                   return (
-                    <div key={item.groupBlockId} className="relative h-[72px] w-full px-2" style={{ zIndex: 5 }}>
+                    <div key={item.groupBlockId} className="relative h-[72px] w-full px-2 pointer-events-none" style={{ zIndex: 5 }}>
                       {/* translucent card surface — wraps title row + child rows (more transparent than the title) */}
                       <div
                         className="absolute pointer-events-none"
@@ -738,7 +738,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                       <button
                         type="button"
                         onClick={() => toggleGroupBlockCollapsed(item.groupBlockId)}
-                        className="absolute flex items-center gap-[9px] text-left overflow-hidden"
+                        className="absolute flex items-center gap-[9px] text-left overflow-hidden pointer-events-auto"
                         style={{
                           left: `${cardLeft}px`,
                           width: `${cardWidth}px`,
@@ -822,7 +822,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                 return (
                   <div
                     key={task.id}
-                    className={`relative h-[72px] w-full flex items-center group px-2 transition-[transform,background-color,box-shadow] ${
+                    className={`relative h-[72px] w-full flex items-center group px-2 pointer-events-none transition-[transform,background-color,box-shadow] ${
                       isSelected ? 'z-20' : 'z-10'
                     } ${taskDrag?.hasMoved ? 'bg-primary/[0.04] shadow-sm' : ''}`}
                     style={{
@@ -835,7 +835,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                     )}
                     <div
                       data-gantt-task-bar="true"
-                      className={`absolute h-10 rounded-lg border flex items-center px-4 select-none ${
+                      className={`absolute h-10 rounded-lg border flex items-center px-4 select-none pointer-events-auto ${
                         taskDrag?.hasMoved ? 'cursor-grabbing transition-[box-shadow,border-color,ring-color]' : 'cursor-grab transition-[transform,box-shadow,border-color,ring-color]'
                       } ${
                         isMobileMoveArmed ? 'ring-2 ring-primary/40 shadow-lg' : ''
@@ -922,7 +922,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                      {/* Start Connector Node */}
                     <div 
                       data-gantt-link-handle="true"
-                      className={`absolute z-40 flex items-center justify-center rounded-full cursor-crosshair transition-[transform,box-shadow,border-color,ring-color,opacity] ${
+                      className={`absolute z-40 flex items-center justify-center rounded-full cursor-crosshair pointer-events-auto transition-[transform,box-shadow,border-color,ring-color,opacity] ${
                         hoveredTargetTaskId === task.id
                           ? 'w-6 h-6 bg-emerald-50 opacity-100 ring-2 ring-emerald-400/80 shadow-md shadow-emerald-500/20 scale-105'
                           : isLinkDropTarget
@@ -959,7 +959,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
                     {/* End Connector Node */}
                     <div 
                       data-gantt-link-handle="true"
-                      className="absolute w-3 h-3 rounded-full bg-indigo-500 border-2 border-white opacity-0 group-hover:opacity-100 transition-[opacity,transform] z-40 cursor-grab active:cursor-grabbing hover:scale-125 shadow-sm"
+                      className="absolute w-3 h-3 rounded-full bg-indigo-500 border-2 border-white opacity-0 group-hover:opacity-100 transition-[opacity,transform] z-40 cursor-grab active:cursor-grabbing hover:scale-125 shadow-sm pointer-events-auto"
                       style={{ left: `${left + displayWidth - 6}px`, top: '50%', transform: 'translateY(-50%)' }}
                       onMouseDown={(e) => {
                         handleLinkDragStart(e, task.id, left + displayWidth, index * 72 + 36);
