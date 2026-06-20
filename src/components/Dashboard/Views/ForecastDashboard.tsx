@@ -230,10 +230,10 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
               </div>
 
               <div className="relative pt-1">
-                {chartGuideTicks.map((tick) => (
+                {chartGuideTicks.map((tick, index) => (
                   <span
                     key={tick.label}
-                    className="absolute right-0 z-10 -translate-y-1/2 text-[9px] font-bold text-slate-300"
+                    className={`absolute right-0 z-10 text-[9px] font-bold text-slate-300 ${index === 0 ? 'translate-y-1' : '-translate-y-1/2'}`}
                     style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%` }}
                   >
                     {tick.label}
