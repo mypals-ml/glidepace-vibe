@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { getStatusColor } from '../../../utils/statusColors';
 import type { Task } from '../../../types';
+import { GANTT_DROP_TARGET_ROW_CLASSNAME } from './timelineChartConstants';
 
 export interface TimelineTaskBarDragState {
   taskId: string;
@@ -79,7 +80,7 @@ export function TimelineTaskRow({
       className={`relative h-[72px] w-full flex items-center group px-2 pointer-events-none transition-all duration-200 ${
         isSelected ? 'z-20' : 'z-10'
       } ${taskDrag?.hasMoved ? 'z-50 shadow-lg ring-1 ring-primary/20 bg-primary/[0.04]' : ''} ${
-        isGanttDropTarget ? 'bg-primary/[0.06] ring-2 ring-inset ring-primary/30' : ''
+        isGanttDropTarget ? GANTT_DROP_TARGET_ROW_CLASSNAME : ''
       }`}
       style={{
         transform: taskDrag?.hasMoved ? `translateY(${taskDrag.deltaY}px)` : undefined,

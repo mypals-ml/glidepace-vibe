@@ -17,6 +17,7 @@ import {
   GROUP_TITLE_PROGRESS_WIDTH,
   GROUP_TITLE_RIGHT_PADDING,
   ROW_HEIGHT,
+  GANTT_DROP_TARGET_ROW_CLASSNAME,
 } from './timelineChartConstants';
 import { getGroupTitleLayout } from './timelineChartUtils';
 
@@ -39,7 +40,7 @@ export function TimelineGroupRow({
   onToggleCollapsed,
   isDropTarget = false,
 }: TimelineGroupRowProps) {
-  const dropTargetClassName = isDropTarget ? 'bg-primary/[0.06] ring-2 ring-inset ring-primary/30' : '';
+  const dropTargetClassName = isDropTarget ? GANTT_DROP_TARGET_ROW_CLASSNAME : '';
   const { t } = useTranslation();
   const groupStart = item.startDate;
   const groupEnd = item.targetDate;

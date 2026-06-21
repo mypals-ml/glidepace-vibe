@@ -15,6 +15,10 @@ export const GROUP_TITLE_LEFT_PADDING = 6;
 export const GROUP_TITLE_RIGHT_PADDING = 13;
 export const GROUP_TITLE_PROGRESS_WIDTH = 36;
 
+/** Thicker top border marks the insertion edge where a dragged task bar will land. */
+export const GANTT_DROP_TARGET_ROW_CLASSNAME =
+  'bg-primary/[0.06] border border-primary/30 border-t-[3px]';
+
 export const getViewportInfo = (el: HTMLDivElement) => ({
   scrollLeft: el.scrollLeft,
   scrollTop: el.scrollTop,

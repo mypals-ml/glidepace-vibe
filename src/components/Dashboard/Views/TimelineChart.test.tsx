@@ -538,6 +538,7 @@ describe('TimelineChart focus behavior', () => {
     });
 
     const destinationRow = screen.getByRole('button', { name: /#2 task 2/i }).parentElement;
-    expect(destinationRow?.className).toContain('ring-primary/30');
+    expect(destinationRow?.className).toContain('border-primary/30');
+    expect(destinationRow?.className).toContain('border-t-[3px]');
   });
 });
