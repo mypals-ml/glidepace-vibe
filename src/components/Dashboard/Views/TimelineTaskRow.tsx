@@ -73,6 +73,7 @@ export function TimelineTaskRow({
 }: TimelineTaskRowProps) {
   const { t } = useTranslation();
   const hideLinkHandles = Boolean(taskDrag);
+  const isEstablishingLink = Boolean(linkDragSourceTaskId);
 
   return (
     <div
@@ -163,14 +164,14 @@ export function TimelineTaskRow({
       </div>
       <div
         data-gantt-link-handle="true"
-        className={`absolute z-40 flex items-center justify-center rounded-full cursor-grab pointer-events-auto transition-[transform,box-shadow,border-color,ring-color,opacity] ${
-          hideLinkHandles
-            ? 'opacity-0 pointer-events-none'
+        className={`absolute z-40 flex items-center justify-center rounded-full transition-[transform,box-shadow,border-color,ring-color,opacity] ${
+          hideLinkHandles || !isEstablishingLink
+            ? 'w-7 h-7 opacity-0 pointer-events-none'
             : hoveredTargetTaskId === task.id
-              ? 'w-6 h-6 bg-emerald-50 opacity-100 ring-2 ring-emerald-400/80 shadow-md shadow-emerald-500/20 scale-105'
+              ? 'w-6 h-6 bg-emerald-50 opacity-100 ring-2 ring-emerald-400/80 shadow-md shadow-emerald-500/20 scale-105 cursor-grab pointer-events-auto'
               : isLinkDropTarget
-                ? 'w-5 h-5 bg-indigo-100/80 opacity-100 ring-2 ring-indigo-300/60 shadow-md shadow-indigo-500/20'
-                : 'w-7 h-7 opacity-0 group-hover:opacity-100'
+                ? 'w-5 h-5 bg-indigo-100/80 opacity-100 ring-2 ring-indigo-300/60 shadow-md shadow-indigo-500/20 cursor-grab pointer-events-auto'
+                : 'w-7 h-7 opacity-0 pointer-events-none'
         }`}
         style={{ left: `${left}px`, top: '50%', transform: 'translate(-50%, -50%)' }}
         onMouseEnter={() => {
@@ -195,7 +196,7 @@ export function TimelineTaskRow({
               ? 'w-3 h-3 bg-emerald-500 border-white animate-pulse'
               : isLinkDropTarget
                 ? 'w-2.5 h-2.5 bg-indigo-500 border-white'
-                : 'w-3 h-3 bg-indigo-200 border-indigo-500 hover:scale-125'
+                : 'w-3 h-3 bg-indigo-200 border-indigo-500'
           }`}
         />
       </div>

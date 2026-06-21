@@ -466,14 +466,17 @@ describe('TimelineChart focus behavior', () => {
   });
 
   it('lets dependency lines receive hover events through empty gantt row space', () => {
-    const { container } = render(<TimelineChart />);
+    render(<TimelineChart />);
 
     const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
     const taskRow = taskBar.parentElement;
 
     expect(taskRow?.className).toContain('pointer-events-none');
     expect(taskBar.className).toContain('pointer-events-auto');
-    expect(container.querySelectorAll('[data-gantt-link-handle="true"]')[0]?.className).toContain('pointer-events-auto');
+
+    const linkHandles = taskRow?.querySelectorAll('[data-gantt-link-handle="true"]') ?? [];
+    expect(linkHandles[0]?.className).toContain('pointer-events-none');
+    expect(linkHandles[1]?.className).toContain('pointer-events-auto');
   });
 
   it('does not show a mobile gantt context menu move action', () => {
@@ -508,15 +511,38 @@ describe('TimelineChart focus behavior', () => {
     expect(taskOneHandles.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('uses grab on the start link handle and crosshair on the end link handle', () => {
+  it('uses grab on the start link handle and crosshair on the end link handle while establishing a link', () => {
     const { container } = render(<TimelineChart />);
 
     const taskRows = container.querySelectorAll('[data-gantt-task-bar="true"]');
     const firstTaskBar = taskRows[0]?.parentElement;
-    const linkHandles = firstTaskBar?.querySelectorAll('[data-gantt-link-handle="true"]') ?? [];
+    const firstTaskHandles = firstTaskBar?.querySelectorAll('[data-gantt-link-handle="true"]') ?? [];
+    const endLinkHandle = firstTaskHandles[1];
 
-    expect(linkHandles[0]?.className).toContain('cursor-grab');
-    expect(linkHandles[1]?.className).toContain('cursor-crosshair');
+    fireEvent.mouseDown(endLinkHandle!, { button: 0, clientX: 200, clientY: 36 });
+
+    const secondTaskBar = taskRows[1]?.parentElement;
+    const secondTaskStartHandle = secondTaskBar?.querySelectorAll('[data-gantt-link-handle="true"]')[0];
+
+    expect(secondTaskStartHandle?.className).toContain('cursor-grab');
+    expect(firstTaskHandles[1]?.className).toContain('cursor-crosshair');
+  });
+
+  it('keeps the start link handle hidden until a link drag is in progress', () => {
+    const { container } = render(<TimelineChart />);
+
+    const firstTaskBar = container.querySelectorAll('[data-gantt-task-bar="true"]')[0]?.parentElement;
+    const startLinkHandle = firstTaskBar?.querySelectorAll('[data-gantt-link-handle="true"]')[0];
+
+    expect(startLinkHandle?.className).toContain('opacity-0');
+    expect(startLinkHandle?.className).toContain('pointer-events-none');
+    expect(startLinkHandle?.className).not.toContain('group-hover:opacity-100');
+
+    fireEvent.mouseEnter(startLinkHandle!);
+
+    expect(startLinkHandle?.className).toContain('opacity-0');
+    expect(startLinkHandle?.className).not.toContain('ring-emerald-400/80');
+    expect(startLinkHandle?.className).not.toContain('ring-indigo-300/60');
   });
 
   it('highlights the gantt drop destination row while vertically dragging a task bar', () => {
