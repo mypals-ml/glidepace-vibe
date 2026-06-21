@@ -72,7 +72,9 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   useEffect(() => {
     if (exitEditOnNextAssumptionsUpdateRef.current) {
       exitEditOnNextAssumptionsUpdateRef.current = false;
-      setIsAssumptionsEditing(false);
+      queueMicrotask(() => {
+        setIsAssumptionsEditing(false);
+      });
     }
   }, [forecastAssumptions]);
 
