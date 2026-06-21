@@ -117,9 +117,9 @@ export function HeaderOverflowMenu() {
         }
 
         const itemRect = item.getBoundingClientRect();
-        // Use a small tolerance to avoid false positives from subpixel layout, borders,
-        // or the trailing margin-right on the last item vs container edge.
-        nextClippedItems[id] = itemRect.width > 0 && (itemRect.right - containerRect.right) > 1;
+        const over = itemRect.right - containerRect.right;
+        const isClipped = itemRect.width > 0 && over > 1;
+        nextClippedItems[id] = isClipped;
       });
 
       setClippedItems((currentClippedItems) => {
@@ -237,7 +237,7 @@ export function HeaderOverflowMenu() {
       />
 
       {isOpen && shouldShowOverflowMenu && (
-        <div className={`fixed sm:absolute right-4 sm:right-0 left-auto sm:left-auto top-[var(--app-header-height)] sm:top-full mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] ${UI_LAYER.headerDropdown} overflow-hidden border border-slate-200/60 animate-in fade-in slide-in-from-top-1 duration-150`}>
+        <div className={`fixed right-4 top-[var(--app-header-height)] mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] ${UI_LAYER.headerDropdown} overflow-hidden border border-slate-200/60 animate-in fade-in slide-in-from-top-1 duration-150`}>
           <div className="p-1.5 flex flex-col gap-1">
             
             {/* View Switcher Section */}
