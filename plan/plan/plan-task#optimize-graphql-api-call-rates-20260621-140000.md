@@ -3,7 +3,7 @@
 **Date:** 2026-06-21  
 **Supersedes:** `plan/plan/plan-task#optimize-github-api-calling-rate-20260613182228.md` and prior 2026-06-13 variants  
 **Trigger:** Reduce GitHub GraphQL request volume and rate-limit pressure after the transport limiter, pagination skips, optimistic updates, and webhook sync work.  
-**Deliverable:** Plan document only. No code changes in this step.
+**Deliverable:** Living optimization plan plus implementation notes as rate-limit fixes land.
 
 ## Executive Summary
 
@@ -33,11 +33,13 @@ Already delivered:
 - Task details open now renders from the already-loaded task snapshot and lazy-loads comments without automatically calling `fetchSingleProjectItem`.
 - Estimate, estimate-unit, auto-update-start-date, and dependency successor edits now rely on optimistic local state plus webhook reconciliation instead of confirmation reads on successful writes.
 - Successful dependency link/unlink callers, group/ungroup operations, and task-list reorders avoid full task-list refreshes. Existing failure-only background refreshes remain for partial-persistence repair.
-- When a rate-limit error exists but tasks are already loaded, the task list remains visible with a non-blocking stale-data warning.
+- The forecast-assumptions README loader no longer retriggers when only toast callback identities change; this removes one observed foreground GraphQL query loop.
+- Successful full project snapshots are cached in `localStorage` by account and project. If a foreground task refresh hits the GitHub rate limit, the task list uses the cached/current snapshot when available and shows the rate-limit message as a dismissible toast instead of replacing the list with the error text.
+- Project selection no longer performs its own immediate `fetchProjectTasks`; the provider's selected-project effect is the single owner of the initial task refresh, avoiding duplicate foreground full snapshots on project open.
 
 Remaining high-cost paths:
 
-- `fetchProjectTasks` has no project-level snapshot cache and still performs paginated full snapshots for initial load, manual sync, unknown webhook events, external reorder events, and fallback paths.
+- `fetchProjectTasks` still has no fresh-cache/stale-while-revalidate policy for normal initial opens and still performs paginated full snapshots for initial load, manual sync, unknown webhook events, external reorder events, and fallback paths when GitHub is available.
 - `handleCreateTask` still ends with an unconditional `fetchSingleProjectItem` after issue/draft creation, field updates, optional group persistence, and optional position mutation.
 - Draft assignee edits still call `fetchSingleProjectItem` unless the caller passes `skipRefresh`; this is the remaining narrow selected-item confirmation read.
 - Search has in-flight dedupe but no resolved-value TTL for assignable users, org members, or global queries.
@@ -120,7 +122,7 @@ interface ProjectSnapshot {
 Cache key:
 
 ```ts
-projectSnapshot:${projectAccountId}:${projectId}
+dashboard_task_snapshot_v1:${projectAccountId}:${projectId}
 ```
 
 Policy:

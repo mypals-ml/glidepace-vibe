@@ -556,11 +556,6 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
             </div>
           ) : (
             <>
-              {apiError && (
-                <div className="mx-2 my-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  <span className="font-semibold">{t('dashboard.githubApiErrorTitle')}</span> {apiError}
-                </div>
-              )}
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}

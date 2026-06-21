@@ -54,6 +54,16 @@ export function useForecastAssumptions({
   const [isSavingForecastAssumptions, setIsSavingForecastAssumptions] = useState(false);
   const latestReadmeRef = useRef('');
   const loadRequestIdRef = useRef(0);
+  const onSaveErrorRef = useRef(onSaveError);
+  const onSaveSuccessRef = useRef(onSaveSuccess);
+
+  useEffect(() => {
+    onSaveErrorRef.current = onSaveError;
+  }, [onSaveError]);
+
+  useEffect(() => {
+    onSaveSuccessRef.current = onSaveSuccess;
+  }, [onSaveSuccess]);
 
   const applyParsedForecastAssumptions = useCallback((parsed: ParsedForecastAssumptions) => {
     if (!projectId) return;
@@ -78,8 +88,8 @@ export function useForecastAssumptions({
       return;
     }
 
-    onSaveError?.(t('dashboard.forecastAssumptionsSaveFailed', 'Failed to save forecast assumptions to GitHub.'));
-  }, [onSaveError, projectId, t, token]);
+    onSaveErrorRef.current?.(t('dashboard.forecastAssumptionsSaveFailed', 'Failed to save forecast assumptions to GitHub.'));
+  }, [projectId, t, token]);
 
   const loadForecastAssumptionsFromGitHub = useCallback(async (): Promise<ForecastAssumptions | null> => {
     if (!projectId || !token) return null;
@@ -120,19 +130,19 @@ export function useForecastAssumptions({
       const baseReadme = readme ?? latestReadmeRef.current;
       const nextReadme = await persistForecastAssumptionsToGitHub(projectId, token, normalized, baseReadme);
       if (!nextReadme) {
-        onSaveError?.(t('dashboard.forecastAssumptionsSaveFailed', 'Failed to save forecast assumptions to GitHub.'));
+        onSaveErrorRef.current?.(t('dashboard.forecastAssumptionsSaveFailed', 'Failed to save forecast assumptions to GitHub.'));
         return false;
       }
 
       latestReadmeRef.current = nextReadme;
       setForecastAssumptions(normalized);
       saveForecastAssumptionsToLocalStorage(localStorage, projectId, normalized);
-      onSaveSuccess?.(t('dashboard.forecastAssumptionsSaveSuccess', 'Forecast assumptions saved.'));
+      onSaveSuccessRef.current?.(t('dashboard.forecastAssumptionsSaveSuccess', 'Forecast assumptions saved.'));
       return true;
     } finally {
       setIsSavingForecastAssumptions(false);
     }
-  }, [onSaveError, onSaveSuccess, projectId, t, token]);
+  }, [projectId, t, token]);
 
   if (sourceKey !== loadedSourceKey) {
     setLoadedSourceKey(sourceKey);

@@ -109,8 +109,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     browsingAccountId: auth.browsingAccountId,
     setIsProjectModalOpen: ui.setIsProjectModalOpen,
     updateSyncTime: useCallback(() => updateSyncTimeRef.current(), []),
-    fetchProjectTasks: useCallback((id: string, token: string) => fetchProjectTasksRef.current(id, token), []),
-    getTokenById: auth.getTokenById,
   });
 
   // Date Settings
@@ -139,6 +137,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // 3. Compute effective tokens (Must be after projects hook)
   const projectToken = auth.getTokenById(projects.selectedProject?.accountId);
+  const handleForecastAssumptionsSaveError = useCallback((message: string) => {
+    showToast(message, 'error');
+  }, [showToast]);
+  const handleForecastAssumptionsSaveSuccess = useCallback((message: string) => {
+    showToast(message, 'success');
+  }, [showToast]);
 
   const {
     forecastAssumptions,
@@ -150,8 +154,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   } = useForecastAssumptions({
     projectId: projects.selectedProject?.id,
     token: projectToken,
-    onSaveError: (message) => showToast(message, 'error'),
-    onSaveSuccess: (message) => showToast(message, 'success'),
+    onSaveError: handleForecastAssumptionsSaveError,
+    onSaveSuccess: handleForecastAssumptionsSaveSuccess,
   });
 
   // 4. Tasks Hook (Needs Auth, UI, and Project State)

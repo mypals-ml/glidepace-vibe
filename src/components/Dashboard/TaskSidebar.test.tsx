@@ -179,7 +179,7 @@ describe('TaskSidebar hover actions', () => {
     render(<TaskSidebar />);
 
     expect(screen.getByText(task.title)).toBeTruthy();
-    expect(screen.getByText(/GitHub rate limit reached/)).toBeTruthy();
+    expect(screen.queryByText(/GitHub rate limit reached/)).toBeNull();
   });
 
   it('does not rerender sortable rows for duplicate drag-over targets', () => {
