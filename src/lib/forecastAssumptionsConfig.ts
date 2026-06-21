@@ -12,11 +12,16 @@ export interface ForecastAssumptions {
   statusRemainingPercent: StatusRemainingPercent;
 }
 
-export interface ForecastAssumptionsStoredPayload extends ForecastAssumptions {
-  version: number;
+export interface ForecastProjectSettings {
+  assumptions: ForecastAssumptions;
 }
 
-export const FORECAST_ASSUMPTIONS_CONFIG_VERSION = 1;
+export interface ForecastAssumptionsStoredPayload {
+  version: number;
+  settings: ForecastProjectSettings;
+}
+
+export const FORECAST_ASSUMPTIONS_CONFIG_VERSION = 2;
 export const FORECAST_ASSUMPTIONS_CONFIG_MARKER = 'glidelines-config:forecast';
 const LEGACY_FORECAST_ASSUMPTIONS_CONFIG_MARKERS = ['glidelines-config:forecast:v1'] as const;
 
@@ -125,6 +130,39 @@ function readStoredVersion(raw: Record<string, unknown>): number {
   return Math.max(0, Math.floor(raw.version));
 }
 
+function hasNestedAssumptions(value: unknown): value is { assumptions: unknown } {
+  return Boolean(value && typeof value === 'object' && 'assumptions' in value);
+}
+
+function extractAssumptionsCandidate(payload: Record<string, unknown>): unknown {
+  const settings = payload.settings;
+  if (settings && typeof settings === 'object' && hasNestedAssumptions(settings)) {
+    return settings.assumptions;
+  }
+
+  if (typeof payload.capacityDaysPerWeek === 'number' || payload.statusRemainingPercent) {
+    return {
+      capacityDaysPerWeek: payload.capacityDaysPerWeek,
+      statusRemainingPercent: payload.statusRemainingPercent,
+    };
+  }
+
+  return null;
+}
+
+function extractAssumptionsFromPayload(payload: Record<string, unknown>): ForecastAssumptions | null {
+  const candidate = extractAssumptionsCandidate(payload);
+  if (!candidate) return null;
+
+  const normalized = normalizeForecastAssumptions(candidate);
+  const source = candidate as Partial<ForecastAssumptions>;
+  if (typeof source.capacityDaysPerWeek !== 'number' || !isStatusRemainingPercent(source.statusRemainingPercent)) {
+    return normalized;
+  }
+
+  return normalized;
+}
+
 type ForecastAssumptionsMigration = (payload: Record<string, unknown>) => Record<string, unknown>;
 
 const FORECAST_ASSUMPTIONS_MIGRATIONS: Record<number, ForecastAssumptionsMigration> = {
@@ -132,6 +170,15 @@ const FORECAST_ASSUMPTIONS_MIGRATIONS: Record<number, ForecastAssumptionsMigrati
     ...payload,
     version: 1,
   }),
+  2: (payload) => {
+    const assumptions = extractAssumptionsFromPayload(payload) ?? DEFAULT_FORECAST_ASSUMPTIONS;
+    return {
+      version: 2,
+      settings: {
+        assumptions: normalizeForecastAssumptions(assumptions),
+      },
+    };
+  },
 };
 
 export function upgradeForecastAssumptionsPayload(raw: unknown): ParsedForecastAssumptions | null {
@@ -150,12 +197,11 @@ export function upgradeForecastAssumptionsPayload(raw: unknown): ParsedForecastA
     version = nextVersion;
   }
 
-  if (typeof current.capacityDaysPerWeek !== 'number' || !isStatusRemainingPercent(current.statusRemainingPercent)) {
-    return null;
-  }
+  const assumptions = extractAssumptionsFromPayload(current);
+  if (!assumptions) return null;
 
   return {
-    assumptions: normalizeForecastAssumptions(current),
+    assumptions,
     upgradedFromVersion: originalVersion < FORECAST_ASSUMPTIONS_CONFIG_VERSION ? originalVersion : null,
   };
 }
@@ -165,7 +211,9 @@ export function toStoredForecastAssumptionsPayload(
 ): ForecastAssumptionsStoredPayload {
   return {
     version: FORECAST_ASSUMPTIONS_CONFIG_VERSION,
-    ...normalizeForecastAssumptions(assumptions),
+    settings: {
+      assumptions: normalizeForecastAssumptions(assumptions),
+    },
   };
 }
 

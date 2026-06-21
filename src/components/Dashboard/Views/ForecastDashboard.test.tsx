@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ForecastDashboard } from './ForecastDashboard';
 import {
@@ -44,8 +44,11 @@ type ForecastDashboardTestState = {
   filteredTasks: Task[];
   isLoadingTasks: boolean;
   forecastAssumptions: ForecastAssumptions;
-  updateForecastAssumptions: ReturnType<typeof vi.fn>;
+  refreshForecastAssumptionsFromGitHub: ReturnType<typeof vi.fn>;
+  saveForecastAssumptionsToGitHub: ReturnType<typeof vi.fn>;
   isLoadingForecastAssumptions: boolean;
+  isRefreshingForecastAssumptions: boolean;
+  isSavingForecastAssumptions: boolean;
 };
 
 function createDashboardState(
@@ -55,16 +58,24 @@ function createDashboardState(
     filteredTasks: tasks,
     isLoadingTasks: false,
     forecastAssumptions: DEFAULT_FORECAST_ASSUMPTIONS,
-    updateForecastAssumptions: vi.fn(),
+    refreshForecastAssumptionsFromGitHub: vi.fn(),
+    saveForecastAssumptionsToGitHub: vi.fn(),
     isLoadingForecastAssumptions: false,
+    isRefreshingForecastAssumptions: false,
+    isSavingForecastAssumptions: false,
     ...overrides,
   };
 
-  state.updateForecastAssumptions = vi.fn((updater) => {
-    state.forecastAssumptions = normalizeForecastAssumptions(
-      typeof updater === 'function' ? updater(state.forecastAssumptions) : updater,
-    );
-  });
+  if (!overrides.refreshForecastAssumptionsFromGitHub) {
+    state.refreshForecastAssumptionsFromGitHub = vi.fn(async () => state.forecastAssumptions);
+  }
+
+  if (!overrides.saveForecastAssumptionsToGitHub) {
+    state.saveForecastAssumptionsToGitHub = vi.fn(async (assumptions: ForecastAssumptions) => {
+      state.forecastAssumptions = normalizeForecastAssumptions(assumptions);
+      return true;
+    });
+  }
 
   return state;
 }
@@ -194,16 +205,24 @@ describe('ForecastDashboard loading state', () => {
     expect(container.querySelector('span[title="2026-06-28"]')).toBeTruthy();
   });
 
-  it('lets users edit capacity and status assumptions while derived fields stay read-only', () => {
+  it('keeps assumptions read-only until edit is enabled', () => {
+    render(<ForecastDashboard />);
+
+    expect((screen.getByLabelText('Capacity') as HTMLInputElement).readOnly).toBe(true);
+    expect((screen.getByLabelText('Todo') as HTMLInputElement).readOnly).toBe(true);
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
+  });
+
+  it('lets users edit and save assumptions after entering edit mode', async () => {
     const { rerender } = render(<ForecastDashboard />);
 
-    const startDateInput = screen.getByLabelText('Start date');
-    expect((startDateInput as HTMLInputElement).value).toBe('2026/06/19');
-    expect((startDateInput as HTMLInputElement).readOnly).toBe(true);
-    expect(startDateInput.className).toContain('bg-slate-50');
-    expect(startDateInput.className).not.toContain('shadow');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    });
+    rerender(<ForecastDashboard />);
 
     const capacityInput = screen.getByLabelText('Capacity');
+    expect((capacityInput as HTMLInputElement).readOnly).toBe(false);
     fireEvent.change(capacityInput, { target: { value: '4' } });
     rerender(<ForecastDashboard />);
     expect((screen.getByLabelText('Capacity') as HTMLInputElement).value).toBe('4');
@@ -212,14 +231,14 @@ describe('ForecastDashboard loading state', () => {
     fireEvent.change(todoInput, { target: { value: '75' } });
     rerender(<ForecastDashboard />);
     expect((screen.getByLabelText('Todo') as HTMLInputElement).value).toBe('75');
-    expect(todoInput.closest('label')?.className).toContain('bg-slate-100');
-    expect(todoInput.parentElement?.className).not.toContain('shadow');
 
-    const workersInput = screen.getByLabelText('Workers');
-    expect((workersInput as HTMLInputElement).value).toBe('1');
-    expect((workersInput as HTMLInputElement).readOnly).toBe(true);
-    expect(workersInput.className).toContain('bg-slate-50');
-    expect(workersInput.className).not.toContain('shadow');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(dashboardState.saveForecastAssumptionsToGitHub).toHaveBeenCalledWith(
+      expect.objectContaining({
+        capacityDaysPerWeek: 4,
+        statusRemainingPercent: expect.objectContaining({ todo: 75 }),
+      }),
+    );
   });
 
   it('translates status legend labels via exact match and status-key fallback', () => {
@@ -237,8 +256,21 @@ describe('ForecastDashboard loading state', () => {
     expect(screen.queryByText('Ready for deploy')).toBeNull();
   });
 
-  it('uses matching colors for status workload assumptions', () => {
+  it('uses muted styling for read-only status workload assumptions', () => {
     render(<ForecastDashboard />);
+
+    expect(screen.getByLabelText('Draft').closest('label')?.className).toContain('bg-slate-50/90');
+    expect(screen.getByLabelText('Todo').closest('label')?.className).toContain('bg-slate-50/90');
+    expect(screen.getByLabelText('In progress').closest('label')?.className).toContain('bg-slate-50/90');
+  });
+
+  it('uses matching colors for status workload assumptions in edit mode', async () => {
+    const { rerender } = render(<ForecastDashboard />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    });
+    rerender(<ForecastDashboard />);
 
     expect(screen.getByLabelText('Draft').closest('label')?.className).toContain('bg-slate-100');
     expect(screen.getByLabelText('Todo').closest('label')?.className).toContain('bg-slate-100');

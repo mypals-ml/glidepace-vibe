@@ -12,10 +12,12 @@ import {
 } from './forecastAssumptionsConfig';
 
 describe('forecastAssumptionsConfig', () => {
-  it('serializes the current config version into stored payload JSON', () => {
+  it('serializes assumptions under settings.assumptions with the current version', () => {
     expect(toStoredForecastAssumptionsPayload(DEFAULT_FORECAST_ASSUMPTIONS)).toEqual({
       version: FORECAST_ASSUMPTIONS_CONFIG_VERSION,
-      ...DEFAULT_FORECAST_ASSUMPTIONS,
+      settings: {
+        assumptions: DEFAULT_FORECAST_ASSUMPTIONS,
+      },
     });
   });
 
@@ -52,7 +54,7 @@ describe('forecastAssumptionsConfig', () => {
     });
   });
 
-  it('upgrades legacy payloads without a version field from version 0 to the current version', () => {
+  it('upgrades legacy flat payloads without a version field to the nested schema', () => {
     const legacyPayload = {
       capacityDaysPerWeek: 4,
       statusRemainingPercent: {
@@ -81,6 +83,22 @@ describe('forecastAssumptionsConfig', () => {
     });
   });
 
+  it('upgrades version 1 flat payloads into settings.assumptions at version 2', () => {
+    const versionOnePayload = {
+      version: 1,
+      capacityDaysPerWeek: 6,
+      statusRemainingPercent: DEFAULT_FORECAST_ASSUMPTIONS.statusRemainingPercent,
+    };
+
+    expect(upgradeForecastAssumptionsPayload(versionOnePayload)).toEqual({
+      assumptions: {
+        capacityDaysPerWeek: 6,
+        statusRemainingPercent: DEFAULT_FORECAST_ASSUMPTIONS.statusRemainingPercent,
+      },
+      upgradedFromVersion: 1,
+    });
+  });
+
   it('still parses legacy readme markers and upgrades them to the current marker and version', () => {
     const legacyReadme = [
       '# Notes',
@@ -100,6 +118,8 @@ describe('forecastAssumptionsConfig', () => {
     expect(upgraded).toContain(`<!-- ${FORECAST_ASSUMPTIONS_CONFIG_MARKER} -->`);
     expect(upgraded).not.toContain('glidelines-config:forecast:v1');
     expect(upgraded).toContain(`"version":${FORECAST_ASSUMPTIONS_CONFIG_VERSION}`);
+    expect(upgraded).toContain('"settings"');
+    expect(upgraded).toContain('"assumptions"');
   });
 
   it('replaces an existing config block when embedding', () => {

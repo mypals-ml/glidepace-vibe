@@ -43,8 +43,11 @@ export interface DashboardContextValue {
   dateSettings: ProjectDateSettings;
   updateDateSettings: (settings: ProjectDateSettings) => void;
   forecastAssumptions: ForecastAssumptions;
-  updateForecastAssumptions: (updater: ForecastAssumptions | ((current: ForecastAssumptions) => ForecastAssumptions)) => void;
+  refreshForecastAssumptionsFromGitHub: () => Promise<ForecastAssumptions | null>;
+  saveForecastAssumptionsToGitHub: (assumptions: ForecastAssumptions) => Promise<boolean>;
   isLoadingForecastAssumptions: boolean;
+  isRefreshingForecastAssumptions: boolean;
+  isSavingForecastAssumptions: boolean;
   syncProjectNow: () => Promise<void>;
 
   // Tasks

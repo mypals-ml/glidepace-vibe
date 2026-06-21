@@ -142,13 +142,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const {
     forecastAssumptions,
-    updateForecastAssumptions,
     refreshForecastAssumptionsFromGitHub,
+    saveForecastAssumptionsToGitHub,
     isLoadingForecastAssumptions,
+    isRefreshingForecastAssumptions,
+    isSavingForecastAssumptions,
   } = useForecastAssumptions({
     projectId: projects.selectedProject?.id,
     token: projectToken,
     onSaveError: (message) => showToast(message, 'error'),
+    onSaveSuccess: (message) => showToast(message, 'success'),
   });
 
   // 4. Tasks Hook (Needs Auth, UI, and Project State)
@@ -427,8 +430,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     dateSettings,
     updateDateSettings,
     forecastAssumptions,
-    updateForecastAssumptions,
+    refreshForecastAssumptionsFromGitHub,
+    saveForecastAssumptionsToGitHub,
     isLoadingForecastAssumptions,
+    isRefreshingForecastAssumptions,
+    isSavingForecastAssumptions,
     syncProjectNow,
     createProjectV2Field: handleCreateProjectV2Field,
     isProjectSettingsModalOpen,

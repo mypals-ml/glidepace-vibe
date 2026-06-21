@@ -243,6 +243,7 @@ export function AssumptionNumberInput({
   min = 0,
   max = 100,
   step = 1,
+  readOnly = false,
   onChange,
 }: {
   label: string;
@@ -252,23 +253,33 @@ export function AssumptionNumberInput({
   min?: number;
   max?: number;
   step?: number;
-  onChange: (value: number) => void;
+  readOnly?: boolean;
+  onChange?: (value: number) => void;
 }) {
+  const containerClassName = readOnly
+    ? 'flex h-11 items-center rounded-lg border border-slate-100 bg-slate-50 px-3'
+    : 'flex h-11 items-center rounded-lg border border-slate-200 bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20';
+  const inputClassName = readOnly
+    ? 'min-w-12 flex-1 cursor-default bg-transparent text-base font-extrabold text-slate-500 outline-none'
+    : 'min-w-12 flex-1 bg-transparent text-base font-extrabold text-slate-950 outline-none';
+
   return (
     <label className={`block min-w-[140px] ${className}`}>
       <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</span>
-      <span className="flex h-11 items-center rounded-lg border border-slate-200 bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+      <span className={containerClassName}>
         <input
-          className="min-w-12 flex-1 bg-transparent text-base font-extrabold text-slate-950 outline-none"
+          className={inputClassName}
           type="number"
           aria-label={label}
+          aria-readonly={readOnly}
+          readOnly={readOnly}
           min={min}
           max={max}
           step={step}
           value={value}
-          onChange={(event) => onChange(clampNumber(event.currentTarget.valueAsNumber, min, max))}
+          onChange={(event) => onChange?.(clampNumber(event.currentTarget.valueAsNumber, min, max))}
         />
-        <span className="ml-2 shrink-0 text-sm font-bold text-slate-400">{suffix}</span>
+        <span className={`ml-2 shrink-0 text-sm font-bold ${readOnly ? 'text-slate-300' : 'text-slate-400'}`}>{suffix}</span>
       </span>
     </label>
   );
@@ -279,33 +290,47 @@ export function AssumptionPercentInput({
   status,
   value,
   className = '',
+  readOnly = false,
   onChange,
 }: {
   label: string;
   status: string;
   value: number;
   className?: string;
-  onChange: (value: number) => void;
+  readOnly?: boolean;
+  onChange?: (value: number) => void;
 }) {
   const statusClassName = getStatusAssumptionClasses(status);
+  const wrapperClassName = readOnly
+    ? `block min-w-fit rounded-lg border border-slate-100 bg-slate-50/90 px-3 py-2 ${className}`
+    : `block min-w-fit rounded-lg border px-3 py-2 ${statusClassName.wrapper} ${className}`;
+  const inputContainerClassName = readOnly
+    ? 'flex h-9 items-center rounded-md border border-slate-100 bg-slate-50 px-3'
+    : `flex h-9 items-center rounded-md border bg-white/80 px-3 focus-within:ring-2 ${statusClassName.input}`;
+  const inputClassName = readOnly
+    ? 'min-w-12 flex-1 cursor-default bg-transparent text-lg font-black text-slate-500 outline-none'
+    : 'min-w-12 flex-1 bg-transparent text-lg font-black text-slate-950 outline-none';
+
   return (
-    <label className={`block min-w-fit rounded-lg border px-3 py-2 ${statusClassName.wrapper} ${className}`}>
-      <span className={`mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold ${statusClassName.label}`}>
-        <span className={`h-2 w-2 rounded-full ${statusClassName.dot}`}></span>
+    <label className={wrapperClassName}>
+      <span className={`mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold ${readOnly ? 'text-slate-400' : statusClassName.label}`}>
+        <span className={`h-2 w-2 rounded-full ${readOnly ? 'bg-slate-300' : statusClassName.dot}`}></span>
         {label}
       </span>
-      <span className={`flex h-9 items-center rounded-md border bg-white/80 px-3 focus-within:ring-2 ${statusClassName.input}`}>
+      <span className={inputContainerClassName}>
         <input
-          className="min-w-12 flex-1 bg-transparent text-lg font-black text-slate-950 outline-none"
+          className={inputClassName}
           type="number"
           aria-label={label}
+          aria-readonly={readOnly}
+          readOnly={readOnly}
           min={0}
           max={100}
           step={1}
           value={value}
-          onChange={(event) => onChange(clampNumber(event.currentTarget.valueAsNumber, 0, 100))}
+          onChange={(event) => onChange?.(clampNumber(event.currentTarget.valueAsNumber, 0, 100))}
         />
-        <span className={`shrink-0 text-sm font-bold ${statusClassName.label}`}>%</span>
+        <span className={`shrink-0 text-sm font-bold ${readOnly ? 'text-slate-300' : statusClassName.label}`}>%</span>
       </span>
     </label>
   );

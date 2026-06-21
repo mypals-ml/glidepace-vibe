@@ -12,16 +12,11 @@ import {
 } from '../lib/forecastAssumptionsConfig';
 import { fetchProjectV2Readme, updateProjectV2Readme } from '../lib/githubService';
 
-const FORECAST_ASSUMPTIONS_SAVE_DEBOUNCE_MS = 600;
-
-type ForecastAssumptionsUpdater =
-  | ForecastAssumptions
-  | ((current: ForecastAssumptions) => ForecastAssumptions);
-
 interface UseForecastAssumptionsOptions {
   projectId: string | undefined;
   token: string;
   onSaveError?: (message: string) => void;
+  onSaveSuccess?: (message: string) => void;
 }
 
 function resolveCachedForecastAssumptions(projectId: string | undefined): ForecastAssumptions {
@@ -44,6 +39,7 @@ export function useForecastAssumptions({
   projectId,
   token,
   onSaveError,
+  onSaveSuccess,
 }: UseForecastAssumptionsOptions) {
   const { t } = useTranslation();
   const [forecastAssumptions, setForecastAssumptions] = useState<ForecastAssumptions>(
@@ -54,8 +50,9 @@ export function useForecastAssumptions({
   const [isLoadingForecastAssumptions, setIsLoadingForecastAssumptions] = useState(
     () => Boolean(projectId && token),
   );
+  const [isRefreshingForecastAssumptions, setIsRefreshingForecastAssumptions] = useState(false);
+  const [isSavingForecastAssumptions, setIsSavingForecastAssumptions] = useState(false);
   const latestReadmeRef = useRef('');
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadRequestIdRef = useRef(0);
 
   const applyParsedForecastAssumptions = useCallback((parsed: ParsedForecastAssumptions) => {
@@ -84,22 +81,58 @@ export function useForecastAssumptions({
     onSaveError?.(t('dashboard.forecastAssumptionsSaveFailed', 'Failed to save forecast assumptions to GitHub.'));
   }, [onSaveError, projectId, t, token]);
 
-  const refreshForecastAssumptionsFromGitHub = useCallback(async () => {
-    if (!projectId || !token) return;
+  const loadForecastAssumptionsFromGitHub = useCallback(async (): Promise<ForecastAssumptions | null> => {
+    if (!projectId || !token) return null;
 
     const requestId = loadRequestIdRef.current + 1;
     loadRequestIdRef.current = requestId;
 
     const readme = await fetchProjectV2Readme(projectId, token);
-    if (loadRequestIdRef.current !== requestId) return;
+    if (loadRequestIdRef.current !== requestId) return null;
 
     latestReadmeRef.current = readme ?? '';
     const parsed = parseForecastAssumptionsFromReadme(readme);
-    if (!parsed) return;
+    if (!parsed) return null;
 
     applyParsedForecastAssumptions(parsed);
     await persistUpgradedForecastAssumptions(parsed, latestReadmeRef.current);
+    return parsed.assumptions;
   }, [applyParsedForecastAssumptions, persistUpgradedForecastAssumptions, projectId, token]);
+
+  const refreshForecastAssumptionsFromGitHub = useCallback(async (): Promise<ForecastAssumptions | null> => {
+    if (!projectId || !token) return null;
+
+    setIsRefreshingForecastAssumptions(true);
+    try {
+      return await loadForecastAssumptionsFromGitHub();
+    } finally {
+      setIsRefreshingForecastAssumptions(false);
+    }
+  }, [loadForecastAssumptionsFromGitHub, projectId, token]);
+
+  const saveForecastAssumptionsToGitHub = useCallback(async (assumptions: ForecastAssumptions): Promise<boolean> => {
+    if (!projectId || !token) return false;
+
+    const normalized = normalizeForecastAssumptions(assumptions);
+    setIsSavingForecastAssumptions(true);
+    try {
+      const readme = await fetchProjectV2Readme(projectId, token);
+      const baseReadme = readme ?? latestReadmeRef.current;
+      const nextReadme = await persistForecastAssumptionsToGitHub(projectId, token, normalized, baseReadme);
+      if (!nextReadme) {
+        onSaveError?.(t('dashboard.forecastAssumptionsSaveFailed', 'Failed to save forecast assumptions to GitHub.'));
+        return false;
+      }
+
+      latestReadmeRef.current = nextReadme;
+      setForecastAssumptions(normalized);
+      saveForecastAssumptionsToLocalStorage(localStorage, projectId, normalized);
+      onSaveSuccess?.(t('dashboard.forecastAssumptionsSaveSuccess', 'Forecast assumptions saved.'));
+      return true;
+    } finally {
+      setIsSavingForecastAssumptions(false);
+    }
+  }, [onSaveError, onSaveSuccess, projectId, t, token]);
 
   if (sourceKey !== loadedSourceKey) {
     setLoadedSourceKey(sourceKey);
@@ -108,10 +141,6 @@ export function useForecastAssumptions({
   }
 
   useEffect(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = null;
-    }
     latestReadmeRef.current = '';
   }, [projectId]);
 
@@ -138,49 +167,12 @@ export function useForecastAssumptions({
     })();
   }, [applyParsedForecastAssumptions, persistUpgradedForecastAssumptions, projectId, token]);
 
-  useEffect(() => () => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-  }, []);
-
-  const updateForecastAssumptions = useCallback((updater: ForecastAssumptionsUpdater) => {
-    if (!projectId) return;
-
-    setForecastAssumptions((current) => {
-      const next = normalizeForecastAssumptions(
-        typeof updater === 'function' ? updater(current) : updater,
-      );
-      saveForecastAssumptionsToLocalStorage(localStorage, projectId, next);
-
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-
-      saveTimeoutRef.current = setTimeout(() => {
-        if (!token) return;
-
-        void (async () => {
-          const readme = await fetchProjectV2Readme(projectId, token);
-          const baseReadme = readme ?? latestReadmeRef.current;
-          const nextReadme = await persistForecastAssumptionsToGitHub(projectId, token, next, baseReadme);
-          if (nextReadme) {
-            latestReadmeRef.current = nextReadme;
-            return;
-          }
-
-          onSaveError?.(t('dashboard.forecastAssumptionsSaveFailed', 'Failed to save forecast assumptions to GitHub.'));
-        })();
-      }, FORECAST_ASSUMPTIONS_SAVE_DEBOUNCE_MS);
-
-      return next;
-    });
-  }, [onSaveError, projectId, t, token]);
-
   return {
     forecastAssumptions,
-    updateForecastAssumptions,
     refreshForecastAssumptionsFromGitHub,
+    saveForecastAssumptionsToGitHub,
     isLoadingForecastAssumptions,
+    isRefreshingForecastAssumptions,
+    isSavingForecastAssumptions,
   };
 }
