@@ -9,6 +9,7 @@ import { DashboardViewSwitcher } from '../Dashboard/Views/DashboardViewSwitcher'
 import { HeaderOverflowMenu } from './HeaderOverflowMenu';
 import { Button } from '../UI/Button';
 import { Overflow, OverflowItem } from '@fluentui/react-overflow';
+import { UI_LAYER } from '../../lib/uiLayering';
 
 /**
  * Priority+ responsive header.
@@ -35,7 +36,7 @@ export function Header() {
   const [hasOverflow, setHasOverflow] = useState(false);
   
   return (
-    <header className={`glass-panel border-b border-surface-border z-20 sticky top-0 bg-white/70 shadow-sm px-4 md:px-6 py-3 transition-all duration-300 ${hasOverflow ? 'header-compressed' : ''}`}>
+    <header className={`glass-panel border-b border-surface-border ${UI_LAYER.header} sticky top-0 bg-white/70 shadow-sm px-4 md:px-6 py-3 transition-all duration-300 ${hasOverflow ? 'header-compressed' : ''}`}>
       <div className="flex items-center">
         {/* ── Fixed left ── */}
         <div className="flex items-center shrink-0">

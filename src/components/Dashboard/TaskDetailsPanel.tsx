@@ -4,6 +4,7 @@ import type { Task } from '../../types';
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal } from '../../lib/githubTaskMapper';
 import { TaskDetailsContent } from './TaskDetailsContent';
+import { UI_LAYER } from '../../lib/uiLayering';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -81,7 +82,7 @@ export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetail
     <>
       {!isInline && (
         <div
-          className={`fixed inset-0 z-40 transition-all duration-300 ${
+          className={`fixed inset-0 ${UI_LAYER.taskDetailsBackdrop} transition-all duration-300 ${
             isCreateMode
               ? 'bg-slate-900/5 cursor-default'
               : 'bg-slate-900/20 backdrop-blur-[1px] cursor-pointer'
@@ -92,9 +93,9 @@ export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetail
       <div
         className={`${
           isInline
-            ? 'relative h-full w-full flex flex-col'
-            : 'fixed md:absolute inset-0 md:inset-auto md:right-4 md:top-4 md:bottom-4 md:w-[26rem] md:rounded-xl md:shadow-lg'
-        } z-50 flex flex-col`}
+            ? 'relative z-0 h-full w-full flex flex-col'
+            : `fixed md:absolute inset-0 md:inset-auto md:right-4 md:top-4 md:bottom-4 md:w-[26rem] md:rounded-xl md:shadow-lg ${UI_LAYER.taskDetailsPanel}`
+        } flex flex-col`}
       >
         <div className="md:hidden bg-white/90 backdrop-blur-md h-full rounded-t-2xl flex flex-col overflow-hidden shadow-2xl">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 bg-slate-50/50">

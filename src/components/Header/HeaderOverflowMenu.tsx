@@ -4,6 +4,7 @@ import { useDashboard } from '../../context/DashboardContext';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSortedLocales } from '../../hooks/useLocales';
 import { changeUiLanguage } from '../../lib/uiLocaleStorage';
+import { UI_LAYER } from '../../lib/uiLayering';
 import { IconButton } from '../UI/IconButton';
 import { ForecastIcon } from '../Dashboard/Views/ForecastIcon';
 import { useOverflowMenu, useIsOverflowItemVisible } from '@fluentui/react-overflow';
@@ -101,7 +102,7 @@ export function HeaderOverflowMenu() {
       />
 
       {isOpen && isOverflowing && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] z-50 overflow-hidden border border-slate-200/60 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className={`absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] ${UI_LAYER.headerDropdown} overflow-hidden border border-slate-200/60 animate-in fade-in slide-in-from-top-1 duration-150`}>
           <div className="p-1.5 flex flex-col gap-1">
             
             {/* View Switcher Section */}
