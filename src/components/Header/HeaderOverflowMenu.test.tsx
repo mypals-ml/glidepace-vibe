@@ -40,6 +40,7 @@ vi.mock('@fluentui/react-overflow', () => ({
     isOverflowing: overflowMock.isOverflowing,
   }),
   useIsOverflowItemVisible: (id: string) => overflowMock.visibility[id] ?? true,
+  useOverflowContext: (selector: (c: { updateOverflow: () => void }) => unknown) => selector({ updateOverflow: vi.fn() }),
 }));
 
 describe('HeaderOverflowMenu', () => {
@@ -85,8 +86,8 @@ describe('HeaderOverflowMenu', () => {
     const wrapper = container.firstChild as HTMLElement;
     expect(wrapper.className).toContain('pointer-events-none');
     expect(wrapper.className).toContain('opacity-0');
-    expect(wrapper.className).toContain('w-[var(--header-button-height)]');
-    expect(wrapper.className).toContain('xl:w-0');
+    expect(wrapper.className).toContain('w-0');
+    expect(wrapper.className).not.toContain('w-[var(--header-button-height)]');
   });
 
   it('shows overflow menu items when a header item is hidden', () => {

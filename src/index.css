@@ -262,3 +262,9 @@ body,
     --header-gap: 2px;
   }
 }
+
+/* When the priority manager (or geometry fallback) marks an item as overflowed,
+   hide it from the toolbar layout so it "moves" into the ⋮ menu and frees space. */
+[data-header-overflow-id][data-overflowing] {
+  display: none;
+}

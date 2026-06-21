@@ -7,7 +7,7 @@ import { changeUiLanguage } from '../../lib/uiLocaleStorage';
 import { UI_LAYER } from '../../lib/uiLayering';
 import { IconButton } from '../UI/IconButton';
 import { ForecastIcon } from '../Dashboard/Views/ForecastIcon';
-import { useOverflowMenu, useIsOverflowItemVisible } from '@fluentui/react-overflow';
+import { useOverflowMenu, useIsOverflowItemVisible, useOverflowContext } from '@fluentui/react-overflow';
 import { hasHeaderOverflowMenuItems } from '../../lib/headerOverflowMenu';
 
 const HEADER_OVERFLOW_ITEM_IDS = [
@@ -63,6 +63,7 @@ export function HeaderOverflowMenu() {
 
   // Register with overflow manager
   const { ref: overflowMenuRef } = useOverflowMenu<HTMLButtonElement>();
+  const updateOverflow = useOverflowContext(ctx => ctx.updateOverflow);
 
   // Check visibility of each item
   const isProjectSelectorVisible = useIsOverflowItemVisible('project-selector');
@@ -73,8 +74,8 @@ export function HeaderOverflowMenu() {
   const isAccountVisible = useIsOverflowItemVisible('account');
   const isAboutVisible = useIsOverflowItemVisible('about');
   const isProjectSelectorOverflowed = !isProjectSelectorVisible || !!clippedItems['project-selector'];
-  const isViewSwitcherOverflowed = !isViewSwitcherVisible || !!clippedItems['view-switcher'];
-  const isSettingsOverflowed = !isSettingsVisible || !!clippedItems.settings;
+  const isViewSwitcherOverflowed = hasProject && (!isViewSwitcherVisible || !!clippedItems['view-switcher']);
+  const isSettingsOverflowed = hasProject && (!isSettingsVisible || !!clippedItems.settings);
   const isSyncOverflowed = !isSyncVisible || !!clippedItems.sync;
   const isLanguageOverflowed = !isLanguageVisible || !!clippedItems.language;
   const isAccountOverflowed = !isAccountVisible || !!clippedItems.account;
@@ -92,12 +93,19 @@ export function HeaderOverflowMenu() {
 
   useEffect(() => {
     let frameId: number | null = null;
-    const overflowContainer = dropdownRef.current?.closest('.fui-Overflow');
-    if (!(overflowContainer instanceof HTMLElement)) {
-      return;
-    }
+    let resizeObserver: ResizeObserver | null = null;
+    let lateTimer: number | null = null;
+
+    const getContainer = (): HTMLElement | null => {
+      return dropdownRef.current?.closest('.fui-Overflow') as HTMLElement | null;
+    };
 
     const updateClippedItems = () => {
+      const overflowContainer = getContainer();
+      if (!(overflowContainer instanceof HTMLElement)) {
+        return;
+      }
+
       const containerRect = overflowContainer.getBoundingClientRect();
       const nextClippedItems: ClippedHeaderItems = {};
 
@@ -109,7 +117,9 @@ export function HeaderOverflowMenu() {
         }
 
         const itemRect = item.getBoundingClientRect();
-        nextClippedItems[id] = itemRect.width > 0 && itemRect.right > containerRect.right + 0.5;
+        // Use a small tolerance to avoid false positives from subpixel layout, borders,
+        // or the trailing margin-right on the last item vs container edge.
+        nextClippedItems[id] = itemRect.width > 0 && (itemRect.right - containerRect.right) > 1;
       });
 
       setClippedItems((currentClippedItems) => {
@@ -130,16 +140,41 @@ export function HeaderOverflowMenu() {
       });
     };
 
+    // Always schedule initial check; lookup happens inside update
     requestClippedItemUpdate();
+
     window.addEventListener('resize', requestClippedItemUpdate);
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(requestClippedItemUpdate)
-      : null;
-    resizeObserver?.observe(overflowContainer);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(requestClippedItemUpdate);
+      // Observe the menu wrapper itself
+      if (dropdownRef.current) {
+        resizeObserver.observe(dropdownRef.current);
+      }
+      // Observe the overflow root if already findable
+      const initial = getContainer();
+      if (initial) {
+        resizeObserver.observe(initial);
+      }
+      // Late attach in case DOM/class timing on first mount
+      lateTimer = window.setTimeout(() => {
+        const c = getContainer();
+        if (c && resizeObserver) {
+          try {
+            resizeObserver.observe(c);
+          } catch {
+            // ignore if already observed or element issues
+          }
+        }
+      }, 0);
+    }
 
     return () => {
       if (frameId !== null) {
         window.cancelAnimationFrame(frameId);
+      }
+      if (lateTimer !== null) {
+        window.clearTimeout(lateTimer);
       }
       window.removeEventListener('resize', requestClippedItemUpdate);
       resizeObserver?.disconnect();
@@ -147,6 +182,18 @@ export function HeaderOverflowMenu() {
   }, []);
 
   useClickOutside(dropdownRef, () => setIsOpen(false), isOpen);
+
+  // When our clipped fallback decides something needs the menu (or visibility changes),
+  // ask the manager to re-evaluate. This helps settle borderline cases (e.g. 1202px)
+  // where margin gaps vs offsetWidth measurements + More button size cause the
+  // last item (About) to appear clipped to geometry but still "visible" to the lib.
+  useEffect(() => {
+    if (shouldShowOverflowMenu) {
+      // Use RAF so the width/opacity classes have applied and layout updated.
+      const id = window.requestAnimationFrame(() => updateOverflow?.());
+      return () => window.cancelAnimationFrame(id);
+    }
+  }, [shouldShowOverflowMenu, updateOverflow]);
 
   const handleSync = () => {
     if (selectedProject?.id) {
@@ -176,7 +223,7 @@ export function HeaderOverflowMenu() {
   const currentTab = !isChartVisible ? 'list' : dashboardView;
 
   return (
-    <div className={`relative shrink-0 overflow-visible transition-[opacity,width] ${shouldShowOverflowMenu ? 'w-[var(--header-button-height)] opacity-100' : 'w-[var(--header-button-height)] xl:w-0 opacity-0 pointer-events-none'}`} ref={dropdownRef}>
+    <div className={`relative shrink-0 transition-[opacity,width] ${shouldShowOverflowMenu ? 'w-[var(--header-button-height)] opacity-100 overflow-visible' : 'w-0 opacity-0 pointer-events-none overflow-hidden'}`} ref={dropdownRef}>
       <IconButton
         ref={overflowMenuRef}
         icon="more_vert"

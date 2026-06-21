@@ -111,7 +111,7 @@ export function Header() {
             {hasProject && (
               <>
                 <OverflowItem id="settings" priority={700}>
-                  <div data-header-overflow-id="settings" style={{ marginRight: 'var(--header-gap)' }}>
+                  <div className="shrink-0" data-header-overflow-id="settings" style={{ marginRight: 'var(--header-gap)' }}>
                     <IconButton
                       icon="settings"
                       variant="ghost"
@@ -125,7 +125,7 @@ export function Header() {
                 </OverflowItem>
 
                 <OverflowItem id="view-switcher" priority={800}>
-                  <div data-header-overflow-id="view-switcher" style={{ marginRight: 'var(--header-gap)' }}>
+                  <div className="shrink-0" data-header-overflow-id="view-switcher" style={{ marginRight: 'var(--header-gap)' }}>
                     <DashboardViewSwitcher />
                   </div>
                 </OverflowItem>
@@ -133,22 +133,19 @@ export function Header() {
             )}
             
             <OverflowItem id="language" priority={500}>
-              <div data-header-overflow-id="language" style={{ marginRight: 'var(--header-gap)' }}>
+              <div className="shrink-0" data-header-overflow-id="language" style={{ marginRight: 'var(--header-gap)' }}>
                 <LanguageSelectorDropdown />
               </div>
             </OverflowItem>
 
             <OverflowItem id="sync" priority={600}>
-              <div data-header-overflow-id="sync" style={{ marginRight: 'var(--header-gap)' }}>
+              <div className="shrink-0" data-header-overflow-id="sync" style={{ marginRight: 'var(--header-gap)' }}>
                 <SyncStatusIndicator />
               </div>
             </OverflowItem>
 
-            {/* Spacer to push remaining items to the right */}
-            <div style={{ flexGrow: 1 }} />
-
             <OverflowItem id="account" priority={900}>
-              <div data-header-overflow-id="account" style={{ marginRight: 'var(--header-gap)' }}>
+              <div className="shrink-0" data-header-overflow-id="account" style={{ marginRight: 'var(--header-gap)', marginLeft: 'auto' }}>
                 <Button
                   variant={githubAccounts.length > 0 ? 'success' : 'primary'}
                   size="sm"
@@ -175,7 +172,7 @@ export function Header() {
             </OverflowItem>
 
             <OverflowItem id="about" priority={100}>
-              <div data-header-overflow-id="about" style={{ marginRight: 'var(--header-gap)' }}>
+              <div className="shrink-0" data-header-overflow-id="about" style={{ marginRight: 'var(--header-gap)' }}>
                 <Button
                   variant="ghost"
                   size="sm"
