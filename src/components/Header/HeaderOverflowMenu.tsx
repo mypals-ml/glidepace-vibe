@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSortedLocales } from '../../hooks/useLocales';
+import { changeUiLanguage } from '../../lib/uiLocaleStorage';
 import { IconButton } from '../UI/IconButton';
 import { ForecastIcon } from '../Dashboard/Views/ForecastIcon';
 import { useOverflowMenu, useIsOverflowItemVisible } from '@fluentui/react-overflow';
@@ -258,7 +259,7 @@ export function HeaderOverflowMenu() {
                     <button
                       key={locale.code}
                       onClick={() => {
-                        i18n.changeLanguage(locale.code);
+                        changeUiLanguage(i18n, locale.code);
                         setIsOpen(false);
                       }}
                       className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSortedLocales } from '../../hooks/useLocales';
+import { changeUiLanguage } from '../../lib/uiLocaleStorage';
 import { OverflowItem, useIsOverflowItemVisible } from '@fluentui/react-overflow';
 
 /**
@@ -50,7 +51,7 @@ export function LanguageSelectorDropdown() {
               <button
                 key={locale.code}
                 onClick={() => {
-                  i18n.changeLanguage(locale.code);
+                  changeUiLanguage(i18n, locale.code);
                   setIsOpen(false);
                 }}
                 className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${i18n.language === locale.code ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50'}`}

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useSortedLocales } from '../hooks/useLocales';
+import { changeUiLanguage } from '../lib/uiLocaleStorage';
 
 export function HelpOrgProjects() {
   const { t, i18n } = useTranslation();
@@ -14,7 +15,7 @@ export function HelpOrgProjects() {
           <select 
             className="border-0 focus:ring-0 text-sm py-1.5 pl-3 pr-8 w-28 text-slate-700 font-medium focus:outline-none bg-transparent appearance-none cursor-pointer"
             value={i18n.language}
-            onChange={(e) => i18n.changeLanguage(e.target.value)}
+            onChange={(e) => changeUiLanguage(i18n, e.target.value)}
             aria-labelledby="help-language-select-label"
           >
             {sortedLocales.map((locale) => (
