@@ -143,6 +143,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const {
     forecastAssumptions,
     updateForecastAssumptions,
+    refreshForecastAssumptionsFromGitHub,
     isLoadingForecastAssumptions,
   } = useForecastAssumptions({
     projectId: projects.selectedProject?.id,
@@ -210,9 +211,28 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     tasks: tasks.tasks,
     fetchProjectTasks: useCallback((id: string, token: string, options?: FetchProjectTasksOptions) => fetchProjectTasksRef.current(id, token, options), []),
     fetchSingleProjectItem: useCallback((id: string, token: string) => fetchSingleItemRef.current(id, token), []),
+    refreshForecastAssumptionsFromGitHub,
     shouldSkipRecentLocalReorder,
     shouldSkipRecentLocalReorderSync,
   });
+
+  const syncProjectNow = useCallback(async () => {
+    if (!projects.selectedProject?.id || !projectToken) return;
+
+    const fetchOptions: FetchProjectTasksOptions = tasks.tasks.length > 0
+      ? { mode: 'background', reason: 'manual_sync', preserveViewport: true }
+      : { reason: 'manual_sync' };
+
+    await Promise.all([
+      fetchProjectTasksRef.current(projects.selectedProject.id, projectToken, fetchOptions),
+      refreshForecastAssumptionsFromGitHub(),
+    ]);
+  }, [
+    projectToken,
+    projects.selectedProject?.id,
+    refreshForecastAssumptionsFromGitHub,
+    tasks.tasks.length,
+  ]);
 
   const handleCreateProjectV2Field = useCallback(async (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => {
     if (!projects.selectedProject?.id || !projectToken) return null;
@@ -409,6 +429,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     forecastAssumptions,
     updateForecastAssumptions,
     isLoadingForecastAssumptions,
+    syncProjectNow,
     createProjectV2Field: handleCreateProjectV2Field,
     isProjectSettingsModalOpen,
     setIsProjectSettingsModalOpen,

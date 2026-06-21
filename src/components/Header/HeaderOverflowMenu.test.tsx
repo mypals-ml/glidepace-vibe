@@ -61,7 +61,7 @@ describe('HeaderOverflowMenu', () => {
       lastSyncedTime: Date.now(),
       getSyncedTimeText: () => 'Synced just now',
       selectedProject: null,
-      fetchProjectTasks: vi.fn(),
+      syncProjectNow: vi.fn(),
       refreshProjects: vi.fn(),
       githubToken: 'token',
       dashboardView: 'forecast',

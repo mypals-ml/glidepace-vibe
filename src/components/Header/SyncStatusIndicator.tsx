@@ -10,17 +10,16 @@ import { OverflowItem } from '@fluentui/react-overflow';
 export function SyncStatusIndicator() {
   const { t } = useTranslation();
   const {
-    githubToken,
     lastSyncedTime,
     getSyncedTimeText,
     selectedProject,
-    fetchProjectTasks,
+    syncProjectNow,
     refreshProjects,
   } = useDashboard();
 
   const handleSync = () => {
     if (selectedProject?.id) {
-      fetchProjectTasks(selectedProject.id, githubToken);
+      void syncProjectNow();
     } else {
       refreshProjects();
     }

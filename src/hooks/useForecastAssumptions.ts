@@ -8,6 +8,7 @@ import {
   parseForecastAssumptionsFromReadme,
   saveForecastAssumptionsToLocalStorage,
   type ForecastAssumptions,
+  type ParsedForecastAssumptions,
 } from '../lib/forecastAssumptionsConfig';
 import { fetchProjectV2Readme, updateProjectV2Readme } from '../lib/githubService';
 
@@ -57,6 +58,49 @@ export function useForecastAssumptions({
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadRequestIdRef = useRef(0);
 
+  const applyParsedForecastAssumptions = useCallback((parsed: ParsedForecastAssumptions) => {
+    if (!projectId) return;
+    setForecastAssumptions(parsed.assumptions);
+    saveForecastAssumptionsToLocalStorage(localStorage, projectId, parsed.assumptions);
+  }, [projectId]);
+
+  const persistUpgradedForecastAssumptions = useCallback(async (
+    parsed: ParsedForecastAssumptions,
+    baseReadme: string,
+  ) => {
+    if (!projectId || !token || parsed.upgradedFromVersion === null) return;
+
+    const upgradedReadme = await persistForecastAssumptionsToGitHub(
+      projectId,
+      token,
+      parsed.assumptions,
+      baseReadme,
+    );
+    if (upgradedReadme) {
+      latestReadmeRef.current = upgradedReadme;
+      return;
+    }
+
+    onSaveError?.(t('dashboard.forecastAssumptionsSaveFailed', 'Failed to save forecast assumptions to GitHub.'));
+  }, [onSaveError, projectId, t, token]);
+
+  const refreshForecastAssumptionsFromGitHub = useCallback(async () => {
+    if (!projectId || !token) return;
+
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+
+    const readme = await fetchProjectV2Readme(projectId, token);
+    if (loadRequestIdRef.current !== requestId) return;
+
+    latestReadmeRef.current = readme ?? '';
+    const parsed = parseForecastAssumptionsFromReadme(readme);
+    if (!parsed) return;
+
+    applyParsedForecastAssumptions(parsed);
+    await persistUpgradedForecastAssumptions(parsed, latestReadmeRef.current);
+  }, [applyParsedForecastAssumptions, persistUpgradedForecastAssumptions, projectId, token]);
+
   if (sourceKey !== loadedSourceKey) {
     setLoadedSourceKey(sourceKey);
     setForecastAssumptions(resolveCachedForecastAssumptions(projectId));
@@ -86,27 +130,13 @@ export function useForecastAssumptions({
       latestReadmeRef.current = readme ?? '';
       const parsed = parseForecastAssumptionsFromReadme(readme);
       if (parsed) {
-        setForecastAssumptions(parsed.assumptions);
-        saveForecastAssumptionsToLocalStorage(localStorage, projectId, parsed.assumptions);
-
-        if (parsed.upgradedFromVersion !== null) {
-          const upgradedReadme = await persistForecastAssumptionsToGitHub(
-            projectId,
-            token,
-            parsed.assumptions,
-            latestReadmeRef.current,
-          );
-          if (upgradedReadme) {
-            latestReadmeRef.current = upgradedReadme;
-          } else {
-            onSaveError?.(t('dashboard.forecastAssumptionsSaveFailed', 'Failed to save forecast assumptions to GitHub.'));
-          }
-        }
+        applyParsedForecastAssumptions(parsed);
+        await persistUpgradedForecastAssumptions(parsed, latestReadmeRef.current);
       }
 
       setIsLoadingForecastAssumptions(false);
     })();
-  }, [onSaveError, projectId, t, token]);
+  }, [applyParsedForecastAssumptions, persistUpgradedForecastAssumptions, projectId, token]);
 
   useEffect(() => () => {
     if (saveTimeoutRef.current) {
@@ -150,6 +180,7 @@ export function useForecastAssumptions({
   return {
     forecastAssumptions,
     updateForecastAssumptions,
+    refreshForecastAssumptionsFromGitHub,
     isLoadingForecastAssumptions,
   };
 }

@@ -45,6 +45,7 @@ export interface DashboardContextValue {
   forecastAssumptions: ForecastAssumptions;
   updateForecastAssumptions: (updater: ForecastAssumptions | ((current: ForecastAssumptions) => ForecastAssumptions)) => void;
   isLoadingForecastAssumptions: boolean;
+  syncProjectNow: () => Promise<void>;
 
   // Tasks
   tasks: Task[];

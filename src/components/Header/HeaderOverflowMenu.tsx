@@ -26,9 +26,8 @@ export function HeaderOverflowMenu() {
     lastSyncedTime, 
     getSyncedTimeText,
     selectedProject,
-    fetchProjectTasks,
+    syncProjectNow,
     refreshProjects,
-    githubToken,
     dashboardView,
     setDashboardView,
     isChartVisible,
@@ -74,7 +73,7 @@ export function HeaderOverflowMenu() {
 
   const handleSync = () => {
     if (selectedProject?.id) {
-      fetchProjectTasks(selectedProject.id, githubToken);
+      void syncProjectNow();
     } else {
       refreshProjects();
     }

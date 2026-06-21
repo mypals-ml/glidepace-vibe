@@ -21,18 +21,17 @@ vi.mock('@fluentui/react-overflow', () => ({
 }));
 
 describe('SyncStatusIndicator', () => {
-  const fetchProjectTasks = vi.fn();
+  const syncProjectNow = vi.fn();
   const refreshProjects = vi.fn();
 
   beforeEach(() => {
-    fetchProjectTasks.mockReset();
+    syncProjectNow.mockReset();
     refreshProjects.mockReset();
     dashboardMock.useDashboard.mockReturnValue({
-      githubToken: 'token',
       lastSyncedTime: 0,
       getSyncedTimeText: () => '',
       selectedProject: { id: 'project-1' },
-      fetchProjectTasks,
+      syncProjectNow,
       refreshProjects,
     });
   });
@@ -51,7 +50,7 @@ describe('SyncStatusIndicator', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Sync Now' }));
 
-    expect(fetchProjectTasks).toHaveBeenCalledWith('project-1', 'token');
+    expect(syncProjectNow).toHaveBeenCalledTimes(1);
     expect(refreshProjects).not.toHaveBeenCalled();
   });
 });
