@@ -42,8 +42,11 @@ describe('forecastDashboardChartUtils', () => {
 
     expect(labels.map((label) => label.labelKind)).toEqual(['start', 'completion', 'today']);
     expect(dateTickLabelClassName('start', 0)).toContain('left-0');
+    expect(dateTickLabelClassName('start', 0)).toContain('top-3');
     expect(dateTickLabelClassName('completion', 1000)).toContain('right-0');
+    expect(dateTickLabelClassName('completion', 1000)).toContain('top-3');
     expect(dateTickLabelClassName('today', 200)).toContain('translate-x-2');
+    expect(dateTickLabelClassName('today', 200)).toContain('top-0');
   });
 
   it('formats read-only dates with slashes', () => {
