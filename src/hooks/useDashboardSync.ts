@@ -20,7 +20,6 @@ interface UseDashboardSyncProps {
   tasks: Task[];
   fetchProjectTasks: (projectId: string, token: string, options?: FetchProjectTasksOptions) => Promise<void>;
   fetchSingleProjectItem: (itemId: string, token: string) => Promise<Task | null>;
-  refreshForecastAssumptionsFromGitHub?: () => Promise<unknown>;
   shouldSkipRecentLocalReorder: (itemId: string | undefined) => boolean;
   shouldSkipRecentLocalReorderSync: () => boolean;
 }
@@ -37,7 +36,6 @@ export function useDashboardSync({
   tasks,
   fetchProjectTasks,
   fetchSingleProjectItem,
-  refreshForecastAssumptionsFromGitHub,
   shouldSkipRecentLocalReorder,
   shouldSkipRecentLocalReorderSync,
 }: UseDashboardSyncProps) {
@@ -86,12 +84,8 @@ export function useDashboardSync({
 
   const fetchProjectTasksRef = useRef(fetchProjectTasks);
   const fetchSingleItemRef = useRef(fetchSingleProjectItem);
-  const refreshForecastAssumptionsRef = useRef(refreshForecastAssumptionsFromGitHub);
   useEffect(() => { fetchProjectTasksRef.current = fetchProjectTasks; }, [fetchProjectTasks]);
   useEffect(() => { fetchSingleItemRef.current = fetchSingleProjectItem; }, [fetchSingleProjectItem]);
-  useEffect(() => {
-    refreshForecastAssumptionsRef.current = refreshForecastAssumptionsFromGitHub;
-  }, [refreshForecastAssumptionsFromGitHub]);
 
   // The same webhook delivery can arrive through the project, repo, AND
   // owner channels. Fingerprint dedupe collapses those duplicates.
@@ -132,12 +126,6 @@ export function useDashboardSync({
           preserveViewport: true,
         });
       } while (state.queued);
-
-      try {
-        await refreshForecastAssumptionsRef.current?.();
-      } catch (error) {
-        console.error('[DashboardSync] Forecast assumptions refresh failed:', error);
-      }
     } finally {
       state.inFlight = false;
     }

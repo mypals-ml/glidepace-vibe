@@ -214,7 +214,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     tasks: tasks.tasks,
     fetchProjectTasks: useCallback((id: string, token: string, options?: FetchProjectTasksOptions) => fetchProjectTasksRef.current(id, token, options), []),
     fetchSingleProjectItem: useCallback((id: string, token: string) => fetchSingleItemRef.current(id, token), []),
-    refreshForecastAssumptionsFromGitHub,
     shouldSkipRecentLocalReorder,
     shouldSkipRecentLocalReorderSync,
   });
