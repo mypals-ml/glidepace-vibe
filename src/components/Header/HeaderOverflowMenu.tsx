@@ -8,6 +8,7 @@ import { UI_LAYER } from '../../lib/uiLayering';
 import { IconButton } from '../UI/IconButton';
 import { ForecastIcon } from '../Dashboard/Views/ForecastIcon';
 import { useOverflowMenu, useIsOverflowItemVisible } from '@fluentui/react-overflow';
+import { hasHeaderOverflowMenuItems } from '../../lib/headerOverflowMenu';
 
 /**
  * Overflow "More" menu that dynamically shows hidden header items.
@@ -40,6 +41,7 @@ export function HeaderOverflowMenu() {
     setIsAccountModalOpen,
     setIsAboutModalOpen,
     handleOpenProjectClick,
+    hasProject,
   } = useDashboard();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -47,7 +49,7 @@ export function HeaderOverflowMenu() {
   const sortedLocales = useSortedLocales();
 
   // Register with overflow manager
-  const { ref: overflowMenuRef, isOverflowing } = useOverflowMenu<HTMLButtonElement>();
+  const { ref: overflowMenuRef } = useOverflowMenu<HTMLButtonElement>();
 
   // Check visibility of each item
   const isProjectSelectorVisible = useIsOverflowItemVisible('project-selector');
@@ -57,6 +59,16 @@ export function HeaderOverflowMenu() {
   const isLanguageVisible = useIsOverflowItemVisible('language');
   const isAccountVisible = useIsOverflowItemVisible('account');
   const isAboutVisible = useIsOverflowItemVisible('about');
+  const shouldShowOverflowMenu = hasHeaderOverflowMenuItems({
+    hasProject,
+    isProjectSelectorVisible,
+    isViewSwitcherVisible,
+    isSettingsVisible,
+    isSyncVisible,
+    isLanguageVisible,
+    isAccountVisible,
+    isAboutVisible,
+  });
 
   useClickOutside(dropdownRef, () => setIsOpen(false), isOpen);
 
@@ -88,7 +100,7 @@ export function HeaderOverflowMenu() {
   const currentTab = !isChartVisible ? 'list' : dashboardView;
 
   return (
-    <div className={`relative shrink-0 transition-opacity ${isOverflowing ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} ref={dropdownRef}>
+    <div className={`relative shrink-0 transition-opacity ${shouldShowOverflowMenu ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} ref={dropdownRef}>
       <IconButton
         ref={overflowMenuRef}
         icon="more_vert"
@@ -101,7 +113,7 @@ export function HeaderOverflowMenu() {
         aria-expanded={isOpen}
       />
 
-      {isOpen && isOverflowing && (
+      {isOpen && shouldShowOverflowMenu && (
         <div className={`absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] ${UI_LAYER.headerDropdown} overflow-hidden border border-slate-200/60 animate-in fade-in slide-in-from-top-1 duration-150`}>
           <div className="p-1.5 flex flex-col gap-1">
             
