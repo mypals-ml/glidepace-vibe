@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
@@ -62,11 +62,19 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const [isForecastRulesOpen, setIsForecastRulesOpen] = useState(false);
   const [isAssumptionsEditing, setIsAssumptionsEditing] = useState(false);
   const [draftAssumptions, setDraftAssumptions] = useState<ForecastAssumptions>(DEFAULT_FORECAST_ASSUMPTIONS);
+  const exitEditOnNextAssumptionsUpdateRef = useRef(false);
   const activeAssumptions = isAssumptionsEditing ? draftAssumptions : forecastAssumptions;
   const { capacityDaysPerWeek, statusRemainingPercent } = activeAssumptions;
   const isAssumptionsLoading = isLoadingTasks || isLoadingForecastAssumptions;
   const isAssumptionsActionsBusy = isRefreshingForecastAssumptions || isSavingForecastAssumptions;
   const chartData = useMemo(() => buildForecastDashboardData(filteredTasks, new Date(), activeAssumptions), [filteredTasks, activeAssumptions]);
+
+  useEffect(() => {
+    if (exitEditOnNextAssumptionsUpdateRef.current) {
+      exitEditOnNextAssumptionsUpdateRef.current = false;
+      setIsAssumptionsEditing(false);
+    }
+  }, [forecastAssumptions]);
 
   const handleRefreshAssumptions = async () => {
     const refreshed = await refreshForecastAssumptionsFromGitHub();
@@ -76,6 +84,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   };
 
   const handleBeginAssumptionsEdit = async () => {
+    exitEditOnNextAssumptionsUpdateRef.current = false;
     const refreshed = await refreshForecastAssumptionsFromGitHub();
     setDraftAssumptions(normalizeForecastAssumptions(refreshed ?? forecastAssumptions));
     setIsAssumptionsEditing(true);
@@ -84,7 +93,11 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const handleSaveAssumptions = async () => {
     const saved = await saveForecastAssumptionsToGitHub(draftAssumptions);
     if (saved) {
-      setIsAssumptionsEditing(false);
+      // Defer exiting edit mode until the next render where the live
+      // forecastAssumptions (updated by the save) is visible. This prevents
+      // a window where editing=false but the context still holds the pre-save
+      // assumptions, which would cause the calc to temporarily revert.
+      exitEditOnNextAssumptionsUpdateRef.current = true;
     }
   };
   const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
