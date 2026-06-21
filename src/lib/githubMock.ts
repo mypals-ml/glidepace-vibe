@@ -205,6 +205,7 @@ function mapTaskToGraphQLNode(task: Task, projectId = 'PVT_1', includeComments =
 // Per-project field storage for in-memory persistence during the session
 // ---------------------------------------------------------------------------
 const MOCK_PROJECT_FIELDS_MAP: Record<string, GitHubProjectV2Field[]> = {};
+const MOCK_PROJECT_READMES_MAP: Record<string, string> = {};
 
 function getFieldsForProject(projectId: string) {
   if (!MOCK_PROJECT_FIELDS_MAP[projectId]) {
@@ -453,6 +454,36 @@ export async function handleMockGraphQL(query: string, variables: MockVariables)
           }
         }
       }
+    };
+  }
+
+  if (query.includes('updateProjectV2(')) {
+    const projectId = getVar('projectId');
+    const readme = getVar('readme');
+    if (typeof projectId === 'string' && typeof readme === 'string') {
+      MOCK_PROJECT_READMES_MAP[projectId] = readme;
+    }
+
+    return {
+      data: {
+        updateProjectV2: {
+          projectV2: {
+            id: projectId,
+            readme,
+          },
+        },
+      },
+    };
+  }
+
+  if (query.includes('readme') && query.includes('node(id: $projectId)')) {
+    const projectId = variables.projectId || 'PVT_1';
+    return {
+      data: {
+        node: {
+          readme: MOCK_PROJECT_READMES_MAP[projectId] ?? '',
+        },
+      },
     };
   }
 

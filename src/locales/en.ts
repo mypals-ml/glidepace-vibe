@@ -170,6 +170,7 @@ const en = {
       burndownDailyWorkload: "Daily workload · next 10 days",
       burndownNoOpenWork: "No open work is scheduled in the next 10 days.",
       burndownAssumptions: "Assumptions",
+      forecastAssumptionsSaveFailed: "Failed to save forecast assumptions to GitHub.",
       burndownForecastInputs: "Forecast inputs",
       burndownAssumptionStartDate: "Start date",
       burndownAssumptionCapacity: "Capacity",

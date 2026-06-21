@@ -170,6 +170,7 @@ const zhCN = {
       burndownDailyWorkload: "每日工作量 · 未来 10 天",
       burndownNoOpenWork: "未来 10 天没有计划中的未完成工作。",
       burndownAssumptions: "假设",
+      forecastAssumptionsSaveFailed: "无法将预测假设保存到 GitHub。",
       burndownForecastInputs: "预测输入",
       burndownAssumptionStartDate: "开始日期",
       burndownAssumptionCapacity: "容量",

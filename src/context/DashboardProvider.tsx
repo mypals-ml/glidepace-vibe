@@ -11,6 +11,7 @@ import { useDashboardTasks } from '../hooks/useDashboardTasks';
 import type { FetchProjectTasksOptions } from '../hooks/useDashboardTasks';
 import { useDashboardSync } from '../hooks/useDashboardSync';
 import { useFieldSetup } from '../hooks/useFieldSetup';
+import { useForecastAssumptions } from '../hooks/useForecastAssumptions';
 import { createRecentLocalReorderTracker } from '../lib/reorderSyncUtils';
 import type { ViewportAnchor } from '../lib/viewportAnchor';
 
@@ -138,6 +139,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // 3. Compute effective tokens (Must be after projects hook)
   const projectToken = auth.getTokenById(projects.selectedProject?.accountId);
+
+  const {
+    forecastAssumptions,
+    updateForecastAssumptions,
+    isLoadingForecastAssumptions,
+  } = useForecastAssumptions({
+    projectId: projects.selectedProject?.id,
+    token: projectToken,
+    onSaveError: (message) => showToast(message, 'error'),
+  });
 
   // 4. Tasks Hook (Needs Auth, UI, and Project State)
   const requestStartDateDecision = useCallback((affectedTasks: Task[]): Promise<'auto' | 'locked' | 'ask'> => {
@@ -395,6 +406,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     ...sync,
     dateSettings,
     updateDateSettings,
+    forecastAssumptions,
+    updateForecastAssumptions,
+    isLoadingForecastAssumptions,
     createProjectV2Field: handleCreateProjectV2Field,
     isProjectSettingsModalOpen,
     setIsProjectSettingsModalOpen,

@@ -21,7 +21,9 @@ import {
   UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION,
   CLEAR_PROJECT_ITEM_FIELD_VALUE_MUTATION,
   UPDATE_PROJECT_ITEM_POSITION_MUTATION,
-  CREATE_PROJECT_V2_FIELD_MUTATION
+  CREATE_PROJECT_V2_FIELD_MUTATION,
+  GET_PROJECT_README_QUERY,
+  UPDATE_PROJECT_README_MUTATION,
 } from './githubQueries';
 
 export {
@@ -614,6 +616,35 @@ export async function updateProjectV2ItemPosition(projectId: string, itemId: str
     return true;
   } catch (e) {
     console.error('Update item position failed:', e);
+    return false;
+  }
+}
+
+export async function fetchProjectV2Readme(projectId: string, token: string): Promise<string | null> {
+  try {
+    const json = await fetchGitHubGraphQL(GET_PROJECT_README_QUERY, { projectId }, token);
+    if (json.errors) {
+      console.error('Fetch project readme failed:', json.errors);
+      return null;
+    }
+    const readme = json.data?.node?.readme;
+    return typeof readme === 'string' ? readme : '';
+  } catch (error) {
+    console.error('Fetch project readme failed:', error);
+    return null;
+  }
+}
+
+export async function updateProjectV2Readme(projectId: string, readme: string, token: string): Promise<boolean> {
+  try {
+    const json = await fetchGitHubGraphQL(UPDATE_PROJECT_README_MUTATION, { projectId, readme }, token);
+    if (json.errors) {
+      console.error('Update project readme failed:', json.errors);
+      return false;
+    }
+    return Boolean(json.data?.updateProjectV2?.projectV2?.id);
+  } catch (error) {
+    console.error('Update project readme failed:', error);
     return false;
   }
 }

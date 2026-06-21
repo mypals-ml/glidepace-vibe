@@ -40,23 +40,19 @@ import {
 
 export function ForecastDashboard({ className = '' }: { className?: string }) {
   const { t, i18n } = useTranslation();
-  const { filteredTasks, isLoadingTasks, selectedProject } = useDashboard();
+  const {
+    filteredTasks,
+    isLoadingTasks,
+    selectedProject,
+    forecastAssumptions,
+    updateForecastAssumptions,
+    isLoadingForecastAssumptions,
+  } = useDashboard();
   const isCompactWorkerLabels = useMediaQuery('(max-width: 639px)');
   const isNarrowWorkerLabels = useMediaQuery('(max-width: 1023px)');
   const [isForecastRulesOpen, setIsForecastRulesOpen] = useState(false);
-  const [capacityDaysPerWeek, setCapacityDaysPerWeek] = useState(5);
-  const [statusRemainingPercent, setStatusRemainingPercent] = useState({
-    draft: 0,
-    todo: 100,
-    inProgress: 50,
-    inReview: 20,
-    done: 0,
-    other: 50,
-  });
-  const forecastAssumptions = useMemo(() => ({
-    capacityDaysPerWeek,
-    statusRemainingPercent,
-  }), [capacityDaysPerWeek, statusRemainingPercent]);
+  const { capacityDaysPerWeek, statusRemainingPercent } = forecastAssumptions;
+  const isAssumptionsLoading = isLoadingTasks || isLoadingForecastAssumptions;
   const chartData = useMemo(() => buildForecastDashboardData(filteredTasks, new Date(), forecastAssumptions), [filteredTasks, forecastAssumptions]);
   const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
   const chartGuideTicks = [
@@ -361,7 +357,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
           <div className="mb-5">
             <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownAssumptions', 'Assumptions')}</h2>
           </div>
-          {isLoadingTasks ? (
+          {isAssumptionsLoading ? (
             <ForecastDashboardSectionLoader variant="assumptions" label={t('dashboard.loadingTasks')} />
           ) : (
             <>
@@ -378,7 +374,10 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                   max={35}
                   step={0.1}
                   suffix={t('dashboard.burndownAssumptionCapacityUnit', 'd / week')}
-                  onChange={setCapacityDaysPerWeek}
+                  onChange={(value) => updateForecastAssumptions((current) => ({
+                    ...current,
+                    capacityDaysPerWeek: value,
+                  }))}
                 />
                 <AssumptionInput label={t('dashboard.burndownAssumptionWorkers', 'Workers')} value={String(assumptionWorkerCount)} className="sm:col-span-2" readOnly />
               </div>
@@ -394,9 +393,12 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                       value={status.value}
                       className={index >= 4 ? 'md:col-span-2' : ''}
                       onChange={(value) => {
-                        setStatusRemainingPercent((current) => ({
+                        updateForecastAssumptions((current) => ({
                           ...current,
-                          [status.key]: value,
+                          statusRemainingPercent: {
+                            ...current.statusRemainingPercent,
+                            [status.key]: value,
+                          },
                         }));
                       }}
                     />

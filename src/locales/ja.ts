@@ -170,6 +170,7 @@ const ja = {
       burndownDailyWorkload: "日別負荷 · 次の10日間",
       burndownNoOpenWork: "今後10日間に予定された未完了作業はありません。",
       burndownAssumptions: "前提条件",
+      forecastAssumptionsSaveFailed: "予測の前提条件を GitHub に保存できませんでした。",
       burndownForecastInputs: "予測入力",
       burndownAssumptionStartDate: "開始日",
       burndownAssumptionCapacity: "キャパシティ",
