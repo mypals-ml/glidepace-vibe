@@ -12,7 +12,9 @@ export function DashboardViewSwitcher() {
     dashboardView, 
     setDashboardView, 
     isChartVisible, 
-    setIsChartVisible 
+    setIsChartVisible,
+    setIsTaskDetailsOpen,
+    setIsCreateMode
   } = useDashboard();
 
   const currentTab = !isChartVisible ? 'list' : dashboardView;
@@ -22,6 +24,12 @@ export function DashboardViewSwitcher() {
       setIsChartVisible(false);
     } else {
       setIsChartVisible(true);
+      if (view === 'forecast') {
+        // Dismiss task details (and create) when switching to Forecast Dashboard.
+        // Addresses: if details view showing, click Forecast button should dismiss it.
+        setIsTaskDetailsOpen(false);
+        setIsCreateMode(false);
+      }
       setDashboardView(view);
     }
   };

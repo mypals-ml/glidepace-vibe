@@ -45,7 +45,14 @@ vi.mock('react-i18next', async (importOriginal) => {
   return {
     ...actual,
     useTranslation: () => ({
-      t: (key: string, fallback?: string) => fallback || key,
+      t: (key: string, fallback?: string | { defaultValue?: string; count?: string | number }) => {
+        if (typeof fallback === 'string') return fallback || key;
+        if (fallback && typeof fallback === 'object') {
+          const template = fallback.defaultValue || key;
+          return template.replace('{{count}}', String(fallback.count ?? ''));
+        }
+        return key;
+      },
       i18n: { language: 'en' },
     }),
   };
@@ -57,6 +64,8 @@ vi.mock('../../../context/DashboardContext', () => ({
 
 describe('ForecastDashboard loading state', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-19T12:00:00Z'));
     isCompactViewport = false;
     isNarrowViewport = false;
     dashboardState = {
@@ -164,7 +173,8 @@ describe('ForecastDashboard loading state', () => {
     const startDateInput = screen.getByLabelText('Start date');
     expect((startDateInput as HTMLInputElement).value).toBe('2026/06/19');
     expect((startDateInput as HTMLInputElement).readOnly).toBe(true);
-    expect(startDateInput.className).toContain('bg-slate-100');
+    expect(startDateInput.className).toContain('bg-slate-50');
+    expect(startDateInput.className).not.toContain('shadow');
 
     const capacityInput = screen.getByLabelText('Capacity');
     fireEvent.change(capacityInput, { target: { value: '4' } });
@@ -173,12 +183,41 @@ describe('ForecastDashboard loading state', () => {
     const todoInput = screen.getByLabelText('Todo');
     fireEvent.change(todoInput, { target: { value: '75' } });
     expect((todoInput as HTMLInputElement).value).toBe('75');
-    expect(todoInput.parentElement?.className).toContain('bg-white');
+    expect(todoInput.closest('label')?.className).toContain('bg-slate-100');
+    expect(todoInput.parentElement?.className).not.toContain('shadow');
 
     const workersInput = screen.getByLabelText('Workers');
     expect((workersInput as HTMLInputElement).value).toBe('1');
     expect((workersInput as HTMLInputElement).readOnly).toBe(true);
-    expect(workersInput.className).toContain('bg-slate-100');
+    expect(workersInput.className).toContain('bg-slate-50');
+    expect(workersInput.className).not.toContain('shadow');
+  });
+
+  it('translates status legend labels via exact match and status-key fallback', () => {
+    dashboardState = {
+      filteredTasks: [{
+        ...tasks[0],
+        status: 'Ready for deploy',
+        progress: 0,
+      }],
+      isLoadingTasks: false,
+    };
+
+    render(<ForecastDashboard />);
+
+    expect(screen.getAllByText('Todo').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Ready for deploy')).toBeNull();
+  });
+
+  it('uses matching colors for status workload assumptions', () => {
+    render(<ForecastDashboard />);
+
+    expect(screen.getByLabelText('Draft').closest('label')?.className).toContain('bg-slate-100');
+    expect(screen.getByLabelText('Todo').closest('label')?.className).toContain('bg-slate-100');
+    expect(screen.getByLabelText('In progress').closest('label')?.className).toContain('bg-yellow-50');
+    expect(screen.getByLabelText('In review').closest('label')?.className).toContain('bg-yellow-50');
+    expect(screen.getByLabelText('Done').closest('label')?.className).toContain('bg-purple-100');
+    expect(screen.getByLabelText('Other').closest('label')?.className).toContain('bg-slate-100');
   });
 
   it('anchors start and completion labels and side-places today when distinct', () => {

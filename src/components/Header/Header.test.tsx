@@ -72,4 +72,17 @@ describe('Header', () => {
     expect(screen.queryByText('GL')).toBeNull();
     expect(screen.queryByText('GP')).toBeNull();
   });
+
+  it('keeps fixed spacing around the mobile app mark divider when header compresses', () => {
+    const { container } = render(<Header />);
+    const header = container.querySelector('header');
+    expect(header).toBeTruthy();
+    header?.classList.add('header-compressed');
+
+    const divider = container.querySelector('.h-6.w-px.bg-slate-200');
+    expect(divider).toBeTruthy();
+    expect(divider?.classList.contains('hidden')).toBe(false);
+    expect((divider as HTMLElement).style.marginLeft).toBe('var(--header-divider-gap)');
+    expect((divider as HTMLElement).style.marginRight).toBe('var(--header-divider-gap)');
+  });
 });

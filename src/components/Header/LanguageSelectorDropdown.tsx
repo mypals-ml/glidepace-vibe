@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSortedLocales } from '../../hooks/useLocales';
+import { changeUiLanguage } from '../../lib/uiLocaleStorage';
+import { UI_LAYER } from '../../lib/uiLayering';
 import { OverflowItem, useIsOverflowItemVisible } from '@fluentui/react-overflow';
 
 /**
@@ -44,13 +46,13 @@ export function LanguageSelectorDropdown() {
       </div>
 
       {isOpen && (
-        <div className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-[72px] sm:top-full mt-2 w-auto sm:w-44 bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60">
+        <div className={`fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-[var(--app-header-height)] sm:top-full mt-2 w-auto sm:w-44 bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] ${UI_LAYER.headerDropdown} overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60`}>
           <div className="p-1">
             {sortedLocales.map((locale) => (
               <button
                 key={locale.code}
                 onClick={() => {
-                  i18n.changeLanguage(locale.code);
+                  changeUiLanguage(i18n, locale.code);
                   setIsOpen(false);
                 }}
                 className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${i18n.language === locale.code ? 'bg-primary/5 text-primary' : 'text-slate-600 hover:bg-slate-50'}`}

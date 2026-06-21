@@ -9,7 +9,6 @@ import { Button } from '../UI/Button';
 import { ConfirmationModal } from '../UI/ConfirmationModal';
 import { ResizableTextarea } from '../UI/ResizableTextarea';
 import { calculateTargetDate } from '../../lib/dateUtils';
-import { getStartDateForCal, getTargetDateForCal } from '../../lib/githubTaskMapper';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
 import { parseSlashGroupPath, serializeSlashGroupPath } from '../../lib/taskGroupUtils';
 import { TaskDetailsCopyButton } from './TaskDetailsCopyButton';
@@ -233,6 +232,11 @@ export function TaskDetailsContent({ task, t, isCreateMode = false }: { task: Ta
     }
   };
 
+  const handleStartDateChange = (value: string) => {
+    if (!task) return;
+    void updateTaskDates(task, value || null, undefined);
+  };
+
   const handleStartPositionedCreate = (placement: 'above' | 'below') => {
     if (!task) return;
     setPendingTaskInsertPosition({ targetTaskId: task.id, placement });
@@ -335,6 +339,9 @@ export function TaskDetailsContent({ task, t, isCreateMode = false }: { task: Ta
   }
 
   if (!task) return null;
+
+  const detailStartDateValue = task.startDate || task.tempStartDate || '';
+  const detailTargetDateValue = task.targetDate || task.tempTargetDate || '';
 
   return (
     <>
@@ -497,8 +504,8 @@ export function TaskDetailsContent({ task, t, isCreateMode = false }: { task: Ta
             <div className="flex items-center gap-2">
               <input
                 type="date"
-                value={getStartDateForCal(task)}
-                onChange={(e) => updateTaskDates(task, e.target.value || null, undefined)}
+                value={detailStartDateValue}
+                onChange={(e) => handleStartDateChange(e.target.value)}
                 className="min-w-0 flex-1 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-1.5 cursor-pointer outline-none focus:ring focus:ring-primary/20"
               />
             </div>
@@ -507,7 +514,7 @@ export function TaskDetailsContent({ task, t, isCreateMode = false }: { task: Ta
             <label className="text-xs font-medium text-slate-600 block mb-2">{t('dashboard.targetDate')}</label>
             <input
               type="date"
-              value={getTargetDateForCal(task)}
+              value={detailTargetDateValue}
               readOnly
               className="w-full text-sm text-slate-400 bg-slate-100 border border-slate-200 rounded p-1.5 cursor-not-allowed outline-none"
               title={t('dashboard.targetDateAutoCalc', 'Target date is calculated based on start date and estimate')}

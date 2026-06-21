@@ -459,26 +459,112 @@ describe('TimelineChart focus behavior', () => {
     });
 
     expect(taskRow?.getAttribute('style')).toContain('transform: translateY(72px)');
+    expect(taskRow?.className).toContain('shadow-lg');
+    expect(taskRow?.className).toContain('ring-primary/20');
+    expect(taskRow?.className).toContain('bg-primary/[0.04]');
     expect(taskBar.getAttribute('style')).toContain('transform: translateX(16px)');
   });
 
-  it('adds a mobile gantt context menu action that arms task bar movement', () => {
+  it('lets dependency lines receive hover events through empty gantt row space', () => {
+    render(<TimelineChart />);
+
+    const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
+    const taskRow = taskBar.parentElement;
+
+    expect(taskRow?.className).toContain('pointer-events-none');
+    expect(taskBar.className).toContain('pointer-events-auto');
+
+    const linkHandles = taskRow?.querySelectorAll('[data-gantt-link-handle="true"]') ?? [];
+    expect(linkHandles[0]?.className).toContain('pointer-events-none');
+    expect(linkHandles[1]?.className).toContain('pointer-events-auto');
+  });
+
+  it('does not show a mobile gantt context menu move action', () => {
     isMobileViewport = true;
-    const setSelectedTaskId = vi.fn();
-    dashboardState = {
-      ...dashboardState,
-      setSelectedTaskId,
-      selectedTaskId: null,
-    };
 
     render(<TimelineChart />);
 
     const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
     fireEvent.contextMenu(taskBar, { clientX: 120, clientY: 120 });
 
-    fireEvent.click(screen.getByRole('button', { name: /move task/i }));
+    expect(screen.queryByRole('button', { name: /move task/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /addSuccessors/i })).toBeTruthy();
+  });
 
-    expect(setSelectedTaskId).toHaveBeenCalledWith('task-1');
-    expect(taskBar.getAttribute('style')).toContain('touch-action: none');
+  it('hides gantt link handles while a task bar is being dragged', () => {
+    const { container } = render(<TimelineChart />);
+
+    const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
+    fireEvent.pointerDown(taskBar, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 100,
+      clientY: 100,
+    });
+
+    const linkHandles = container.querySelectorAll('[data-gantt-link-handle="true"]');
+    const taskOneHandles = Array.from(linkHandles).filter((handle) =>
+      handle.className.includes('pointer-events-none') && handle.className.includes('opacity-0')
+    );
+
+    expect(taskOneHandles.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('uses grab on the start link handle and crosshair on the end link handle while establishing a link', () => {
+    const { container } = render(<TimelineChart />);
+
+    const taskRows = container.querySelectorAll('[data-gantt-task-bar="true"]');
+    const firstTaskBar = taskRows[0]?.parentElement;
+    const firstTaskHandles = firstTaskBar?.querySelectorAll('[data-gantt-link-handle="true"]') ?? [];
+    const endLinkHandle = firstTaskHandles[1];
+
+    fireEvent.mouseDown(endLinkHandle!, { button: 0, clientX: 200, clientY: 36 });
+
+    const secondTaskBar = taskRows[1]?.parentElement;
+    const secondTaskStartHandle = secondTaskBar?.querySelectorAll('[data-gantt-link-handle="true"]')[0];
+
+    expect(secondTaskStartHandle?.className).toContain('cursor-grab');
+    expect(firstTaskHandles[1]?.className).toContain('cursor-crosshair');
+  });
+
+  it('keeps the start link handle hidden until a link drag is in progress', () => {
+    const { container } = render(<TimelineChart />);
+
+    const firstTaskBar = container.querySelectorAll('[data-gantt-task-bar="true"]')[0]?.parentElement;
+    const startLinkHandle = firstTaskBar?.querySelectorAll('[data-gantt-link-handle="true"]')[0];
+
+    expect(startLinkHandle?.className).toContain('opacity-0');
+    expect(startLinkHandle?.className).toContain('pointer-events-none');
+    expect(startLinkHandle?.className).not.toContain('group-hover:opacity-100');
+
+    fireEvent.mouseEnter(startLinkHandle!);
+
+    expect(startLinkHandle?.className).toContain('opacity-0');
+    expect(startLinkHandle?.className).not.toContain('ring-emerald-400/80');
+    expect(startLinkHandle?.className).not.toContain('ring-indigo-300/60');
+  });
+
+  it('highlights the gantt drop destination row while vertically dragging a task bar', () => {
+    render(<TimelineChart />);
+
+    const taskBar = screen.getByRole('button', { name: /#1 task 1/i });
+    fireEvent.pointerDown(taskBar, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(taskBar, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      clientX: 100,
+      clientY: 172,
+    });
+
+    const destinationRow = screen.getByRole('button', { name: /#2 task 2/i }).parentElement;
+    expect(destinationRow?.className).toContain('border-primary/30');
+    expect(destinationRow?.className).toContain('border-t-[3px]');
   });
 });

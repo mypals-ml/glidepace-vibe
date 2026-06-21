@@ -7,7 +7,7 @@ import {
   REMOVE_ASSIGNEES_MUTATION,
   UPDATE_DRAFT_ASSIGNEES_MUTATION
 } from '../../lib/githubQueries';
-import { getProjectFixedStartDateMode, getExistingPredecessorIds, persistDependencyFieldCorrections, preserveUniqueIds, uniqueTasks } from './taskFieldHelpers';
+import { findProjectFieldId, getProjectFixedStartDateMode, getExistingPredecessorIds, persistDependencyFieldCorrections, preserveUniqueIds, uniqueTasks } from './taskFieldHelpers';
 import type { Task, TaskStatus, User, GitHubProjectV2Field, GitHubAssignee, AutoUpdateStartDateMode, FixedSuccessorStartDateMode } from '../../types';
 import type { DashboardTasksCore } from './types';
 
@@ -165,9 +165,35 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
       // Accumulate every field write for this item, then persist them all in a
       // single aliased mutation (one HTTP round trip instead of one per field).
       const changes: ProjectV2FieldWrite[] = [];
+      // The field name lets the service resolve an issue-backed field (e.g. the
+      // org-level Start/Target date) when GitHub rejects the ProjectV2 write.
+      const fieldNameFor = (fieldId: string) => projectFields.find(field => field.id === fieldId)?.name;
       const addSet = (fieldId: string | undefined, value: Record<string, string | number | boolean | undefined>) => {
-        if (fieldId) changes.push({ kind: 'set', fieldId, value });
+        if (fieldId) changes.push({ kind: 'set', fieldId, value, name: fieldNameFor(fieldId) });
       };
+      const resolveKnownProjectFieldId = (fieldId: string | undefined) => {
+        if (!fieldId) return undefined;
+        return projectFields.length === 0 || projectFields.some(field => field.id === fieldId)
+          ? fieldId
+          : undefined;
+      };
+      const resolveDateFieldId = (configuredId: string | undefined, taskFieldId: string | undefined, names: string[]) =>
+        resolveKnownProjectFieldId(configuredId)
+        || resolveKnownProjectFieldId(taskFieldId)
+        || findProjectFieldId(projectFields, {
+          names,
+          dataTypes: ['DATE'],
+          typenames: ['ProjectV2Field'],
+        });
+      const resolveProjectFieldId = (
+        configuredId: string | undefined,
+        taskFieldId: string | undefined,
+        names: string[],
+        dataTypes?: string[],
+        typenames?: string[]
+      ) => resolveKnownProjectFieldId(configuredId)
+        || resolveKnownProjectFieldId(taskFieldId)
+        || findProjectFieldId(projectFields, { names, dataTypes, typenames });
 
       // Auto-calculate new target date if dependencies changed
       let finalTargetDate = targetDate;
@@ -183,22 +209,34 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
       }
 
       if (shouldClearStartDate) {
-        const fieldId = dateSettings.startDateFieldId || task.projectFieldIds?.startDate;
-        if (fieldId) changes.push({ kind: 'clear', fieldId });
-      } else if (startDate) {
-        const fieldId = dateSettings.startDateFieldId || task.projectFieldIds?.startDate;
-        addSet(fieldId, { date: formatToGitHubDate(startDate) });
+        const fieldId = resolveDateFieldId(dateSettings.startDateFieldId, task.projectFieldIds?.startDate, ['start']);
+        if (fieldId) changes.push({ kind: 'clear', fieldId, name: fieldNameFor(fieldId) });
+      } else if (normalizedStartDate) {
+        const fieldId = resolveDateFieldId(dateSettings.startDateFieldId, task.projectFieldIds?.startDate, ['start']);
+        addSet(fieldId, { date: formatToGitHubDate(normalizedStartDate) });
       }
       if (finalTargetDate) {
-        const fieldId = dateSettings.targetDateFieldId || task.projectFieldIds?.targetDate;
+        const fieldId = resolveDateFieldId(dateSettings.targetDateFieldId, task.projectFieldIds?.targetDate, ['target', 'end']);
         addSet(fieldId, { date: formatToGitHubDate(finalTargetDate) });
       }
       if (estimate !== undefined) {
-        const fieldId = dateSettings.estimateFieldId || task.projectFieldIds?.estimate;
+        const fieldId = resolveProjectFieldId(
+          dateSettings.estimateFieldId,
+          task.projectFieldIds?.estimate,
+          ['estimate', 'duration', 'days', 'hours'],
+          ['NUMBER'],
+          ['ProjectV2Field']
+        );
         addSet(fieldId, { number: estimate });
       }
       if (estimateUnit !== undefined) {
-        const fieldId = dateSettings.estimateUnitFieldId || task.projectFieldIds?.estimateUnit;
+        const fieldId = resolveProjectFieldId(
+          dateSettings.estimateUnitFieldId,
+          task.projectFieldIds?.estimateUnit,
+          ['estimate unit', 'unit', 'category'],
+          ['SINGLE_SELECT', 'TEXT'],
+          ['ProjectV2SingleSelectField', 'ProjectV2Field']
+        );
         if (fieldId) {
           const globalField = projectFields.find(f => f.id === fieldId);
           const isSingleSelect =
@@ -226,13 +264,27 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
       }
 
       if (changes.length > 0) {
-        anySuccess = await batchUpdateProjectV2ItemFields(selectedProject.id, task.itemId!, changes, githubToken);
+        anySuccess = await batchUpdateProjectV2ItemFields(
+          selectedProject.id,
+          task.itemId!,
+          changes,
+          githubToken,
+          { issueId: task.contentId }
+        );
       }
 
       if (anySuccess) {
         await persistDependencyFieldCorrections(dependencyRepair.corrections, nextTasks, selectedProject.id, githubToken, dateSettings);
-        if (!skipRefresh) fetchSingleProjectItem(task.itemId, githubToken);
+        // Skip immediate fetchSingle when we just edited dates: avoids reading potentially stale GH value
+        // due to eventual consistency (webhook 'refresh_task' will reconcile later with authoritative data).
+        // This + always-adopt-dates in merge prevents masking external GH Start Date edits.
+        const didDateEdit = startDate !== undefined || targetDate !== undefined;
+        if (!skipRefresh && !didDateEdit) fetchSingleProjectItem(task.itemId, githubToken);
       } else {
+        console.warn('[useTaskMutations] updateTaskDates persisted no changes; reverting optimistic state', {
+          taskId: task.itemId,
+          changesCount: changes.length,
+        });
         setTasks(oldTasks);
       }
       return anySuccess;

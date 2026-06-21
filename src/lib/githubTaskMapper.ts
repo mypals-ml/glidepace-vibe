@@ -42,6 +42,18 @@ export const PROJECT_ITEM_FRAGMENT = `
       assignees(first: 20) {
         nodes { id login name avatarUrl }
       }
+      issueFieldValues(first: 30) {
+        nodes {
+          __typename
+          ... on IssueFieldDateValue {
+            date: value
+            field {
+              ... on Node { id }
+              ... on IssueFieldCommon { name }
+            }
+          }
+        }
+      }
     }
     ... on PullRequest {
       id
@@ -122,6 +134,15 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   
   const content = item.content;
   const fieldValues = (item.fieldValues?.nodes || []).filter(Boolean);
+  const findConfiguredOrNamedField = (
+    configuredFieldId: string | undefined,
+    matchesName: (name: string) => boolean
+  ) => {
+    const configured = configuredFieldId
+      ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === configuredFieldId)
+      : undefined;
+    return configured || fieldValues.find((f: GitHubFieldValue) => matchesName(f.field?.name?.toLowerCase() || ''));
+  };
 
   const statusField = fieldValues.find((f: GitHubFieldValue) => 
     f.field?.name?.toLowerCase() === 'status' || 
@@ -130,27 +151,46 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   const status = statusField?.name || 'Todo';
 
   // Find Start Date
-  const startDateField = dateSettings?.startDateFieldId 
-    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.startDateFieldId)
-    : fieldValues.find((f: GitHubFieldValue) => f.field?.name?.toLowerCase().includes('start'));
+  const startDateField = findConfiguredOrNamedField(
+    dateSettings?.startDateFieldId,
+    name => name.includes('start')
+  );
   
   // Find Target Date
-  const targetDateField = dateSettings?.targetDateFieldId
-    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.targetDateFieldId)
-    : fieldValues.find((f: GitHubFieldValue) => f.field?.name?.toLowerCase().includes('target') || f.field?.name?.toLowerCase().includes('end'));
+  const targetDateField = findConfiguredOrNamedField(
+    dateSettings?.targetDateFieldId,
+    name => name.includes('target') || name.includes('end')
+  );
   
   // Also check Iteration fields if start/target dates are missing
   const iterationField = fieldValues.find((f: GitHubFieldValue) => f.__typename === 'ProjectV2ItemFieldIterationValue');
 
-  const actualStartDate = startDateField?.date || iterationField?.startDate || '';
-  const actualIterationEnd = (iterationField && iterationField.startDate) 
+  // Org-level issue-backed date fields (Start/Target date) live on the issue and
+  // never appear in the ProjectV2 item fieldValues, so read them from the issue's
+  // own field values as a fallback when no project value is present.
+  const issueDateNodes = (content?.issueFieldValues?.nodes || []).filter(
+    (n): n is { date: string; field: { name: string } } =>
+      !!n && typeof n.date === 'string' && !!n.date && !!n.field?.name
+  );
+  const findIssueDate = (matchesName: (name: string) => boolean): string =>
+    issueDateNodes.find((n) => matchesName(n.field.name.toLowerCase()))?.date || '';
+
+  const actualStartDate = startDateField?.date || findIssueDate(name => name.includes('start')) || iterationField?.startDate || '';
+  const actualIterationEnd = (iterationField && iterationField.startDate)
     ? new Date(new Date(iterationField.startDate).getTime() + (iterationField.duration || 0) * 86400000).toISOString().split('T')[0]
     : '';
-  const actualTargetDate = targetDateField?.date || actualIterationEnd;
+  const actualTargetDate = targetDateField?.date || findIssueDate(name => name.includes('target') || name.includes('end')) || actualIterationEnd;
   
   // Find Estimate
   const estimateField = dateSettings?.estimateFieldId
-    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.estimateFieldId)
+    ? (fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.estimateFieldId)
+      || fieldValues.find((f: GitHubFieldValue) => 
+        f.__typename === 'ProjectV2ItemFieldNumberValue' && 
+        (f.field?.name?.toLowerCase().includes('estimate') || 
+         f.field?.name?.toLowerCase().includes('duration') || 
+         f.field?.name?.toLowerCase().includes('days') || 
+         f.field?.name?.toLowerCase().includes('hours'))
+      ))
     : fieldValues.find((f: GitHubFieldValue) => 
         f.__typename === 'ProjectV2ItemFieldNumberValue' && 
         (f.field?.name?.toLowerCase().includes('estimate') || 
@@ -163,7 +203,13 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
 
   // Find Estimate Unit (Category)
   const unitField = dateSettings?.estimateUnitFieldId
-    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.estimateUnitFieldId)
+    ? (fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.estimateUnitFieldId)
+      || fieldValues.find((f: GitHubFieldValue) => 
+        (f.__typename === 'ProjectV2ItemFieldTextValue' || f.__typename === 'ProjectV2ItemFieldSingleSelectValue') && 
+        (f.field?.name?.toLowerCase().includes('estimate unit') || 
+         f.field?.name?.toLowerCase().includes('unit') || 
+         f.field?.name?.toLowerCase().includes('category'))
+      ))
     : fieldValues.find((f: GitHubFieldValue) => 
         (f.__typename === 'ProjectV2ItemFieldTextValue' || f.__typename === 'ProjectV2ItemFieldSingleSelectValue') && 
         (f.field?.name?.toLowerCase().includes('estimate unit') || 
@@ -175,7 +221,11 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
 
   // Find Successors
   const successorField = dateSettings?.successorFieldId
-    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.successorFieldId)
+    ? (fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.successorFieldId)
+      || fieldValues.find((f: GitHubFieldValue) => 
+        (f.__typename === 'ProjectV2ItemFieldTextValue') && 
+        f.field?.name?.toLowerCase().includes('successor')
+      ))
     : fieldValues.find((f: GitHubFieldValue) => 
         (f.__typename === 'ProjectV2ItemFieldTextValue') && 
         f.field?.name?.toLowerCase().includes('successor')
@@ -186,7 +236,11 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
 
   // Find Predecessors
   const predecessorField = dateSettings?.predecessorFieldId
-    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.predecessorFieldId)
+    ? (fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.predecessorFieldId)
+      || fieldValues.find((f: GitHubFieldValue) => 
+        (f.__typename === 'ProjectV2ItemFieldTextValue') && 
+        f.field?.name?.toLowerCase().includes('predecessor')
+      ))
     : fieldValues.find((f: GitHubFieldValue) => 
         (f.__typename === 'ProjectV2ItemFieldTextValue') && 
         f.field?.name?.toLowerCase().includes('predecessor')
@@ -197,7 +251,11 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
 
   // Find Group Path
   const groupPathField = dateSettings?.groupPathFieldId
-    ? fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.groupPathFieldId)
+    ? (fieldValues.find((f: GitHubFieldValue) => f.field?.id === dateSettings.groupPathFieldId)
+      || fieldValues.find((f: GitHubFieldValue) =>
+        f.__typename === 'ProjectV2ItemFieldTextValue' &&
+        (f.field?.name?.toLowerCase().includes('group path') || f.field?.name?.toLowerCase() === 'group')
+      ))
     : fieldValues.find((f: GitHubFieldValue) =>
         f.__typename === 'ProjectV2ItemFieldTextValue' &&
         (f.field?.name?.toLowerCase().includes('group path') || f.field?.name?.toLowerCase() === 'group')
@@ -269,13 +327,44 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
   });
   
   if (statusField?.field?.id) projectFieldIds.status = statusField.field.id;
-  if (startDateField?.field?.id) projectFieldIds.startDate = startDateField.field.id;
-  if (targetDateField?.field?.id) projectFieldIds.targetDate = targetDateField.field.id;
-  if (estimateField?.field?.id) projectFieldIds.estimate = estimateField.field.id;
-  if (unitField?.field?.id) projectFieldIds.estimateUnit = unitField.field.id;
-  if (successorField?.field?.id) projectFieldIds.successor = successorField.field.id;
-  if (predecessorField?.field?.id) projectFieldIds.predecessor = predecessorField.field.id;
-  if (groupPathField?.field?.id) projectFieldIds.groupPath = groupPathField.field.id;
+  // Prefer value-derived field IDs when present so stale saved settings cannot
+  // shadow externally edited GitHub fields. Fall back to configured IDs for
+  // first-time writes on items that do not yet have a value for the field.
+  if (startDateField?.field?.id) {
+    projectFieldIds.startDate = startDateField.field.id;
+  } else if (dateSettings?.startDateFieldId) {
+    projectFieldIds.startDate = dateSettings.startDateFieldId;
+  }
+  if (targetDateField?.field?.id) {
+    projectFieldIds.targetDate = targetDateField.field.id;
+  } else if (dateSettings?.targetDateFieldId) {
+    projectFieldIds.targetDate = dateSettings.targetDateFieldId;
+  }
+  if (estimateField?.field?.id) {
+    projectFieldIds.estimate = estimateField.field.id;
+  } else if (dateSettings?.estimateFieldId) {
+    projectFieldIds.estimate = dateSettings.estimateFieldId;
+  }
+  if (unitField?.field?.id) {
+    projectFieldIds.estimateUnit = unitField.field.id;
+  } else if (dateSettings?.estimateUnitFieldId) {
+    projectFieldIds.estimateUnit = dateSettings.estimateUnitFieldId;
+  }
+  if (successorField?.field?.id) {
+    projectFieldIds.successor = successorField.field.id;
+  } else if (dateSettings?.successorFieldId) {
+    projectFieldIds.successor = dateSettings.successorFieldId;
+  }
+  if (predecessorField?.field?.id) {
+    projectFieldIds.predecessor = predecessorField.field.id;
+  } else if (dateSettings?.predecessorFieldId) {
+    projectFieldIds.predecessor = dateSettings.predecessorFieldId;
+  }
+  if (groupPathField?.field?.id) {
+    projectFieldIds.groupPath = groupPathField.field.id;
+  } else if (dateSettings?.groupPathFieldId) {
+    projectFieldIds.groupPath = dateSettings.groupPathFieldId;
+  }
   
   if (statusField?.field?.options) {
     statusField.field.options.forEach((opt: { id: string, name: string, color?: string }) => {
@@ -360,8 +449,10 @@ export function mapProjectItemToTask(item: GitHubProjectItem, dateSettings?: Pro
     estimate: actualEstimate,
     estimateUnit: estimateUnit,
     groupPath,
-    tempStartDate: partialTask.tempStartDate,
-    tempTargetDate: partialTask.tempTargetDate,
+    // Force-clear temps when GH provides real values; ensures get*ForCal and UI prefer authoritative GH values
+    // (fixes external "Start Date" edits on GitHub being shadowed).
+    tempStartDate: actualStartDate ? undefined : partialTask.tempStartDate,
+    tempTargetDate: actualTargetDate ? undefined : partialTask.tempTargetDate,
     tempEstimate: partialTask.tempEstimate,
     tempEstimateUnit: partialTask.tempEstimateUnit,
     closedAt: partialTask.closedAt,

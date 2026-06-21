@@ -17,6 +17,28 @@ export function getProjectFixedStartDateMode(dateSettings: ProjectDateSettings):
   return dateSettings.fixedSuccessorStartDateMode || 'ask';
 }
 
+export function findProjectFieldId(
+  projectFields: GitHubProjectV2Field[],
+  matches: {
+    names: string[];
+    dataTypes?: string[];
+    typenames?: string[];
+  }
+): string | undefined {
+  const dataTypes = matches.dataTypes?.map(type => type.toLowerCase());
+  const typenames = matches.typenames;
+
+  return projectFields.find(field => {
+    const fieldName = field.name.toLowerCase();
+    const nameMatches = matches.names.some(name => fieldName.includes(name.toLowerCase()));
+    if (!nameMatches) return false;
+
+    const dataTypeMatches = !dataTypes || (field.dataType && dataTypes.includes(field.dataType.toLowerCase()));
+    const typenameMatches = !typenames || typenames.includes(field.__typename);
+    return dataTypeMatches && typenameMatches;
+  })?.id;
+}
+
 export function preserveUniqueIds(ids: string[]): string[] {
   return Array.from(new Set(ids.filter(Boolean)));
 }

@@ -32,7 +32,7 @@ const ForecastDashboard = lazy(() => import('./Dashboard/Views/ForecastDashboard
 
 function DashboardLayout() {
   const { t } = useTranslation();
-  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, isCreateMode, isTaskDetailsOpen, setIsTaskDetailsOpen, toast, hideToast, dashboardItems, registerViewportAnchorController, consumePendingViewportAnchor } = useDashboard();
+  const { hasProject, isChartVisible, dashboardView, tasks, selectedTaskId, isCreateMode, isTaskDetailsOpen, setIsTaskDetailsOpen, setIsCreateMode, toast, hideToast, dashboardItems, registerViewportAnchorController, consumePendingViewportAnchor } = useDashboard();
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const { width: sidebarWidth, isResizing, panelRef, onMouseDown } = useResizablePanel();
   const { width: detailsWidth, panelRef: detailsPanelRef, onMouseDown: onMouseDownDetails } = useResizablePanel({
@@ -92,21 +92,20 @@ function DashboardLayout() {
   }, [dashboardItems, consumePendingViewportAnchor, sidebarRef, timelineRef]);
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
-  const shouldRenderTaskDetails = isTaskDetailsOpen && (isCreateMode || selectedTask !== null);
-  const { setIsChartVisible } = useDashboard();
+  // Guard against rendering details/create panel on Forecast view (in addition to explicit dismiss on switch)
+  const shouldRenderTaskDetails = isTaskDetailsOpen && (isCreateMode || selectedTask !== null) && dashboardView !== 'forecast';
   const shouldShowTaskListPane = !isChartVisible || (isDesktop && dashboardView === 'gantt');
 
-
-  // Keep the default view aligned with the available layout for each viewport.
+  // Dismiss task details view when the user switches *to* Forecast (per bug #166).
+  // Only act on the transition; handlers in switchers also explicitly dismiss on click.
+  const prevDashboardViewRef = useRef(dashboardView);
   useEffect(() => {
-    if (isDesktop) {
-      setIsChartVisible(true);
-    } else {
-      // Narrow viewports open directly to the chart workspace; dashboardView
-      // defaults to forecast, while users can still switch back to the list.
-      setIsChartVisible(true);
+    if (prevDashboardViewRef.current !== 'forecast' && dashboardView === 'forecast' && isTaskDetailsOpen) {
+      setIsTaskDetailsOpen(false);
+      setIsCreateMode(false);
     }
-  }, [isDesktop, setIsChartVisible]);
+    prevDashboardViewRef.current = dashboardView;
+  }, [dashboardView, isTaskDetailsOpen, setIsTaskDetailsOpen, setIsCreateMode]);
 
   return (
     <div className="bg-background-main text-slate-800 font-sans h-full flex flex-col overflow-hidden relative">

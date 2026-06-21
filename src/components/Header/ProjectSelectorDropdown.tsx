@@ -5,6 +5,7 @@ import { useDashboard } from '../../context/DashboardContext';
 import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
 import { OverflowItem, useIsOverflowItemVisible } from '@fluentui/react-overflow';
+import { UI_LAYER } from '../../lib/uiLayering';
 
 export function ProjectSelectorDropdown() {
   const isTitleVisible = useIsOverflowItemVisible('project-selector-title');
@@ -58,7 +59,7 @@ export function ProjectSelectorDropdown() {
 
       {isOpen && (
         <div 
-          className="fixed sm:absolute left-4 right-4 sm:left-0 sm:right-auto top-[72px] sm:top-full mt-2 sm:min-w-[280px] max-w-[calc(100vw-2rem)] sm:max-w-[440px] w-auto sm:w-max bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60" 
+          className={`fixed sm:absolute left-4 right-4 sm:left-0 sm:right-auto top-[var(--app-header-height)] sm:top-full mt-2 sm:min-w-[280px] max-w-[calc(100vw-2rem)] sm:max-w-[440px] w-auto sm:w-max bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] ${UI_LAYER.headerDropdown} overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60`} 
           role="listbox"
         >
           <div className="p-2 space-y-1">

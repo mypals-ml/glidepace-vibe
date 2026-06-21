@@ -1,94 +1,42 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
-import { DEFAULT_WORKER, buildForecastDashboardData, type ForecastPoint } from '../../../lib/forecastDashboardUtils';
+import { DEFAULT_WORKER, buildForecastDashboardData } from '../../../lib/forecastDashboardUtils';
 import { getStatusChartColor, getStatusColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
-
-const CHART_WIDTH = 1000;
-const CHART_HEIGHT = 220;
-const CHART_TOP = 14;
-const CHART_BOTTOM = 198;
-const CHART_PLOT_HEIGHT = CHART_BOTTOM - CHART_TOP;
-
-function formatDays(value: number) {
-  return `${value.toFixed(value % 1 === 0 ? 0 : 1)}d`;
-}
-
-function pointCoordinates(points: ForecastPoint[], totalEstimateDays: number) {
-  const denominator = Math.max(1, totalEstimateDays);
-  const lastIndex = Math.max(1, points.length - 1);
-  return points.map((point, index) => ({
-    ...point,
-    x: (index / lastIndex) * CHART_WIDTH,
-    y: CHART_BOTTOM - (point.remainingDays / denominator) * CHART_PLOT_HEIGHT,
-  }));
-}
-
-function pointList(points: Array<ForecastPoint & { x: number; y: number }>) {
-  return points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ');
-}
-
-function areaPath(points: Array<ForecastPoint & { x: number; y: number }>) {
-  if (points.length < 2) return '';
-  const line = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
-  const first = points[0];
-  const last = points[points.length - 1];
-  return `${line} L ${last.x.toFixed(1)} ${CHART_BOTTOM} L ${first.x.toFixed(1)} ${CHART_BOTTOM} Z`;
-}
-
-type DateTickLabel = ForecastPoint & {
-  x: number;
-  y: number;
-  labelKind: 'start' | 'today' | 'completion';
-};
-
-function dateTickCoordinates(points: Array<ForecastPoint & { x: number; y: number }>) {
-  const first = points[0];
-  const last = points[points.length - 1];
-  const actualBoundary = [...points].reverse().find((point) => !point.future);
-  return [first, actualBoundary, last].filter((tick, index, ticks): tick is ForecastPoint & { x: number; y: number } => {
-    if (!tick) return false;
-    return ticks.findIndex((candidate) => candidate?.date === tick.date) === index;
-  });
-}
-
-function dateTickLabels(points: Array<ForecastPoint & { x: number; y: number }>): DateTickLabel[] {
-  const first = points[0];
-  const last = points[points.length - 1];
-  const actualBoundary = [...points].reverse().find((point) => !point.future);
-  if (!first || !last) return [];
-
-  const labels: DateTickLabel[] = [{ ...first, labelKind: 'start' }];
-  if (last.date !== first.date) {
-    labels.push({ ...last, labelKind: 'completion' });
-  }
-  if (actualBoundary && actualBoundary.date !== first.date && actualBoundary.date !== last.date) {
-    labels.push({ ...actualBoundary, labelKind: 'today' });
-  }
-  return labels;
-}
-
-function dateTickLabelClassName(labelKind: DateTickLabel['labelKind'], x: number) {
-  if (labelKind === 'start') return 'absolute left-0 top-1 whitespace-nowrap text-left';
-  if (labelKind === 'completion') return 'absolute right-0 top-1 whitespace-nowrap text-right';
-  return x < CHART_WIDTH / 2
-    ? 'absolute top-1 translate-x-2 whitespace-nowrap text-left'
-    : 'absolute top-1 -translate-x-[calc(100%+0.5rem)] whitespace-nowrap text-right';
-}
-
-function dateTickLabelStyle(labelKind: DateTickLabel['labelKind'], x: number): CSSProperties | undefined {
-  if (labelKind !== 'today') return undefined;
-  return { left: `${(x / CHART_WIDTH) * 100}%` };
-}
-
-function formatReadOnlyDate(value: string) {
-  return value ? value.replaceAll('-', '/') : '-';
-}
-
-function shouldShowWorkerDateLabel(index: number, total: number, step: number) {
-  return index === 0 || index === total - 1 || index % step === 0;
-}
+import {
+  CHART_ACTUAL_FILL_OPACITY,
+  CHART_BOTTOM,
+  CHART_HEIGHT,
+  CHART_PLOT_HEIGHT,
+  CHART_PROJECTED_FILL_OPACITY,
+  CHART_TOP,
+  CHART_WIDTH,
+  areaPath,
+  dateTickCoordinates,
+  dateTickLabelClassName,
+  dateTickLabelStyle,
+  dateTickLabels,
+  formatDays,
+  formatLocalizedDays,
+  formatReadOnlyDate,
+  pointCoordinates,
+  pointList,
+  shouldShowWorkerDateLabel,
+  translateForecastStatusLabel,
+} from './forecastDashboardChartUtils';
+import {
+  AssumptionInput,
+  AssumptionNumberInput,
+  AssumptionPercentInput,
+  ChartPill,
+  DashboardCard,
+  DonutGraphic,
+  ForecastDashboardSectionLoader,
+  ForecastRulesDialog,
+  LegendItem,
+  MetricTile,
+} from './ForecastDashboardComponents';
 
 export function ForecastDashboard({ className = '' }: { className?: string }) {
   const { t, i18n } = useTranslation();
@@ -131,7 +79,10 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const todayLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()), [i18n.language]);
   const maxWorkerLoad = Math.max(1, ...chartData.workerLoads.flatMap((worker) => worker.days.map((day) => day.loadDays)));
   const totalEstimate = Math.max(1, chartData.totalEstimateDays);
-  const projectedColor = getStatusChartColor('In progress');
+  const projectedColor = getStatusChartColor('Blocked');
+  const chartFillGradientId = useId().replace(/:/g, '');
+  const actualFillGradientId = `${chartFillGradientId}-actual`;
+  const projectedFillGradientId = `${chartFillGradientId}-projected`;
   const doneTextColor = getStatusTextColor('Done');
   const workerDateLabelStep = isCompactWorkerLabels ? 3 : isNarrowWorkerLabels ? 2 : 1;
   const assumptionStartDateValue = formatReadOnlyDate(chartData.points[0]?.date || '');
@@ -151,9 +102,9 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
       start: segmentEnd,
     };
   }, { stops: [], start: 0 }).stops;
-  const donutStyle = {
-    background: conicStops.length ? `conic-gradient(${conicStops.join(', ')})` : 'rgb(226 232 240)',
-  };
+  const donutStyle = conicStops.length
+    ? { background: `conic-gradient(${conicStops.join(', ')})` }
+    : undefined;
 
   // Project summary: completed vs. remaining effort across the whole project.
   const completedDays = Math.max(0, chartData.totalEstimateDays - chartData.remainingDays);
@@ -183,32 +134,32 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
       start: segmentEnd,
     };
   }, { stops: [], start: 0 }).stops;
-  const summaryDonutStyle = {
-    background: summaryConicStops.length ? `conic-gradient(${summaryConicStops.join(', ')})` : 'rgb(226 232 240)',
-  };
+  const summaryDonutStyle = summaryConicStops.length
+    ? { background: `conic-gradient(${summaryConicStops.join(', ')})` }
+    : undefined;
   const remainingPercent = Math.round((chartData.remainingDays / totalEstimate) * 100);
   const actualBoundary = actualPoints[actualPoints.length - 1];
   const assumptionStatusWorkloads = [
-    { key: 'draft', label: t('dashboard.burndownAssumptionDraft', 'Draft'), value: statusRemainingPercent.draft },
-    { key: 'todo', label: t('dashboard.burndownAssumptionTodo', 'Todo'), value: statusRemainingPercent.todo },
-    { key: 'inProgress', label: t('dashboard.burndownAssumptionInProgress', 'In progress'), value: statusRemainingPercent.inProgress },
-    { key: 'inReview', label: t('dashboard.burndownAssumptionInReview', 'In review'), value: statusRemainingPercent.inReview },
-    { key: 'done', label: t('dashboard.burndownAssumptionDone', 'Done'), value: statusRemainingPercent.done },
-    { key: 'other', label: t('dashboard.burndownAssumptionOther', 'Other'), value: statusRemainingPercent.other },
+    { key: 'draft', status: 'Draft', label: t('dashboard.burndownAssumptionDraft', 'Draft'), value: statusRemainingPercent.draft },
+    { key: 'todo', status: 'Todo', label: t('dashboard.burndownAssumptionTodo', 'Todo'), value: statusRemainingPercent.todo },
+    { key: 'inProgress', status: 'In progress', label: t('dashboard.burndownAssumptionInProgress', 'In progress'), value: statusRemainingPercent.inProgress },
+    { key: 'inReview', status: 'In review', label: t('dashboard.burndownAssumptionInReview', 'In review'), value: statusRemainingPercent.inReview },
+    { key: 'done', status: 'Done', label: t('dashboard.burndownAssumptionDone', 'Done'), value: statusRemainingPercent.done },
+    { key: 'other', status: 'Other', label: t('dashboard.burndownAssumptionOther', 'Other'), value: statusRemainingPercent.other },
   ];
 
   return (
-    <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-[#f7f8ff] md:rounded-r-xl border md:border-y md:border-r border-slate-200/60 ${className}`}>
+    <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-forecast-background md:rounded-r-xl border md:border-y md:border-r border-slate-200/60 ${className}`}>
       <div className="pointer-events-none sticky top-0 z-0 h-0">
-        <div className="absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_1px_1px,rgba(99,102,241,0.13)_1px,transparent_0)] [background-size:18px_18px]"></div>
-        <div className="absolute left-1/2 top-8 h-64 w-64 -translate-x-1/2 rounded-full bg-indigo-200/35 blur-3xl"></div>
+        <div className="forecast-canvas-grid absolute inset-x-0 top-0 h-[36rem]"></div>
+        <div className="absolute left-1/2 top-8 h-64 w-64 -translate-x-1/2 rounded-full bg-primary/20 blur-3xl"></div>
       </div>
       <div className="relative z-10 mx-auto flex min-h-full w-full max-w-4xl flex-col gap-5 px-4 pb-6 pt-10 sm:px-6 lg:pb-8 lg:pt-12">
         <header>
           <h1 className="pl-2 text-2xl font-extrabold tracking-normal text-slate-950 sm:pl-3 sm:text-3xl">{t('dashboard.forecastDashboardTitle', 'Forecast Dashboard')}</h1>
         </header>
 
-        <section className="rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_18px_60px_rgba(79,70,229,0.10)] sm:p-5" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
+        <section className="rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-forecast-highlight sm:p-5" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
           <div className="mb-4">
             <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownChartTitle', 'Burndown Chart')}</h2>
             <p className="text-sm font-medium text-slate-500">{t('dashboard.burndownProgressBasin', 'Remaining effort over time')}</p>
@@ -229,31 +180,41 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
               </div>
 
               <div className="relative pt-1">
-                {chartGuideTicks.map((tick) => (
+                {chartGuideTicks.map((tick, index) => (
                   <span
                     key={tick.label}
-                    className="absolute right-0 z-10 -translate-y-1/2 text-[9px] font-bold text-slate-300"
+                    className={`absolute right-0 z-10 text-[9px] font-bold text-slate-300 ${index === 0 ? 'translate-y-1' : '-translate-y-1/2'}`}
                     style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%` }}
                   >
                     {tick.label}
                   </span>
                 ))}
                 <svg className="aspect-[1000/220] w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
-                  <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} stroke="rgb(226 232 240)" strokeWidth="2" />
-                  <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} stroke="rgb(226 232 240)" strokeWidth="2" strokeDasharray="8 8" />
-                  <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} stroke="rgb(226 232 240)" strokeWidth="2" />
+                  <defs>
+                    <linearGradient id={actualFillGradientId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={CHART_ACTUAL_FILL_OPACITY} />
+                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0" />
+                    </linearGradient>
+                    <linearGradient id={projectedFillGradientId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={projectedColor} stopOpacity={CHART_PROJECTED_FILL_OPACITY} />
+                      <stop offset="100%" stopColor={projectedColor} stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <line x1="0" y1={CHART_TOP} x2={CHART_WIDTH} y2={CHART_TOP} className="stroke-slate-200" strokeWidth="2" />
+                  <line x1="0" y1={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} x2={CHART_WIDTH} y2={CHART_TOP + CHART_PLOT_HEIGHT * 0.5} className="stroke-slate-200" strokeWidth="2" strokeDasharray="8 8" />
+                  <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} className="stroke-slate-200" strokeWidth="2" />
                   {actualBoundary && (
-                    <line x1={actualBoundary.x} y1={CHART_TOP} x2={actualBoundary.x} y2={CHART_BOTTOM} stroke="rgb(203 213 225)" strokeWidth="2" strokeDasharray="4 4" />
+                    <line x1={actualBoundary.x} y1={CHART_TOP} x2={actualBoundary.x} y2={CHART_BOTTOM} className="stroke-primary/35" strokeWidth="2" strokeDasharray="4 4" />
                   )}
                   {dateTicks.map((tick) => (
-                    <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} stroke="rgb(203 213 225)" strokeWidth="2" strokeLinecap="round" />
+                    <line key={`x-${tick.date}`} x1={tick.x} y1={CHART_BOTTOM} x2={tick.x} y2={CHART_BOTTOM + 9} className="stroke-slate-300" strokeWidth="2" strokeLinecap="round" />
                   ))}
-                  <path d={areaPath(actualPoints)} fill="rgba(79, 70, 229, 0.13)" />
-                  <path d={areaPath(projectedPoints)} fill="rgba(234, 179, 8, 0.18)" />
-                  <polyline points={pointList(actualPoints)} fill="none" stroke="var(--color-primary)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={areaPath(actualPoints)} fill={`url(#${actualFillGradientId})`} />
+                  <path d={areaPath(projectedPoints)} fill={`url(#${projectedFillGradientId})`} />
+                  <polyline points={pointList(actualPoints)} fill="none" className="stroke-primary" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
                   <polyline points={pointList(projectedPoints)} fill="none" stroke={projectedColor} strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
                   {coordinates.map((point) => (
-                    <circle key={point.date} cx={point.x} cy={point.y} r="5" fill={point.future ? projectedColor : 'var(--color-primary)'} stroke="white" strokeWidth="3">
+                    <circle key={point.date} cx={point.x} cy={point.y} r="5" className={`stroke-white ${point.future ? '' : 'fill-primary'}`} fill={point.future ? projectedColor : undefined} strokeWidth="3">
                       <title>{`${point.date}: ${formatDays(point.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
                     </circle>
                   ))}
@@ -280,7 +241,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                 )}
                 <div className="flex flex-wrap items-center gap-2">
                   <ChartPill label={t('dashboard.burndownActual', 'Actual')} color="bg-primary" className="bg-primary/10 text-primary" />
-                  <ChartPill label={t('dashboard.burndownProjected', 'Projected')} color="bg-yellow-500" className="bg-yellow-50 text-yellow-700" />
+                  <ChartPill label={t('dashboard.burndownProjected', 'Projected')} color={getStatusDotColor('Blocked')} className={getStatusColor('Blocked')} />
                 </div>
               </div>
             </div>
@@ -302,14 +263,14 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
               <ForecastDashboardSectionLoader variant="status" label={t('dashboard.loadingTasks')} />
             ) : (
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                <DonutGraphic style={donutStyle} percent={donePercent} label={t('dashboard.burndownDone', 'Done')} labelClassName={doneTextColor} />
+                <DonutGraphic style={donutStyle} fallbackClassName="bg-slate-200" percent={donePercent} label={t('dashboard.burndownDone', 'Done')} labelClassName={doneTextColor} />
                 <ul className="flex min-w-0 flex-1 flex-col gap-3 text-sm">
                   {statusSegments.map((status) => (
                     <LegendItem
                       key={status.status}
-                      label={status.status}
+                      label={translateForecastStatusLabel(status.status, status.statusKey, t)}
                       percent={`${status.percent}%`}
-                      days={formatDays(status.days)}
+                      days={formatLocalizedDays(status.days, t)}
                       color={status.color}
                       dotClassName={getStatusDotColor(status.status)}
                       badgeClassName={getStatusColor(status.status)}
@@ -331,6 +292,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
                 <DonutGraphic
                   style={summaryDonutStyle}
+                  fallbackClassName="bg-slate-200"
                   percent={remainingPercent}
                   label={t('dashboard.burndownSummaryRemaining', 'Remaining')}
                   labelClassName={getStatusTextColor('Blocked')}
@@ -342,7 +304,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                       key={segment.label}
                       label={segment.label}
                       percent={`${segment.percent}%`}
-                      days={formatDays(segment.days)}
+                      days={formatLocalizedDays(segment.days, t)}
                       color={segment.color}
                       dotClassName=""
                       badgeClassName={segment.badgeClassName}
@@ -428,6 +390,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                     <AssumptionPercentInput
                       key={status.label}
                       label={status.label}
+                      status={status.status}
                       value={status.value}
                       className={index >= 4 ? 'md:col-span-2' : ''}
                       onChange={(value) => {
@@ -448,318 +411,3 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   );
 }
 
-function ForecastDashboardSectionLoader({ variant, label }: { variant: 'chart' | 'status' | 'workers' | 'assumptions'; label: string }) {
-  return (
-    <div className="w-full min-w-0 rounded-lg bg-slate-50/80 p-4 animate-pulse" role="status" aria-live="polite" aria-label={label}>
-      {variant === 'chart' && (
-        <div className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-2">
-          <div className="space-y-8 py-2">
-            <span className="block h-3 rounded bg-slate-200"></span>
-            <span className="block h-3 rounded bg-slate-200"></span>
-            <span className="block h-3 rounded bg-slate-200"></span>
-          </div>
-          <div className="min-w-0 space-y-3">
-            <span className="block h-20 rounded bg-slate-200"></span>
-            <div className="grid grid-cols-6 gap-2">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <span key={index} className="h-3 rounded bg-slate-200"></span>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-      {variant === 'status' && (
-        <div className="flex w-full min-w-0 items-center gap-5">
-          <span className="h-32 w-32 shrink-0 rounded-full bg-slate-200"></span>
-          <div className="min-w-0 flex-1 space-y-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <span key={index} className="block h-9 rounded-lg bg-slate-200"></span>
-            ))}
-          </div>
-        </div>
-      )}
-      {variant === 'workers' && (
-        <div className="w-full min-w-0 space-y-3">
-          {Array.from({ length: 2 }).map((_, rowIndex) => (
-            <div key={rowIndex} className="grid w-full min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-end gap-3">
-              <span className="h-3 rounded bg-slate-200"></span>
-              <div className="grid h-14 min-w-0 grid-cols-10 items-end gap-1">
-                {Array.from({ length: 10 }).map((_, index) => (
-                  <span key={index} className="rounded bg-slate-200" style={{ height: `${28 + ((index + rowIndex) % 5) * 14}%` }}></span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {variant === 'assumptions' && (
-        <div className="grid w-full min-w-0 grid-cols-1 gap-3 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="space-y-3 rounded-lg bg-white/70 px-3 py-3">
-              <span className="block h-3 w-2/3 rounded bg-slate-200"></span>
-              <span className="block h-6 w-1/2 rounded bg-slate-200"></span>
-            </div>
-          ))}
-        </div>
-      )}
-      <span className="sr-only">{label}</span>
-    </div>
-  );
-}
-
-function DashboardCard({ children, ariaLabel }: { children: ReactNode; ariaLabel?: string }) {
-  return (
-    <section className="rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-[0_18px_60px_rgba(15,23,42,0.07)] sm:p-5" aria-label={ariaLabel}>
-      {children}
-    </section>
-  );
-}
-
-function MetricTile({
-  label,
-  value,
-  className = '',
-  valueClassName = '',
-  infoLabel,
-  onInfoClick,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-  valueClassName?: string;
-  infoLabel?: string;
-  onInfoClick?: () => void;
-}) {
-  return (
-    <div className={`rounded-xl px-4 py-3 ring-1 ${className}`}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] opacity-70">{label}</div>
-        {onInfoClick && infoLabel && (
-          <button
-            type="button"
-            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-white/70 text-xs font-extrabold italic text-primary shadow-sm transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
-            aria-label={infoLabel}
-            title={infoLabel}
-            onClick={onInfoClick}
-          >
-            i
-          </button>
-        )}
-      </div>
-      <div className={`mt-1 min-w-fit whitespace-nowrap text-xl font-black tracking-normal ${valueClassName}`}>{value}</div>
-    </div>
-  );
-}
-
-function ForecastRulesDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { t } = useTranslation();
-  if (!isOpen) return null;
-
-  const rules = [
-    t('dashboard.burndownRulesCompletion', 'Estimated completion uses the remaining workload allocated across available workers and the capacity assumption in days per week. The latest worker completion date becomes the project completion date.'),
-    t('dashboard.burndownRulesRemaining', 'Remaining workload starts from task estimates when available, otherwise inclusive task duration. Each open task is multiplied by its status remaining-workload percentage.'),
-    t('dashboard.burndownRulesProjected', 'The projected line simulates future workday burn-down from today using the same worker allocation and capacity. The line reaches zero on the estimated completion date.'),
-    t('dashboard.burndownRulesWorkers', 'Tasks with assignees split workload evenly across those assignees. Unassigned work is spread across active assignees, or one virtual worker when no assignees exist.'),
-  ];
-
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="forecast-rules-title">
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
-              {t('dashboard.burndownRulesEyebrow', 'Forecast rules')}
-            </p>
-            <h3 id="forecast-rules-title" className="mt-1 text-xl font-extrabold text-slate-950">
-              {t('dashboard.burndownRulesTitle', 'How the forecast is calculated')}
-            </h3>
-          </div>
-          <button
-            type="button"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30"
-            aria-label={t('common.close', 'Close')}
-            onClick={onClose}
-          >
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
-        </div>
-        <div className="space-y-3 px-6 py-5">
-          {rules.map((rule) => (
-            <p key={rule} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-700">
-              {rule}
-            </p>
-          ))}
-        </div>
-        <div className="border-t border-slate-100 px-6 py-3 text-[10px] text-slate-400">
-          This specification is generated based on the file{' '}
-          <a
-            href="https://github.com/mypals-ml/glidepace-vibe/blob/develop/docs/FORECAST_ESTIMATION_RULES.md"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline decoration-slate-300 hover:text-primary"
-          >
-            docs/FORECAST_ESTIMATION_RULES.md
-          </a>{' '}
-          in the source code repository on GitHub.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ChartPill({ label, color, className }: { label: string; color: string; className: string }) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-extrabold ${className}`}>
-      <span className={`h-2 w-2 rounded-full ${color}`}></span>
-      {label}
-    </span>
-  );
-}
-
-function DonutGraphic({
-  style,
-  percent,
-  label,
-  labelClassName,
-  valueClassName = 'text-primary',
-}: {
-  style: CSSProperties;
-  percent: number;
-  label: string;
-  labelClassName: string;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="relative mx-auto h-36 w-36 shrink-0 rounded-full sm:mx-0" style={style}>
-      <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center shadow-[inset_0_0_0_1px_rgba(226,232,240,0.7)]">
-        <span className={`text-3xl font-black tracking-normal ${valueClassName}`}>{percent}%</span>
-        <span className={`text-[10px] font-extrabold uppercase tracking-[0.08em] ${labelClassName}`}>{label}</span>
-      </div>
-    </div>
-  );
-}
-
-function clampNumber(value: number, min: number, max: number) {
-  if (!Number.isFinite(value)) return min;
-  return Math.min(max, Math.max(min, value));
-}
-
-function AssumptionInput({
-  label,
-  value,
-  className = '',
-  type = 'text',
-  readOnly = false,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-  type?: 'text' | 'date';
-  readOnly?: boolean;
-  onChange?: (value: string) => void;
-}) {
-  const inputClassName = readOnly
-    ? 'h-11 w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 text-base font-extrabold text-slate-500 shadow-inner outline-none'
-    : 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-extrabold text-slate-950 shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
-
-  return (
-    <label className={`block min-w-[140px] ${className}`}>
-      <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</span>
-      <input
-        className={inputClassName}
-        type={type}
-        aria-label={label}
-        aria-readonly={readOnly}
-        readOnly={readOnly}
-        value={value}
-        onChange={(event) => onChange?.(event.target.value)}
-      />
-    </label>
-  );
-}
-
-function AssumptionNumberInput({
-  label,
-  value,
-  suffix,
-  className = '',
-  min = 0,
-  max = 100,
-  step = 1,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  suffix: string;
-  className?: string;
-  min?: number;
-  max?: number;
-  step?: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className={`block min-w-[140px] ${className}`}>
-      <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</span>
-      <span className="flex h-11 items-center rounded-lg border border-slate-200 bg-white px-3 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-        <input
-          className="min-w-12 flex-1 bg-transparent text-base font-extrabold text-slate-950 outline-none"
-          type="number"
-          aria-label={label}
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(event) => onChange(clampNumber(event.currentTarget.valueAsNumber, min, max))}
-        />
-        <span className="ml-2 shrink-0 text-sm font-bold text-slate-400">{suffix}</span>
-      </span>
-    </label>
-  );
-}
-
-function AssumptionPercentInput({
-  label,
-  value,
-  className = '',
-  onChange,
-}: {
-  label: string;
-  value: number;
-  className?: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className={`block rounded-lg border border-primary/15 bg-white px-3 py-2 shadow-sm min-w-fit ${className}`}>
-      <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">{label}</span>
-      <span className="flex h-9 items-center rounded-md border border-primary/20 bg-white px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-        <input
-          className="min-w-12 flex-1 bg-transparent text-lg font-black text-slate-950 outline-none"
-          type="number"
-          aria-label={label}
-          min={0}
-          max={100}
-          step={1}
-          value={value}
-          onChange={(event) => onChange(clampNumber(event.currentTarget.valueAsNumber, 0, 100))}
-        />
-        <span className="shrink-0 text-sm font-bold text-primary/60">%</span>
-      </span>
-    </label>
-  );
-}
-
-function LegendItem({ label, percent, days, color, dotClassName, badgeClassName, labelClassName = '' }: { label: string; percent: string; days: string; color: string; dotClassName: string; badgeClassName: string; labelClassName?: string }) {
-  return (
-    <li className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 ${badgeClassName}`}>
-      <span className={`inline-flex min-w-0 items-center gap-2 font-semibold ${labelClassName}`}>
-        <span className={`h-2.5 w-2.5 rounded-full ${dotClassName}`} style={{ backgroundColor: color }}></span>
-        <span className="truncate">{label}</span>
-      </span>
-      <span className="flex flex-wrap justify-end gap-2">
-        <span className="rounded-md bg-white/75 px-2 py-0.5 text-xs font-extrabold text-slate-900 shadow-sm ring-1 ring-black/5">{percent}</span>
-        <span className="rounded-md bg-white/55 px-2 py-0.5 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-black/5">{days}</span>
-      </span>
-    </li>
-  );
-}

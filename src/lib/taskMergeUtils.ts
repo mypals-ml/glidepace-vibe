@@ -16,6 +16,9 @@ export function mergeFetchedTaskWithLocalState(existing: Task, fetched: Task, no
       ? existing.comments
       : (fetched.comments !== undefined ? fetched.comments : existing.comments),
     assignees: isRecentlyUpdatedLocally ? existing.assignees : fetched.assignees,
+    // Protect very recent local date edits from stale GitHub reads. Once the
+    // short protection window expires, fetched dates are authoritative so
+    // external GitHub edits still replace local state.
     startDate: isRecentlyUpdatedLocally ? existing.startDate : fetched.startDate,
     targetDate: isRecentlyUpdatedLocally ? existing.targetDate : fetched.targetDate,
     tempStartDate: isRecentlyUpdatedLocally ? existing.tempStartDate : fetched.tempStartDate,

@@ -1,5 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { resolveInitialUiLocale } from './lib/uiLocaleStorage';
 import en from './locales/en';
 import ja from './locales/ja';
 import zhCN from './locales/zh-CN';
@@ -17,7 +18,7 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: "en", // default language
+    lng: resolveInitialUiLocale(),
     fallbackLng: "en",
     interpolation: {
       escapeValue: false // React already escapes values naturally

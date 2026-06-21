@@ -19,6 +19,8 @@ const zhCN = {
       projectIdPlaceholder: "输入 ID...",
       emptyProjectOption: "空项目",
       language: "语言",
+      moreOptions: "更多选项",
+      actions: "操作",
       locales: {
         en: "EN",
         ja: "日本語",
@@ -35,7 +37,7 @@ const zhCN = {
       addAccountPermissionNotice: "添加新帐户可能需要您的 Github 帐户提供其他权限。"
     },
     about: {
-      button: "About",
+      button: "关于",
       eyebrow: "关于",
       title: "关于 Glidelines",
       description: "Glidelines 将 GitHub Projects 转换为一个带有时间线、列表和预测视图的同步规划工作区。",
@@ -128,6 +130,7 @@ const zhCN = {
       privateProjectSearchNotice: "私有项目限制全局搜索。",
       privateStatus: "私有",
       projectNoLongerAccessible: "项目不再可用。已从您的历史记录中移除。",
+      view: "视图",
       viewList: "列表",
       viewGantt: "甘特图",
       viewForecast: "预测",
@@ -136,6 +139,9 @@ const zhCN = {
       forecastDashboardSubtitle: "基于当前筛选任务的堆叠式规划摘要。",
       burndownSummaryTitle: "剩余工作量",
       burndownSummaryHint: "已完成与剩余工作量",
+      burndownSummaryCompleted: "已完成",
+      burndownSummaryRemaining: "剩余",
+      burndownDaysValue: "{{count}}天",
       burndownForecast: "预计完成数据",
       burndownEstimatedCompletion: "预计完成日期",
       burndownTotalEffort: "总工作量",

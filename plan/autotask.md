@@ -38,7 +38,7 @@ Browser/profile requirement:
 
 Task workflow:
 
-- Open the Glidelines task board: {working_task_board}
+- In the browser, open the Glidelines task board: {working_task_board}
 
 - Find the first task whose state is `Todo`.
 
@@ -64,7 +64,8 @@ Implementation workflow:
 
 - Run appropriate tests.
 
-
+- Verify the results in the browser if necessary.
+  - Add logs for verifying and debugging when necessary.
 
 
 
@@ -83,6 +84,7 @@ Completion workflow: (The work is complete and tested)
 
 - Generate a md file named with local date time stamp as `walkthrough-task#<task number>-YYYYMMDD-hhmmss.md` under `<project root path>/plan/walkthrough/`
   - this md file must contain
+    - the creator automation agent name of the file: `Created By: {current_agent_name}`
     - the above <brief execution walkthrough> contents
     - the very detail of what was implemented and how it was verified.
 
