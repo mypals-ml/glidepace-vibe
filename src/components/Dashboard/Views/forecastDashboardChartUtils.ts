@@ -116,11 +116,11 @@ export function dateTickLabels(points: Array<ForecastPoint & { x: number; y: num
 }
 
 export function dateTickLabelClassName(labelKind: DateTickLabel['labelKind'], x: number) {
-  if (labelKind === 'start') return 'absolute left-0 top-1 whitespace-nowrap text-left';
-  if (labelKind === 'completion') return 'absolute right-0 top-1 whitespace-nowrap text-right';
+  if (labelKind === 'start') return 'absolute left-0 top-3 whitespace-nowrap text-left';
+  if (labelKind === 'completion') return 'absolute right-0 top-3 whitespace-nowrap text-right';
   return x < CHART_WIDTH / 2
-    ? 'absolute top-1 translate-x-2 whitespace-nowrap text-left text-primary'
-    : 'absolute top-1 -translate-x-[calc(100%+0.5rem)] whitespace-nowrap text-right text-primary';
+    ? 'absolute top-0 translate-x-2 whitespace-nowrap text-left text-primary'
+    : 'absolute top-0 -translate-x-[calc(100%+0.5rem)] whitespace-nowrap text-right text-primary';
 }
 
 export function dateTickLabelStyle(labelKind: DateTickLabel['labelKind'], x: number): CSSProperties | undefined {

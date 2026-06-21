@@ -129,7 +129,7 @@ export function FloatingSequenceBuilder({ variant = 'floating', className = '' }
         if (currentTask && currentTask.itemId && nextTask && nextTask.itemId) {
           const currentSuccessors = currentTask.successorIds || [];
           if (!currentSuccessors.includes(nextTask.itemId)) {
-            await updateTaskSuccessors(currentTask.id, [...currentSuccessors, nextTask.itemId]);
+            await updateTaskSuccessors(currentTask.id, [...currentSuccessors, nextTask.itemId], true);
           }
         }
       }

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchGitHubGraphQL, updateProjectV2ItemField, isGitHubRateLimitError } from '../../lib/githubService';
 import { mapProjectItemToTask } from '../../lib/githubTaskMapper';
@@ -10,10 +10,71 @@ import { getProjectFixedStartDateMode, persistDependencyFieldCorrections } from 
 import type { Task, GitHubProjectItem, GitHubProjectV2Field } from '../../types';
 import type { DashboardTasksCore, FetchProjectTasksOptions, MutableRef } from './types';
 
+const TASK_SNAPSHOT_CACHE_VERSION = 1;
+
+interface CachedTaskSnapshot {
+  version: typeof TASK_SNAPSHOT_CACHE_VERSION;
+  projectId: string;
+  projectAccountId: string;
+  savedAt: number;
+  tasks: Task[];
+  projectFields: GitHubProjectV2Field[];
+  statusOptions: Array<{ name: string; color?: string }>;
+}
+
 interface UseTaskFetchProps {
   core: DashboardTasksCore;
   projectAccountId: string;
   captureViewportAnchorRef: MutableRef<(() => void) | undefined>;
+}
+
+function getTaskSnapshotCacheKey(projectAccountId: string, projectId: string): string {
+  return `dashboard_task_snapshot_v${TASK_SNAPSHOT_CACHE_VERSION}:${projectAccountId || 'unknown'}:${projectId}`;
+}
+
+function readCachedTaskSnapshot(projectAccountId: string, projectId: string): CachedTaskSnapshot | null {
+  try {
+    const raw = localStorage.getItem(getTaskSnapshotCacheKey(projectAccountId, projectId));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<CachedTaskSnapshot>;
+    if (
+      parsed.version !== TASK_SNAPSHOT_CACHE_VERSION ||
+      parsed.projectId !== projectId ||
+      parsed.projectAccountId !== projectAccountId ||
+      !Array.isArray(parsed.tasks)
+    ) {
+      return null;
+    }
+
+    return {
+      version: TASK_SNAPSHOT_CACHE_VERSION,
+      projectId,
+      projectAccountId,
+      savedAt: typeof parsed.savedAt === 'number' ? parsed.savedAt : 0,
+      tasks: parsed.tasks,
+      projectFields: Array.isArray(parsed.projectFields) ? parsed.projectFields : [],
+      statusOptions: Array.isArray(parsed.statusOptions) ? parsed.statusOptions : [],
+    };
+  } catch (error) {
+    console.warn('[DashboardTasks] Failed to read cached task snapshot:', error);
+    return null;
+  }
+}
+
+function writeCachedTaskSnapshot(snapshot: CachedTaskSnapshot): void {
+  try {
+    localStorage.setItem(
+      getTaskSnapshotCacheKey(snapshot.projectAccountId, snapshot.projectId),
+      JSON.stringify(snapshot),
+    );
+  } catch (error) {
+    console.warn('[DashboardTasks] Failed to cache task snapshot:', error);
+  }
+}
+
+function isRateLimitMessage(message: string): boolean {
+  return /rate limit|rate-limit|api rate limit/i.test(message);
 }
 
 /**
@@ -31,6 +92,22 @@ export function useTaskFetch({ core, projectAccountId, captureViewportAnchorRef 
   const [projectFields, setProjectFields] = useState<GitHubProjectV2Field[]>([]);
   const [fieldsProgress, setFieldsProgress] = useState<{ current: number; total: number; isFetching: boolean }>({ current: 0, total: 0, isFetching: false });
   const [apiError, setApiError] = useState<string | null>(null);
+  const lastLoadedProjectIdRef = useRef<string | null>(null);
+
+  const applyCachedTaskSnapshot = useCallback((snapshot: CachedTaskSnapshot) => {
+    setApiError(null);
+    setProjectFields(snapshot.projectFields);
+
+    if (snapshot.statusOptions.length > 0) {
+      registerStatuses(snapshot.statusOptions);
+      setProjectStatusOptions(snapshot.statusOptions.map(option => option.name));
+    } else {
+      setProjectStatusOptions([]);
+    }
+
+    setTasks(snapshot.tasks);
+    lastLoadedProjectIdRef.current = snapshot.projectId;
+  }, [setTasks]);
 
   const fetchSingleProjectItem = useCallback(async (itemId: string, token: string): Promise<Task | null> => {
     console.log(`[DashboardTasks] 📡 Fetching single item: ${itemId}`);
@@ -144,6 +221,7 @@ export function useTaskFetch({ core, projectAccountId, captureViewportAnchorRef 
           if (!projectNode) {
             console.error('Fatal GraphQL Error: No project node returned.');
             const errorMessage = json.errors.map((e: { message: string }) => e.message).join(', ');
+            const rateLimitedGraphQLError = isRateLimitMessage(errorMessage);
             if (isBackground) {
               // Never blank a usable task list because a background refresh
               // failed; keep stale data and surface the failure non-modally.
@@ -153,10 +231,21 @@ export function useTaskFetch({ core, projectAccountId, captureViewportAnchorRef 
                 reason: options?.reason,
                 error: errorMessage,
               }, 'warn');
-              showToast(t('dashboard.backgroundRefreshFailed', 'Failed to refresh tasks from GitHub. Showing the last known state.'), 'error');
+              showToast(
+                rateLimitedGraphQLError
+                  ? t('dashboard.rateLimitShowingStale', 'GitHub rate limit reached. Showing the last known state.')
+                  : t('dashboard.backgroundRefreshFailed', 'Failed to refresh tasks from GitHub. Showing the last known state.'),
+                'error',
+              );
             } else {
-              setApiError(errorMessage);
-              setTasks([]);
+              const cachedSnapshot = readCachedTaskSnapshot(projectAccountId, projectId);
+              if (rateLimitedGraphQLError && cachedSnapshot) {
+                applyCachedTaskSnapshot(cachedSnapshot);
+                showToast(t('dashboard.rateLimitShowingStale', 'GitHub rate limit reached. Showing the last known state.'), 'error');
+              } else {
+                setApiError(errorMessage);
+                setTasks([]);
+              }
             }
             return;
           }
@@ -232,9 +321,21 @@ export function useTaskFetch({ core, projectAccountId, captureViewportAnchorRef 
       if (statusOptions.length > 0) {
         registerStatuses(statusOptions);
         setProjectStatusOptions(statusOptions.map(o => o.name));
+      } else {
+        setProjectStatusOptions([]);
       }
 
       setProjectFields(allFields);
+      writeCachedTaskSnapshot({
+        version: TASK_SNAPSHOT_CACHE_VERSION,
+        projectId,
+        projectAccountId,
+        savedAt: Date.now(),
+        tasks: reconciliation.tasks,
+        projectFields: allFields,
+        statusOptions,
+      });
+      lastLoadedProjectIdRef.current = projectId;
       if (selectedProject?.id) {
         await persistDependencyFieldCorrections(reconciliation.corrections, reconciliation.tasks, selectedProject.id, token, dateSettingsRef.current);
       }
@@ -272,9 +373,25 @@ export function useTaskFetch({ core, projectAccountId, captureViewportAnchorRef 
           'error'
         );
       } else if (rateLimited) {
-        // Foreground (initial) load hit the limit: surface a clear message but
-        // do not blank any tasks we may already have.
-        setApiError(t('dashboard.rateLimitShowingStale', 'GitHub rate limit reached. Showing the last known state.'));
+        const staleMessage = t('dashboard.rateLimitShowingStale', 'GitHub rate limit reached. Showing the last known state.');
+        const cachedSnapshot = readCachedTaskSnapshot(projectAccountId, projectId);
+        const hasCurrentProjectTasks = lastLoadedProjectIdRef.current === projectId && tasksRef.current.length > 0;
+
+        showToast(staleMessage, 'error');
+        if (cachedSnapshot) {
+          applyCachedTaskSnapshot(cachedSnapshot);
+          logDashboardEvent('[DashboardTasks] Foreground refresh used cached snapshot after rate limit', {
+            refreshKind: 'full_project',
+            projectId,
+            projectAccountId,
+            cachedTaskCount: cachedSnapshot.tasks.length,
+            cachedAt: cachedSnapshot.savedAt,
+          }, 'warn');
+        } else if (hasCurrentProjectTasks) {
+          setApiError(null);
+        } else {
+          setApiError(staleMessage);
+        }
       } else {
         setApiError(error.message || t('dashboard.unknownError'));
       }
@@ -285,7 +402,7 @@ export function useTaskFetch({ core, projectAccountId, captureViewportAnchorRef 
       setIsRefreshingTasks(false);
       setFieldsProgress(prev => ({ ...prev, isFetching: false }));
     }
-  }, [updateSyncTime, t, projectAccountId, selectedProject?.id, setTasks, showToast, tasksRef, dateSettingsRef, captureViewportAnchorRef]);
+  }, [updateSyncTime, t, projectAccountId, selectedProject?.id, setTasks, showToast, tasksRef, dateSettingsRef, captureViewportAnchorRef, applyCachedTaskSnapshot]);
 
   return {
     isLoadingTasks,

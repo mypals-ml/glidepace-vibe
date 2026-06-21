@@ -91,6 +91,7 @@ describe('TaskSidebar hover actions', () => {
   const setSelectedGroupFieldIds = vi.fn();
   let searchQuery = '';
   let selectedGroupFieldIds: string[] = [];
+  let apiError: string | null = null;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -106,6 +107,7 @@ describe('TaskSidebar hover actions', () => {
     localStorage.clear();
     searchQuery = '';
     selectedGroupFieldIds = [];
+    apiError = null;
 
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: false,
@@ -137,7 +139,7 @@ describe('TaskSidebar hover actions', () => {
       setIsCreateMode,
       setIsChartVisible,
       setDashboardView,
-      apiError: null,
+      apiError,
       fieldsProgress: { current: 0, total: 0, isFetching: false },
       mappingStatus: 'idle',
       setIsTaskDetailsOpen,
@@ -169,6 +171,15 @@ describe('TaskSidebar hover actions', () => {
     expect(setDashboardView).toHaveBeenCalledWith('gantt');
     expect(setIsChartVisible).toHaveBeenCalledWith(true);
     expect(centerGanttOnTask).toHaveBeenCalledWith('task-124', '2026-06-01');
+  });
+
+  it('keeps loaded tasks visible when a stale GitHub API error is present', () => {
+    apiError = 'GitHub rate limit reached. Showing the last known state.';
+
+    render(<TaskSidebar />);
+
+    expect(screen.getByText(task.title)).toBeTruthy();
+    expect(screen.queryByText(/GitHub rate limit reached/)).toBeNull();
   });
 
   it('does not rerender sortable rows for duplicate drag-over targets', () => {

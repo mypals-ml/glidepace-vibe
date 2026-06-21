@@ -11,6 +11,7 @@ import { useDashboardTasks } from '../hooks/useDashboardTasks';
 import type { FetchProjectTasksOptions } from '../hooks/useDashboardTasks';
 import { useDashboardSync } from '../hooks/useDashboardSync';
 import { useFieldSetup } from '../hooks/useFieldSetup';
+import { useForecastAssumptions } from '../hooks/useForecastAssumptions';
 import { createRecentLocalReorderTracker } from '../lib/reorderSyncUtils';
 import type { ViewportAnchor } from '../lib/viewportAnchor';
 
@@ -108,8 +109,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     browsingAccountId: auth.browsingAccountId,
     setIsProjectModalOpen: ui.setIsProjectModalOpen,
     updateSyncTime: useCallback(() => updateSyncTimeRef.current(), []),
-    fetchProjectTasks: useCallback((id: string, token: string) => fetchProjectTasksRef.current(id, token), []),
-    getTokenById: auth.getTokenById,
   });
 
   // Date Settings
@@ -138,6 +137,26 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   // 3. Compute effective tokens (Must be after projects hook)
   const projectToken = auth.getTokenById(projects.selectedProject?.accountId);
+  const handleForecastAssumptionsSaveError = useCallback((message: string) => {
+    showToast(message, 'error');
+  }, [showToast]);
+  const handleForecastAssumptionsSaveSuccess = useCallback((message: string) => {
+    showToast(message, 'success');
+  }, [showToast]);
+
+  const {
+    forecastAssumptions,
+    refreshForecastAssumptionsFromGitHub,
+    saveForecastAssumptionsToGitHub,
+    isLoadingForecastAssumptions,
+    isRefreshingForecastAssumptions,
+    isSavingForecastAssumptions,
+  } = useForecastAssumptions({
+    projectId: projects.selectedProject?.id,
+    token: projectToken,
+    onSaveError: handleForecastAssumptionsSaveError,
+    onSaveSuccess: handleForecastAssumptionsSaveSuccess,
+  });
 
   // 4. Tasks Hook (Needs Auth, UI, and Project State)
   const requestStartDateDecision = useCallback((affectedTasks: Task[]): Promise<'auto' | 'locked' | 'ask'> => {
@@ -202,6 +221,24 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     shouldSkipRecentLocalReorder,
     shouldSkipRecentLocalReorderSync,
   });
+
+  const syncProjectNow = useCallback(async () => {
+    if (!projects.selectedProject?.id || !projectToken) return;
+
+    const fetchOptions: FetchProjectTasksOptions = tasks.tasks.length > 0
+      ? { mode: 'background', reason: 'manual_sync', preserveViewport: true }
+      : { reason: 'manual_sync' };
+
+    await Promise.all([
+      fetchProjectTasksRef.current(projects.selectedProject.id, projectToken, fetchOptions),
+      refreshForecastAssumptionsFromGitHub(),
+    ]);
+  }, [
+    projectToken,
+    projects.selectedProject?.id,
+    refreshForecastAssumptionsFromGitHub,
+    tasks.tasks.length,
+  ]);
 
   const handleCreateProjectV2Field = useCallback(async (name: string, dataType: string, singleSelectOptions?: { name: string; description: string; color: string }[]) => {
     if (!projects.selectedProject?.id || !projectToken) return null;
@@ -395,6 +432,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     ...sync,
     dateSettings,
     updateDateSettings,
+    forecastAssumptions,
+    refreshForecastAssumptionsFromGitHub,
+    saveForecastAssumptionsToGitHub,
+    isLoadingForecastAssumptions,
+    isRefreshingForecastAssumptions,
+    isSavingForecastAssumptions,
+    syncProjectNow,
     createProjectV2Field: handleCreateProjectV2Field,
     isProjectSettingsModalOpen,
     setIsProjectSettingsModalOpen,

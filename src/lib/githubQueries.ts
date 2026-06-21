@@ -314,6 +314,27 @@ export const ADD_ISSUE_COMMENT_MUTATION = `
   }
 `;
 
+export const GET_PROJECT_README_QUERY = `
+  query($projectId: ID!) {
+    node(id: $projectId) {
+      ... on ProjectV2 {
+        readme
+      }
+    }
+  }
+`;
+
+export const UPDATE_PROJECT_README_MUTATION = `
+  mutation($projectId: ID!, $readme: String!) {
+    updateProjectV2(input: { projectId: $projectId, readme: $readme }) {
+      projectV2 {
+        id
+        readme
+      }
+    }
+  }
+`;
+
 export const CREATE_PROJECT_V2_FIELD_MUTATION = `
   mutation CreateProjectV2Field($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $singleSelectOptions: [ProjectV2SingleSelectFieldOptionInput!]) {
     createProjectV2Field(input: { projectId: $projectId, name: $name, dataType: $dataType, singleSelectOptions: $singleSelectOptions }) {

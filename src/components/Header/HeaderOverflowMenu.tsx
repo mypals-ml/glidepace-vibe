@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { useClickOutside } from '../../hooks/useClickOutside';
@@ -7,8 +7,21 @@ import { changeUiLanguage } from '../../lib/uiLocaleStorage';
 import { UI_LAYER } from '../../lib/uiLayering';
 import { IconButton } from '../UI/IconButton';
 import { ForecastIcon } from '../Dashboard/Views/ForecastIcon';
-import { useOverflowMenu, useIsOverflowItemVisible } from '@fluentui/react-overflow';
+import { useOverflowMenu, useIsOverflowItemVisible, useOverflowContext } from '@fluentui/react-overflow';
 import { hasHeaderOverflowMenuItems } from '../../lib/headerOverflowMenu';
+
+const HEADER_OVERFLOW_ITEM_IDS = [
+  'project-selector',
+  'view-switcher',
+  'settings',
+  'sync',
+  'language',
+  'account',
+  'about',
+] as const;
+
+type HeaderOverflowItemId = typeof HEADER_OVERFLOW_ITEM_IDS[number];
+type ClippedHeaderItems = Partial<Record<HeaderOverflowItemId, boolean>>;
 
 /**
  * Overflow "More" menu that dynamically shows hidden header items.
@@ -26,9 +39,8 @@ export function HeaderOverflowMenu() {
     lastSyncedTime, 
     getSyncedTimeText,
     selectedProject,
-    fetchProjectTasks,
+    syncProjectNow,
     refreshProjects,
-    githubToken,
     dashboardView,
     setDashboardView,
     isChartVisible,
@@ -45,11 +57,13 @@ export function HeaderOverflowMenu() {
   } = useDashboard();
   
   const [isOpen, setIsOpen] = useState(false);
+  const [clippedItems, setClippedItems] = useState<ClippedHeaderItems>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sortedLocales = useSortedLocales();
 
   // Register with overflow manager
   const { ref: overflowMenuRef } = useOverflowMenu<HTMLButtonElement>();
+  const updateOverflow = useOverflowContext(ctx => ctx.updateOverflow);
 
   // Check visibility of each item
   const isProjectSelectorVisible = useIsOverflowItemVisible('project-selector');
@@ -59,22 +73,131 @@ export function HeaderOverflowMenu() {
   const isLanguageVisible = useIsOverflowItemVisible('language');
   const isAccountVisible = useIsOverflowItemVisible('account');
   const isAboutVisible = useIsOverflowItemVisible('about');
+  const isProjectSelectorOverflowed = !isProjectSelectorVisible || !!clippedItems['project-selector'];
+  const isViewSwitcherOverflowed = hasProject && (!isViewSwitcherVisible || !!clippedItems['view-switcher']);
+  const isSettingsOverflowed = hasProject && (!isSettingsVisible || !!clippedItems.settings);
+  const isSyncOverflowed = !isSyncVisible || !!clippedItems.sync;
+  const isLanguageOverflowed = !isLanguageVisible || !!clippedItems.language;
+  const isAccountOverflowed = !isAccountVisible || !!clippedItems.account;
+  const isAboutOverflowed = !isAboutVisible || !!clippedItems.about;
   const shouldShowOverflowMenu = hasHeaderOverflowMenuItems({
     hasProject,
-    isProjectSelectorVisible,
-    isViewSwitcherVisible,
-    isSettingsVisible,
-    isSyncVisible,
-    isLanguageVisible,
-    isAccountVisible,
-    isAboutVisible,
+    isProjectSelectorVisible: !isProjectSelectorOverflowed,
+    isViewSwitcherVisible: !isViewSwitcherOverflowed,
+    isSettingsVisible: !isSettingsOverflowed,
+    isSyncVisible: !isSyncOverflowed,
+    isLanguageVisible: !isLanguageOverflowed,
+    isAccountVisible: !isAccountOverflowed,
+    isAboutVisible: !isAboutOverflowed,
   });
+
+  useEffect(() => {
+    let frameId: number | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let lateTimer: number | null = null;
+
+    const getContainer = (): HTMLElement | null => {
+      return dropdownRef.current?.closest('.fui-Overflow') as HTMLElement | null;
+    };
+
+    const updateClippedItems = () => {
+      const overflowContainer = getContainer();
+      if (!(overflowContainer instanceof HTMLElement)) {
+        return;
+      }
+
+      const containerRect = overflowContainer.getBoundingClientRect();
+      const nextClippedItems: ClippedHeaderItems = {};
+
+      HEADER_OVERFLOW_ITEM_IDS.forEach((id) => {
+        const item = overflowContainer.querySelector<HTMLElement>(`[data-header-overflow-id="${id}"]`);
+        if (!item || item.hasAttribute('data-overflowing')) {
+          nextClippedItems[id] = false;
+          return;
+        }
+
+        const itemRect = item.getBoundingClientRect();
+        // Use a small tolerance to avoid false positives from subpixel layout, borders,
+        // or the trailing margin-right on the last item vs container edge.
+        nextClippedItems[id] = itemRect.width > 0 && (itemRect.right - containerRect.right) > 1;
+      });
+
+      setClippedItems((currentClippedItems) => {
+        const didChange = HEADER_OVERFLOW_ITEM_IDS.some(
+          (id) => !!currentClippedItems[id] !== !!nextClippedItems[id],
+        );
+        return didChange ? nextClippedItems : currentClippedItems;
+      });
+    };
+
+    const requestClippedItemUpdate = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      frameId = window.requestAnimationFrame(() => {
+        updateClippedItems();
+        frameId = null;
+      });
+    };
+
+    // Always schedule initial check; lookup happens inside update
+    requestClippedItemUpdate();
+
+    window.addEventListener('resize', requestClippedItemUpdate);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(requestClippedItemUpdate);
+      // Observe the menu wrapper itself
+      if (dropdownRef.current) {
+        resizeObserver.observe(dropdownRef.current);
+      }
+      // Observe the overflow root if already findable
+      const initial = getContainer();
+      if (initial) {
+        resizeObserver.observe(initial);
+      }
+      // Late attach in case DOM/class timing on first mount
+      lateTimer = window.setTimeout(() => {
+        const c = getContainer();
+        if (c && resizeObserver) {
+          try {
+            resizeObserver.observe(c);
+          } catch {
+            // ignore if already observed or element issues
+          }
+        }
+      }, 0);
+    }
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      if (lateTimer !== null) {
+        window.clearTimeout(lateTimer);
+      }
+      window.removeEventListener('resize', requestClippedItemUpdate);
+      resizeObserver?.disconnect();
+    };
+  }, []);
 
   useClickOutside(dropdownRef, () => setIsOpen(false), isOpen);
 
+  // When our clipped fallback decides something needs the menu (or visibility changes),
+  // ask the manager to re-evaluate. This helps settle borderline cases (e.g. 1202px)
+  // where margin gaps vs offsetWidth measurements + More button size cause the
+  // last item (About) to appear clipped to geometry but still "visible" to the lib.
+  useEffect(() => {
+    if (shouldShowOverflowMenu) {
+      // Use RAF so the width/opacity classes have applied and layout updated.
+      const id = window.requestAnimationFrame(() => updateOverflow?.());
+      return () => window.cancelAnimationFrame(id);
+    }
+  }, [shouldShowOverflowMenu, updateOverflow]);
+
   const handleSync = () => {
     if (selectedProject?.id) {
-      fetchProjectTasks(selectedProject.id, githubToken);
+      void syncProjectNow();
     } else {
       refreshProjects();
     }
@@ -100,7 +223,7 @@ export function HeaderOverflowMenu() {
   const currentTab = !isChartVisible ? 'list' : dashboardView;
 
   return (
-    <div className={`relative shrink-0 transition-opacity ${shouldShowOverflowMenu ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} ref={dropdownRef}>
+    <div className={`relative shrink-0 transition-[opacity,width] ${shouldShowOverflowMenu ? 'w-[var(--header-button-height)] opacity-100 overflow-visible' : 'w-0 opacity-0 pointer-events-none overflow-hidden'}`} ref={dropdownRef}>
       <IconButton
         ref={overflowMenuRef}
         icon="more_vert"
@@ -114,11 +237,11 @@ export function HeaderOverflowMenu() {
       />
 
       {isOpen && shouldShowOverflowMenu && (
-        <div className={`absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] ${UI_LAYER.headerDropdown} overflow-hidden border border-slate-200/60 animate-in fade-in slide-in-from-top-1 duration-150`}>
+        <div className={`fixed sm:absolute right-4 sm:right-0 left-auto sm:left-auto top-[var(--app-header-height)] sm:top-full mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] ${UI_LAYER.headerDropdown} overflow-hidden border border-slate-200/60 animate-in fade-in slide-in-from-top-1 duration-150`}>
           <div className="p-1.5 flex flex-col gap-1">
             
             {/* View Switcher Section */}
-            {!isViewSwitcherVisible && (
+            {isViewSwitcherOverflowed && (
               <>
                 <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {t('dashboard.view', 'View')}
@@ -155,19 +278,19 @@ export function HeaderOverflowMenu() {
                     {currentTab === 'forecast' && <span className="material-symbols-outlined text-sm">check</span>}
                   </button>
                 </div>
-                {(!isSettingsVisible || !isSyncVisible || !isAccountVisible || !isLanguageVisible || !isProjectSelectorVisible) && <div className="h-px bg-slate-100 my-1 mx-2" />}
+                {(isSettingsOverflowed || isSyncOverflowed || isAccountOverflowed || isLanguageOverflowed || isProjectSelectorOverflowed) && <div className="h-px bg-slate-100 my-1 mx-2" />}
               </>
             )}
 
             {/* Actions Section */}
-            {(!isSettingsVisible || !isSyncVisible || !isAccountVisible || !isAboutVisible || !isProjectSelectorVisible) && (
+            {(isSettingsOverflowed || isSyncOverflowed || isAccountOverflowed || isAboutOverflowed || isProjectSelectorOverflowed) && (
               <>
                 <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {t('app.actions', 'Actions')}
                 </div>
 
                 {/* Project Selector (when fully hidden) */}
-                {!isProjectSelectorVisible && (
+                {isProjectSelectorOverflowed && (
                   <button
                     onClick={() => {
                       // This is a bit tricky since the dropdown is hidden.
@@ -188,7 +311,7 @@ export function HeaderOverflowMenu() {
                 )}
 
                 {/* Project Settings */}
-                {!isSettingsVisible && (
+                {isSettingsOverflowed && (
                   <button
                     onClick={() => {
                       setIsProjectSettingsModalOpen(true);
@@ -202,7 +325,7 @@ export function HeaderOverflowMenu() {
                 )}
 
                 {/* Sync Now */}
-                {!isSyncVisible && (
+                {isSyncOverflowed && (
                   <button
                     onClick={handleSync}
                     className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
@@ -218,7 +341,7 @@ export function HeaderOverflowMenu() {
                 )}
 
                 {/* Account Button */}
-                {!isAccountVisible && (
+                {isAccountOverflowed && (
                   <button
                     onClick={() => {
                       if (githubAccounts.length > 0) {
@@ -245,7 +368,7 @@ export function HeaderOverflowMenu() {
                   </button>
                 )}
 
-                {!isAboutVisible && (
+                {isAboutOverflowed && (
                   <button
                     onClick={() => {
                       setIsAboutModalOpen(true);
@@ -257,12 +380,12 @@ export function HeaderOverflowMenu() {
                     <span>{t('about.button', 'About')}</span>
                   </button>
                 )}
-                {!isLanguageVisible && <div className="h-px bg-slate-100 my-1 mx-2" />}
+                {isLanguageOverflowed && <div className="h-px bg-slate-100 my-1 mx-2" />}
               </>
             )}
 
             {/* Language Selection */}
-            {!isLanguageVisible && (
+            {isLanguageOverflowed && (
               <>
                 <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {t('app.language', 'Language')}

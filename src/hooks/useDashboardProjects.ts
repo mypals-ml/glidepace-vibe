@@ -3,7 +3,6 @@ import { USE_MOCK_DATA, MOCK_PROJECTS } from '../lib/mockData';
 import { fetchGitHubGraphQL, isGitHubRateLimitError } from '../lib/githubService';
 import { githubReadCache, READ_CACHE_TTL } from '../lib/githubReadCache';
 import { GET_USER_PROJECTS_QUERY } from '../lib/githubQueries';
-import { MOCK_TOKEN } from '../lib/githubMock';
 import type { ProjectOwnerInfo, GitHubProject, ProjectHistoryItem, SortMethod } from '../types';
 
 type SelectedProject = { id: string; title: string; public: boolean; accountId?: string };
@@ -13,8 +12,6 @@ interface UseDashboardProjectsProps {
   browsingAccountId: string;
   setIsProjectModalOpen: (open: boolean) => void;
   updateSyncTime: () => void;
-  fetchProjectTasks: (projectId: string, token: string) => Promise<void>;
-  getTokenById: (id: string | undefined) => string;
 }
 
 function readSavedSelectedProject(): SelectedProject | null {
@@ -62,8 +59,6 @@ export function useDashboardProjects({
   browsingAccountId,
   setIsProjectModalOpen,
   updateSyncTime,
-  fetchProjectTasks,
-  getTokenById,
 }: UseDashboardProjectsProps) {
 
   const [projectsData, setProjectsData] = useState<ProjectOwnerInfo[]>(USE_MOCK_DATA ? MOCK_PROJECTS : []);
@@ -266,9 +261,9 @@ export function useDashboardProjects({
         }
       }
     }
-  }, [projectsData, githubToken, fetchProjectTasks, setSelectedProject, selectedProject, browsingAccountId]);
+  }, [projectsData, githubToken, setSelectedProject, selectedProject, browsingAccountId]);
 
-  const handleSelectRealProject = useCallback((id: string, title: string, isPublic: boolean, accountId: string, forceToken?: string) => {
+  const handleSelectRealProject = useCallback((id: string, title: string, isPublic: boolean, accountId: string) => {
     setIsProjectModalOpen(false);
 
     const project = { id, title, public: isPublic, accountId };
@@ -280,14 +275,7 @@ export function useDashboardProjects({
     sessionStorage.removeItem('selected_project_type');
     localStorage.removeItem('selected_project_type');
 
-    const isMockAccount = accountId === 'mock-1';
-    const isMockProject = isMockAccount;
-    const tokenToUse = forceToken || (isMockProject ? MOCK_TOKEN : getTokenById(accountId));
-
-    if (tokenToUse) {
-      fetchProjectTasks(id, tokenToUse);
-      updateSyncTime();
-    }
+    updateSyncTime();
 
     const newItem: ProjectHistoryItem = { id, title, public: isPublic, accountId: accountId, lastOpened: Date.now() };
     
@@ -295,7 +283,7 @@ export function useDashboardProjects({
     localStorage.removeItem('auth_return_context');
     const nextHistory = [newItem, ...projectHistory.filter(item => item.id !== id)].slice(0, 20);
     setProjectHistory(nextHistory);
-  }, [fetchProjectTasks, updateSyncTime, projectHistory, setProjectHistory, setIsProjectModalOpen, setSelectedProject, setHasProject, getTokenById]);
+  }, [updateSyncTime, projectHistory, setProjectHistory, setIsProjectModalOpen, setSelectedProject, setHasProject]);
 
   const handleRemoveFromHistory = useCallback((id: string) => {
     const nextHistory = projectHistory.filter(item => item.id !== id);

@@ -1,6 +1,11 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ForecastDashboard } from './ForecastDashboard';
+import {
+  DEFAULT_FORECAST_ASSUMPTIONS,
+  normalizeForecastAssumptions,
+  type ForecastAssumptions,
+} from '../../../lib/forecastAssumptionsConfig';
 import type { Task } from '../../../types';
 
 let isCompactViewport = false;
@@ -35,10 +40,47 @@ const assignedTasks: Task[] = [
   },
 ];
 
-let dashboardState = {
-  filteredTasks: tasks,
-  isLoadingTasks: false,
+type ForecastDashboardTestState = {
+  filteredTasks: Task[];
+  isLoadingTasks: boolean;
+  forecastAssumptions: ForecastAssumptions;
+  refreshForecastAssumptionsFromGitHub: ReturnType<typeof vi.fn>;
+  saveForecastAssumptionsToGitHub: ReturnType<typeof vi.fn>;
+  isLoadingForecastAssumptions: boolean;
+  isRefreshingForecastAssumptions: boolean;
+  isSavingForecastAssumptions: boolean;
 };
+
+function createDashboardState(
+  overrides: Partial<ForecastDashboardTestState> = {},
+): ForecastDashboardTestState {
+  const state: ForecastDashboardTestState = {
+    filteredTasks: tasks,
+    isLoadingTasks: false,
+    forecastAssumptions: DEFAULT_FORECAST_ASSUMPTIONS,
+    refreshForecastAssumptionsFromGitHub: vi.fn(),
+    saveForecastAssumptionsToGitHub: vi.fn(),
+    isLoadingForecastAssumptions: false,
+    isRefreshingForecastAssumptions: false,
+    isSavingForecastAssumptions: false,
+    ...overrides,
+  };
+
+  if (!overrides.refreshForecastAssumptionsFromGitHub) {
+    state.refreshForecastAssumptionsFromGitHub = vi.fn(async () => state.forecastAssumptions);
+  }
+
+  if (!overrides.saveForecastAssumptionsToGitHub) {
+    state.saveForecastAssumptionsToGitHub = vi.fn(async (assumptions: ForecastAssumptions) => {
+      state.forecastAssumptions = normalizeForecastAssumptions(assumptions);
+      return true;
+    });
+  }
+
+  return state;
+}
+
+let dashboardState = createDashboardState();
 
 vi.mock('react-i18next', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-i18next')>();
@@ -68,10 +110,7 @@ describe('ForecastDashboard loading state', () => {
     vi.setSystemTime(new Date('2026-06-19T12:00:00Z'));
     isCompactViewport = false;
     isNarrowViewport = false;
-    dashboardState = {
-      filteredTasks: tasks,
-      isLoadingTasks: false,
-    };
+    dashboardState = createDashboardState();
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -95,10 +134,10 @@ describe('ForecastDashboard loading state', () => {
   });
 
   it('shows section loading indicators while tasks are loading', () => {
-    dashboardState = {
+    dashboardState = createDashboardState({
       filteredTasks: [],
       isLoadingTasks: true,
-    };
+    });
 
     render(<ForecastDashboard />);
 
@@ -153,10 +192,9 @@ describe('ForecastDashboard loading state', () => {
   it('omits intermediate worker date labels in compact layouts', () => {
     isCompactViewport = true;
     isNarrowViewport = true;
-    dashboardState = {
+    dashboardState = createDashboardState({
       filteredTasks: assignedTasks,
-      isLoadingTasks: false,
-    };
+    });
 
     const { container } = render(<ForecastDashboard />);
 
@@ -167,41 +205,50 @@ describe('ForecastDashboard loading state', () => {
     expect(container.querySelector('span[title="2026-06-28"]')).toBeTruthy();
   });
 
-  it('lets users edit capacity and status assumptions while derived fields stay read-only', () => {
+  it('keeps assumptions read-only until edit is enabled', () => {
     render(<ForecastDashboard />);
 
-    const startDateInput = screen.getByLabelText('Start date');
-    expect((startDateInput as HTMLInputElement).value).toBe('2026/06/19');
-    expect((startDateInput as HTMLInputElement).readOnly).toBe(true);
-    expect(startDateInput.className).toContain('bg-slate-50');
-    expect(startDateInput.className).not.toContain('shadow');
+    expect((screen.getByLabelText('Capacity') as HTMLInputElement).readOnly).toBe(true);
+    expect((screen.getByLabelText('Todo') as HTMLInputElement).readOnly).toBe(true);
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
+  });
+
+  it('lets users edit and save assumptions after entering edit mode', async () => {
+    const { rerender } = render(<ForecastDashboard />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    });
+    rerender(<ForecastDashboard />);
 
     const capacityInput = screen.getByLabelText('Capacity');
+    expect((capacityInput as HTMLInputElement).readOnly).toBe(false);
     fireEvent.change(capacityInput, { target: { value: '4' } });
-    expect((capacityInput as HTMLInputElement).value).toBe('4');
+    rerender(<ForecastDashboard />);
+    expect((screen.getByLabelText('Capacity') as HTMLInputElement).value).toBe('4');
 
     const todoInput = screen.getByLabelText('Todo');
     fireEvent.change(todoInput, { target: { value: '75' } });
-    expect((todoInput as HTMLInputElement).value).toBe('75');
-    expect(todoInput.closest('label')?.className).toContain('bg-slate-100');
-    expect(todoInput.parentElement?.className).not.toContain('shadow');
+    rerender(<ForecastDashboard />);
+    expect((screen.getByLabelText('Todo') as HTMLInputElement).value).toBe('75');
 
-    const workersInput = screen.getByLabelText('Workers');
-    expect((workersInput as HTMLInputElement).value).toBe('1');
-    expect((workersInput as HTMLInputElement).readOnly).toBe(true);
-    expect(workersInput.className).toContain('bg-slate-50');
-    expect(workersInput.className).not.toContain('shadow');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(dashboardState.saveForecastAssumptionsToGitHub).toHaveBeenCalledWith(
+      expect.objectContaining({
+        capacityDaysPerWeek: 4,
+        statusRemainingPercent: expect.objectContaining({ todo: 75 }),
+      }),
+    );
   });
 
   it('translates status legend labels via exact match and status-key fallback', () => {
-    dashboardState = {
+    dashboardState = createDashboardState({
       filteredTasks: [{
         ...tasks[0],
         status: 'Ready for deploy',
         progress: 0,
       }],
-      isLoadingTasks: false,
-    };
+    });
 
     render(<ForecastDashboard />);
 
@@ -209,8 +256,21 @@ describe('ForecastDashboard loading state', () => {
     expect(screen.queryByText('Ready for deploy')).toBeNull();
   });
 
-  it('uses matching colors for status workload assumptions', () => {
+  it('uses muted styling for read-only status workload assumptions', () => {
     render(<ForecastDashboard />);
+
+    expect(screen.getByLabelText('Draft').closest('label')?.className).toContain('bg-slate-50/90');
+    expect(screen.getByLabelText('Todo').closest('label')?.className).toContain('bg-slate-50/90');
+    expect(screen.getByLabelText('In progress').closest('label')?.className).toContain('bg-slate-50/90');
+  });
+
+  it('uses matching colors for status workload assumptions in edit mode', async () => {
+    const { rerender } = render(<ForecastDashboard />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    });
+    rerender(<ForecastDashboard />);
 
     expect(screen.getByLabelText('Draft').closest('label')?.className).toContain('bg-slate-100');
     expect(screen.getByLabelText('Todo').closest('label')?.className).toContain('bg-slate-100');
@@ -223,15 +283,14 @@ describe('ForecastDashboard loading state', () => {
   it('anchors start and completion labels and side-places today when distinct', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 5, 19));
-    dashboardState = {
+    dashboardState = createDashboardState({
       filteredTasks: [{
         ...tasks[0],
         startDate: '2026-06-18',
         targetDate: '2026-06-22',
         estimate: 3,
       }],
-      isLoadingTasks: false,
-    };
+    });
 
     render(<ForecastDashboard />);
     const xAxisLabels = screen.getByTestId('burndown-x-axis-labels');

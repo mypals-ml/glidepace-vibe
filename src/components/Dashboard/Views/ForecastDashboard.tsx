@@ -1,7 +1,13 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/DashboardContext';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
+import {
+  DEFAULT_FORECAST_ASSUMPTIONS,
+  normalizeForecastAssumptions,
+  type ForecastAssumptions,
+} from '../../../lib/forecastAssumptionsConfig';
+import { Button } from '../../UI/Button';
 import { DEFAULT_WORKER, buildForecastDashboardData } from '../../../lib/forecastDashboardUtils';
 import { getStatusChartColor, getStatusColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
 import {
@@ -40,24 +46,62 @@ import {
 
 export function ForecastDashboard({ className = '' }: { className?: string }) {
   const { t, i18n } = useTranslation();
-  const { filteredTasks, isLoadingTasks, selectedProject } = useDashboard();
+  const {
+    filteredTasks,
+    isLoadingTasks,
+    selectedProject,
+    forecastAssumptions,
+    refreshForecastAssumptionsFromGitHub,
+    saveForecastAssumptionsToGitHub,
+    isLoadingForecastAssumptions,
+    isRefreshingForecastAssumptions,
+    isSavingForecastAssumptions,
+  } = useDashboard();
   const isCompactWorkerLabels = useMediaQuery('(max-width: 639px)');
   const isNarrowWorkerLabels = useMediaQuery('(max-width: 1023px)');
   const [isForecastRulesOpen, setIsForecastRulesOpen] = useState(false);
-  const [capacityDaysPerWeek, setCapacityDaysPerWeek] = useState(5);
-  const [statusRemainingPercent, setStatusRemainingPercent] = useState({
-    draft: 0,
-    todo: 100,
-    inProgress: 50,
-    inReview: 20,
-    done: 0,
-    other: 50,
-  });
-  const forecastAssumptions = useMemo(() => ({
-    capacityDaysPerWeek,
-    statusRemainingPercent,
-  }), [capacityDaysPerWeek, statusRemainingPercent]);
-  const chartData = useMemo(() => buildForecastDashboardData(filteredTasks, new Date(), forecastAssumptions), [filteredTasks, forecastAssumptions]);
+  const [isAssumptionsEditing, setIsAssumptionsEditing] = useState(false);
+  const [draftAssumptions, setDraftAssumptions] = useState<ForecastAssumptions>(DEFAULT_FORECAST_ASSUMPTIONS);
+  const exitEditOnNextAssumptionsUpdateRef = useRef(false);
+  const activeAssumptions = isAssumptionsEditing ? draftAssumptions : forecastAssumptions;
+  const { capacityDaysPerWeek, statusRemainingPercent } = activeAssumptions;
+  const isAssumptionsLoading = isLoadingTasks || isLoadingForecastAssumptions;
+  const isAssumptionsActionsBusy = isRefreshingForecastAssumptions || isSavingForecastAssumptions;
+  const chartData = useMemo(() => buildForecastDashboardData(filteredTasks, new Date(), activeAssumptions), [filteredTasks, activeAssumptions]);
+
+  useEffect(() => {
+    if (exitEditOnNextAssumptionsUpdateRef.current) {
+      exitEditOnNextAssumptionsUpdateRef.current = false;
+      queueMicrotask(() => {
+        setIsAssumptionsEditing(false);
+      });
+    }
+  }, [forecastAssumptions]);
+
+  const handleRefreshAssumptions = async () => {
+    const refreshed = await refreshForecastAssumptionsFromGitHub();
+    if (isAssumptionsEditing) {
+      setDraftAssumptions(normalizeForecastAssumptions(refreshed ?? forecastAssumptions));
+    }
+  };
+
+  const handleBeginAssumptionsEdit = async () => {
+    exitEditOnNextAssumptionsUpdateRef.current = false;
+    const refreshed = await refreshForecastAssumptionsFromGitHub();
+    setDraftAssumptions(normalizeForecastAssumptions(refreshed ?? forecastAssumptions));
+    setIsAssumptionsEditing(true);
+  };
+
+  const handleSaveAssumptions = async () => {
+    const saved = await saveForecastAssumptionsToGitHub(draftAssumptions);
+    if (saved) {
+      // Defer exiting edit mode until the next render where the live
+      // forecastAssumptions (updated by the save) is visible. This prevents
+      // a window where editing=false but the context still holds the pre-save
+      // assumptions, which would cause the calc to temporarily revert.
+      exitEditOnNextAssumptionsUpdateRef.current = true;
+    }
+  };
   const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
   const chartGuideTicks = [
     { label: '100%', y: CHART_TOP },
@@ -219,7 +263,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                     </circle>
                   ))}
                 </svg>
-                <div className="relative h-7 text-[12px] font-semibold text-slate-500" data-testid="burndown-x-axis-labels">
+                <div className="relative -mt-4 h-7 text-[12px] font-semibold text-slate-500" data-testid="burndown-x-axis-labels">
                   {xAxisLabels.map((tick) => (
                     <span
                       key={`${tick.labelKind}-${tick.date}`}
@@ -358,14 +402,46 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
         </section>
 
         <DashboardCard ariaLabel={t('dashboard.burndownAssumptions', 'Assumptions')}>
-          <div className="mb-5">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownAssumptions', 'Assumptions')}</h2>
+            {!isAssumptionsLoading && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => { void handleRefreshAssumptions(); }}
+                  disabled={isAssumptionsActionsBusy}
+                  aria-label={t('dashboard.burndownAssumptionsRefresh', 'Refresh')}
+                >
+                  {t('dashboard.burndownAssumptionsRefresh', 'Refresh')}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    if (isAssumptionsEditing) {
+                      void handleSaveAssumptions();
+                      return;
+                    }
+                    void handleBeginAssumptionsEdit();
+                  }}
+                  disabled={isAssumptionsActionsBusy}
+                  aria-label={isAssumptionsEditing
+                    ? t('dashboard.burndownAssumptionsSave', 'Save')
+                    : t('dashboard.burndownAssumptionsEdit', 'Edit')}
+                >
+                  {isAssumptionsEditing
+                    ? t('dashboard.burndownAssumptionsSave', 'Save')
+                    : t('dashboard.burndownAssumptionsEdit', 'Edit')}
+                </Button>
+              </div>
+            )}
           </div>
-          {isLoadingTasks ? (
+          {isAssumptionsLoading ? (
             <ForecastDashboardSectionLoader variant="assumptions" label={t('dashboard.loadingTasks')} />
           ) : (
-            <>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className={isAssumptionsEditing ? '' : 'rounded-xl bg-slate-50/70 p-1'}>
+              <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${isAssumptionsEditing ? '' : 'px-1 pt-1'}`}>
                 <AssumptionInput
                   label={t('dashboard.burndownAssumptionStartDate', 'Start date')}
                   value={assumptionStartDateValue}
@@ -378,12 +454,18 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                   max={35}
                   step={0.1}
                   suffix={t('dashboard.burndownAssumptionCapacityUnit', 'd / week')}
-                  onChange={setCapacityDaysPerWeek}
+                  readOnly={!isAssumptionsEditing}
+                  onChange={(value) => {
+                    setDraftAssumptions((current) => ({
+                      ...current,
+                      capacityDaysPerWeek: value,
+                    }));
+                  }}
                 />
                 <AssumptionInput label={t('dashboard.burndownAssumptionWorkers', 'Workers')} value={String(assumptionWorkerCount)} className="sm:col-span-2" readOnly />
               </div>
 
-              <div className="mt-5 border-t border-slate-100 pt-5">
+              <div className={`mt-5 border-t pt-5 ${isAssumptionsEditing ? 'border-slate-100' : 'border-slate-200/70 px-1 pb-1'}`}>
                 <div className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">{t('dashboard.burndownTaskStatusRemainingWorkload', 'Task status remaining workload')}</div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
                   {assumptionStatusWorkloads.map((status, index) => (
@@ -393,21 +475,24 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                       status={status.status}
                       value={status.value}
                       className={index >= 4 ? 'md:col-span-2' : ''}
+                      readOnly={!isAssumptionsEditing}
                       onChange={(value) => {
-                        setStatusRemainingPercent((current) => ({
+                        setDraftAssumptions((current) => ({
                           ...current,
-                          [status.key]: value,
+                          statusRemainingPercent: {
+                            ...current.statusRemainingPercent,
+                            [status.key as keyof typeof current.statusRemainingPercent]: value,
+                          },
                         }));
                       }}
                     />
                   ))}
                 </div>
               </div>
-            </>
+            </div>
           )}
         </DashboardCard>
       </div>
     </div>
   );
 }
-

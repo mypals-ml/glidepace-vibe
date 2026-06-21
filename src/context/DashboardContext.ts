@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { Task, TaskStatus, User, GithubAccount, ProjectOwnerInfo, ProjectHistoryItem, GitHubProject, SortMethod, GitHubProjectV2Field, ProjectDateSettings, AutoUpdateStartDateMode, TaskInsertPosition, DashboardItem, GroupPath } from '../types';
+import type { ForecastAssumptions } from '../lib/forecastAssumptionsConfig';
 import type { MissingFieldDef } from '../hooks/useFieldSetup';
 import type { DashboardFieldValueChange } from '../lib/taskOrderUtils';
 import type { FetchProjectTasksOptions } from '../hooks/useDashboardTasks';
@@ -41,6 +42,13 @@ export interface DashboardContextValue {
   projectFields: GitHubProjectV2Field[];
   dateSettings: ProjectDateSettings;
   updateDateSettings: (settings: ProjectDateSettings) => void;
+  forecastAssumptions: ForecastAssumptions;
+  refreshForecastAssumptionsFromGitHub: () => Promise<ForecastAssumptions | null>;
+  saveForecastAssumptionsToGitHub: (assumptions: ForecastAssumptions) => Promise<boolean>;
+  isLoadingForecastAssumptions: boolean;
+  isRefreshingForecastAssumptions: boolean;
+  isSavingForecastAssumptions: boolean;
+  syncProjectNow: () => Promise<void>;
 
   // Tasks
   tasks: Task[];
