@@ -128,15 +128,15 @@ export function ProjectSettingsModal() {
   const anyFieldsMissing = !dateSettings.startDateFieldId || !dateSettings.targetDateFieldId || !dateSettings.estimateFieldId || !dateSettings.estimateUnitFieldId || !dateSettings.successorFieldId || !dateSettings.predecessorFieldId || !dateSettings.groupPathFieldId;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[calc(var(--app-header-height)+0.5rem)] pb-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
       <div 
-        className="bg-white rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 border border-slate-200 my-auto"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 border border-slate-200 flex flex-col max-h-[calc(100vh-var(--app-header-height)-2rem)] overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-modal-title"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-xl">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-xl flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-primary">settings</span>
             <h2 id="settings-modal-title" className="text-lg font-bold text-slate-800">
@@ -152,8 +152,8 @@ export function ProjectSettingsModal() {
           />
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
+        {/* Scrollable Content */}
+        <div className="p-6 space-y-6 flex-1 overflow-y-auto">
           <div>
             <h3 className="text-sm font-semibold text-slate-700 mb-1">
               {selectedProject?.title}
@@ -298,11 +298,10 @@ export function ProjectSettingsModal() {
               </p>
             </div>
           </div>
-
-
+        </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end rounded-b-xl">
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end rounded-b-xl flex-shrink-0">
           <Button variant="primary" onClick={handleSave}>
             {t('common.done', 'Done')}
           </Button>

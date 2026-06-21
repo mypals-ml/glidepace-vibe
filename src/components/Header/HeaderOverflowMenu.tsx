@@ -91,6 +91,16 @@ export function HeaderOverflowMenu() {
     isAboutVisible: !isAboutOverflowed,
   });
 
+  // Force simulation/debug for 1202px investigation.
+  // Set browser viewport to 1202. HUD + detailed logs will appear.
+  const w = (typeof window !== 'undefined' ? (window as any) : undefined);
+  const debugHeader = true; // forced for 1202px sim
+
+  // Top level render log for simulation
+  if (typeof window !== 'undefined') {
+    console.log('[HeaderOverflow 1202sim] render debug active', { vp: window.innerWidth, should: shouldShowOverflowMenu });
+  }
+
   useEffect(() => {
     let frameId: number | null = null;
     let resizeObserver: ResizeObserver | null = null;
@@ -106,8 +116,12 @@ export function HeaderOverflowMenu() {
         return;
       }
 
-      const containerRect = overflowContainer.getBoundingClientRect();
+      const realRect = overflowContainer.getBoundingClientRect();
+      const forcedW = w && typeof w.__SIMULATE_STRIP_WIDTH === 'number' ? w.__SIMULATE_STRIP_WIDTH : null;
+      const effectiveRight = forcedW ? realRect.left + forcedW : realRect.right;
+
       const nextClippedItems: ClippedHeaderItems = {};
+      const aboutInfo: any = {};
 
       HEADER_OVERFLOW_ITEM_IDS.forEach((id) => {
         const item = overflowContainer.querySelector<HTMLElement>(`[data-header-overflow-id="${id}"]`);
@@ -117,10 +131,20 @@ export function HeaderOverflowMenu() {
         }
 
         const itemRect = item.getBoundingClientRect();
-        // Use a small tolerance to avoid false positives from subpixel layout, borders,
-        // or the trailing margin-right on the last item vs container edge.
-        nextClippedItems[id] = itemRect.width > 0 && (itemRect.right - containerRect.right) > 1;
+        const over = itemRect.right - effectiveRight;
+        const isClipped = itemRect.width > 0 && over > 1;
+        nextClippedItems[id] = isClipped;
+
+        if (id === 'about') {
+          aboutInfo.right = Math.round(itemRect.right);
+          aboutInfo.overBy = Math.round(over * 100) / 100;
+          aboutInfo.containerRight = Math.round(effectiveRight);
+          aboutInfo.realContainerW = Math.round(realRect.width);
+        }
       });
+
+      // Always emit rich log for 1202 simulation (contains keywords for monitor)
+      console.log('[HeaderOverflow@1202sim] shouldShow=', shouldShowOverflowMenu, 'clipped=', nextClippedItems, 'about=', aboutInfo, 'forcedW=', forcedW, 'vp=', typeof window !== 'undefined' ? window.innerWidth : 0);
 
       setClippedItems((currentClippedItems) => {
         const didChange = HEADER_OVERFLOW_ITEM_IDS.some(
