@@ -19,6 +19,8 @@ const en = {
       projectIdPlaceholder: "Enter ID...",
       emptyProjectOption: "Empty Project",
       language: "Language",
+      moreOptions: "More options",
+      actions: "Actions",
       locales: {
         en: "EN",
         ja: "日本語",
@@ -128,6 +130,7 @@ const en = {
       privateProjectSearchNotice: "Global search is limited for private projects.",
       privateStatus: "Private",
       projectNoLongerAccessible: "Project no longer accessible. It has been removed from your history.",
+      view: "View",
       viewList: "List",
       viewGantt: "Gantt",
       viewForecast: "Forecast",

@@ -19,6 +19,8 @@ const zhCN = {
       projectIdPlaceholder: "输入 ID...",
       emptyProjectOption: "空项目",
       language: "语言",
+      moreOptions: "更多选项",
+      actions: "操作",
       locales: {
         en: "EN",
         ja: "日本語",
@@ -128,6 +130,7 @@ const zhCN = {
       privateProjectSearchNotice: "私有项目限制全局搜索。",
       privateStatus: "私有",
       projectNoLongerAccessible: "项目不再可用。已从您的历史记录中移除。",
+      view: "视图",
       viewList: "列表",
       viewGantt: "甘特图",
       viewForecast: "预测",

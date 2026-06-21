@@ -19,6 +19,8 @@ const ja = {
       projectIdPlaceholder: "IDを入力...",
       emptyProjectOption: "空のプロジェクト",
       language: "言語",
+      moreOptions: "その他のオプション",
+      actions: "操作",
       locales: {
         en: "EN",
         ja: "日本語",
@@ -128,6 +130,7 @@ const ja = {
       privateProjectSearchNotice: "プライベートプロジェクトではグローバル検索が制限されています。",
       privateStatus: "プライベート",
       projectNoLongerAccessible: "プロジェクトにアクセスできなくなりました。履歴から削除されました。",
+      view: "表示",
       viewList: "リスト",
       viewGantt: "ガント",
       viewForecast: "予測",

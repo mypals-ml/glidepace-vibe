@@ -19,6 +19,8 @@ const zhTW = {
       projectIdPlaceholder: "輸入 ID...",
       emptyProjectOption: "空專案",
       language: "語言",
+      moreOptions: "更多選項",
+      actions: "操作",
       locales: {
         en: "EN",
         ja: "日本語",
@@ -128,6 +130,7 @@ const zhTW = {
       privateProjectSearchNotice: "私有專案限制全域搜尋。",
       privateStatus: "私有",
       projectNoLongerAccessible: "專案不再可用。已從您的歷史記錄中移除。",
+      view: "檢視",
       viewList: "列表",
       viewGantt: "甘特圖",
       viewForecast: "預測",
