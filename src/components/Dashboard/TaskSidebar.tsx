@@ -7,27 +7,17 @@ import { useCallback, useMemo, useRef, useState, useEffect, useLayoutEffect } fr
 import { IconButton } from '../UI/IconButton';
 import { getStartDateForCal } from '../../lib/githubTaskMapper';
 import { FloatingSequenceBuilder } from './FloatingSequenceBuilder';
-import { getDashboardDropTargetGroupSortId, getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getGroupPathForCreatedTaskTarget, getTaskOrderId, getVisibleDashboardMovePlan, type DashboardFieldGroupContext } from '../../lib/taskOrderUtils';
+import { getDashboardDropTargetGroupSortId, getDashboardGroupDropPlan, getDashboardItemSortId, getDashboardTaskGroupPathMovePlan, getGroupPathForCreatedTaskTarget, getTaskOrderId, getVisibleDashboardMovePlan } from '../../lib/taskOrderUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isTaskGroupBlock, parseSlashGroupPath, serializeSlashGroupPath } from '../../lib/taskGroupUtils';
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
-import {
-  getLastUsedFieldGroupStorageKey,
-  getLocalStorageSafe,
-  getRecommendedFieldGroups,
-  getUsedFieldGroupsStorageKey,
-  loadLastUsedFieldGroup,
-  loadUsedFieldGroups,
-  recordUsedFieldGroup,
-  saveLastUsedFieldGroup,
-  type UsedFieldGroup,
-} from '../../lib/fieldGroupHistory';
 import { buildDashboardTreeRows } from './taskSidebarTree';
 import { TaskMouseSensor, TaskTouchSensor, blurActiveDragHandle } from './taskSidebarDnd';
 import { SortableTaskRow, TaskGroupRow, type ContextMenuTarget } from './TaskSidebarRows';
-import { TaskFieldGroupDialog, type FieldGroupDialogTab } from './TaskFieldGroupDialog';
+import { TaskFieldGroupDialog } from './TaskFieldGroupDialog';
 import { TaskSidebarContextMenu, type TaskSidebarContextMenuState } from './TaskSidebarContextMenu';
 import { TaskSidebarGroupEditor, type TaskSidebarGroupEditorState } from './TaskSidebarGroupEditor';
+import { useTaskSidebarFieldGroups } from './useTaskSidebarFieldGroups';
 
 const CONTEXT_MENU_VIEWPORT_PADDING = 8;
 
@@ -42,10 +32,6 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     filteredTasks, 
     dashboardItems,
     tasks,
-    projectFields,
-    selectedProject,
-    selectedGroupFieldIds,
-    setSelectedGroupFieldIds,
     isLoadingTasks, 
     searchQuery, 
     setSearchQuery, 
@@ -82,12 +68,9 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
   const [dragOverSortId, setDragOverSortId] = useState<string | null>(null);
   const [groupEditor, setGroupEditor] = useState<TaskSidebarGroupEditorState | null>(null);
   const [isSavingGroupEditor, setIsSavingGroupEditor] = useState(false);
-  const [isFieldGroupDialogOpen, setIsFieldGroupDialogOpen] = useState(false);
-  const [fieldGroupDialogTab, setFieldGroupDialogTab] = useState<FieldGroupDialogTab>('fields');
-  const [usedFieldGroups, setUsedFieldGroups] = useState<UsedFieldGroup[]>([]);
-  const [draftGroupFieldIds, setDraftGroupFieldIds] = useState<string[]>([]);
-  const [fieldGroupSearchQuery, setFieldGroupSearchQuery] = useState('');
-  const [draggedGroupFieldId, setDraggedGroupFieldId] = useState<string | null>(null);
+
+  const fieldGroups = useTaskSidebarFieldGroups();
+
   const rootRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const suppressNextClickRef = useRef(false);
@@ -335,56 +318,15 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     [dashboardItems]
   );
   const dashboardRows = useMemo(() => buildDashboardTreeRows(dashboardItems), [dashboardItems]);
-  const projectFieldsById = useMemo(() => {
-    return new Map(projectFields.map(field => [field.id, field]));
-  }, [projectFields]);
-  const sortedProjectFields = useMemo(() => {
-    return [...projectFields].sort((a, b) => a.name.localeCompare(b.name));
-  }, [projectFields]);
-  const filteredProjectFields = useMemo(() => {
-    const query = fieldGroupSearchQuery.trim().toLowerCase();
-    if (!query) return sortedProjectFields;
-
-    return sortedProjectFields.filter(field => {
-      const fieldName = field.name.toLowerCase();
-      const fieldType = field.dataType?.toLowerCase() || '';
-      return fieldName.includes(query) || fieldType.includes(query);
-    });
-  }, [fieldGroupSearchQuery, sortedProjectFields]);
-  const resolveFieldGroupFields = useCallback((fieldIds: readonly string[]) => {
-    return fieldIds.flatMap(fieldId => {
-      const field = projectFieldsById.get(fieldId);
-      return field ? [field] : [];
-    });
-  }, [projectFieldsById]);
-  const resolvedUsedFieldGroups = useMemo(() => {
-    return usedFieldGroups
-      .map(entry => ({
-        key: `used-${entry.savedAt}-${entry.fieldIds.join('|')}`,
-        fields: resolveFieldGroupFields(entry.fieldIds),
-      }))
-      .filter(entry => entry.fields.length > 0);
-  }, [usedFieldGroups, resolveFieldGroupFields]);
-  const resolvedRecommendedFieldGroups = useMemo(() => {
-    return getRecommendedFieldGroups(projectFields).map(fieldIds => ({
-      key: `recommended-${fieldIds.join('|')}`,
-      fields: resolveFieldGroupFields(fieldIds),
-    }));
-  }, [projectFields, resolveFieldGroupFields]);
   const isDraggingTask = useMemo(() => {
     if (!activeDragItemSortId) return false;
     const activeItem = dashboardItems.find(item => getDashboardItemSortId(item) === activeDragItemSortId);
     return Boolean(activeItem && !isTaskGroupBlock(activeItem));
   }, [activeDragItemSortId, dashboardItems]);
-  const fieldGroupContext = useMemo<DashboardFieldGroupContext>(() => ({
-    fieldIds: selectedGroupFieldIds,
-    fields: projectFields,
-  }), [selectedGroupFieldIds, projectFields]);
-
   const dropTargetGroupSortId = useMemo(() => {
     if (!activeDragItemSortId || !dragOverSortId) return null;
-    return getDashboardDropTargetGroupSortId(dashboardItems, activeDragItemSortId, dragOverSortId, tasks, fieldGroupContext);
-  }, [activeDragItemSortId, dragOverSortId, dashboardItems, tasks, fieldGroupContext]);
+    return getDashboardDropTargetGroupSortId(dashboardItems, activeDragItemSortId, dragOverSortId, tasks, fieldGroups.fieldGroupContext);
+  }, [activeDragItemSortId, dragOverSortId, dashboardItems, tasks, fieldGroups.fieldGroupContext]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const nextActiveSortId = String(event.active.id);
@@ -413,13 +355,13 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
       const { active, over } = event;
       if (!over) return;
 
-      const groupDropPlan = getDashboardGroupDropPlan(dashboardItems, String(active.id), String(over.id), tasks, fieldGroupContext);
+      const groupDropPlan = getDashboardGroupDropPlan(dashboardItems, String(active.id), String(over.id), tasks, fieldGroups.fieldGroupContext);
       if (groupDropPlan) {
         await moveTaskToGroupPath(groupDropPlan.taskId, groupDropPlan.targetGroupPath, groupDropPlan.afterTaskId, groupDropPlan.fieldValueChanges);
         return;
       }
 
-      const taskGroupPathMovePlan = getDashboardTaskGroupPathMovePlan(dashboardItems, String(active.id), String(over.id), tasks, fieldGroupContext);
+      const taskGroupPathMovePlan = getDashboardTaskGroupPathMovePlan(dashboardItems, String(active.id), String(over.id), tasks, fieldGroups.fieldGroupContext);
       if (taskGroupPathMovePlan) {
         await moveTaskToGroupPath(
           taskGroupPathMovePlan.taskId,
@@ -452,61 +394,6 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     }
   };
 
-  const usedFieldGroupsStorageKey = getUsedFieldGroupsStorageKey(selectedProject?.id);
-  const lastUsedFieldGroupStorageKey = getLastUsedFieldGroupStorageKey(selectedProject?.id);
-
-  useEffect(() => {
-    const lastUsedFieldGroup = loadLastUsedFieldGroup(getLocalStorageSafe(), lastUsedFieldGroupStorageKey);
-    if (lastUsedFieldGroup !== null) {
-      setSelectedGroupFieldIds(lastUsedFieldGroup);
-    }
-  }, [lastUsedFieldGroupStorageKey, setSelectedGroupFieldIds]);
-
-  const openFieldGroupDialog = () => {
-    setDraftGroupFieldIds(selectedGroupFieldIds);
-    setFieldGroupSearchQuery('');
-    setFieldGroupDialogTab('fields');
-    setUsedFieldGroups(loadUsedFieldGroups(getLocalStorageSafe(), usedFieldGroupsStorageKey));
-    setIsFieldGroupDialogOpen(true);
-  };
-
-  const closeFieldGroupDialog = () => {
-    setFieldGroupSearchQuery('');
-    setIsFieldGroupDialogOpen(false);
-  };
-
-  const toggleDraftGroupField = (fieldId: string) => {
-    setDraftGroupFieldIds(prev =>
-      prev.includes(fieldId)
-        ? prev.filter(id => id !== fieldId)
-        : [...prev, fieldId]
-    );
-  };
-
-  const moveDraftGroupFieldTo = (fieldId: string, targetFieldId: string) => {
-    setDraftGroupFieldIds(prev => {
-      const sourceIndex = prev.indexOf(fieldId);
-      const targetIndex = prev.indexOf(targetFieldId);
-      if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return prev;
-      const next = [...prev];
-      const [movedFieldId] = next.splice(sourceIndex, 1);
-      next.splice(targetIndex, 0, movedFieldId);
-      return next;
-    });
-  };
-
-  const saveFieldGroupSelection = () => {
-    const storage = getLocalStorageSafe();
-    const savedFieldIds = saveLastUsedFieldGroup(storage, lastUsedFieldGroupStorageKey, draftGroupFieldIds);
-    if (draftGroupFieldIds.length > 0) {
-      setUsedFieldGroups(
-        recordUsedFieldGroup(storage, usedFieldGroupsStorageKey, draftGroupFieldIds)
-      );
-    }
-    setSelectedGroupFieldIds(savedFieldIds);
-    closeFieldGroupDialog();
-  };
-
   return (
     <div className="flex flex-col h-full overflow-hidden relative" ref={rootRef} data-testid="task-sidebar-root">
       {/* Header - Moved outside scroll container for alignment */}
@@ -516,7 +403,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
           variant="ghost"
           size="xs"
           className="text-slate-500 hover:text-primary hover:bg-primary/10"
-          onClick={openFieldGroupDialog}
+          onClick={fieldGroups.openFieldGroupDialog}
           title={t('dashboard.groupByFields', 'Group by Fields')}
           aria-label={t('dashboard.groupByFields', 'Group by Fields')}
         />
@@ -675,26 +562,26 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
         />
       )}
 
-      {isFieldGroupDialogOpen && (
+      {fieldGroups.isFieldGroupDialogOpen && (
         <TaskFieldGroupDialog
           t={t}
-          draftGroupFieldIds={draftGroupFieldIds}
-          setDraftGroupFieldIds={setDraftGroupFieldIds}
-          fieldGroupDialogTab={fieldGroupDialogTab}
-          setFieldGroupDialogTab={setFieldGroupDialogTab}
-          fieldGroupSearchQuery={fieldGroupSearchQuery}
-          setFieldGroupSearchQuery={setFieldGroupSearchQuery}
-          draggedGroupFieldId={draggedGroupFieldId}
-          setDraggedGroupFieldId={setDraggedGroupFieldId}
-          projectFieldsById={projectFieldsById}
-          sortedProjectFields={sortedProjectFields}
-          filteredProjectFields={filteredProjectFields}
-          resolvedUsedFieldGroups={resolvedUsedFieldGroups}
-          resolvedRecommendedFieldGroups={resolvedRecommendedFieldGroups}
-          onToggleDraftGroupField={toggleDraftGroupField}
-          onMoveDraftGroupFieldTo={moveDraftGroupFieldTo}
-          onClose={closeFieldGroupDialog}
-          onSave={saveFieldGroupSelection}
+          draftGroupFieldIds={fieldGroups.draftGroupFieldIds}
+          setDraftGroupFieldIds={fieldGroups.setDraftGroupFieldIds}
+          fieldGroupDialogTab={fieldGroups.fieldGroupDialogTab}
+          setFieldGroupDialogTab={fieldGroups.setFieldGroupDialogTab}
+          fieldGroupSearchQuery={fieldGroups.fieldGroupSearchQuery}
+          setFieldGroupSearchQuery={fieldGroups.setFieldGroupSearchQuery}
+          draggedGroupFieldId={fieldGroups.draggedGroupFieldId}
+          setDraggedGroupFieldId={fieldGroups.setDraggedGroupFieldId}
+          projectFieldsById={fieldGroups.projectFieldsById}
+          sortedProjectFields={fieldGroups.sortedProjectFields}
+          filteredProjectFields={fieldGroups.filteredProjectFields}
+          resolvedUsedFieldGroups={fieldGroups.resolvedUsedFieldGroups}
+          resolvedRecommendedFieldGroups={fieldGroups.resolvedRecommendedFieldGroups}
+          onToggleDraftGroupField={fieldGroups.toggleDraftGroupField}
+          onMoveDraftGroupFieldTo={fieldGroups.moveDraftGroupFieldTo}
+          onClose={fieldGroups.closeFieldGroupDialog}
+          onSave={fieldGroups.saveFieldGroupSelection}
         />
       )}
 
