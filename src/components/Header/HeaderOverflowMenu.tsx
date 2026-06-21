@@ -98,7 +98,7 @@ export function HeaderOverflowMenu() {
 
   // Top level render log for simulation
   if (typeof window !== 'undefined') {
-    console.log('[HeaderOverflow 1202sim] render debug active', { vp: window.innerWidth, should: shouldShowOverflowMenu });
+    console.log('[HeaderOverflow@1202sim] render debug active', { vp: window.innerWidth, should: shouldShowOverflowMenu });
   }
 
   useEffect(() => {
