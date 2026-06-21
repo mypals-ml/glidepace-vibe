@@ -39,6 +39,7 @@ const task: Task = {
   kind: 'task',
   id: 'task-125',
   itemId: 'item-125',
+  contentId: 'issue-125',
   displayId: '#125',
   title: 'Refine the task details view: action buttons',
   status: 'Todo',
@@ -59,9 +60,13 @@ describe('TaskDetailsPanel actions', () => {
   const setSelectedLinkTaskIds = vi.fn();
   const updateTaskSuccessors = vi.fn();
   const updateTaskGroupPath = vi.fn();
+  const fetchTaskComments = vi.fn();
+  const fetchSingleProjectItem = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchTaskComments.mockResolvedValue(undefined);
+    fetchSingleProjectItem.mockResolvedValue(undefined);
 
     dashboardMock.useDashboard.mockReturnValue({
       isCreateMode: false,
@@ -70,9 +75,9 @@ describe('TaskDetailsPanel actions', () => {
       setIsChartVisible: vi.fn(),
       setDashboardView: vi.fn(),
       setPendingTaskInsertPosition,
-      fetchTaskComments: vi.fn().mockResolvedValue(undefined),
+      fetchTaskComments,
       isFetchingComments: {},
-      fetchSingleProjectItem: vi.fn().mockResolvedValue(undefined),
+      fetchSingleProjectItem,
       githubToken: 'mock-token',
       updateTaskTitle: vi.fn(),
       updateTaskDescription: vi.fn(),
@@ -104,6 +109,15 @@ describe('TaskDetailsPanel actions', () => {
     expect(panel).toBeTruthy();
     expect(panel?.className).toContain('fixed');
     expect(panel?.className).not.toContain('inset-0');
+  });
+
+  it('opens task details without refetching the selected project item', async () => {
+    render(<TaskDetailsPanel task={task} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(fetchTaskComments).toHaveBeenCalled();
+    });
+    expect(fetchSingleProjectItem).not.toHaveBeenCalled();
   });
 
   it('starts positioned task creation from the details panel', () => {

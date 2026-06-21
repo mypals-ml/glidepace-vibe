@@ -140,7 +140,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
     const sourceTask = filteredTasks.find(t => t.id === sourceId);
     if (!sourceTask || !sourceTask.successorIds) return;
     const newSuccessors = sourceTask.successorIds.filter(id => id !== targetId);
-    await updateTaskSuccessors(sourceId, newSuccessors);
+    await updateTaskSuccessors(sourceId, newSuccessors, true);
   };
 
   const contextBreakLinkPlan = useMemo(() => {
@@ -194,7 +194,7 @@ export function TimelineChart({ className = '', scrollRef, onScroll }: TimelineC
     if (sourceTask && targetTask && targetTask.itemId) {
       const currentSuccessors = sourceTask.successorIds || [];
       if (!currentSuccessors.includes(targetTask.itemId)) {
-        await updateTaskSuccessors(sourceTaskId, [...currentSuccessors, targetTask.itemId]);
+        await updateTaskSuccessors(sourceTaskId, [...currentSuccessors, targetTask.itemId], true);
       }
     }
   };

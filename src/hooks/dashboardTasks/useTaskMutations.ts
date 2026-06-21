@@ -275,11 +275,9 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
 
       if (anySuccess) {
         await persistDependencyFieldCorrections(dependencyRepair.corrections, nextTasks, selectedProject.id, githubToken, dateSettings);
-        // Skip immediate fetchSingle when we just edited dates: avoids reading potentially stale GH value
-        // due to eventual consistency (webhook 'refresh_task' will reconcile later with authoritative data).
-        // This + always-adopt-dates in merge prevents masking external GH Start Date edits.
-        const didDateEdit = startDate !== undefined || targetDate !== undefined;
-        if (!skipRefresh && !didDateEdit) fetchSingleProjectItem(task.itemId, githubToken);
+        // Optimistic local state already reflects these field edits. Avoid an
+        // immediate confirmation read; webhook sync reconciles any divergence.
+        if (!skipRefresh) updateSyncTime();
       } else {
         console.warn('[useTaskMutations] updateTaskDates persisted no changes; reverting optimistic state', {
           taskId: task.itemId,
@@ -293,9 +291,9 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
       setTasks(oldTasks);
       return false;
     }
-  }, [selectedProject?.id, githubToken, fetchSingleProjectItem, dateSettings, projectFields, requestStartDateDecision, setTasks, tasksRef]);
+  }, [selectedProject?.id, githubToken, dateSettings, projectFields, requestStartDateDecision, setTasks, tasksRef, updateSyncTime]);
 
-  const updateTaskSuccessors = useCallback(async (taskId: string, successorIds: string[], skipRefresh = false, decision?: 'auto' | 'locked' | 'ask'): Promise<boolean> => {
+  const updateTaskSuccessors = useCallback(async (taskId: string, successorIds: string[], skipRefresh = true, decision?: 'auto' | 'locked' | 'ask'): Promise<boolean> => {
     if (!selectedProject?.id || !githubToken || !dateSettings.successorFieldId) return false;
 
     // 1. Identify the source task using the absolute latest ref
@@ -400,6 +398,7 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
 
       if (success) {
         if (!skipRefresh) fetchSingleProjectItem(sourceTaskId, githubToken);
+        updateSyncTime();
       } else {
         // Rollback to precisely what we had before this specific operation started
         setTasks(oldTasks);
@@ -410,7 +409,7 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
       setTasks(oldTasks);
       return false;
     }
-  }, [selectedProject?.id, githubToken, dateSettings, requestStartDateDecision, fetchSingleProjectItem, setTasks, tasksRef]);
+  }, [selectedProject?.id, githubToken, dateSettings, requestStartDateDecision, fetchSingleProjectItem, setTasks, tasksRef, updateSyncTime]);
 
   return {
     updateTaskAssignees,

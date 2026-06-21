@@ -538,7 +538,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               </svg>
               <span className="text-sm font-medium">{t('dashboard.loadingTasks')}</span>
             </div>
-          ) : (apiError) ? (
+          ) : (apiError && tasks.length === 0) ? (
             <div className="p-4 bg-red-50 border border-red-100 rounded-lg mx-2 my-4">
               <div className="flex flex-col items-center gap-2 text-center">
                 <span className="material-symbols-outlined text-red-400">error</span>
@@ -555,75 +555,82 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
               {t('dashboard.noMatchingTasks')}
             </div>
           ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragMove={handleDragMove}
-              onDragOver={handleDragOver}
-              onDragEnd={handleDragEnd}
-              onDragCancel={() => {
-                dragOverSortIdRef.current = null;
-                setActiveDragItemSortId(null);
-                setDragOverSortId(null);
-                setMovingItemSortId(null);
-                blurActiveDragHandle();
-                dragHasMovedRef.current = false;
-                justDroppedRef.current = true;
-                setTimeout(() => {
-                  justDroppedRef.current = false;
-                }, 100);
-              }}
-            >
-              <SortableContext items={sortableItemIds} strategy={verticalListSortingStrategy}>
-                {dashboardRows.map(({ item, treeMeta }, index) => (
-                  isTaskGroupBlock(item) ? (
-                    <TaskGroupRow
-                      key={item.groupBlockId}
-                      group={item}
-                      treeMeta={treeMeta}
-                      onToggle={() => toggleGroupBlockCollapsed(item.groupBlockId)}
-                      onRename={() => promptRenameGroup(item)}
-                      onUngroup={() => ungroupGroupBlock(item.groupBlockId)}
-                      isDragActive={activeDragItemSortId === getDashboardItemSortId(item)}
-                      isAnyDragging={activeDragItemSortId !== null}
-                      isTaskDropTarget={isDraggingTask}
-                      isDropTargetGroup={dropTargetGroupSortId === getDashboardItemSortId(item)}
-                      isMobile={isMobile}
-                      movingItemSortId={movingItemSortId}
-                      suppressNextClickRef={suppressNextClickRef}
-                      openContextMenu={openContextMenu}
-                      t={t}
-                    />
-                  ) : (
-                    <SortableTaskRow
-                      isFirst={index === 0}
-                      key={item.id}
-                      task={item}
-                      treeMeta={treeMeta}
-                      isLinkMode={isLinkMode}
-                      isSelected={selectedTaskId === item.id}
-                      isLinkSelected={selectedLinkTaskIds.includes(item.id)}
-                      isDragActive={activeDragItemSortId === getDashboardItemSortId(item)}
-                      isAnyDragging={activeDragItemSortId !== null}
-                      isMobile={isMobile}
-                      movingItemSortId={movingItemSortId}
-                      openPickerTaskId={openPickerTaskId}
-                      openStatusPickerTaskId={openStatusPickerTaskId}
-                      suppressNextClickRef={suppressNextClickRef}
-                      openContextMenu={openContextMenu}
-                      handleTaskActivate={handleTaskActivate}
-                      setOpenPickerTaskId={setOpenPickerTaskId}
-                      setOpenStatusPickerTaskId={setOpenStatusPickerTaskId}
-                      setIsLinkMode={setIsLinkMode}
-                      setSelectedLinkTaskIds={setSelectedLinkTaskIds}
-                      jumpToChart={handleJumpToChart}
-                      t={t}
-                    />
-                  )
-                ))}
-              </SortableContext>
-            </DndContext>
+            <>
+              {apiError && (
+                <div className="mx-2 my-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <span className="font-semibold">{t('dashboard.githubApiErrorTitle')}</span> {apiError}
+                </div>
+              )}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragMove={handleDragMove}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+                onDragCancel={() => {
+                  dragOverSortIdRef.current = null;
+                  setActiveDragItemSortId(null);
+                  setDragOverSortId(null);
+                  setMovingItemSortId(null);
+                  blurActiveDragHandle();
+                  dragHasMovedRef.current = false;
+                  justDroppedRef.current = true;
+                  setTimeout(() => {
+                    justDroppedRef.current = false;
+                  }, 100);
+                }}
+              >
+                <SortableContext items={sortableItemIds} strategy={verticalListSortingStrategy}>
+                  {dashboardRows.map(({ item, treeMeta }, index) => (
+                    isTaskGroupBlock(item) ? (
+                      <TaskGroupRow
+                        key={item.groupBlockId}
+                        group={item}
+                        treeMeta={treeMeta}
+                        onToggle={() => toggleGroupBlockCollapsed(item.groupBlockId)}
+                        onRename={() => promptRenameGroup(item)}
+                        onUngroup={() => ungroupGroupBlock(item.groupBlockId)}
+                        isDragActive={activeDragItemSortId === getDashboardItemSortId(item)}
+                        isAnyDragging={activeDragItemSortId !== null}
+                        isTaskDropTarget={isDraggingTask}
+                        isDropTargetGroup={dropTargetGroupSortId === getDashboardItemSortId(item)}
+                        isMobile={isMobile}
+                        movingItemSortId={movingItemSortId}
+                        suppressNextClickRef={suppressNextClickRef}
+                        openContextMenu={openContextMenu}
+                        t={t}
+                      />
+                    ) : (
+                      <SortableTaskRow
+                        isFirst={index === 0}
+                        key={item.id}
+                        task={item}
+                        treeMeta={treeMeta}
+                        isLinkMode={isLinkMode}
+                        isSelected={selectedTaskId === item.id}
+                        isLinkSelected={selectedLinkTaskIds.includes(item.id)}
+                        isDragActive={activeDragItemSortId === getDashboardItemSortId(item)}
+                        isAnyDragging={activeDragItemSortId !== null}
+                        isMobile={isMobile}
+                        movingItemSortId={movingItemSortId}
+                        openPickerTaskId={openPickerTaskId}
+                        openStatusPickerTaskId={openStatusPickerTaskId}
+                        suppressNextClickRef={suppressNextClickRef}
+                        openContextMenu={openContextMenu}
+                        handleTaskActivate={handleTaskActivate}
+                        setOpenPickerTaskId={setOpenPickerTaskId}
+                        setOpenStatusPickerTaskId={setOpenStatusPickerTaskId}
+                        setIsLinkMode={setIsLinkMode}
+                        setSelectedLinkTaskIds={setSelectedLinkTaskIds}
+                        jumpToChart={handleJumpToChart}
+                        t={t}
+                      />
+                    )
+                  ))}
+                </SortableContext>
+              </DndContext>
+            </>
           )}
         </div>
       </div>

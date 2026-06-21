@@ -16,27 +16,19 @@ import { TaskDetailsCreateForm } from './TaskDetailsCreateForm';
 import { TaskDetailsGroupEditor } from './TaskDetailsGroupEditor';
 
 export function TaskDetailsContent({ task, t, isCreateMode = false }: { task: Task | null; t: TFunction; isCreateMode?: boolean }) {
-  const { fetchTaskComments, isFetchingComments, fetchSingleProjectItem, githubToken, updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, deleteTask, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, setIsTaskDetailsOpen, setSelectedTaskId, showToast, dateSettings, projectFields, pendingTaskInsertPosition, setPendingTaskInsertPosition, setIsLinkMode, setSelectedLinkTaskIds, updateTaskSuccessors, updateTaskGroupPath } = useDashboard();
+  const { fetchTaskComments, isFetchingComments, githubToken, updateTaskTitle, updateTaskDescription, updateTaskComment, deleteTaskComment, updateTaskDates, addTaskComment, deleteTask, handleCreateTask, tasks, projectStatusOptions, setIsCreateMode, setIsTaskDetailsOpen, setSelectedTaskId, showToast, dateSettings, projectFields, pendingTaskInsertPosition, setPendingTaskInsertPosition, setIsLinkMode, setSelectedLinkTaskIds, updateTaskSuccessors, updateTaskGroupPath } = useDashboard();
 
   useEffect(() => {
     if (!isCreateMode && task?.itemId && githubToken) {
-      console.log(`[TaskDetailsPanel] ⚡ Task detail view opened for task itemId: ${task.itemId}. Fetching comments/details...`);
-      fetchSingleProjectItem(task.itemId, githubToken)
-        .then(() => {
-          console.log(`[TaskDetailsPanel] ✅ Finished fetching comments/details for task itemId: ${task.itemId}`);
-        })
-        .catch((err: unknown) => {
-          console.error(`[TaskDetailsPanel] ❌ Failed fetching comments/details for task itemId: ${task.itemId}`, err);
-        });
-
       if (task.contentId) {
+        console.log(`[TaskDetailsPanel] 💬 Task detail view opened for task itemId: ${task.itemId}. Fetching comments...`);
         fetchTaskComments(task.id, task.contentId, githubToken)
           .catch((err: unknown) => {
             console.error(`[TaskDetailsPanel] ❌ Failed fetching comments for task: ${task.id}`, err);
           });
       }
     }
-  }, [task?.itemId, task?.contentId, task?.id, githubToken, isCreateMode, fetchSingleProjectItem, fetchTaskComments]);
+  }, [task?.itemId, task?.contentId, task?.id, githubToken, isCreateMode, fetchTaskComments]);
 
   // Derive a repository from existing tasks so the AssigneePicker can fetch assignable users
   const projectRepository = tasks.find(t => t.repository)?.repository;
