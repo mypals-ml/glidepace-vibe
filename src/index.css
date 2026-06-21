@@ -35,6 +35,7 @@
 
   --btn-h-sm: 2.25rem;
   --header-button-height: var(--btn-h-sm);
+  --app-header-height: calc(var(--header-button-height) + 1.5rem + 1px);
   --header-gap-sm: 0.5rem;
   --header-gap-md: 0.75rem;
   --header-gap-lg: 1rem;

@@ -97,6 +97,15 @@ describe('TaskDetailsPanel actions', () => {
     });
   });
 
+  it('offsets the mobile overlay below the app header so the close action stays reachable', () => {
+    const { container } = render(<TaskDetailsPanel task={task} onClose={vi.fn()} isInline={false} />);
+
+    const panel = container.querySelector('.top-\\[var\\(--app-header-height\\)\\]');
+    expect(panel).toBeTruthy();
+    expect(panel?.className).toContain('fixed');
+    expect(panel?.className).not.toContain('inset-0');
+  });
+
   it('starts positioned task creation from the details panel', () => {
     render(<TaskDetailsPanel task={task} onClose={vi.fn()} />);
 

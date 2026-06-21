@@ -46,7 +46,7 @@ export function LanguageSelectorDropdown() {
       </div>
 
       {isOpen && (
-        <div className={`fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-[72px] sm:top-full mt-2 w-auto sm:w-44 bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] ${UI_LAYER.headerDropdown} overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60`}>
+        <div className={`fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-[var(--app-header-height)] sm:top-full mt-2 w-auto sm:w-44 bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] ${UI_LAYER.headerDropdown} overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60`}>
           <div className="p-1">
             {sortedLocales.map((locale) => (
               <button
