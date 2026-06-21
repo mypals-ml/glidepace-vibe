@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import type { TFunction } from 'i18next';
 import type { BreakLinkPlan, BreakLinkScope } from '../../lib/contextMenuLinkUtils';
-import type { ContextMenuTarget } from './TaskSidebarRows';
+import type { ContextMenuTarget } from './TaskGroupRow';
 
 export type TaskSidebarContextMenuState = {
   x: number;

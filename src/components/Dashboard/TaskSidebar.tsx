@@ -13,7 +13,9 @@ import { isTaskGroupBlock, parseSlashGroupPath, serializeSlashGroupPath } from '
 import { buildBreakLinkPlan, type BreakLinkScope } from '../../lib/contextMenuLinkUtils';
 import { buildDashboardTreeRows } from './taskSidebarTree';
 import { TaskMouseSensor, TaskTouchSensor, blurActiveDragHandle } from './taskSidebarDnd';
-import { SortableTaskRow, TaskGroupRow, type ContextMenuTarget } from './TaskSidebarRows';
+import { TaskGroupRow } from './TaskGroupRow';
+import { SortableTaskRow } from './SortableTaskRow';
+import type { ContextMenuTarget } from './TaskGroupRow';
 import { TaskFieldGroupDialog } from './TaskFieldGroupDialog';
 import { TaskSidebarContextMenu, type TaskSidebarContextMenuState } from './TaskSidebarContextMenu';
 import { TaskSidebarGroupEditor, type TaskSidebarGroupEditorState } from './TaskSidebarGroupEditor';
