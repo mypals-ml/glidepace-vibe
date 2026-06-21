@@ -94,20 +94,7 @@ function DashboardLayout() {
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
   // Guard against rendering details/create panel on Forecast view (in addition to explicit dismiss on switch)
   const shouldRenderTaskDetails = isTaskDetailsOpen && (isCreateMode || selectedTask !== null) && dashboardView !== 'forecast';
-  const { setIsChartVisible } = useDashboard();
   const shouldShowTaskListPane = !isChartVisible || (isDesktop && dashboardView === 'gantt');
-
-
-  // Keep the default view aligned with the available layout for each viewport.
-  useEffect(() => {
-    if (isDesktop) {
-      setIsChartVisible(true);
-    } else {
-      // Narrow viewports open directly to the chart workspace; dashboardView
-      // defaults to forecast, while users can still switch back to the list.
-      setIsChartVisible(true);
-    }
-  }, [isDesktop, setIsChartVisible]);
 
   // Dismiss task details view when the user switches *to* Forecast (per bug #166).
   // Only act on the transition; handlers in switchers also explicitly dismiss on click.

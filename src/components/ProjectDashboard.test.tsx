@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectDashboard } from './ProjectDashboard';
 
@@ -119,15 +119,12 @@ describe('ProjectDashboard responsive defaults', () => {
     });
   });
 
-  it('keeps the forecast dashboard visible by default on mobile viewports', async () => {
+  it('renders the forecast dashboard when that view is active', async () => {
     render(<ProjectDashboard />);
 
     expect(await screen.findByText('Forecast dashboard')).toBeTruthy();
     // Guard: even with isTaskDetailsOpen=true in mock, details should NOT render on forecast
     expect(screen.queryByText('Task details')).toBeNull();
-    await waitFor(() => {
-      expect(dashboardMock.setIsChartVisible).toHaveBeenCalledWith(true);
-    });
-    expect(dashboardMock.setIsChartVisible).not.toHaveBeenCalledWith(false);
+    expect(dashboardMock.setIsChartVisible).not.toHaveBeenCalled();
   });
 });

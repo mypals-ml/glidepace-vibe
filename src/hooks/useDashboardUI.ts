@@ -1,15 +1,21 @@
 import { useState, useEffect } from 'react';
 import type { TaskInsertPosition } from '../types';
+import {
+  resolveInitialDashboardViewPreference,
+  saveDashboardViewPreference,
+  type DashboardChartView,
+} from '../lib/uiDashboardViewStorage';
 
 export function useDashboardUI() {
+  const initialDashboardPreference = resolveInitialDashboardViewPreference();
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [isPatModalOpen, setIsPatModalOpen] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
-  const [isChartVisible, setIsChartVisible] = useState(true);
-  const [dashboardView, setDashboardView] = useState<'gantt' | 'forecast'>('forecast');
+  const [isChartVisible, setIsChartVisible] = useState(initialDashboardPreference.isChartVisible);
+  const [dashboardView, setDashboardView] = useState<DashboardChartView>(initialDashboardPreference.dashboardView);
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isLinkMode, setIsLinkMode] = useState(false);
@@ -25,6 +31,10 @@ export function useDashboardUI() {
   useEffect(() => {
     localStorage.setItem('gantt_zoom_percent', String(ganttZoomPercent));
   }, [ganttZoomPercent]);
+
+  useEffect(() => {
+    saveDashboardViewPreference({ dashboardView, isChartVisible });
+  }, [dashboardView, isChartVisible]);
 
   return {
     isProjectModalOpen,
