@@ -263,7 +263,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                     </circle>
                   ))}
                 </svg>
-                <div className="relative h-8 text-[12px] font-semibold text-slate-500" data-testid="burndown-x-axis-labels">
+                <div className="relative -mt-4 h-7 text-[12px] font-semibold text-slate-500" data-testid="burndown-x-axis-labels">
                   {xAxisLabels.map((tick) => (
                     <span
                       key={`${tick.labelKind}-${tick.date}`}
@@ -496,4 +496,3 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
     </div>
   );
 }
-

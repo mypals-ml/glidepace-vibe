@@ -1,9 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Header } from './Header';
 
 const dashboardMock = vi.hoisted(() => ({
   useDashboard: vi.fn(),
+}));
+
+const overflowMock = vi.hoisted(() => ({
+  updateOverflow: vi.fn(),
 }));
 
 vi.mock('../../context/DashboardContext', () => ({
@@ -19,6 +23,9 @@ vi.mock('react-i18next', () => ({
 vi.mock('@fluentui/react-overflow', () => ({
   Overflow: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   OverflowItem: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useOverflowContext: (selector: (context: { updateOverflow: () => void }) => unknown) => selector({
+    updateOverflow: overflowMock.updateOverflow,
+  }),
 }));
 
 vi.mock('./ProjectSelectorDropdown', () => ({
@@ -46,6 +53,12 @@ describe('Header', () => {
 
   beforeEach(() => {
     setIsAboutModalOpen.mockReset();
+    overflowMock.updateOverflow.mockReset();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
     dashboardMock.useDashboard.mockReturnValue({
       githubAccounts: [{ id: '1', login: 'willwhui' }],
       isLoadingAuth: false,
@@ -55,6 +68,10 @@ describe('Header', () => {
       hasProject: true,
       setIsProjectSettingsModalOpen: vi.fn(),
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('opens the about modal when the about button is clicked', () => {
@@ -84,5 +101,20 @@ describe('Header', () => {
     expect(divider?.classList.contains('hidden')).toBe(false);
     expect((divider as HTMLElement).style.marginLeft).toBe('var(--header-divider-gap)');
     expect((divider as HTMLElement).style.marginRight).toBe('var(--header-divider-gap)');
+  });
+
+  it('keeps the overflow strip bounded and recomputes after viewport resize', () => {
+    render(<Header />);
+
+    const overflowZone = screen.getByText('Project Selector').closest('.flex-1');
+    expect(overflowZone).toBeTruthy();
+    expect(overflowZone?.className).toContain('basis-0');
+    expect(overflowZone?.className).toContain('min-w-0');
+    expect(overflowZone?.className).toContain('overflow-hidden');
+
+    overflowMock.updateOverflow.mockClear();
+    fireEvent.resize(window);
+
+    expect(overflowMock.updateOverflow).toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { useClickOutside } from '../../hooks/useClickOutside';
@@ -9,6 +9,19 @@ import { IconButton } from '../UI/IconButton';
 import { ForecastIcon } from '../Dashboard/Views/ForecastIcon';
 import { useOverflowMenu, useIsOverflowItemVisible } from '@fluentui/react-overflow';
 import { hasHeaderOverflowMenuItems } from '../../lib/headerOverflowMenu';
+
+const HEADER_OVERFLOW_ITEM_IDS = [
+  'project-selector',
+  'view-switcher',
+  'settings',
+  'sync',
+  'language',
+  'account',
+  'about',
+] as const;
+
+type HeaderOverflowItemId = typeof HEADER_OVERFLOW_ITEM_IDS[number];
+type ClippedHeaderItems = Partial<Record<HeaderOverflowItemId, boolean>>;
 
 /**
  * Overflow "More" menu that dynamically shows hidden header items.
@@ -44,6 +57,7 @@ export function HeaderOverflowMenu() {
   } = useDashboard();
   
   const [isOpen, setIsOpen] = useState(false);
+  const [clippedItems, setClippedItems] = useState<ClippedHeaderItems>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sortedLocales = useSortedLocales();
 
@@ -58,16 +72,79 @@ export function HeaderOverflowMenu() {
   const isLanguageVisible = useIsOverflowItemVisible('language');
   const isAccountVisible = useIsOverflowItemVisible('account');
   const isAboutVisible = useIsOverflowItemVisible('about');
+  const isProjectSelectorOverflowed = !isProjectSelectorVisible || !!clippedItems['project-selector'];
+  const isViewSwitcherOverflowed = !isViewSwitcherVisible || !!clippedItems['view-switcher'];
+  const isSettingsOverflowed = !isSettingsVisible || !!clippedItems.settings;
+  const isSyncOverflowed = !isSyncVisible || !!clippedItems.sync;
+  const isLanguageOverflowed = !isLanguageVisible || !!clippedItems.language;
+  const isAccountOverflowed = !isAccountVisible || !!clippedItems.account;
+  const isAboutOverflowed = !isAboutVisible || !!clippedItems.about;
   const shouldShowOverflowMenu = hasHeaderOverflowMenuItems({
     hasProject,
-    isProjectSelectorVisible,
-    isViewSwitcherVisible,
-    isSettingsVisible,
-    isSyncVisible,
-    isLanguageVisible,
-    isAccountVisible,
-    isAboutVisible,
+    isProjectSelectorVisible: !isProjectSelectorOverflowed,
+    isViewSwitcherVisible: !isViewSwitcherOverflowed,
+    isSettingsVisible: !isSettingsOverflowed,
+    isSyncVisible: !isSyncOverflowed,
+    isLanguageVisible: !isLanguageOverflowed,
+    isAccountVisible: !isAccountOverflowed,
+    isAboutVisible: !isAboutOverflowed,
   });
+
+  useEffect(() => {
+    let frameId: number | null = null;
+    const overflowContainer = dropdownRef.current?.closest('.fui-Overflow');
+    if (!(overflowContainer instanceof HTMLElement)) {
+      return;
+    }
+
+    const updateClippedItems = () => {
+      const containerRect = overflowContainer.getBoundingClientRect();
+      const nextClippedItems: ClippedHeaderItems = {};
+
+      HEADER_OVERFLOW_ITEM_IDS.forEach((id) => {
+        const item = overflowContainer.querySelector<HTMLElement>(`[data-header-overflow-id="${id}"]`);
+        if (!item || item.hasAttribute('data-overflowing')) {
+          nextClippedItems[id] = false;
+          return;
+        }
+
+        const itemRect = item.getBoundingClientRect();
+        nextClippedItems[id] = itemRect.width > 0 && itemRect.right > containerRect.right + 0.5;
+      });
+
+      setClippedItems((currentClippedItems) => {
+        const didChange = HEADER_OVERFLOW_ITEM_IDS.some(
+          (id) => !!currentClippedItems[id] !== !!nextClippedItems[id],
+        );
+        return didChange ? nextClippedItems : currentClippedItems;
+      });
+    };
+
+    const requestClippedItemUpdate = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      frameId = window.requestAnimationFrame(() => {
+        updateClippedItems();
+        frameId = null;
+      });
+    };
+
+    requestClippedItemUpdate();
+    window.addEventListener('resize', requestClippedItemUpdate);
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(requestClippedItemUpdate)
+      : null;
+    resizeObserver?.observe(overflowContainer);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener('resize', requestClippedItemUpdate);
+      resizeObserver?.disconnect();
+    };
+  }, []);
 
   useClickOutside(dropdownRef, () => setIsOpen(false), isOpen);
 
@@ -99,7 +176,7 @@ export function HeaderOverflowMenu() {
   const currentTab = !isChartVisible ? 'list' : dashboardView;
 
   return (
-    <div className={`relative shrink-0 transition-opacity ${shouldShowOverflowMenu ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} ref={dropdownRef}>
+    <div className={`relative shrink-0 overflow-visible transition-[opacity,width] ${shouldShowOverflowMenu ? 'w-[var(--header-button-height)] opacity-100' : 'w-[var(--header-button-height)] xl:w-0 opacity-0 pointer-events-none'}`} ref={dropdownRef}>
       <IconButton
         ref={overflowMenuRef}
         icon="more_vert"
@@ -117,7 +194,7 @@ export function HeaderOverflowMenu() {
           <div className="p-1.5 flex flex-col gap-1">
             
             {/* View Switcher Section */}
-            {!isViewSwitcherVisible && (
+            {isViewSwitcherOverflowed && (
               <>
                 <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {t('dashboard.view', 'View')}
@@ -154,19 +231,19 @@ export function HeaderOverflowMenu() {
                     {currentTab === 'forecast' && <span className="material-symbols-outlined text-sm">check</span>}
                   </button>
                 </div>
-                {(!isSettingsVisible || !isSyncVisible || !isAccountVisible || !isLanguageVisible || !isProjectSelectorVisible) && <div className="h-px bg-slate-100 my-1 mx-2" />}
+                {(isSettingsOverflowed || isSyncOverflowed || isAccountOverflowed || isLanguageOverflowed || isProjectSelectorOverflowed) && <div className="h-px bg-slate-100 my-1 mx-2" />}
               </>
             )}
 
             {/* Actions Section */}
-            {(!isSettingsVisible || !isSyncVisible || !isAccountVisible || !isAboutVisible || !isProjectSelectorVisible) && (
+            {(isSettingsOverflowed || isSyncOverflowed || isAccountOverflowed || isAboutOverflowed || isProjectSelectorOverflowed) && (
               <>
                 <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {t('app.actions', 'Actions')}
                 </div>
 
                 {/* Project Selector (when fully hidden) */}
-                {!isProjectSelectorVisible && (
+                {isProjectSelectorOverflowed && (
                   <button
                     onClick={() => {
                       // This is a bit tricky since the dropdown is hidden.
@@ -187,7 +264,7 @@ export function HeaderOverflowMenu() {
                 )}
 
                 {/* Project Settings */}
-                {!isSettingsVisible && (
+                {isSettingsOverflowed && (
                   <button
                     onClick={() => {
                       setIsProjectSettingsModalOpen(true);
@@ -201,7 +278,7 @@ export function HeaderOverflowMenu() {
                 )}
 
                 {/* Sync Now */}
-                {!isSyncVisible && (
+                {isSyncOverflowed && (
                   <button
                     onClick={handleSync}
                     className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
@@ -217,7 +294,7 @@ export function HeaderOverflowMenu() {
                 )}
 
                 {/* Account Button */}
-                {!isAccountVisible && (
+                {isAccountOverflowed && (
                   <button
                     onClick={() => {
                       if (githubAccounts.length > 0) {
@@ -244,7 +321,7 @@ export function HeaderOverflowMenu() {
                   </button>
                 )}
 
-                {!isAboutVisible && (
+                {isAboutOverflowed && (
                   <button
                     onClick={() => {
                       setIsAboutModalOpen(true);
@@ -256,12 +333,12 @@ export function HeaderOverflowMenu() {
                     <span>{t('about.button', 'About')}</span>
                   </button>
                 )}
-                {!isLanguageVisible && <div className="h-px bg-slate-100 my-1 mx-2" />}
+                {isLanguageOverflowed && <div className="h-px bg-slate-100 my-1 mx-2" />}
               </>
             )}
 
             {/* Language Selection */}
-            {!isLanguageVisible && (
+            {isLanguageOverflowed && (
               <>
                 <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {t('app.language', 'Language')}

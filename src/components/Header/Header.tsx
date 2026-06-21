@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
 import { IconButton } from '../UI/IconButton';
@@ -8,8 +8,52 @@ import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { DashboardViewSwitcher } from '../Dashboard/Views/DashboardViewSwitcher';
 import { HeaderOverflowMenu } from './HeaderOverflowMenu';
 import { Button } from '../UI/Button';
-import { Overflow, OverflowItem } from '@fluentui/react-overflow';
+import { Overflow, OverflowItem, useOverflowContext } from '@fluentui/react-overflow';
 import { UI_LAYER } from '../../lib/uiLayering';
+
+function HeaderOverflowResizeUpdater({ containerRef }: { containerRef: RefObject<HTMLDivElement | null> }) {
+  const updateOverflow = useOverflowContext(context => context.updateOverflow);
+
+  useEffect(() => {
+    let frameId: number | null = null;
+
+    const requestOverflowUpdate = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      // Inner overflow items can shrink labels one frame before parent items fit.
+      let remainingPasses = 3;
+      const runOverflowUpdate = () => {
+        updateOverflow();
+        remainingPasses -= 1;
+        frameId = remainingPasses > 0 ? window.requestAnimationFrame(runOverflowUpdate) : null;
+      };
+
+      frameId = window.requestAnimationFrame(runOverflowUpdate);
+    };
+
+    requestOverflowUpdate();
+    window.addEventListener('resize', requestOverflowUpdate);
+    const overflowContainer = containerRef.current;
+    const resizeObserver = typeof ResizeObserver !== 'undefined' && overflowContainer
+      ? new ResizeObserver(requestOverflowUpdate)
+      : null;
+    if (resizeObserver && overflowContainer) {
+      resizeObserver.observe(overflowContainer);
+    }
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener('resize', requestOverflowUpdate);
+      resizeObserver?.disconnect();
+    };
+  }, [containerRef, updateOverflow]);
+
+  return null;
+}
 
 /**
  * Priority+ responsive header.
@@ -34,6 +78,7 @@ export function Header() {
   } = useDashboard();
 
   const [hasOverflow, setHasOverflow] = useState(false);
+  const overflowContainerRef = useRef<HTMLDivElement>(null);
   
   return (
     <header className={`glass-panel border-b border-surface-border ${UI_LAYER.header} sticky top-0 bg-white/70 shadow-sm px-4 md:px-6 py-3 transition-all duration-300 ${hasOverflow ? 'header-compressed' : ''}`}>
@@ -55,9 +100,10 @@ export function Header() {
 
         {/* ── Overflow zone ── */}
         <Overflow padding={4} onOverflowChange={(_, data) => setHasOverflow(data.hasOverflow)}>
-          <div className="flex items-center flex-1 min-w-0">
+          <div ref={overflowContainerRef} className="flex items-center flex-1 basis-0 min-w-0 max-w-full overflow-hidden">
+            <HeaderOverflowResizeUpdater containerRef={overflowContainerRef} />
             <OverflowItem id="project-selector" priority={1000}>
-              <div className="shrink-0 min-w-max" style={{ marginRight: 'var(--header-gap)' }}>
+              <div className="shrink-0 min-w-max" data-header-overflow-id="project-selector" style={{ marginRight: 'var(--header-gap)' }}>
                 <ProjectSelectorDropdown />
               </div>
             </OverflowItem>
@@ -65,7 +111,7 @@ export function Header() {
             {hasProject && (
               <>
                 <OverflowItem id="settings" priority={700}>
-                  <div style={{ marginRight: 'var(--header-gap)' }}>
+                  <div data-header-overflow-id="settings" style={{ marginRight: 'var(--header-gap)' }}>
                     <IconButton
                       icon="settings"
                       variant="ghost"
@@ -79,7 +125,7 @@ export function Header() {
                 </OverflowItem>
 
                 <OverflowItem id="view-switcher" priority={800}>
-                  <div style={{ marginRight: 'var(--header-gap)' }}>
+                  <div data-header-overflow-id="view-switcher" style={{ marginRight: 'var(--header-gap)' }}>
                     <DashboardViewSwitcher />
                   </div>
                 </OverflowItem>
@@ -87,13 +133,13 @@ export function Header() {
             )}
             
             <OverflowItem id="language" priority={500}>
-              <div style={{ marginRight: 'var(--header-gap)' }}>
+              <div data-header-overflow-id="language" style={{ marginRight: 'var(--header-gap)' }}>
                 <LanguageSelectorDropdown />
               </div>
             </OverflowItem>
 
             <OverflowItem id="sync" priority={600}>
-              <div style={{ marginRight: 'var(--header-gap)' }}>
+              <div data-header-overflow-id="sync" style={{ marginRight: 'var(--header-gap)' }}>
                 <SyncStatusIndicator />
               </div>
             </OverflowItem>
@@ -102,7 +148,7 @@ export function Header() {
             <div style={{ flexGrow: 1 }} />
 
             <OverflowItem id="account" priority={900}>
-              <div style={{ marginRight: 'var(--header-gap)' }}>
+              <div data-header-overflow-id="account" style={{ marginRight: 'var(--header-gap)' }}>
                 <Button
                   variant={githubAccounts.length > 0 ? 'success' : 'primary'}
                   size="sm"
@@ -129,7 +175,7 @@ export function Header() {
             </OverflowItem>
 
             <OverflowItem id="about" priority={100}>
-              <div style={{ marginRight: 'var(--header-gap)' }}>
+              <div data-header-overflow-id="about" style={{ marginRight: 'var(--header-gap)' }}>
                 <Button
                   variant="ghost"
                   size="sm"
