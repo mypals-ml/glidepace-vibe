@@ -1,3 +1,5 @@
+import { defaultWorkCalendar } from './workCalendar';
+
 /**
  * Core logical algorithms for date cascading/math logic.
  * These functions calculate start/end dates for dependent tasks.
@@ -80,4 +82,23 @@ export function formatToGitHubDate(date: Date | string): string {
     console.error('Error formatting date for GitHub:', e);
     return '';
   }
+}
+
+/**
+ * Returns true for Done-like statuses using the project's established regex.
+ * Supports common variants seen in GitHub status options and progress logic.
+ */
+export function isDoneStatus(status: string | undefined | null): boolean {
+  if (!status) return false;
+  return /^(done|closed|completed|merged)$/i.test(status);
+}
+
+/**
+ * Returns current local calendar date in YYYY-MM-DD using the work calendar
+ * (getFullYear/getMonth/getDate) so it reflects the user's local day, not UTC.
+ * This is the appropriate format for "current local date" when auto-setting
+ * Start Date on Done status changes.
+ */
+export function getCurrentLocalDate(): string {
+  return defaultWorkCalendar.formatDate(new Date());
 }

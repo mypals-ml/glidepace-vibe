@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateTargetDate, shiftDateByDays } from './dateUtils';
+import { calculateTargetDate, shiftDateByDays, isDoneStatus, getCurrentLocalDate } from './dateUtils';
 import { autoCorrectDependencyFields, cascadeTaskDates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate } from './taskDependencyUtils';
 import { defaultWorkCalendar, formatWorkCalendarDate, getCurrentTimeZone } from './workCalendar';
 import type { Task } from '../types';
@@ -12,6 +12,42 @@ describe('Date Utilities Math Logic', () => {
   it('shiftDateByDays shifts dates correctly', () => {
     expect(shiftDateByDays('2026-03-21', 10)).toBe('2026-03-31');
     expect(shiftDateByDays('2026-03-21', -5)).toBe('2026-03-16');
+  });
+});
+
+describe('Status-to-Done date helpers (for auto Start Date on Done)', () => {
+  it('isDoneStatus detects Done variants case-insensitively', () => {
+    expect(isDoneStatus('Done')).toBe(true);
+    expect(isDoneStatus('done')).toBe(true);
+    expect(isDoneStatus('DONE')).toBe(true);
+    expect(isDoneStatus('Completed')).toBe(true);
+    expect(isDoneStatus('closed')).toBe(true);
+    expect(isDoneStatus('Merged')).toBe(true);
+  });
+
+  it('isDoneStatus returns false for non-done statuses', () => {
+    expect(isDoneStatus('Todo')).toBe(false);
+    expect(isDoneStatus('In Progress')).toBe(false);
+    expect(isDoneStatus('Backlog')).toBe(false);
+    expect(isDoneStatus('')).toBe(false);
+    expect(isDoneStatus(undefined as unknown as string)).toBe(false);
+    expect(isDoneStatus(null as unknown as string)).toBe(false);
+    expect(isDoneStatus('done-but-not')).toBe(false);
+  });
+
+  it('getCurrentLocalDate returns valid YYYY-MM-DD local format', () => {
+    const d = getCurrentLocalDate();
+    expect(d).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // Sanity: should be close to now (within a day of test env)
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const expectedToday = `${year}-${month}-${day}`;
+    // Allow for very rare midnight cross in test, but usually equal
+    expect([expectedToday, /* rare off-by-one local vs iso but we use local */]).toContain(d);
+    // At minimum validate it is a real parseable date string
+    expect(new Date(d).toString()).not.toBe('Invalid Date');
   });
 });
 
