@@ -105,7 +105,7 @@ describe('TaskDetailsPanel actions', () => {
   it('offsets the mobile overlay below the app header so the close action stays reachable', () => {
     const { container } = render(<TaskDetailsPanel task={task} onClose={vi.fn()} isInline={false} />);
 
-    const panel = container.querySelector('.top-\\[var\\(--app-header-height\\)\\]');
+    const panel = container.querySelector('.top-\\[calc\\(var\\(--app-header-height\\)\\+0\\.25rem\\)\\]');
     expect(panel).toBeTruthy();
     expect(panel?.className).toContain('fixed');
     expect(panel?.className).not.toContain('inset-0');
