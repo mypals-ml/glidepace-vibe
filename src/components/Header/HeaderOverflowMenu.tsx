@@ -91,13 +91,17 @@ export function HeaderOverflowMenu() {
     isAboutVisible: !isAboutOverflowed,
   });
 
+  const moreWrapperClass = `relative shrink-0 transition-[opacity,width] ${shouldShowOverflowMenu ? 'w-[var(--header-button-height)] opacity-100 overflow-visible' : 'w-0 opacity-0 pointer-events-none overflow-hidden'}`;
+
   useEffect(() => {
     let frameId: number | null = null;
     let resizeObserver: ResizeObserver | null = null;
     let lateTimer: number | null = null;
 
     const getContainer = (): HTMLElement | null => {
-      return dropdownRef.current?.closest('.fui-Overflow') as HTMLElement | null;
+      let c = dropdownRef.current?.closest('.fui-Overflow') as HTMLElement | null;
+      if (!c) c = document.querySelector('.fui-Overflow') as HTMLElement | null; // fallback, matches the ping/dump queries
+      return c;
     };
 
     const updateClippedItems = () => {
@@ -107,19 +111,29 @@ export function HeaderOverflowMenu() {
       }
 
       const containerRect = overflowContainer.getBoundingClientRect();
+      const SIM_PADDING = 4;
+
       const nextClippedItems: ClippedHeaderItems = {};
 
       HEADER_OVERFLOW_ITEM_IDS.forEach((id) => {
         const item = overflowContainer.querySelector<HTMLElement>(`[data-header-overflow-id="${id}"]`);
-        if (!item || item.hasAttribute('data-overflowing')) {
+        if (!item) {
           nextClippedItems[id] = false;
           return;
         }
 
         const itemRect = item.getBoundingClientRect();
-        const over = itemRect.right - containerRect.right;
+        const over = itemRect.right - (containerRect.right - SIM_PADDING);
         const isClipped = itemRect.width > 0 && over > 1;
         nextClippedItems[id] = isClipped;
+
+        // Geometry fallback: force the data-overflowing attr so CSS hides the item
+        // when our clip calc says it doesn't fit. This keeps the visual consistent
+        // even if the @fluentui manager disagrees on exact measurements.
+        if (isClipped) {
+          item.setAttribute('data-overflowing', '');
+        }
+        // (do not blindly remove here; lib will clear attrs itself when its measurements say the item fits again)
       });
 
       setClippedItems((currentClippedItems) => {
@@ -184,8 +198,8 @@ export function HeaderOverflowMenu() {
   useClickOutside(dropdownRef, () => setIsOpen(false), isOpen);
 
   // When our clipped fallback decides something needs the menu (or visibility changes),
-  // ask the manager to re-evaluate. This helps settle borderline cases (e.g. 1202px)
-  // where margin gaps vs offsetWidth measurements + More button size cause the
+  // ask the manager to re-evaluate. This helps settle borderline cases where
+  // margin gaps vs offsetWidth measurements + More button size cause the
   // last item (About) to appear clipped to geometry but still "visible" to the lib.
   useEffect(() => {
     if (shouldShowOverflowMenu) {
@@ -223,7 +237,7 @@ export function HeaderOverflowMenu() {
   const currentTab = !isChartVisible ? 'list' : dashboardView;
 
   return (
-    <div className={`relative shrink-0 transition-[opacity,width] ${shouldShowOverflowMenu ? 'w-[var(--header-button-height)] opacity-100 overflow-visible' : 'w-0 opacity-0 pointer-events-none overflow-hidden'}`} ref={dropdownRef}>
+    <div className={moreWrapperClass} ref={dropdownRef}>
       <IconButton
         ref={overflowMenuRef}
         icon="more_vert"
