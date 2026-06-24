@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSortedLocales } from '../../hooks/useLocales';
@@ -15,8 +15,32 @@ export function LanguageSelectorDropdown() {
   const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   useClickOutside(dropdownRef, () => setIsOpen(false), isOpen);
+
+  // Position the dropdown using fixed + measured trigger rect so it aligns
+  // correctly to the language button (right-aligned) and is not clipped.
+  useEffect(() => {
+    if (!isOpen || !dropdownRef.current) {
+      return;
+    }
+
+    const updatePosition = () => {
+      if (!dropdownRef.current) return;
+      const triggerRect = dropdownRef.current.getBoundingClientRect();
+      // Align right edge of dropdown with right edge of the trigger button.
+      const right = Math.max(16, window.innerWidth - triggerRect.right);
+      setDropdownStyle({
+        right: `${right}px`,
+        top: `calc(var(--app-header-height) + 0.5rem)`,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    return () => window.removeEventListener('resize', updatePosition);
+  }, [isOpen]);
 
   const sortedLocales = useSortedLocales();
   const currentLocale = sortedLocales.find(l => l.code === i18n.language) || sortedLocales[0];
@@ -46,7 +70,10 @@ export function LanguageSelectorDropdown() {
       </div>
 
       {isOpen && (
-        <div className={`fixed right-4 top-[var(--app-header-height)] mt-2 w-44 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] ${UI_LAYER.headerDropdown} overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60`}>
+        <div 
+          className={`fixed w-44 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] ${UI_LAYER.headerDropdown} overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 border border-slate-200/60`}
+          style={dropdownStyle}
+        >
           <div className="p-1">
             {sortedLocales.map((locale) => (
               <button

@@ -94,7 +94,7 @@ export function TaskDetailsPanel({ task, onClose, isInline = false }: TaskDetail
         className={`${
           isInline
             ? 'relative z-0 h-full w-full flex flex-col'
-            : `fixed inset-x-0 bottom-0 top-[var(--app-header-height)] md:absolute md:inset-auto md:right-4 md:top-4 md:bottom-4 md:w-[26rem] md:rounded-xl md:shadow-lg ${UI_LAYER.taskDetailsPanel}`
+            : `fixed inset-x-0 bottom-0 top-[calc(var(--app-header-height)+0.25rem)] md:absolute md:inset-auto md:right-4 md:top-4 md:bottom-4 md:w-[26rem] md:rounded-xl md:shadow-lg ${UI_LAYER.taskDetailsPanel}`
         } flex flex-col`}
       >
         <div className="md:hidden bg-white/90 backdrop-blur-md h-full rounded-t-2xl flex flex-col overflow-hidden shadow-2xl">

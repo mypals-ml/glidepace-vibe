@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { fetchGitHubGraphQL, updateProjectV2ItemField, batchUpdateProjectV2ItemFields, type ProjectV2FieldWrite } from '../../lib/githubService';
-import { formatToGitHubDate, calculateTargetDate } from '../../lib/dateUtils';
+import { formatToGitHubDate, calculateTargetDate, isDoneStatus, getCurrentLocalDate } from '../../lib/dateUtils';
 import { autoCorrectDependencyFields, cascadeTaskDates, getFixedStartDateUpdateCandidates, recalculateFloatingSuccessorDates, shouldAskToUpdateFixedSuccessorStartDate, withUpdatedPredecessorIds } from '../../lib/taskDependencyUtils';
 import {
   ADD_ASSIGNEES_MUTATION,
@@ -95,21 +95,65 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
 
       const now = Date.now();
       const progress = /^(done|closed|completed|merged)$/i.test(status) ? 100 : /^(todo|backlog|open|not started)$/i.test(status) ? 0 : 50;
+
+      // Determine if we should auto-set Start Date to current *local* date per spec.
+      // Uses shared isDoneStatus (core logic) to match existing progress detection.
+      const willSetStartDate = isDoneStatus(status);
+      const localStartDate = willSetStartDate ? getCurrentLocalDate() : undefined;
+
       setTasks(prev => prev.map(t =>
         (t.id === task.id || t.itemId === task.itemId)
-          ? { ...t, status, progress, localUpdateTimestamp: now }
+          ? {
+              ...t,
+              status,
+              progress,
+              // When marking Done, set real startDate to today's local date (overwrites prior value if any).
+              // This ensures Gantt/UI and persisted GitHub field are consistent immediately.
+              ...(localStartDate ? { startDate: localStartDate, tempStartDate: undefined, localUpdateTimestamp: now } : { localUpdateTimestamp: now })
+            }
           : t
       ));
 
       const success = await updateProjectV2ItemField(selectedProject.id, task.itemId, task.projectFieldIds.status, { singleSelectOptionId: optionId }, githubToken);
-      // Optimistic state already reflects the new status/progress; no refetch.
-      if (success && !skipRefresh) updateSyncTime();
+      if (success) {
+        // Persist the start date (if applicable) using the exact same field resolution + low-level mutation used by date logic.
+        // This reuses project field mapping (dateSettings + task.projectFieldIds + findProjectFieldId) without invoking full
+        // updateTaskDates (avoids cascades + ordering issues on a status action).
+        if (willSetStartDate && localStartDate) {
+          const resolveKnown = (id?: string) => (projectFields.length === 0 || projectFields.some(f => f.id === id)) ? id : undefined;
+          const startFieldId =
+            resolveKnown(dateSettings.startDateFieldId) ||
+            resolveKnown(task.projectFieldIds?.startDate) ||
+            findProjectFieldId(projectFields, {
+              names: ['start'],
+              dataTypes: ['DATE'],
+              typenames: ['ProjectV2Field'],
+            });
+          if (startFieldId) {
+            const dateSuccess = await updateProjectV2ItemField(
+              selectedProject.id,
+              task.itemId,
+              startFieldId,
+              { date: formatToGitHubDate(localStartDate) },
+              githubToken
+            );
+            if (!dateSuccess) {
+              console.warn('[useTaskMutations] status->Done: start date field write failed (non-fatal for status)');
+            }
+          } else {
+            console.warn('[useTaskMutations] status->Done: no start date field configured; skipping auto-set');
+          }
+        }
+
+        // Optimistic state already reflects the new status/progress (+ start date); no refetch.
+        if (!skipRefresh) updateSyncTime();
+      }
       return success;
     } catch (e) {
       console.error(e);
       return false;
     }
-  }, [selectedProject?.id, githubToken, setTasks, updateSyncTime]);
+  }, [selectedProject?.id, githubToken, setTasks, updateSyncTime, dateSettings, projectFields]);
 
   const updateTaskDates = useCallback(async (task: Task, startDate?: string | null, targetDate?: string, estimate?: number, estimateUnit?: string, autoUpdateStartDate?: AutoUpdateStartDateMode, skipRefresh = false): Promise<boolean> => {
     if (!selectedProject?.id || !task.itemId || !githubToken) return false;

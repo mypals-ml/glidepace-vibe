@@ -92,8 +92,11 @@ function DashboardLayout() {
   }, [dashboardItems, consumePendingViewportAnchor, sidebarRef, timelineRef]);
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
-  // Guard against rendering details/create panel on Forecast view (in addition to explicit dismiss on switch)
-  const shouldRenderTaskDetails = isTaskDetailsOpen && (isCreateMode || selectedTask !== null) && dashboardView !== 'forecast';
+  // Guard against rendering details/create panel when the Forecast dashboard is the active view.
+  // Note: on mobile "list" mode, isChartVisible=false but dashboardView may still be 'forecast';
+  // details must still render as overlay when tapped from the task list sidebar.
+  const isForecastActiveView = dashboardView === 'forecast' && isChartVisible;
+  const shouldRenderTaskDetails = isTaskDetailsOpen && (isCreateMode || selectedTask !== null) && !isForecastActiveView;
   const shouldShowTaskListPane = !isChartVisible || (isDesktop && dashboardView === 'gantt');
 
   // Dismiss task details view when the user switches *to* Forecast (per bug #166).
