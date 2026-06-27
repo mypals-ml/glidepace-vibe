@@ -507,7 +507,6 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
         <ForecastSectionInfoDialog
           isOpen={openSectionInfo === 'completion'}
           onClose={() => setOpenSectionInfo(null)}
-          eyebrow={t('dashboard.burndownCompletionInfoEyebrow', 'Estimated completion')}
           title={t('dashboard.burndownCompletionInfoTitle', 'How the completion date is calculated')}
           notes={[
             t('dashboard.burndownRulesCompletion', 'Estimated completion uses the remaining workload allocated across available workers and the capacity assumption in days per week. The latest worker completion date becomes the project completion date.'),
@@ -518,7 +517,6 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
         <ForecastSectionInfoDialog
           isOpen={openSectionInfo === 'chart'}
           onClose={() => setOpenSectionInfo(null)}
-          eyebrow={t('dashboard.burndownChartInfoEyebrow', 'Burndown chart')}
           title={t('dashboard.burndownChartInfoTitle', 'How the burndown chart is calculated')}
           notes={[
             t('dashboard.burndownChartInfoActual', 'The solid actual line plots the remaining workload measured at each past date, so its slope reflects how quickly completed work has reduced the backlog up to today.'),
@@ -666,7 +664,6 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
           <ForecastSectionInfoDialog
             isOpen={openSectionInfo === 'summary'}
             onClose={() => setOpenSectionInfo(null)}
-            eyebrow={t('dashboard.burndownSummaryInfoEyebrow', 'Effort remaining')}
             title={t('dashboard.burndownSummaryInfoTitle', 'How effort remaining is calculated')}
             notes={[
               t('dashboard.burndownSummaryInfoCompleted', 'Completed effort is the total estimated effort minus the remaining effort. The ring shows how much work is still left across the project.'),
@@ -676,7 +673,6 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
           <ForecastSectionInfoDialog
             isOpen={openSectionInfo === 'status'}
             onClose={() => setOpenSectionInfo(null)}
-            eyebrow={t('dashboard.burndownStatusInfoEyebrow', 'Task status workload')}
             title={t('dashboard.burndownStatusInfoTitle', 'How workload by task status is calculated')}
             notes={[
               t('dashboard.burndownStatusInfoGrouping', 'This section groups the project effort by each task status, such as Done, Draft, Todo, In progress, and other project-specific statuses.'),
