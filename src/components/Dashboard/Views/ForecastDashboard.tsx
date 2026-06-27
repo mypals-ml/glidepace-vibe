@@ -382,10 +382,15 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                   <polyline points={pointList(actualPoints)} fill="none" className="stroke-primary" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
                   <polyline points={pointList(projectedPoints)} fill="none" stroke={projectedColor} strokeWidth="4" strokeDasharray="12 12" strokeLinecap="round" strokeLinejoin="round" />
                   {coordinates.map((point) => (
-                    <circle key={point.date} cx={point.x} cy={point.y} r="5" className={`stroke-white ${point.future ? '' : 'fill-primary'}`} fill={point.future ? projectedColor : undefined} strokeWidth="3">
+                    <circle key={point.date} cx={point.x} cy={point.y} r="5" fill="transparent" stroke="none">
                       <title>{`${point.date}: ${formatDays(point.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
                     </circle>
                   ))}
+                  {actualBoundary && (
+                    <circle cx={actualBoundary.x} cy={actualBoundary.y} r="6" className="fill-primary stroke-white" strokeWidth="3">
+                      <title>{`${actualBoundary.date}: ${formatDays(actualBoundary.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
+                    </circle>
+                  )}
                 </svg>
                 <div className="relative -mt-4 h-7 text-[12px] font-semibold text-slate-500" data-testid="burndown-x-axis-labels">
                   {xAxisLabels.map((tick) => (
