@@ -5,6 +5,7 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { useSortedLocales } from '../../hooks/useLocales';
 import { changeUiLanguage } from '../../lib/uiLocaleStorage';
 import { UI_LAYER } from '../../lib/uiLayering';
+import { getProjectDisplayTitle } from '../../lib/projectDisplay';
 import { IconButton } from '../UI/IconButton';
 import { ForecastIcon } from '../Dashboard/Views/ForecastIcon';
 import { useOverflowMenu, useIsOverflowItemVisible, useOverflowContext } from '@fluentui/react-overflow';
@@ -80,6 +81,7 @@ export function HeaderOverflowMenu() {
   const isLanguageOverflowed = !isLanguageVisible || !!clippedItems.language;
   const isAccountOverflowed = !isAccountVisible || !!clippedItems.account;
   const isAboutOverflowed = !isAboutVisible || !!clippedItems.about;
+  const selectedProjectDisplayTitle = getProjectDisplayTitle(selectedProject?.title, t('dashboard.currentProject', 'Current Project'));
   const shouldShowOverflowMenu = hasHeaderOverflowMenuItems({
     hasProject,
     isProjectSelectorVisible: !isProjectSelectorOverflowed,
@@ -318,7 +320,7 @@ export function HeaderOverflowMenu() {
                     <div className="flex flex-col items-start leading-none min-w-0">
                       <span className="truncate w-full text-left">{t('dashboard.addProjectButton', 'Open Project')}</span>
                       {selectedProject && (
-                        <span className="text-[10px] text-slate-400 mt-1 truncate w-full text-left">{selectedProject.title}</span>
+                        <span className="text-[10px] text-slate-400 mt-1 truncate w-full text-left">{selectedProjectDisplayTitle}</span>
                       )}
                     </div>
                   </button>

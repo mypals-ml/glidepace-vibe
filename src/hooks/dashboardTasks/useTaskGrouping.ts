@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { updateProjectV2ItemField } from '../../lib/githubService';
+import { getProjectDisplayTitle } from '../../lib/projectDisplay';
 import { applyFieldGroupPaths, buildGroupBlocksFromOrderedTasks, renameGroupBlock as renameGroupBlockInTasks, serializeGroupPath, ungroupGroupBlock as ungroupGroupBlockInTasks, isTaskGroupBlock } from '../../lib/taskGroupUtils';
 import { getTaskOrderId } from '../../lib/taskOrderUtils';
 import type { Task, GitHubProjectV2Field, GroupPath } from '../../types';
@@ -31,7 +32,7 @@ export function useTaskGrouping({ core, filteredTasks, projectFields }: UseTaskG
   const dashboardItems = useMemo(
     () => buildGroupBlocksFromOrderedTasks(
       applyFieldGroupPaths(filteredTasks, selectedGroupFieldIds, groupFieldNamesById),
-      selectedProject?.title || t('dashboard.currentProject', 'Current Project'),
+      getProjectDisplayTitle(selectedProject?.title, t('dashboard.currentProject', 'Current Project')),
       new Set(collapsedGroupBlockIds)
     ),
     [filteredTasks, selectedGroupFieldIds, groupFieldNamesById, selectedProject?.title, collapsedGroupBlockIds, t]

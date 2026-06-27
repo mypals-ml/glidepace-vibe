@@ -25,4 +25,15 @@ i18n
     }
   });
 
+// Keep <html lang> in sync so locale-aware font fallbacks (see :lang rules in index.css)
+// select the correct CJK font for the active language.
+function syncDocumentLang(lng: string): void {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lng;
+  }
+}
+
+syncDocumentLang(i18n.language);
+i18n.on('languageChanged', syncDocumentLang);
+
 export default i18n;

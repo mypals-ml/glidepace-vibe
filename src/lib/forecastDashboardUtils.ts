@@ -115,6 +115,10 @@ function minDate(values: string[]): string {
   return values.reduce((earliest, value) => value < earliest ? value : earliest, values[0]);
 }
 
+function isFallbackCompletionTask(task: Pick<ForecastTaskPoint, 'status' | 'statusKey'>): boolean {
+  return task.statusKey !== 'done' && !task.status.toLowerCase().includes('draft');
+}
+
 export function getForecastStatusKey(task: Pick<Task, 'status' | 'progress'>): ForecastStatusKey {
   const status = task.status.toLowerCase();
   if (status.includes('done') || status.includes('closed') || task.progress >= 100) {
@@ -181,6 +185,9 @@ export function buildForecastDashboardData(tasks: Task[], today = new Date(), as
   }, new Map()).values()].sort((left, right) => right.days - left.days || left.status.localeCompare(right.status));
 
   const dateValues = chartTasks.flatMap((task) => [task.startDate, task.targetDate, task.doneDate].filter(Boolean) as string[]);
+  const fallbackDateValues = chartTasks
+    .filter(isFallbackCompletionTask)
+    .flatMap((task) => [task.startDate, task.targetDate, task.doneDate].filter(Boolean) as string[]);
   const fallbackStart = todayIso;
   const dateBasedStart = dateValues.length ? minDate([...dateValues, todayIso]) : fallbackStart;
 
@@ -193,7 +200,7 @@ export function buildForecastDashboardData(tasks: Task[], today = new Date(), as
   const hasRemainingWork = remainingDays > 0.01;
   const calculatedCompletionDate = hasRemainingWork && capacityCompletion > todayIso
     ? capacityCompletion
-    : (dateValues.length ? maxDate([...dateValues, todayIso]) : todayIso);
+    : (fallbackDateValues.length ? maxDate([...fallbackDateValues, todayIso]) : todayIso);
   const completionDate = maxDate([calculatedCompletionDate, startDate]);
 
   const dateRange = eachDate(startDate, completionDate);

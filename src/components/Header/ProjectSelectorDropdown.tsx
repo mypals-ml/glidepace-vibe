@@ -6,6 +6,7 @@ import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
 import { OverflowItem, useIsOverflowItemVisible } from '@fluentui/react-overflow';
 import { UI_LAYER } from '../../lib/uiLayering';
+import { getProjectDisplayTitle } from '../../lib/projectDisplay';
 
 export function ProjectSelectorDropdown() {
   const isTitleVisible = useIsOverflowItemVisible('project-selector-title');
@@ -27,6 +28,7 @@ export function ProjectSelectorDropdown() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useClickOutside(dropdownRef, () => setIsOpen(false), isOpen);
+  const selectedProjectDisplayTitle = getProjectDisplayTitle(selectedProject?.title, t('dashboard.currentProject', 'Current Project'));
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -48,7 +50,7 @@ export function ProjectSelectorDropdown() {
             <div className="flex items-center gap-2 min-w-0">
               <span className="truncate max-w-[80px] xs:max-w-[120px] sm:max-w-[160px] lg:max-w-[200px]">
                 {hasProject
-                  ? (selectedProject ? selectedProject.title : t('app.emptyProjectOption'))
+                  ? (selectedProject ? selectedProjectDisplayTitle : t('app.emptyProjectOption'))
                   : t('app.emptyProjectOption')}
               </span>
               <span className={`material-symbols-outlined text-[18px] text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
@@ -74,7 +76,7 @@ export function ProjectSelectorDropdown() {
                   </div>
                   <div className="px-3 py-3">
                     <div className="text-sm font-bold text-slate-600 line-clamp-2 leading-relaxed">
-                      {selectedProject.title}
+                      {selectedProjectDisplayTitle}
                     </div>
                   </div>
                 </div>

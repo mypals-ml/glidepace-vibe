@@ -57,6 +57,7 @@ describe('forecastAssumptionsConfig', () => {
   it('upgrades legacy flat payloads without a version field to the nested schema', () => {
     const legacyPayload = {
       capacityDaysPerWeek: 4,
+      availableWorkers: 3,
       statusRemainingPercent: {
         draft: 0,
         todo: 90,
@@ -70,6 +71,7 @@ describe('forecastAssumptionsConfig', () => {
     expect(upgradeForecastAssumptionsPayload(legacyPayload)).toEqual({
       assumptions: {
         capacityDaysPerWeek: 4,
+        availableWorkers: 3,
         statusRemainingPercent: {
           draft: 0,
           todo: 90,
