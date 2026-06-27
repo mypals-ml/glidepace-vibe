@@ -1,6 +1,7 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getStatusAssumptionClasses } from '../../../utils/statusColors';
+import type { User } from '../../../types';
 
 function clampNumber(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
@@ -166,9 +167,9 @@ export function ForecastRulesDialog({ isOpen, onClose }: { isOpen: boolean; onCl
   );
 }
 
-export function ChartPill({ label, color, className }: { label: string; color: string; className: string }) {
+export function ChartPill({ label, color }: { label: string; color: string }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-extrabold ${className}`}>
+    <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-slate-600">
       <span className={`h-2 w-2 rounded-full ${color}`}></span>
       {label}
     </span>
@@ -248,7 +249,7 @@ export function AssumptionNumberInput({
 }: {
   label: string;
   value: number;
-  suffix: string;
+  suffix?: string;
   className?: string;
   min?: number;
   max?: number;
@@ -279,9 +280,80 @@ export function AssumptionNumberInput({
           value={value}
           onChange={(event) => onChange?.(clampNumber(event.currentTarget.valueAsNumber, min, max))}
         />
-        <span className={`ml-2 shrink-0 text-sm font-bold ${readOnly ? 'text-slate-300' : 'text-slate-400'}`}>{suffix}</span>
+        {suffix && <span className={`ml-2 shrink-0 text-sm font-bold ${readOnly ? 'text-slate-300' : 'text-slate-400'}`}>{suffix}</span>}
       </span>
     </label>
+  );
+}
+
+export function AssumptionWorkerDropdown({
+  label,
+  value,
+  users,
+  fallbackLabel,
+}: {
+  label: string;
+  value: string;
+  users: User[];
+  fallbackLabel: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const { t } = useTranslation();
+
+  return (
+    <div className="relative block min-w-[140px]">
+      <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</span>
+      <button
+        type="button"
+        className="flex h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-lg border-0 bg-slate-50 px-3 text-base font-extrabold text-slate-500 outline-none focus:ring-2 focus:ring-primary/20"
+        aria-label={label}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        <span>{value}</span>
+        <span className={`material-symbols-outlined text-[20px] text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">expand_more</span>
+      </button>
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-72 min-w-[280px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-2xl" role="listbox" aria-label={`${label} list`}>
+          {users.length ? (
+            <div className="flex flex-col">
+              <div className="task-row-picker-muted px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                {label}
+              </div>
+              <div className="task-row-picker-body max-h-60 overflow-y-auto custom-scrollbar">
+                {users.map((user) => (
+                  <ForecastAssigneeOption key={user.id} user={user} />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="px-4 py-10 text-center">
+              <span className="material-symbols-outlined mb-2 text-3xl text-slate-300">person_search</span>
+              <div className="text-xs italic text-slate-400">{t('dashboard.noProjectAssignees', 'No project assignees')}</div>
+              <div className="mt-2 text-[10px] font-semibold text-slate-400">{fallbackLabel}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ForecastAssigneeOption({ user }: { user: User }) {
+  return (
+    <div className="flex w-full items-center gap-3 px-3 py-2 text-left" role="option" aria-selected="true" title={user.name}>
+      <div className={`flex h-7 w-7 items-center justify-center rounded-full border-2 border-primary text-[10px] font-bold shadow-sm ${user.avatarColor}`}>
+        {user.avatarUrl ? (
+          <img src={user.avatarUrl} alt={user.name} className="h-full w-full rounded-full object-cover" />
+        ) : user.initials}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-medium text-slate-700">{user.name}</div>
+        {user.login && <div className="truncate text-[10px] text-slate-400">@{user.login}</div>}
+      </div>
+      <span className="material-symbols-outlined text-lg text-primary">check_circle</span>
+    </div>
   );
 }
 
@@ -336,17 +408,15 @@ export function AssumptionPercentInput({
   );
 }
 
-export function LegendItem({ label, percent, days, color, dotClassName, badgeClassName, labelClassName = '' }: { label: string; percent: string; days: string; color: string; dotClassName: string; badgeClassName: string; labelClassName?: string }) {
+export function LegendItem({ label, percent, days, color, dotClassName, labelClassName = '' }: { label: string; percent: string; days: string; color: string; dotClassName: string; labelClassName?: string }) {
   return (
-    <li className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 ${badgeClassName}`}>
+    <li className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-slate-100 px-1 py-2.5 last:border-b-0">
       <span className={`inline-flex min-w-0 items-center gap-2 font-semibold ${labelClassName}`}>
         <span className={`h-2.5 w-2.5 rounded-full ${dotClassName}`} style={{ backgroundColor: color }}></span>
         <span className="truncate">{label}</span>
       </span>
-      <span className="flex flex-wrap justify-end gap-2">
-        <span className="rounded-md border border-current/20 bg-current/10 px-2 py-0.5 text-xs font-extrabold">{percent}</span>
-        <span className="rounded-md border border-current/20 bg-current/10 px-2 py-0.5 text-xs font-bold">{days}</span>
-      </span>
+      <span className="tabular-nums text-right text-xs font-extrabold text-slate-700">{percent}</span>
+      <span className="tabular-nums text-right text-xs font-bold text-slate-500">{days}</span>
     </li>
   );
 }

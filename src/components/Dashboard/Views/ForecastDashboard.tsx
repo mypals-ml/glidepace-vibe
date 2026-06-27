@@ -9,7 +9,9 @@ import {
 } from '../../../lib/forecastAssumptionsConfig';
 import { Button } from '../../UI/Button';
 import { DEFAULT_WORKER, buildForecastDashboardData } from '../../../lib/forecastDashboardUtils';
-import { getStatusChartColor, getStatusColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
+import { getProjectDisplayTitle, getSavedProjectHistoryTitle } from '../../../lib/projectDisplay';
+import { getStatusChartColor, getStatusDotColor, getStatusTextColor } from '../../../utils/statusColors';
+import type { User } from '../../../types';
 import {
   CHART_ACTUAL_FILL_OPACITY,
   CHART_BOTTOM,
@@ -35,6 +37,7 @@ import {
   AssumptionInput,
   AssumptionNumberInput,
   AssumptionPercentInput,
+  AssumptionWorkerDropdown,
   ChartPill,
   DashboardCard,
   DonutGraphic,
@@ -81,14 +84,22 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const handleRefreshAssumptions = async () => {
     const refreshed = await refreshForecastAssumptionsFromGitHub();
     if (isAssumptionsEditing) {
-      setDraftAssumptions(normalizeForecastAssumptions(refreshed ?? forecastAssumptions));
+      const next = normalizeForecastAssumptions(refreshed ?? forecastAssumptions);
+      setDraftAssumptions({
+        ...next,
+        availableWorkers: next.availableWorkers ?? rawWorkerCount,
+      });
     }
   };
 
   const handleBeginAssumptionsEdit = async () => {
     exitEditOnNextAssumptionsUpdateRef.current = false;
     const refreshed = await refreshForecastAssumptionsFromGitHub();
-    setDraftAssumptions(normalizeForecastAssumptions(refreshed ?? forecastAssumptions));
+    const next = normalizeForecastAssumptions(refreshed ?? forecastAssumptions);
+    setDraftAssumptions({
+      ...next,
+      availableWorkers: next.availableWorkers ?? rawWorkerCount,
+    });
     setIsAssumptionsEditing(true);
   };
 
@@ -130,9 +141,21 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const doneTextColor = getStatusTextColor('Done');
   const workerDateLabelStep = isCompactWorkerLabels ? 3 : isNarrowWorkerLabels ? 2 : 1;
   const assumptionStartDateValue = formatReadOnlyDate(chartData.points[0]?.date || '');
-  const rawWorkerCount = new Set(chartData.tasks.flatMap((task) => task.assignees).filter((assignee) => assignee !== DEFAULT_WORKER)).size;
+  const projectAssignees = useMemo(() => {
+    const usersByKey = new Map<string, User>();
+    filteredTasks.forEach((task) => {
+      task.assignees.forEach((assignee) => {
+        if (assignee.id === 'unassigned') return;
+        const key = assignee.id || assignee.login || assignee.name;
+        if (key) usersByKey.set(key, assignee);
+      });
+    });
+    return [...usersByKey.values()].sort((left, right) => left.name.localeCompare(right.name));
+  }, [filteredTasks]);
+  const rawWorkerCount = projectAssignees.length;
   const shouldShowWorkerLoads = isLoadingTasks || chartData.workerLoads.some((worker) => worker.worker !== DEFAULT_WORKER);
-  const assumptionWorkerCount = Math.max(1, rawWorkerCount);
+  const availableWorkers = activeAssumptions.availableWorkers ?? rawWorkerCount;
+  const teamCapacityDaysPerWeek = capacityDaysPerWeek * availableWorkers;
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
   const statusSegments = chartData.statusBreakdown.map((status) => ({
     ...status,
@@ -158,14 +181,12 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
       days: completedDays,
       color: getStatusChartColor('Done'),
       textClassName: getStatusTextColor('Done'),
-      badgeClassName: getStatusColor('Done'),
     },
     {
       label: t('dashboard.burndownSummaryRemaining', 'Remaining'),
       days: chartData.remainingDays,
       color: getStatusChartColor('Blocked'),
       textClassName: getStatusTextColor('Blocked'),
-      badgeClassName: getStatusColor('Blocked'),
     },
   ].map((segment) => ({
     ...segment,
@@ -183,6 +204,10 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
     : undefined;
   const remainingPercent = Math.round((chartData.remainingDays / totalEstimate) * 100);
   const actualBoundary = actualPoints[actualPoints.length - 1];
+  const selectedProjectTitle = getProjectDisplayTitle(
+    selectedProject?.title,
+    getSavedProjectHistoryTitle(selectedProject?.id, selectedProject?.accountId),
+  );
   const assumptionStatusWorkloads = [
     { key: 'draft', status: 'Draft', label: t('dashboard.burndownAssumptionDraft', 'Draft'), value: statusRemainingPercent.draft },
     { key: 'todo', status: 'Todo', label: t('dashboard.burndownAssumptionTodo', 'Todo'), value: statusRemainingPercent.todo },
@@ -277,15 +302,15 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 text-sm font-bold">
-                {selectedProject?.title && (
-                  <span className="inline-flex min-w-0 items-center gap-2 truncate text-slate-900" title={selectedProject.title}>
+                {selectedProjectTitle && (
+                  <span className="inline-flex min-w-0 items-center gap-2 truncate text-slate-900" title={selectedProjectTitle}>
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary"></span>
-                    <span className="truncate">{selectedProject.title}</span>
+                    <span className="truncate">{selectedProjectTitle}</span>
                   </span>
                 )}
-                <div className="flex flex-wrap items-center gap-2">
-                  <ChartPill label={t('dashboard.burndownActual', 'Actual')} color="bg-primary" className="bg-primary/10 text-primary" />
-                  <ChartPill label={t('dashboard.burndownProjected', 'Projected')} color={getStatusDotColor('Blocked')} className={getStatusColor('Blocked')} />
+                <div className="flex flex-wrap items-center gap-4">
+                  <ChartPill label={t('dashboard.burndownActual', 'Actual')} color="bg-primary" />
+                  <ChartPill label={t('dashboard.burndownProjected', 'Projected')} color={getStatusDotColor('Blocked')} />
                 </div>
               </div>
             </div>
@@ -317,7 +342,6 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                       days={formatLocalizedDays(status.days, t)}
                       color={status.color}
                       dotClassName={getStatusDotColor(status.status)}
-                      badgeClassName={getStatusColor(status.status)}
                     />
                   ))}
                 </ul>
@@ -351,7 +375,6 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                       days={formatLocalizedDays(segment.days, t)}
                       color={segment.color}
                       dotClassName=""
-                      badgeClassName={segment.badgeClassName}
                       labelClassName={segment.textClassName}
                     />
                   ))}
@@ -447,8 +470,28 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                   value={assumptionStartDateValue}
                   readOnly
                 />
+                <AssumptionWorkerDropdown
+                  label={t('dashboard.burndownAssumptionWorkers', 'Project assignees')}
+                  value={String(rawWorkerCount)}
+                  users={projectAssignees}
+                  fallbackLabel={DEFAULT_WORKER}
+                />
                 <AssumptionNumberInput
-                  label={t('dashboard.burndownAssumptionCapacity', 'Capacity')}
+                  label={t('dashboard.burndownAssumptionAvailableWorkers', 'Available Workers')}
+                  value={availableWorkers}
+                  min={0}
+                  max={100}
+                  step={1}
+                  readOnly={!isAssumptionsEditing}
+                  onChange={(value) => {
+                    setDraftAssumptions((current) => ({
+                      ...current,
+                      availableWorkers: value,
+                    }));
+                  }}
+                />
+                <AssumptionNumberInput
+                  label={t('dashboard.burndownAssumptionCapacity', 'Capacity per worker')}
                   value={capacityDaysPerWeek}
                   min={0.1}
                   max={35}
@@ -462,7 +505,11 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                     }));
                   }}
                 />
-                <AssumptionInput label={t('dashboard.burndownAssumptionWorkers', 'Workers')} value={String(assumptionWorkerCount)} className="sm:col-span-2" readOnly />
+                <AssumptionInput
+                  label={t('dashboard.burndownAssumptionTeamCapacity', 'Capacity of the team')}
+                  value={`${Number(teamCapacityDaysPerWeek.toFixed(1)).toString()} ${t('dashboard.burndownAssumptionCapacityUnit', 'd / week')}`}
+                  readOnly
+                />
               </div>
 
               <div className={`mt-5 border-t pt-5 ${isAssumptionsEditing ? 'border-slate-100' : 'border-slate-200/70 px-1 pb-1'}`}>

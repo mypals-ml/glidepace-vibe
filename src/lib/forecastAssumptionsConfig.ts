@@ -9,6 +9,7 @@ export interface StatusRemainingPercent {
 
 export interface ForecastAssumptions {
   capacityDaysPerWeek: number;
+  availableWorkers?: number;
   statusRemainingPercent: StatusRemainingPercent;
 }
 
@@ -89,6 +90,13 @@ function normalizeCapacityDaysPerWeek(value: unknown): number {
   return Math.min(35, value);
 }
 
+function normalizeAvailableWorkers(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return undefined;
+  }
+  return Math.min(100, Math.floor(value));
+}
+
 function isStatusRemainingPercent(value: unknown): value is StatusRemainingPercent {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<StatusRemainingPercent>;
@@ -111,7 +119,8 @@ export function normalizeForecastAssumptions(value: unknown): ForecastAssumption
   const defaults = DEFAULT_FORECAST_ASSUMPTIONS.statusRemainingPercent;
   const source = candidate.statusRemainingPercent;
 
-  return {
+  const availableWorkers = normalizeAvailableWorkers(candidate.availableWorkers);
+  const normalized: ForecastAssumptions = {
     capacityDaysPerWeek: normalizeCapacityDaysPerWeek(candidate.capacityDaysPerWeek),
     statusRemainingPercent: {
       draft: normalizePercent(source?.draft, defaults.draft),
@@ -122,6 +131,10 @@ export function normalizeForecastAssumptions(value: unknown): ForecastAssumption
       other: normalizePercent(source?.other, defaults.other),
     },
   };
+  if (availableWorkers !== undefined) {
+    normalized.availableWorkers = availableWorkers;
+  }
+  return normalized;
 }
 
 function readStoredVersion(raw: Record<string, unknown>): number {
@@ -143,6 +156,7 @@ function extractAssumptionsCandidate(payload: Record<string, unknown>): unknown 
   if (typeof payload.capacityDaysPerWeek === 'number' || payload.statusRemainingPercent) {
     return {
       capacityDaysPerWeek: payload.capacityDaysPerWeek,
+      availableWorkers: payload.availableWorkers,
       statusRemainingPercent: payload.statusRemainingPercent,
     };
   }

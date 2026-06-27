@@ -93,6 +93,39 @@ describe('forecast dashboard calculations', () => {
     });
   });
 
+  it('excludes draft and done tasks from the zero-remaining completion fallback', () => {
+    const data = buildForecastDashboardData([
+      makeTask({
+        id: 'done-work',
+        status: 'Done',
+        estimate: 2,
+        startDate: '2026-06-10',
+        targetDate: '2026-06-10',
+      }),
+      makeTask({
+        id: 'future-draft',
+        status: 'Draft',
+        estimate: 5,
+        startDate: '2026-07-07',
+        targetDate: '2026-07-07',
+      }),
+      makeTask({
+        id: 'future-done',
+        status: 'Done',
+        estimate: 3,
+        startDate: '2026-07-10',
+        targetDate: '2026-07-10',
+      }),
+    ], new Date(2026, 5, 27), {
+      statusRemainingPercent: {
+        draft: 0,
+      },
+    });
+
+    expect(data.remainingDays).toBe(0);
+    expect(data.completionDate).toBe('2026-06-27');
+  });
+
   it('spreads open task effort across the next worker load dates', () => {
     const data = buildForecastDashboardData([
       makeTask({

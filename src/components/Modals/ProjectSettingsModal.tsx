@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/DashboardContext';
+import { getProjectDisplayTitle } from '../../lib/projectDisplay';
 import type { GitHubProjectV2Field } from '../../types';
 import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
@@ -41,6 +42,7 @@ export function ProjectSettingsModal() {
     (f.__typename === 'ProjectV2Field' && f.dataType === 'TEXT') || 
     f.__typename === 'ProjectV2SingleSelectField'
   );
+  const selectedProjectDisplayTitle = getProjectDisplayTitle(selectedProject?.title, t('dashboard.currentProject', 'Current Project'));
 
   const autoStartField = dateFields.find(f => f.name.toLowerCase().includes('start'));
   const autoTargetField = dateFields.find(f => f.name.toLowerCase().includes('target') || f.name.toLowerCase().includes('end'));
@@ -157,7 +159,7 @@ export function ProjectSettingsModal() {
         <div className="p-6 space-y-6 flex-1 overflow-y-auto">
           <div>
             <h3 className="text-sm font-semibold text-slate-700 mb-1">
-              {selectedProject?.title}
+              {selectedProjectDisplayTitle}
             </h3>
             <p className="text-xs text-slate-500 mb-4">
               {t('settings.dateMappingDesc', 'Configure which fields from GitHub should be used for dates and estimates on the timeline.')}

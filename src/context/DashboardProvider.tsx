@@ -12,6 +12,7 @@ import type { FetchProjectTasksOptions } from '../hooks/useDashboardTasks';
 import { useDashboardSync } from '../hooks/useDashboardSync';
 import { useFieldSetup } from '../hooks/useFieldSetup';
 import { useForecastAssumptions } from '../hooks/useForecastAssumptions';
+import { PROJECT_TITLE_LOADING_PLACEHOLDER } from '../lib/projectDisplay';
 import { createRecentLocalReorderTracker } from '../lib/reorderSyncUtils';
 import type { ViewportAnchor } from '../lib/viewportAnchor';
 
@@ -317,7 +318,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         console.log('[Auth] Step 1: Restoring background project:', context.project_id);
         projectsRef.current.setSelectedProject({ 
           id: context.project_id, 
-          title: 'Loading...', 
+          title: PROJECT_TITLE_LOADING_PLACEHOLDER,
           public: false, 
           accountId: context.account_id 
         });

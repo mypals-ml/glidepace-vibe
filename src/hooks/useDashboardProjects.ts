@@ -3,6 +3,7 @@ import { USE_MOCK_DATA, MOCK_PROJECTS } from '../lib/mockData';
 import { fetchGitHubGraphQL, isGitHubRateLimitError } from '../lib/githubService';
 import { githubReadCache, READ_CACHE_TTL } from '../lib/githubReadCache';
 import { GET_USER_PROJECTS_QUERY } from '../lib/githubQueries';
+import { PROJECT_TITLE_LOADING_PLACEHOLDER, getProjectDisplayTitle, isProjectTitleLoadingPlaceholder } from '../lib/projectDisplay';
 import type { ProjectOwnerInfo, GitHubProject, ProjectHistoryItem, SortMethod } from '../types';
 
 type SelectedProject = { id: string; title: string; public: boolean; accountId?: string };
@@ -45,6 +46,24 @@ function pruneProjectHistory(projectId?: string) {
   }
 }
 
+function readSavedProjectFromHistory(projectId: string, accountId?: string): ProjectHistoryItem | null {
+  try {
+    const saved = localStorage.getItem('project_history');
+    if (!saved) return null;
+
+    const history = JSON.parse(saved) as ProjectHistoryItem[];
+    const exactMatch = history.find(item => item.id === projectId && item.accountId);
+    if (exactMatch) return exactMatch;
+
+    const accountMatches = accountId ? history.filter(item => item.accountId === accountId) : [];
+    if (accountMatches.length === 1) return accountMatches[0];
+
+    return history.length === 1 ? history[0] : null;
+  } catch {
+    return null;
+  }
+}
+
 function clearUrlProjectState() {
   const url = new URL(window.location.href);
   if (url.searchParams.has('project') || url.searchParams.has('account')) {
@@ -70,15 +89,21 @@ export function useDashboardProjects({
       const urlAccountId = urlParams.get('account');
       if (urlProjectId) {
         const parsed = readSavedSelectedProject();
-        const savedAccountId = parsed?.id === urlProjectId ? parsed.accountId : undefined;
-        const accountId = urlAccountId || savedAccountId;
+        const savedProject = parsed?.id === urlProjectId ? parsed : undefined;
+        const historyProject = readSavedProjectFromHistory(urlProjectId, urlAccountId || savedProject?.accountId);
+        const accountId = urlAccountId || savedProject?.accountId || historyProject?.accountId;
         if (!accountId) {
           clearSavedProject(urlProjectId);
           pruneProjectHistory(urlProjectId);
           clearUrlProjectState();
           return null;
         }
-        return { id: urlProjectId, title: 'Loading...', public: false, accountId };
+        return {
+          id: urlProjectId,
+          title: getProjectDisplayTitle(savedProject?.title, historyProject?.title || PROJECT_TITLE_LOADING_PLACEHOLDER),
+          public: savedProject?.public ?? historyProject?.public ?? false,
+          accountId,
+        };
       }
       const parsed = readSavedSelectedProject();
       if (!parsed) return null;
@@ -235,13 +260,13 @@ export function useDashboardProjects({
     
     if (selectedProject) {
       const matchById = allProjects.find(p => p.id === selectedProject.id);
-      const matchByTitle = selectedProject.title !== 'Loading...' ? allProjects.find(p => p.title === selectedProject.title) : undefined;
+      const matchByTitle = !isProjectTitleLoadingPlaceholder(selectedProject.title) ? allProjects.find(p => p.title === selectedProject.title) : undefined;
       
       if (matchById) {
         // Hydrate title/public status. 
         // DO NOT stomp on the accountId if we already have a valid one that matches the owner.
         // We only set it if it's missing.
-        const needsHydration = selectedProject.title === 'Loading...' || 
+        const needsHydration = isProjectTitleLoadingPlaceholder(selectedProject.title) ||
                                selectedProject.title !== matchById.title || 
                                selectedProject.public !== matchById.public;
         
