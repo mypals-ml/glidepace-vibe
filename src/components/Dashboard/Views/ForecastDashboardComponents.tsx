@@ -111,62 +111,6 @@ export function MetricTile({
   );
 }
 
-export function ForecastRulesDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { t } = useTranslation();
-  if (!isOpen) return null;
-
-  const rules = [
-    t('dashboard.burndownRulesCompletion', 'Estimated completion uses the remaining workload allocated across available workers and the capacity assumption in days per week. The latest worker completion date becomes the project completion date.'),
-    t('dashboard.burndownRulesRemaining', 'Remaining workload starts from task estimates when available, otherwise inclusive task duration. Each open task is multiplied by its status remaining-workload percentage.'),
-    t('dashboard.burndownRulesProjected', 'The projected line simulates future workday burn-down from today using the same worker allocation and capacity. The line reaches zero on the estimated completion date.'),
-    t('dashboard.burndownRulesWorkers', 'Tasks with assignees split workload evenly across those assignees. Unassigned work is spread across active assignees, or one virtual worker when no assignees exist.'),
-  ];
-
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="forecast-rules-title">
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
-              {t('dashboard.burndownRulesEyebrow', 'Forecast rules')}
-            </p>
-            <h3 id="forecast-rules-title" className="mt-1 text-xl font-extrabold text-slate-950">
-              {t('dashboard.burndownRulesTitle', 'How the forecast is calculated')}
-            </h3>
-          </div>
-          <button
-            type="button"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30"
-            aria-label={t('common.close', 'Close')}
-            onClick={onClose}
-          >
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
-        </div>
-        <div className="space-y-3 px-6 py-5">
-          {rules.map((rule) => (
-            <p key={rule} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-700">
-              {rule}
-            </p>
-          ))}
-        </div>
-        <div className="border-t border-slate-100 px-6 py-3 text-[10px] text-slate-400">
-          This specification is generated based on the file{' '}
-          <a
-            href="https://github.com/mypals-ml/glidepace-vibe/blob/develop/docs/FORECAST_ESTIMATION_RULES.md"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline decoration-slate-300 hover:text-primary"
-          >
-            docs/FORECAST_ESTIMATION_RULES.md
-          </a>{' '}
-          in the source code repository on GitHub.
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function AssumptionsStorageDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   if (!isOpen) return null;
