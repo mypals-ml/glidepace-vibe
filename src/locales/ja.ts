@@ -175,6 +175,8 @@ const ja = {
       burndownProgressBasin: "残作業量の推移",
       burndownChartTitle: "バーンダウンチャート",
       burndownChartInfoAria: "バーンダウンチャートの計算方法",
+      burndownChartRangeFrom: "開始日",
+      burndownChartRangeAria: "チャートの開始日を調整",
       burndownChartInfoEyebrow: "バーンダウンチャート",
       burndownChartInfoTitle: "バーンダウンチャートの計算方法",
       burndownChartInfoActual: "実線（実績）は過去の各日付で測定した残作業量をプロットするため、その傾きは完了した作業が今日までにどれだけ速くバックログを減らしてきたかを表します。",

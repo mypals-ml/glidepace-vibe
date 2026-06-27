@@ -175,6 +175,8 @@ const zhTW = {
       burndownProgressBasin: "剩餘工作量趨勢",
       burndownChartTitle: "燃盡圖",
       burndownChartInfoAria: "燃盡圖如何計算",
+      burndownChartRangeFrom: "起始於",
+      burndownChartRangeAria: "調整圖表起始日期",
       burndownChartInfoEyebrow: "燃盡圖",
       burndownChartInfoTitle: "燃盡圖如何計算",
       burndownChartInfoActual: "實線（實際）會繪製每個過去日期量測到的剩餘工作量，因此其斜率反映截至今天，已完成的工作以多快的速度減少了待辦工作。",

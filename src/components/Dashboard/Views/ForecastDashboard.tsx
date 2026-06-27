@@ -65,6 +65,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const isNarrowWorkerLabels = useMediaQuery('(max-width: 1023px)');
   const [isAssumptionsStorageOpen, setIsAssumptionsStorageOpen] = useState(false);
   const [openSectionInfo, setOpenSectionInfo] = useState<'completion' | 'chart' | 'summary' | 'status' | null>(null);
+  const [chartStartIndex, setChartStartIndex] = useState(0);
   const [isAssumptionsEditing, setIsAssumptionsEditing] = useState(false);
   const [draftAssumptions, setDraftAssumptions] = useState<ForecastAssumptions>(DEFAULT_FORECAST_ASSUMPTIONS);
   const exitEditOnNextAssumptionsUpdateRef = useRef(false);
@@ -125,10 +126,41 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
     });
     setIsAssumptionsEditing(false);
   };
-  const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
+  // Range slider: trim the chart's start date, but always keep at least the most recent 2 weeks visible.
+  const CHART_MIN_VISIBLE_DAYS = 14;
+  const chartRangeMaxStartIndex = useMemo(() => {
+    const points = chartData.points;
+    if (points.length < 2) return 0;
+    const lastTime = new Date(`${points[points.length - 1].date}T00:00:00`).getTime();
+    let maxIndex = 0;
+    for (let index = 0; index < points.length; index += 1) {
+      const daysToEnd = (lastTime - new Date(`${points[index].date}T00:00:00`).getTime()) / 86400000;
+      if (daysToEnd >= CHART_MIN_VISIBLE_DAYS) maxIndex = index;
+      else break;
+    }
+    return maxIndex;
+  }, [chartData.points]);
+  const showChartRangeSlider = chartRangeMaxStartIndex > 0;
+  const effectiveChartStartIndex = Math.min(chartStartIndex, chartRangeMaxStartIndex);
+  const visibleChartPoints = useMemo(
+    () => chartData.points.slice(effectiveChartStartIndex),
+    [chartData.points, effectiveChartStartIndex],
+  );
+  const chartRangeStartDate = chartData.points[effectiveChartStartIndex]?.date ?? '';
+  // Scale the y-axis to the largest remaining effort within the visible window so the trimmed curve fills the height.
+  const chartYMax = useMemo(
+    () => Math.max(1, ...visibleChartPoints.map((point) => point.remainingDays)),
+    [visibleChartPoints],
+  );
+  const coordinates = useMemo(() => pointCoordinates(visibleChartPoints, chartYMax), [visibleChartPoints, chartYMax]);
+  // The y-axis top equals the remaining workload at the slide-to start day, expressed as a percentage of the total project effort.
+  // Exception: when the slide-to date is the project start date, the top is always 100%.
+  const chartTopPercent = effectiveChartStartIndex === 0
+    ? 100
+    : Math.round((chartYMax / Math.max(1, chartData.totalEstimateDays)) * 100);
   const chartGuideTicks = [
-    { label: '100%', y: CHART_TOP },
-    { label: '50%', y: CHART_TOP + CHART_PLOT_HEIGHT * 0.5 },
+    { label: `${chartTopPercent}%`, y: CHART_TOP },
+    { label: `${Math.round(chartTopPercent * 0.5)}%`, y: CHART_TOP + CHART_PLOT_HEIGHT * 0.5 },
   ];
   const dateTicks = dateTickCoordinates(coordinates);
   const xAxisLabels = dateTickLabels(coordinates);
@@ -347,6 +379,24 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
             <ForecastDashboardSectionLoader variant="chart" label={t('dashboard.loadingTasks')} />
           ) : (
             <div className="space-y-5">
+              {showChartRangeSlider && (
+                <div className="flex items-center gap-3" data-testid="burndown-range-slider">
+                  <span className="shrink-0 text-xs font-semibold text-slate-500">
+                    {t('dashboard.burndownChartRangeFrom', 'From')}{' '}
+                    <span className="font-bold text-slate-700">{chartRangeStartDate ? dateFormatter.format(new Date(`${chartRangeStartDate}T00:00:00`)) : ''}</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={chartRangeMaxStartIndex}
+                    step={1}
+                    value={effectiveChartStartIndex}
+                    onChange={(event) => setChartStartIndex(Number(event.target.value))}
+                    className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-primary"
+                    aria-label={t('dashboard.burndownChartRangeAria', 'Adjust the chart start date')}
+                  />
+                </div>
+              )}
               <div className="relative pt-1">
                 {chartGuideTicks.map((tick, index) => (
                   <span

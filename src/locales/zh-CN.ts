@@ -175,6 +175,8 @@ const zhCN = {
       burndownProgressBasin: "剩余工作量趋势",
       burndownChartTitle: "燃尽图",
       burndownChartInfoAria: "燃尽图如何计算",
+      burndownChartRangeFrom: "起始于",
+      burndownChartRangeAria: "调整图表起始日期",
       burndownChartInfoEyebrow: "燃尽图",
       burndownChartInfoTitle: "燃尽图如何计算",
       burndownChartInfoActual: "实线（实际）会绘制每个过去日期测量到的剩余工作量，因此其斜率反映截至今天，已完成的工作以多快的速度减少了待办工作。",

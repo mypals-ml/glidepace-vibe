@@ -175,6 +175,8 @@ const en = {
       burndownProgressBasin: "Remaining effort over time",
       burndownChartTitle: "Burndown Chart",
       burndownChartInfoAria: "How the burndown chart is calculated",
+      burndownChartRangeFrom: "From",
+      burndownChartRangeAria: "Adjust the chart start date",
       burndownChartInfoEyebrow: "Burndown chart",
       burndownChartInfoTitle: "How the burndown chart is calculated",
       burndownChartInfoActual: "The solid actual line plots the remaining workload measured at each past date, so its slope reflects how quickly completed work has reduced the backlog up to today.",
