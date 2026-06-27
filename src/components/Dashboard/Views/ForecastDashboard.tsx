@@ -302,7 +302,9 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
               </div>
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1">
-                  {completionDateParts ? (
+                  {isLoadingTasks ? (
+                    <ForecastDashboardSectionLoader variant="completion" label={t('dashboard.loadingTasks')} />
+                  ) : completionDateParts ? (
                     <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
                       <div className="bg-primary py-1.5 text-center text-sm font-extrabold uppercase tracking-[0.16em] text-white sm:text-base">{completionDateParts.month}</div>
                       <div className="px-4 pb-2 pt-3">

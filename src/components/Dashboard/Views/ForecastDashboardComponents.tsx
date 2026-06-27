@@ -8,9 +8,19 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-export function ForecastDashboardSectionLoader({ variant, label }: { variant: 'chart' | 'status' | 'workers' | 'assumptions'; label: string }) {
+export function ForecastDashboardSectionLoader({ variant, label }: { variant: 'completion' | 'chart' | 'status' | 'workers' | 'assumptions'; label: string }) {
   return (
     <div className="w-full min-w-0 rounded-lg bg-slate-50/80 p-4 animate-pulse" role="status" aria-live="polite" aria-label={label}>
+      {variant === 'completion' && (
+        <div className="w-full min-w-0 space-y-3">
+          <span className="block h-7 w-full rounded bg-slate-200"></span>
+          <span className="mx-auto block h-12 w-1/3 rounded bg-slate-200"></span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="block h-3 w-12 rounded bg-slate-200"></span>
+            <span className="block h-3 w-16 rounded bg-slate-200"></span>
+          </div>
+        </div>
+      )}
       {variant === 'chart' && (
         <div className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-2">
           <div className="space-y-8 py-2">
