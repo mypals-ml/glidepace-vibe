@@ -49,7 +49,11 @@ const zhTW = {
       cardViewsValue: "清單、甘特圖、預測",
       cardDataLabel: "資料來源",
       cardDataValue: "GitHub Projects",
+      openSource: "Glidelines 是免費開源軟體，依據 MIT 授權條款發布。",
+      openSourceLink: "在 GitHub 上查看原始碼",
       supportingCopy: "你可以透過頂部工具連接帳號、開啟專案、調整專案設定，並讓排程持續與 GitHub 對齊。",
+      helpGuide: "使用者指南與說明",
+      helpGuideDescription: "用你的語言，逐步介紹每項核心功能。",
       viewSource: "查看原始碼",
       close: "關閉關於對話框",
       closeButton: "關閉"

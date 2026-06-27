@@ -49,7 +49,11 @@ const ja = {
       cardViewsValue: "リスト、ガント、予測",
       cardDataLabel: "データ元",
       cardDataValue: "GitHub Projects",
+      openSource: "Glidelines は MIT ライセンスで公開されている無料のオープンソースソフトウェアです。",
+      openSourceLink: "GitHub でソースを表示",
       supportingCopy: "ヘッダーツールからアカウント接続、プロジェクトを開く、設定調整を行い、GitHub と整合したスケジュール管理を続けられます。",
+      helpGuide: "ユーザーガイドとヘルプ",
+      helpGuideDescription: "主要機能を順に説明するガイドを、あなたの言語で。",
       viewSource: "ソースを見る",
       close: "概要ダイアログを閉じる",
       closeButton: "閉じる"

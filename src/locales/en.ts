@@ -52,6 +52,8 @@ const en = {
       openSource: "Glidelines is free and open source, released under the MIT License.",
       openSourceLink: "View the source on GitHub",
       supportingCopy: "Use the header tools to connect accounts, open projects, refine project settings, and keep task scheduling aligned with GitHub.",
+      helpGuide: "User Guide & Help",
+      helpGuideDescription: "Step-by-step guides to every key feature, in your language.",
       viewSource: "View Source",
       close: "Close about dialog",
       closeButton: "Close"
