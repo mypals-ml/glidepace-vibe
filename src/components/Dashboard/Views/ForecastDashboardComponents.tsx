@@ -167,6 +167,108 @@ export function ForecastRulesDialog({ isOpen, onClose }: { isOpen: boolean; onCl
   );
 }
 
+export function AssumptionsStorageDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useTranslation();
+  if (!isOpen) return null;
+
+  const storageNotes = [
+    t('dashboard.burndownAssumptionsStorageGitHub', 'Shared assumptions are saved in the GitHub Project README. The app writes a small namespaced JSON block through GitHub Projects, so teammates opening the same project can load the same settings.'),
+    t('dashboard.burndownAssumptionsStorageLocal', 'A per-project browser cache is also kept in localStorage. It makes reloads faster and provides the last known assumptions when GitHub cannot be reached.'),
+    t('dashboard.burndownAssumptionsStorageActions', 'Sync reloads the latest shared assumptions. Save writes your edited assumptions back to GitHub. Cancel discards local draft edits before they are saved.'),
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="forecast-assumptions-storage-title">
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+              {t('dashboard.burndownAssumptionsStorageEyebrow', 'Assumptions storage')}
+            </p>
+            <h3 id="forecast-assumptions-storage-title" className="mt-1 text-xl font-extrabold text-slate-950">
+              {t('dashboard.burndownAssumptionsStorageTitle', 'Where assumptions are saved')}
+            </h3>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            aria-label={t('common.close', 'Close')}
+            onClick={onClose}
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+        <div className="space-y-3 px-6 py-5">
+          {storageNotes.map((note) => (
+            <p key={note} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-700">
+              {note}
+            </p>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ForecastInfoButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-white text-xs font-extrabold italic text-primary shadow-sm transition-colors hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/30"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+    >
+      i
+    </button>
+  );
+}
+
+export function ForecastSectionInfoDialog({
+  isOpen,
+  onClose,
+  eyebrow,
+  title,
+  notes,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  eyebrow: string;
+  title: string;
+  notes: string[];
+}) {
+  const { t } = useTranslation();
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="forecast-section-info-title">
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
+            <h3 id="forecast-section-info-title" className="mt-1 text-xl font-extrabold text-slate-950">{title}</h3>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            aria-label={t('common.close', 'Close')}
+            onClick={onClose}
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+        <div className="space-y-3 px-6 py-5">
+          {notes.map((note) => (
+            <p key={note} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-700">
+              {note}
+            </p>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ChartPill({ label, color }: { label: string; color: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-slate-600">

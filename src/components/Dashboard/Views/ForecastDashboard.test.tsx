@@ -171,10 +171,13 @@ describe('ForecastDashboard loading state', () => {
   });
 
   it('labels the status workload section with the updated heading', () => {
-    render(<ForecastDashboard />);
+    const { container } = render(<ForecastDashboard />);
 
     expect(screen.getByRole('heading', { name: 'Work Loads by Task Status' })).toBeTruthy();
     expect(screen.queryByText('Task Duration by Status')).toBeNull();
+
+    const headingTexts = [...container.querySelectorAll('h2')].map((heading) => heading.textContent);
+    expect(headingTexts.indexOf('Effort Remaining')).toBeLessThan(headingTexts.indexOf('Work Loads by Task Status'));
   });
 
   it('does not render the URL project loading placeholder in the burndown footer', () => {
@@ -200,10 +203,12 @@ describe('ForecastDashboard loading state', () => {
     expect(screen.getByText('History Project')).toBeTruthy();
   });
 
-  it('opens an explanation dialog from the estimated completion info button', () => {
+  it('opens an explanation dialog from the burndown chart info button', () => {
     render(<ForecastDashboard />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'How forecast calculations work' }));
+    expect(screen.getByText('Projected completion from current assumptions')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'How the burndown chart is calculated' }));
 
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'How the forecast is calculated' })).toBeTruthy();
@@ -212,6 +217,41 @@ describe('ForecastDashboard loading state', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens an assumptions storage dialog from the assumptions info button', () => {
+    render(<ForecastDashboard />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Where assumptions are saved' }));
+
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Where assumptions are saved' })).toBeTruthy();
+    expect(screen.getByText('Shared assumptions are saved in the GitHub Project README. The app writes a small namespaced JSON block through GitHub Projects, so teammates opening the same project can load the same settings.')).toBeTruthy();
+    expect(screen.getByText('A per-project browser cache is also kept in localStorage. It makes reloads faster and provides the last known assumptions when GitHub cannot be reached.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens explanation dialogs for effort remaining and workload status sections', () => {
+    render(<ForecastDashboard />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'How effort remaining is calculated' }));
+
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'How effort remaining is calculated' })).toBeTruthy();
+    expect(screen.getByText('Remaining effort uses task estimates when available, otherwise task duration. Each open task is weighted by the remaining-workload percentage configured in Assumptions.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'How workload by task status is calculated' }));
+
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'How workload by task status is calculated' })).toBeTruthy();
+    expect(screen.getByText('This section groups the project effort by each task status, such as Done, Draft, Todo, In progress, and other project-specific statuses.')).toBeTruthy();
   });
 
   it('hides top worker loads when the project has no real assignees', () => {
@@ -260,6 +300,11 @@ describe('ForecastDashboard loading state', () => {
     });
     rerender(<ForecastDashboard />);
 
+    expect(screen.queryByRole('button', { name: 'Sync' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
+
     const availableWorkersInput = screen.getByLabelText('Available Workers');
     expect((availableWorkersInput as HTMLInputElement).readOnly).toBe(false);
     expect((availableWorkersInput as HTMLInputElement).value).toBe('1');
@@ -287,6 +332,35 @@ describe('ForecastDashboard loading state', () => {
         statusRemainingPercent: expect.objectContaining({ todo: 75 }),
       }),
     );
+  });
+
+  it('cancels assumption edits without saving changes', async () => {
+    dashboardState = createDashboardState({
+      filteredTasks: assignedTasks,
+    });
+    const { rerender } = render(<ForecastDashboard />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    });
+    rerender(<ForecastDashboard />);
+
+    fireEvent.change(screen.getByLabelText('Available Workers'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Capacity per worker'), { target: { value: '4' } });
+    rerender(<ForecastDashboard />);
+    expect((screen.getByLabelText('Capacity of the team') as HTMLInputElement).value).toBe('8 d / week');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    rerender(<ForecastDashboard />);
+
+    expect(dashboardState.saveForecastAssumptionsToGitHub).not.toHaveBeenCalled();
+    expect((screen.getByLabelText('Available Workers') as HTMLInputElement).readOnly).toBe(true);
+    expect((screen.getByLabelText('Available Workers') as HTMLInputElement).value).toBe('1');
+    expect((screen.getByLabelText('Capacity per worker') as HTMLInputElement).value).toBe('5');
+    expect(screen.getByRole('button', { name: 'Sync' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
   });
 
   it('shows all unique project assignees in the assignee dropdown', () => {

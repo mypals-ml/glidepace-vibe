@@ -38,11 +38,14 @@ import {
   AssumptionNumberInput,
   AssumptionPercentInput,
   AssumptionWorkerDropdown,
+  AssumptionsStorageDialog,
   ChartPill,
   DashboardCard,
   DonutGraphic,
+  ForecastInfoButton,
   ForecastDashboardSectionLoader,
   ForecastRulesDialog,
+  ForecastSectionInfoDialog,
   LegendItem,
   MetricTile,
 } from './ForecastDashboardComponents';
@@ -63,6 +66,8 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const isCompactWorkerLabels = useMediaQuery('(max-width: 639px)');
   const isNarrowWorkerLabels = useMediaQuery('(max-width: 1023px)');
   const [isForecastRulesOpen, setIsForecastRulesOpen] = useState(false);
+  const [isAssumptionsStorageOpen, setIsAssumptionsStorageOpen] = useState(false);
+  const [openSectionInfo, setOpenSectionInfo] = useState<'summary' | 'status' | null>(null);
   const [isAssumptionsEditing, setIsAssumptionsEditing] = useState(false);
   const [draftAssumptions, setDraftAssumptions] = useState<ForecastAssumptions>(DEFAULT_FORECAST_ASSUMPTIONS);
   const exitEditOnNextAssumptionsUpdateRef = useRef(false);
@@ -112,6 +117,16 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
       // assumptions, which would cause the calc to temporarily revert.
       exitEditOnNextAssumptionsUpdateRef.current = true;
     }
+  };
+
+  const handleCancelAssumptionsEdit = () => {
+    exitEditOnNextAssumptionsUpdateRef.current = false;
+    const next = normalizeForecastAssumptions(forecastAssumptions);
+    setDraftAssumptions({
+      ...next,
+      availableWorkers: next.availableWorkers ?? rawWorkerCount,
+    });
+    setIsAssumptionsEditing(false);
   };
   const coordinates = useMemo(() => pointCoordinates(chartData.points, chartData.totalEstimateDays), [chartData.points, chartData.totalEstimateDays]);
   const chartGuideTicks = [
@@ -228,26 +243,40 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
           <h1 className="pl-2 text-2xl font-extrabold tracking-normal text-slate-950 sm:pl-3 sm:text-3xl">{t('dashboard.forecastDashboardTitle', 'Forecast Dashboard')}</h1>
         </header>
 
+        <section className="rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-forecast-highlight sm:p-5" aria-label={t('dashboard.burndownEstimatedCompletion', 'Estimated completion')}>
+          <div className="mb-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownEstimatedCompletion', 'Estimated completion')}</h2>
+              <ForecastInfoButton
+                label={t('dashboard.burndownRulesInfoAria', 'How forecast calculations work')}
+                onClick={() => setIsForecastRulesOpen(true)}
+              />
+            </div>
+            <p className="text-sm font-medium text-slate-500">{t('dashboard.burndownEstimatedCompletionHint', 'Projected completion from current assumptions')}</p>
+          </div>
+          <MetricTile
+            label={t('dashboard.burndownEstimatedCompletion', 'Estimated completion')}
+            value={completionDate}
+            className="bg-primary/10 text-primary ring-primary/20"
+            valueClassName="text-2xl sm:text-3xl"
+          />
+        </section>
+
         <section className="rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-forecast-highlight sm:p-5" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
           <div className="mb-4">
-            <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownChartTitle', 'Burndown Chart')}</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownChartTitle', 'Burndown Chart')}</h2>
+              <ForecastInfoButton
+                label={t('dashboard.burndownChartInfoAria', 'How the burndown chart is calculated')}
+                onClick={() => setIsForecastRulesOpen(true)}
+              />
+            </div>
             <p className="text-sm font-medium text-slate-500">{t('dashboard.burndownProgressBasin', 'Remaining effort over time')}</p>
           </div>
           {isLoadingTasks ? (
             <ForecastDashboardSectionLoader variant="chart" label={t('dashboard.loadingTasks')} />
           ) : (
             <div className="space-y-5">
-              <div className="grid gap-3">
-                <MetricTile
-                  label={t('dashboard.burndownEstimatedCompletion', 'Estimated completion')}
-                  value={completionDate}
-                  className="bg-primary/10 text-primary ring-primary/20 sm:col-span-1"
-                  valueClassName="text-2xl sm:text-3xl"
-                  infoLabel={t('dashboard.burndownRulesInfoAria', 'How forecast calculations work')}
-                  onInfoClick={() => setIsForecastRulesOpen(true)}
-                />
-              </div>
-
               <div className="relative pt-1">
                 {chartGuideTicks.map((tick, index) => (
                   <span
@@ -325,33 +354,13 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
         <section className="flex flex-col gap-5">
           <DashboardCard>
             <div className="mb-4">
-              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownStatusDays', 'Work Loads by Task Status')}</h2>
-              <p className="text-sm font-medium text-slate-500">{todayLabel}</p>
-            </div>
-            {isLoadingTasks ? (
-              <ForecastDashboardSectionLoader variant="status" label={t('dashboard.loadingTasks')} />
-            ) : (
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                <DonutGraphic style={donutStyle} fallbackClassName="bg-slate-200" percent={donePercent} label={t('dashboard.burndownDone', 'Done')} labelClassName={doneTextColor} />
-                <ul className="flex min-w-0 flex-1 flex-col gap-3 text-sm">
-                  {statusSegments.map((status) => (
-                    <LegendItem
-                      key={status.status}
-                      label={translateForecastStatusLabel(status.status, status.statusKey, t)}
-                      percent={`${status.percent}%`}
-                      days={formatLocalizedDays(status.days, t)}
-                      color={status.color}
-                      dotClassName={getStatusDotColor(status.status)}
-                    />
-                  ))}
-                </ul>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownSummaryTitle', 'Effort Remaining')}</h2>
+                <ForecastInfoButton
+                  label={t('dashboard.burndownSummaryInfoAria', 'How effort remaining is calculated')}
+                  onClick={() => setOpenSectionInfo('summary')}
+                />
               </div>
-            )}
-          </DashboardCard>
-
-          <DashboardCard>
-            <div className="mb-4">
-              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownSummaryTitle', 'Effort Remaining')}</h2>
               <p className="text-sm font-medium text-slate-500">{t('dashboard.burndownSummaryHint', 'Completed vs. remaining effort')}</p>
             </div>
             {isLoadingTasks ? (
@@ -376,6 +385,38 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                       color={segment.color}
                       dotClassName=""
                       labelClassName={segment.textClassName}
+                    />
+                  ))}
+                </ul>
+              </div>
+            )}
+          </DashboardCard>
+
+          <DashboardCard>
+            <div className="mb-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownStatusDays', 'Work Loads by Task Status')}</h2>
+                <ForecastInfoButton
+                  label={t('dashboard.burndownStatusInfoAria', 'How workload by task status is calculated')}
+                  onClick={() => setOpenSectionInfo('status')}
+                />
+              </div>
+              <p className="text-sm font-medium text-slate-500">{todayLabel}</p>
+            </div>
+            {isLoadingTasks ? (
+              <ForecastDashboardSectionLoader variant="status" label={t('dashboard.loadingTasks')} />
+            ) : (
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                <DonutGraphic style={donutStyle} fallbackClassName="bg-slate-200" percent={donePercent} label={t('dashboard.burndownDone', 'Done')} labelClassName={doneTextColor} />
+                <ul className="flex min-w-0 flex-1 flex-col gap-3 text-sm">
+                  {statusSegments.map((status) => (
+                    <LegendItem
+                      key={status.status}
+                      label={translateForecastStatusLabel(status.status, status.statusKey, t)}
+                      percent={`${status.percent}%`}
+                      days={formatLocalizedDays(status.days, t)}
+                      color={status.color}
+                      dotClassName={getStatusDotColor(status.status)}
                     />
                   ))}
                 </ul>
@@ -426,42 +467,87 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
 
         <DashboardCard ariaLabel={t('dashboard.burndownAssumptions', 'Assumptions')}>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownAssumptions', 'Assumptions')}</h2>
-            {!isAssumptionsLoading && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  leftIcon="sync"
-                  onClick={() => { void handleRefreshAssumptions(); }}
-                  disabled={isAssumptionsActionsBusy}
-                  className="px-2 lg:px-4 justify-center relative transition-all duration-300 bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                  aria-label={t('dashboard.burndownAssumptionsSync', 'Sync')}
-                >
-                  {t('dashboard.burndownAssumptionsSync', 'Sync')}
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    if (isAssumptionsEditing) {
-                      void handleSaveAssumptions();
-                      return;
-                    }
-                    void handleBeginAssumptionsEdit();
-                  }}
-                  disabled={isAssumptionsActionsBusy}
-                  aria-label={isAssumptionsEditing
-                    ? t('dashboard.burndownAssumptionsSave', 'Save')
-                    : t('dashboard.burndownAssumptionsEdit', 'Edit')}
-                >
-                  {isAssumptionsEditing
-                    ? t('dashboard.burndownAssumptionsSave', 'Save')
-                    : t('dashboard.burndownAssumptionsEdit', 'Edit')}
-                </Button>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownAssumptions', 'Assumptions')}</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              {!isAssumptionsLoading && (
+                isAssumptionsEditing ? (
+                  <>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => { void handleSaveAssumptions(); }}
+                      disabled={isAssumptionsActionsBusy}
+                      aria-label={t('dashboard.burndownAssumptionsSave', 'Save')}
+                    >
+                      {t('dashboard.burndownAssumptionsSave', 'Save')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleCancelAssumptionsEdit}
+                      disabled={isAssumptionsActionsBusy}
+                      aria-label={t('dashboard.burndownAssumptionsCancel', 'Cancel')}
+                    >
+                      {t('dashboard.burndownAssumptionsCancel', 'Cancel')}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      leftIcon="sync"
+                      onClick={() => { void handleRefreshAssumptions(); }}
+                      disabled={isAssumptionsActionsBusy}
+                      className="px-2 lg:px-4 justify-center relative transition-all duration-300 bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                      aria-label={t('dashboard.burndownAssumptionsSync', 'Sync')}
+                    >
+                      {t('dashboard.burndownAssumptionsSync', 'Sync')}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => { void handleBeginAssumptionsEdit(); }}
+                      disabled={isAssumptionsActionsBusy}
+                      aria-label={t('dashboard.burndownAssumptionsEdit', 'Edit')}
+                    >
+                      {t('dashboard.burndownAssumptionsEdit', 'Edit')}
+                    </Button>
+                  </>
+                )
+              )}
+              <ForecastInfoButton
+                label={t('dashboard.burndownAssumptionsStorageInfoAria', 'Where assumptions are saved')}
+                onClick={() => setIsAssumptionsStorageOpen(true)}
+              />
+            </div>
           </div>
+          <AssumptionsStorageDialog
+            isOpen={isAssumptionsStorageOpen}
+            onClose={() => setIsAssumptionsStorageOpen(false)}
+          />
+          <ForecastSectionInfoDialog
+            isOpen={openSectionInfo === 'summary'}
+            onClose={() => setOpenSectionInfo(null)}
+            eyebrow={t('dashboard.burndownSummaryInfoEyebrow', 'Effort remaining')}
+            title={t('dashboard.burndownSummaryInfoTitle', 'How effort remaining is calculated')}
+            notes={[
+              t('dashboard.burndownSummaryInfoCompleted', 'Completed effort is the total estimated effort minus the remaining effort. The ring shows how much work is still left across the project.'),
+              t('dashboard.burndownSummaryInfoRemaining', 'Remaining effort uses task estimates when available, otherwise task duration. Each open task is weighted by the remaining-workload percentage configured in Assumptions.'),
+            ]}
+          />
+          <ForecastSectionInfoDialog
+            isOpen={openSectionInfo === 'status'}
+            onClose={() => setOpenSectionInfo(null)}
+            eyebrow={t('dashboard.burndownStatusInfoEyebrow', 'Task status workload')}
+            title={t('dashboard.burndownStatusInfoTitle', 'How workload by task status is calculated')}
+            notes={[
+              t('dashboard.burndownStatusInfoGrouping', 'This section groups the project effort by each task status, such as Done, Draft, Todo, In progress, and other project-specific statuses.'),
+              t('dashboard.burndownStatusInfoPercent', 'Percentages are based on each status group’s effort compared with the total project effort. The day value is the summed estimate or duration for tasks in that status.'),
+            ]}
+          />
           {isAssumptionsLoading ? (
             <ForecastDashboardSectionLoader variant="assumptions" label={t('dashboard.loadingTasks')} />
           ) : (
