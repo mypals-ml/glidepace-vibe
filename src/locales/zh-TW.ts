@@ -170,7 +170,7 @@ const zhTW = {
       burndownDailyWorkload: "每日工作量 · 未來 10 天",
       burndownNoOpenWork: "未來 10 天沒有計劃中的未完成工作。",
       burndownAssumptions: "假設",
-      burndownAssumptionsRefresh: "重新整理",
+      burndownAssumptionsSync: "同步",
       burndownAssumptionsEdit: "編輯",
       burndownAssumptionsSave: "儲存",
       forecastAssumptionsSaveFailed: "無法將預測假設儲存到 GitHub。",

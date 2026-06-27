@@ -244,6 +244,8 @@ describe('ForecastDashboard loading state', () => {
     expect((screen.getByLabelText('Available Workers') as HTMLInputElement).readOnly).toBe(true);
     expect((screen.getByLabelText('Capacity per worker') as HTMLInputElement).readOnly).toBe(true);
     expect((screen.getByLabelText('Todo') as HTMLInputElement).readOnly).toBe(true);
+    expect(screen.getByRole('button', { name: 'Sync' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Refresh' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
   });
 

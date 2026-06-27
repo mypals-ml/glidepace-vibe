@@ -432,11 +432,13 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                 <Button
                   variant="secondary"
                   size="sm"
+                  leftIcon="sync"
                   onClick={() => { void handleRefreshAssumptions(); }}
                   disabled={isAssumptionsActionsBusy}
-                  aria-label={t('dashboard.burndownAssumptionsRefresh', 'Refresh')}
+                  className="px-2 lg:px-4 justify-center relative transition-all duration-300 bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                  aria-label={t('dashboard.burndownAssumptionsSync', 'Sync')}
                 >
-                  {t('dashboard.burndownAssumptionsRefresh', 'Refresh')}
+                  {t('dashboard.burndownAssumptionsSync', 'Sync')}
                 </Button>
                 <Button
                   variant="primary"
