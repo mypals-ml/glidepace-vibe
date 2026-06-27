@@ -64,6 +64,7 @@ const en = {
       emptyStateTitle: "No projects selected",
       emptyStateDesc: "Connect a GitHub Project (v2) to get started. Note: This syncs Project boards, not Repositories.",
       addProjectButton: "Open Project",
+      connectDemoAccountButton: "Connect to demo account",
       addProjectTimelinePrompt: "Add a project to view timeline",
       openProjectModalTitle: "Open Project",
       openProjectModalDesc: "Connect and open a GitHub project",

@@ -14,6 +14,7 @@ import { useFieldSetup } from '../hooks/useFieldSetup';
 import { useForecastAssumptions } from '../hooks/useForecastAssumptions';
 import { PROJECT_TITLE_LOADING_PLACEHOLDER } from '../lib/projectDisplay';
 import { createRecentLocalReorderTracker } from '../lib/reorderSyncUtils';
+import { MOCK_TOKEN } from '../lib/githubMock';
 import type { ViewportAnchor } from '../lib/viewportAnchor';
 
 // Service
@@ -407,6 +408,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
     return result;
   }, [auth, projects, ui, processAuthReturnContext]);
+
+  const handleConnectDemoAccount = useCallback(async () => {
+    const result = await handleAddAccountByToken(MOCK_TOKEN);
+    if (result.success && result.account) {
+      await fetchProjects(result.account.token, result.account.id, true);
+    }
+    return result;
+  }, [fetchProjects, handleAddAccountByToken]);
   
 
   const onStartDatePromptDecision = useCallback((decision: 'auto' | 'locked' | 'ask', _tasksAffected: Task[]) => {
@@ -445,6 +454,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setIsProjectSettingsModalOpen,
     handleDisconnect,
     handleOpenProjectClick,
+    handleConnectDemoAccount,
     handleAddAccountByToken,
     ...fieldSetup,
     toast,

@@ -64,6 +64,7 @@ const zhTW = {
       emptyStateTitle: "未選擇專案",
       emptyStateDesc: "連接一個 GitHub 專案 (v2) 以開始使用。注意：這會同步專案板，而不是程式碼倉庫。",
       addProjectButton: "打開專案",
+      connectDemoAccountButton: "連接到示範帳戶",
       addProjectTimelinePrompt: "添加一個專案以查看時間線",
       openProjectModalTitle: "打開專案",
       openProjectModalDesc: "連接並打開 GitHub 專案",

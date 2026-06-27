@@ -64,6 +64,7 @@ const zhCN = {
       emptyStateTitle: "未选择项目",
       emptyStateDesc: "连接一个 GitHub 项目 (v2) 以开始使用。注意：这会同步项目板，而不是代码仓库。",
       addProjectButton: "打开项目",
+      connectDemoAccountButton: "连接到演示账户",
       addProjectTimelinePrompt: "添加一个项目以查看时间线",
       openProjectModalTitle: "打开项目",
       openProjectModalDesc: "连接并打开 GitHub 项目",

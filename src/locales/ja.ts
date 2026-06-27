@@ -64,6 +64,7 @@ const ja = {
       emptyStateTitle: "プロジェクトが選択されていません",
       emptyStateDesc: "GitHubプロジェクト (v2) を接続して始めましょう。※ リポジトリではなく、プロジェクトボードを同期します。",
       addProjectButton: "プロジェクトを開く",
+      connectDemoAccountButton: "デモアカウントに接続",
       addProjectTimelinePrompt: "タイムラインを表示するにはプロジェクトを追加してください",
       openProjectModalTitle: "プロジェクトを開く",
       openProjectModalDesc: "GitHubプロジェクトに接続して開く",
