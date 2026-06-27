@@ -9,6 +9,20 @@ import vitePluginVercelMock from './vite-plugin-vercel-mock';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss(), qrcode(), vitePluginVercelMock()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@dnd-kit')) return 'vendor-dnd';
+            if (id.includes('@supabase')) return 'vendor-supabase';
+            if (id.includes('i18next')) return 'vendor-i18n';
+            return 'vendor';
+          }
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true
