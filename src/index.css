@@ -14,7 +14,9 @@
   --color-task-row-picker-muted: rgba(248, 250, 252, 0.94);
   --shadow-glass: 0 4px 30px rgba(0, 0, 0, 0.05);
   --shadow-glow: 0 0 15px rgba(79, 70, 229, 0.3);
-  --font-sans: 'Inter', sans-serif;
+  /* Latin from Inter; CJK glyphs fall back to locale-appropriate Noto Sans (overridden per :lang below) */
+  --font-cjk: 'Noto Sans SC', 'Noto Sans TC', 'Noto Sans JP';
+  --font-sans: 'Inter', var(--font-cjk), sans-serif;
 
   /* Status semantic colors - GitHub default */
   --color-status-done-bg: #f3e8ff;
@@ -66,6 +68,19 @@
   --color-drag-handle-selected: #f5f6fe;
   --color-drag-handle-selected-link: #edf0fe;
   --color-drag-handle-hovered: #f8fafc;
+}
+
+/* Prioritize the CJK font that matches the active UI locale, since Han ideographs
+   render with regional differences across Simplified, Traditional, and Japanese.
+   Relies on document.documentElement.lang being kept in sync with i18n (see src/i18n.ts). */
+:root:lang(ja) {
+  --font-cjk: 'Noto Sans JP', 'Noto Sans SC', 'Noto Sans TC';
+}
+:root:lang(zh-TW) {
+  --font-cjk: 'Noto Sans TC', 'Noto Sans SC', 'Noto Sans JP';
+}
+:root:lang(zh-CN) {
+  --font-cjk: 'Noto Sans SC', 'Noto Sans TC', 'Noto Sans JP';
 }
 
 @layer components {

@@ -66,6 +66,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   const [isAssumptionsStorageOpen, setIsAssumptionsStorageOpen] = useState(false);
   const [openSectionInfo, setOpenSectionInfo] = useState<'completion' | 'chart' | 'summary' | 'status' | null>(null);
   const [chartStartIndex, setChartStartIndex] = useState(0);
+  const [chartHoverPoint, setChartHoverPoint] = useState<{ date: string; remainingDays: number; future: boolean; x: number; y: number } | null>(null);
   const [isAssumptionsEditing, setIsAssumptionsEditing] = useState(false);
   const [draftAssumptions, setDraftAssumptions] = useState<ForecastAssumptions>(DEFAULT_FORECAST_ASSUMPTIONS);
   const exitEditOnNextAssumptionsUpdateRef = useRef(false);
@@ -347,6 +348,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                   label={t('dashboard.burndownSummaryRemaining', 'Remaining')}
                   labelClassName={getStatusTextColor('Blocked')}
                   valueClassName={getStatusTextColor('Blocked')}
+                  hideLabel
                 />
                 <ul className="flex min-w-0 flex-1 flex-col gap-3 text-sm">
                   {projectSummarySegments.map((segment) => (
@@ -409,7 +411,21 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                     {tick.label}
                   </span>
                 ))}
-                <svg className="aspect-[1000/220] w-full overflow-visible" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}>
+                <div className="relative">
+                <svg
+                  className="aspect-[1000/220] w-full overflow-visible"
+                  viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+                  role="img"
+                  aria-label={t('dashboard.burndownChartAria', 'Remaining task days by date')}
+                  onMouseMove={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    if (!rect.width || coordinates.length === 0) return;
+                    const fraction = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+                    const index = Math.round(fraction * (coordinates.length - 1));
+                    setChartHoverPoint(coordinates[index] ?? null);
+                  }}
+                  onMouseLeave={() => setChartHoverPoint(null)}
+                >
                   <defs>
                     <linearGradient id={actualFillGradientId} x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={CHART_ACTUAL_FILL_OPACITY} />
@@ -443,7 +459,27 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                       <title>{`${actualBoundary.date}: ${formatDays(actualBoundary.remainingDays)} ${t('dashboard.burndownRemainingLower', 'remaining')}`}</title>
                     </circle>
                   )}
+                  {chartHoverPoint && (
+                    <g pointerEvents="none">
+                      <line x1={chartHoverPoint.x} y1={CHART_TOP} x2={chartHoverPoint.x} y2={CHART_BOTTOM} className={chartHoverPoint.future ? '' : 'stroke-primary'} stroke={chartHoverPoint.future ? projectedColor : undefined} strokeWidth="2" strokeDasharray="4 4" />
+                      <circle cx={chartHoverPoint.x} cy={chartHoverPoint.y} r="6" stroke="white" strokeWidth="3" className={chartHoverPoint.future ? '' : 'fill-primary'} fill={chartHoverPoint.future ? projectedColor : undefined} />
+                    </g>
+                  )}
                 </svg>
+                {chartHoverPoint && (
+                  <div
+                    className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-[calc(100%+10px)] whitespace-nowrap rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-center shadow-md"
+                    style={{ left: `${(chartHoverPoint.x / CHART_WIDTH) * 100}%`, top: `${(chartHoverPoint.y / CHART_HEIGHT) * 100}%` }}
+                  >
+                    <div className="text-xs font-extrabold text-slate-900">
+                      {Math.round((chartHoverPoint.remainingDays / Math.max(1, chartData.totalEstimateDays)) * 100)}% · {formatDays(chartHoverPoint.remainingDays)}
+                    </div>
+                    <div className="text-[10px] font-semibold text-slate-500">
+                      {dateFormatter.format(new Date(`${chartHoverPoint.date}T00:00:00`))}
+                    </div>
+                  </div>
+                )}
+                </div>
                 <div className="relative -mt-4 h-7 text-[12px] font-semibold text-slate-500" data-testid="burndown-x-axis-labels">
                   {xAxisLabels.map((tick) => (
                     <span
@@ -506,7 +542,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
               <ForecastDashboardSectionLoader variant="status" label={t('dashboard.loadingTasks')} />
             ) : (
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                <DonutGraphic style={donutStyle} fallbackClassName="bg-slate-200" percent={donePercent} label={t('dashboard.burndownDone', 'Done')} labelClassName={doneTextColor} />
+                <DonutGraphic style={donutStyle} fallbackClassName="bg-slate-200" percent={donePercent} label={t('dashboard.burndownDone', 'Done')} labelClassName={doneTextColor} valueClassName={doneTextColor} hideLabel />
                 <ul className="flex min-w-0 flex-1 flex-col gap-3 text-sm">
                   {statusSegments.map((status) => (
                     <LegendItem

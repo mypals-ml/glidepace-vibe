@@ -239,6 +239,7 @@ export function DonutGraphic({
   label,
   labelClassName,
   valueClassName = 'text-primary',
+  hideLabel = false,
 }: {
   style?: CSSProperties;
   fallbackClassName?: string;
@@ -246,12 +247,13 @@ export function DonutGraphic({
   label: string;
   labelClassName: string;
   valueClassName?: string;
+  hideLabel?: boolean;
 }) {
   return (
     <div className={`relative mx-auto h-36 w-36 shrink-0 rounded-full sm:mx-0 ${fallbackClassName}`} style={style}>
       <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center ring-1 ring-inset ring-slate-200/70">
         <span className={`text-3xl font-black tracking-normal ${valueClassName}`}>{percent}%</span>
-        <span className={`text-[10px] font-extrabold uppercase tracking-[0.08em] ${labelClassName}`}>{label}</span>
+        {!hideLabel && <span className={`text-[10px] font-extrabold uppercase tracking-[0.08em] ${labelClassName}`}>{label}</span>}
       </div>
     </div>
   );
