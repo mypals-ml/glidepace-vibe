@@ -156,8 +156,9 @@ describe('ForecastDashboard loading state', () => {
   it('renders the dashboard title without the eyebrow or subtitle copy', () => {
     render(<ForecastDashboard />);
 
-    expect(screen.getByRole('heading', { name: 'Forecast Dashboard' }).className).toContain('pl-2');
-    expect(screen.queryByText('Forecast')).toBeNull();
+    const dashboardHeading = screen.getByRole('heading', { name: 'Forecast Dashboard' });
+    expect(dashboardHeading.className).toContain('pl-2');
+    expect(within(dashboardHeading.closest('header') as HTMLElement).queryByText('Forecast')).toBeNull();
     expect(screen.queryByText('A stacked planning summary from the current filtered task set.')).toBeNull();
   });
 
@@ -200,13 +201,22 @@ describe('ForecastDashboard loading state', () => {
     render(<ForecastDashboard />);
 
     expect(screen.queryByText('Loading...')).toBeNull();
-    expect(screen.getByText('History Project')).toBeTruthy();
+    expect(screen.getAllByText('History Project')).toHaveLength(1);
+    expect(screen.getByRole('heading', { name: 'Estimated completion' })).toBeTruthy();
+    expect(screen.queryByText('Design 1')).toBeNull();
+    expect(screen.queryByText('Target date')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Estimated completion 1' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Estimated completion 2' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Estimated completion 3' })).toBeNull();
+    expect(screen.getByText('Days left')).toBeTruthy();
+    expect(screen.getByText('Project name')).toBeTruthy();
+    expect(within(screen.getByTestId('burndown-chart-legend')).queryByText('History Project')).toBeNull();
   });
 
   it('opens an explanation dialog from the burndown chart info button', () => {
     render(<ForecastDashboard />);
 
-    expect(screen.getByText('Projected completion from current assumptions')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Estimated completion' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'How the burndown chart is calculated' }));
 

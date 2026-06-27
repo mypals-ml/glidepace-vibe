@@ -47,7 +47,6 @@ import {
   ForecastRulesDialog,
   ForecastSectionInfoDialog,
   LegendItem,
-  MetricTile,
 } from './ForecastDashboardComponents';
 
 export function ForecastDashboard({ className = '' }: { className?: string }) {
@@ -223,6 +222,15 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
     selectedProject?.title,
     getSavedProjectHistoryTitle(selectedProject?.id, selectedProject?.accountId),
   );
+  const selectedProjectDisplayTitle = selectedProjectTitle || t('dashboard.burndownCompletionCurrentProject', 'Current project');
+  const completionValue = completionDate || t('dashboard.burndownCompletionUnavailable', 'Not available');
+  const completionDateObject = chartData.completionDate ? new Date(`${chartData.completionDate}T00:00:00`) : null;
+  const todayDateObject = new Date();
+  todayDateObject.setHours(0, 0, 0, 0);
+  const calendarDaysToCompletion = completionDateObject
+    ? Math.max(0, Math.round((completionDateObject.getTime() - todayDateObject.getTime()) / 86400000))
+    : 0;
+  const daysLeftValue = completionDateObject ? String(calendarDaysToCompletion) : '—';
   const assumptionStatusWorkloads = [
     { key: 'draft', status: 'Draft', label: t('dashboard.burndownAssumptionDraft', 'Draft'), value: statusRemainingPercent.draft },
     { key: 'todo', status: 'Todo', label: t('dashboard.burndownAssumptionTodo', 'Todo'), value: statusRemainingPercent.todo },
@@ -243,23 +251,38 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
           <h1 className="pl-2 text-2xl font-extrabold tracking-normal text-slate-950 sm:pl-3 sm:text-3xl">{t('dashboard.forecastDashboardTitle', 'Forecast Dashboard')}</h1>
         </header>
 
-        <section className="rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-forecast-highlight sm:p-5" aria-label={t('dashboard.burndownEstimatedCompletion', 'Estimated completion')}>
-          <div className="mb-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownEstimatedCompletion', 'Estimated completion')}</h2>
+        <section className="relative shrink-0 overflow-hidden rounded-[1.5rem] border-0 bg-white shadow-forecast-highlight before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-primary" aria-label={t('dashboard.burndownEstimatedCompletion', 'Estimated completion')}>
+          <div className="relative p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-950">{t('dashboard.burndownEstimatedCompletion', 'Estimated completion')}</h2>
+                <p className="text-sm font-medium text-slate-500">{t('dashboard.burndownCompletionHeroTitle', 'When your project is on track to finish')}</p>
+              </div>
               <ForecastInfoButton
                 label={t('dashboard.burndownRulesInfoAria', 'How forecast calculations work')}
                 onClick={() => setIsForecastRulesOpen(true)}
               />
             </div>
-            <p className="text-sm font-medium text-slate-500">{t('dashboard.burndownEstimatedCompletionHint', 'Projected completion from current assumptions')}</p>
+            <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-4">
+                  <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20 sm:h-16 sm:w-16">
+                    <span className="material-symbols-outlined text-[32px] sm:text-[36px]">event_available</span>
+                  </span>
+                  <p className="min-w-0 text-3xl font-black leading-tight tracking-normal text-primary sm:text-4xl">{completionValue}</p>
+                </div>
+              </div>
+              <div className="flex h-14 w-20 shrink-0 flex-col items-center justify-center rounded-xl bg-primary text-white shadow-[0_14px_30px_rgba(79,70,229,0.30)] sm:h-16 sm:w-24">
+                <span className="text-2xl font-black leading-none tracking-normal sm:text-3xl">{daysLeftValue}</span>
+                <span className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.12em]">{t('dashboard.burndownCompletionDaysLeftLabel', 'Days left')}</span>
+              </div>
+            </div>
+            <div className="my-5 h-px bg-slate-200"></div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">{t('dashboard.burndownCompletionProjectNameLabel', 'Project name')}</p>
+              <p className="mt-1 truncate text-base font-extrabold text-slate-700" title={selectedProjectDisplayTitle}>{selectedProjectDisplayTitle}</p>
+            </div>
           </div>
-          <MetricTile
-            label={t('dashboard.burndownEstimatedCompletion', 'Estimated completion')}
-            value={completionDate}
-            className="bg-primary/10 text-primary ring-primary/20"
-            valueClassName="text-2xl sm:text-3xl"
-          />
         </section>
 
         <section className="rounded-[1.25rem] border border-slate-200/80 bg-white p-4 shadow-forecast-highlight sm:p-5" aria-label={t('dashboard.burndownByDate', 'Burndown by date')}>
@@ -330,17 +353,9 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 text-sm font-bold">
-                {selectedProjectTitle && (
-                  <span className="inline-flex min-w-0 items-center gap-2 truncate text-slate-900" title={selectedProjectTitle}>
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary"></span>
-                    <span className="truncate">{selectedProjectTitle}</span>
-                  </span>
-                )}
-                <div className="flex flex-wrap items-center gap-4">
-                  <ChartPill label={t('dashboard.burndownActual', 'Actual')} color="bg-primary" />
-                  <ChartPill label={t('dashboard.burndownProjected', 'Projected')} color={getStatusDotColor('Blocked')} />
-                </div>
+              <div className="flex flex-wrap items-center justify-end gap-4 text-sm font-bold" data-testid="burndown-chart-legend">
+                <ChartPill label={t('dashboard.burndownActual', 'Actual')} color="bg-primary" />
+                <ChartPill label={t('dashboard.burndownProjected', 'Projected')} color={getStatusDotColor('Blocked')} />
               </div>
             </div>
           )}
