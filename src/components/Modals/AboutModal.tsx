@@ -36,36 +36,23 @@ export function AboutModal() {
               'Glidelines turns GitHub Projects into a synchronized planning workspace with timeline, list, and forecast views.'
             )}
           </p>
+          <p className="mt-3 max-w-xl text-xs leading-6 text-slate-500">
+            {t(
+              'about.openSource',
+              'Glidelines is free and open source, released under the MIT License.'
+            )}{' '}
+            <a
+              href="https://github.com/mypals-ml/glidepace-vibe"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-sky-700 underline-offset-2 hover:underline"
+            >
+              {t('about.openSourceLink', 'View the source on GitHub')}
+            </a>
+          </p>
         </div>
 
         <div className="space-y-4 p-8">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-                {t('about.cardRealtimeLabel', 'Realtime')}
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">
-                {t('about.cardRealtimeValue', 'Live GitHub sync')}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-                {t('about.cardViewsLabel', 'Views')}
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">
-                {t('about.cardViewsValue', 'List, Gantt, Forecast')}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-                {t('about.cardDataLabel', 'Source')}
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">
-                {t('about.cardDataValue', 'GitHub Projects')}
-              </p>
-            </div>
-          </div>
-
           <p className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3 text-sm leading-6 text-slate-700">
             {t(
               'about.supportingCopy',
@@ -74,16 +61,6 @@ export function AboutModal() {
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-            <a
-              href="https://github.com/mypals-ml/glidepace-vibe"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex"
-            >
-              <Button variant="secondary" size="md" leftIcon="open_in_new" className="w-full sm:w-auto">
-                {t('about.viewSource', 'View Source')}
-              </Button>
-            </a>
             <Button
               variant="primary"
               size="md"

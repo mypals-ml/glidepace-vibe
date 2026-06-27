@@ -136,10 +136,7 @@ export function AssumptionsStorageDialog({ isOpen, onClose }: { isOpen: boolean;
       <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
-              {t('dashboard.burndownAssumptionsStorageEyebrow', 'Assumptions storage')}
-            </p>
-            <h3 id="forecast-assumptions-storage-title" className="mt-1 text-xl font-extrabold text-slate-950">
+            <h3 id="forecast-assumptions-storage-title" className="text-xl font-extrabold text-slate-950">
               {t('dashboard.burndownAssumptionsStorageTitle', 'Where assumptions are saved')}
             </h3>
           </div>
@@ -181,13 +178,11 @@ export function ForecastInfoButton({ label, onClick }: { label: string; onClick:
 export function ForecastSectionInfoDialog({
   isOpen,
   onClose,
-  eyebrow,
   title,
   notes,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  eyebrow: string;
   title: string;
   notes: string[];
 }) {
@@ -199,8 +194,7 @@ export function ForecastSectionInfoDialog({
       <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
-            <h3 id="forecast-section-info-title" className="mt-1 text-xl font-extrabold text-slate-950">{title}</h3>
+            <h3 id="forecast-section-info-title" className="text-xl font-extrabold text-slate-950">{title}</h3>
           </div>
           <button
             type="button"

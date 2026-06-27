@@ -114,12 +114,12 @@ export function ConnectedAccountsModal() {
               setAuthError(null);
             }}
           >
-            Add manually with token
+            {t('app.addManuallyWithToken')}
           </Button>
           <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-100">
             <p className="text-[10px] text-slate-500 leading-relaxed italic text-center">
               <span className="material-symbols-outlined text-[12px] align-middle mr-1">info</span>
-              Tip: GitHub OAuth follows your current browser session. To add a different account, ensure you are logged into it at github.com first.
+              {t('app.oauthSessionTip')}
             </p>
           </div>
           <p className="text-center mt-4 text-[10px] text-slate-400 px-6 uppercase tracking-widest">
