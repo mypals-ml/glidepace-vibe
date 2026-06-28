@@ -140,9 +140,10 @@
   // ---- figure with graceful missing-image handling ----
   function figure(img) {
     if (!img) return null;
-    const fig = el('figure', { class: 'shot is-missing' });
-    const image = el('img', { src: ASSET_BASE + img.key + '.png', alt: img.cap || '', loading: 'lazy' });
-    image.addEventListener('load', () => fig.classList.remove('is-missing'));
+    // Visible by default so the image actually loads; hide only if it 404s.
+    // (A `display:none` figure with loading="lazy" would never trigger load.)
+    const fig = el('figure', { class: 'shot' });
+    const image = el('img', { src: ASSET_BASE + img.key + '.png', alt: img.cap || '' });
     image.addEventListener('error', () => fig.classList.add('is-missing'));
     fig.appendChild(image);
     if (img.cap) fig.appendChild(el('figcaption', null, esc(img.cap)));
