@@ -137,14 +137,29 @@
     return { shell, content };
   }
 
+  function assetCandidates(key) {
+    const fallback = ASSET_BASE + key + '.png';
+    if (lang === 'en') return [fallback];
+    return [ASSET_BASE + encodeURIComponent(lang) + '/' + key + '.png', fallback];
+  }
+
   // ---- figure with graceful missing-image handling ----
   function figure(img) {
     if (!img) return null;
     // Visible by default so the image actually loads; hide only if it 404s.
     // (A `display:none` figure with loading="lazy" would never trigger load.)
     const fig = el('figure', { class: 'shot' });
-    const image = el('img', { src: ASSET_BASE + img.key + '.png', alt: img.cap || '' });
-    image.addEventListener('error', () => fig.classList.add('is-missing'));
+    const candidates = assetCandidates(img.key);
+    let candidateIndex = 0;
+    const image = el('img', { src: candidates[candidateIndex], alt: img.cap || '' });
+    image.addEventListener('error', () => {
+      candidateIndex += 1;
+      if (candidateIndex < candidates.length) {
+        image.src = candidates[candidateIndex];
+        return;
+      }
+      fig.classList.add('is-missing');
+    });
     fig.appendChild(image);
     if (img.cap) fig.appendChild(el('figcaption', null, esc(img.cap)));
     return fig;
