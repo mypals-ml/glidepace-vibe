@@ -60,6 +60,7 @@ describe('TaskDetailsPanel actions', () => {
   const setSelectedLinkTaskIds = vi.fn();
   const updateTaskSuccessors = vi.fn();
   const updateTaskGroupPath = vi.fn();
+  const updateTaskDates = vi.fn();
   const fetchTaskComments = vi.fn();
   const fetchSingleProjectItem = vi.fn();
 
@@ -83,7 +84,7 @@ describe('TaskDetailsPanel actions', () => {
       updateTaskDescription: vi.fn(),
       updateTaskComment: vi.fn(),
       deleteTaskComment: vi.fn(),
-      updateTaskDates: vi.fn(),
+      updateTaskDates,
       addTaskComment: vi.fn(),
       deleteTask: vi.fn(),
       handleCreateTask: vi.fn(),
@@ -210,5 +211,22 @@ describe('TaskDetailsPanel actions', () => {
 
     expect(dateInputs[0].value).toBe('2026-06-02');
     expect(dateInputs[1].value).toBe('2026-06-03');
+  });
+
+  it('allows resetting an auto-derived start date back to auto', () => {
+    const autoDatedTask: Task = {
+      ...task,
+      startDate: '',
+      tempStartDate: '2026-06-10',
+      targetDate: '2026-06-12',
+    };
+    render(<TaskDetailsPanel task={autoDatedTask} onClose={vi.fn()} />);
+
+    const resetButton = screen.getAllByRole('button', { name: /Reset to Auto/ })[0];
+    expect(resetButton.hasAttribute('disabled')).toBe(false);
+
+    fireEvent.click(resetButton);
+
+    expect(updateTaskDates).toHaveBeenCalledWith(autoDatedTask, null, undefined);
   });
 });

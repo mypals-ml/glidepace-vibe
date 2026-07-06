@@ -189,4 +189,26 @@ describe('applyOptimisticTaskDateUpdate', () => {
     expect(result.tempStartDate).toBe('2026-07-06');
     expect(result.tempTargetDate).toBeUndefined();
   });
+
+  it('keeps an auto-derived task position when resetting the start date to auto', () => {
+    const task = makeTask({
+      itemId: 'item-1',
+      contentId: 'issue-1',
+      startDate: '',
+      tempStartDate: '2026-07-06',
+      targetDate: '2026-07-10',
+      estimate: 3,
+      estimateUnit: 'days',
+    });
+
+    const result = applyOptimisticTaskDateUpdate(task, task, {
+      startDate: null,
+      timestamp: 12345,
+    });
+
+    expect(result.startDate).toBe('');
+    expect(result.tempStartDate).toBe('2026-07-08');
+    expect(result.targetDate).toBe('2026-07-10');
+    expect(result.localUpdateTimestamp).toBe(12345);
+  });
 });

@@ -1,5 +1,5 @@
 import { updateProjectV2ItemField } from '../../lib/githubService';
-import { calculateTargetDate } from '../../lib/dateUtils';
+import { calculateStartDate, calculateTargetDate } from '../../lib/dateUtils';
 import type { DashboardFieldValueChange } from '../../lib/taskOrderUtils';
 import type { DependencyFieldCorrection } from '../../lib/taskDependencyUtils';
 import type { Task, ProjectDateSettings, FixedSuccessorStartDateMode, GitHubProjectV2Field, AutoUpdateStartDateMode } from '../../types';
@@ -58,6 +58,20 @@ export function getExistingPredecessorIds(tasks: Task[], successorTask: Task): s
 export function getProjectFieldUpdateValue(field: GitHubProjectV2Field | undefined, value: string): unknown {
   const optionId = field?.options?.find(option => option.name === value)?.id;
   return optionId ? { singleSelectOptionId: optionId } : { text: value };
+}
+
+function getDefaultEstimateForUnit(unit: string | undefined): number {
+  const normalizedUnit = (unit || 'days').toLowerCase();
+  return normalizedUnit === 'hour' || normalizedUnit === 'hours' ? 8 : 1;
+}
+
+function getAutoStartDateForTask(task: Task, estimate: number, unit: string): string | undefined {
+  const targetDate = task.targetDate || task.tempTargetDate;
+  if (targetDate) {
+    return calculateStartDate(targetDate, estimate || getDefaultEstimateForUnit(unit), unit);
+  }
+
+  return new Date().toISOString().split('T')[0];
 }
 
 export function applyTaskFieldValueChanges(task: Task, fieldValueChanges: DashboardFieldValueChange[]): Task {
@@ -126,6 +140,9 @@ export function applyOptimisticTaskDateUpdate(
   const shouldRecalculateTargetDate =
     !shouldClearStartDate &&
     (changes.startDate !== undefined || changes.estimate !== undefined || changes.estimateUnit !== undefined);
+  const autoStartDate = shouldClearStartDate
+    ? getAutoStartDateForTask(currentTask, effectiveEstimate, effectiveUnit)
+    : undefined;
 
   return {
     ...currentTask,
@@ -139,7 +156,7 @@ export function applyOptimisticTaskDateUpdate(
     estimateUnit: changes.estimateUnit !== undefined ? changes.estimateUnit : currentTask.estimateUnit,
     autoUpdateStartDate: changes.autoUpdateStartDate !== undefined ? changes.autoUpdateStartDate : currentTask.autoUpdateStartDate,
     localUpdateTimestamp: hasAnyChange ? (changes.timestamp ?? Date.now()) : currentTask.localUpdateTimestamp,
-    tempStartDate: changes.startDate !== undefined ? undefined : currentTask.tempStartDate,
+    tempStartDate: shouldClearStartDate ? autoStartDate : changes.startDate !== undefined ? undefined : currentTask.tempStartDate,
     tempTargetDate: hasTimelineDateChange ? undefined : currentTask.tempTargetDate,
   };
 }

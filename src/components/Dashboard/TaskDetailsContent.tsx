@@ -445,10 +445,8 @@ export function TaskDetailsContent({ task, t, isCreateMode = false }: { task: Ta
               <button
                 type="button"
                 onClick={() => updateTaskDates(task, null, undefined)}
-                disabled={!task.startDate}
                 aria-label={t('dashboard.resetStartDateToAuto', 'Reset to Auto')}
-                title={!task.startDate ? t('dashboard.startDateAlreadyAuto', 'Start date is already automatic') : undefined}
-                className="h-4 shrink-0 rounded border border-primary/20 bg-primary/10 px-1.5 text-[10px] font-medium leading-none text-primary transition-colors hover:bg-primary/15 hover:text-primary/80 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                className="h-4 shrink-0 rounded border border-primary/20 bg-primary/10 px-1.5 text-[10px] font-medium leading-none text-primary transition-colors hover:bg-primary/15 hover:text-primary/80"
               >
                 {t('dashboard.resetStartDateToAuto', 'Reset to Auto')}
               </button>
