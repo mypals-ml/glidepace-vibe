@@ -93,6 +93,31 @@ describe('forecast dashboard calculations', () => {
     });
   });
 
+  it('does not burn down overdue open tasks as completed historical work', () => {
+    const data = buildForecastDashboardData([
+      makeTask({
+        id: 'overdue-open-work',
+        status: 'In progress',
+        estimate: 2,
+        startDate: '2026-06-01',
+        targetDate: '2026-06-01',
+      }),
+      makeTask({
+        id: 'done-work',
+        status: 'Done',
+        estimate: 3,
+        startDate: '2026-06-01',
+        targetDate: '2026-06-02',
+      }),
+    ], new Date(2026, 5, 3));
+
+    expect(data.totalEstimateDays).toBe(5);
+    expect(data.remainingDays).toBe(1);
+    expect(data.points.find((point) => point.date === '2026-06-01')?.remainingDays).toBe(5);
+    expect(data.points.find((point) => point.date === '2026-06-02')?.remainingDays).toBe(2);
+    expect(data.points.find((point) => point.date === '2026-06-03')?.remainingDays).toBe(1);
+  });
+
   it('excludes draft and done tasks from the zero-remaining completion fallback', () => {
     const data = buildForecastDashboardData([
       makeTask({

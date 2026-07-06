@@ -213,16 +213,21 @@ export function buildForecastDashboardData(tasks: Task[], today = new Date(), as
     future: date > todayIso,
   }));
 
-  // Fill ACTUAL points (dates <= today) using task target/done dates
+  // Fill ACTUAL points (dates <= today) from completed work only; open overdue tasks remain unburned.
+  const currentDoneDays = Math.max(0, totalEstimateDays - remainingDays);
   points = points.map((p) => {
     if (p.future) return p;
+    if (p.date === todayIso) {
+      return {
+        ...p,
+        doneDays: Math.min(totalEstimateDays, currentDoneDays),
+        remainingDays,
+      };
+    }
 
     const doneDays = chartTasks.reduce((sum, task) => {
       if (task.statusKey === 'done') {
         return task.doneDate && task.doneDate <= p.date ? sum + task.estimateDays : sum;
-      }
-      if (task.targetDate <= p.date) {
-        return sum + task.estimateDays;
       }
       return sum;
     }, 0);
