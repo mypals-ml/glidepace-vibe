@@ -34,6 +34,7 @@ export interface DashboardContextValue {
   handleSelectRealProject: (id: string, title: string, isPublic: boolean, accountId: string) => void;
   handleRemoveFromHistory: (id: string) => void;
   handleOpenProjectClick: () => void;
+  handleConnectDemoAccount: () => Promise<{ success: boolean; account?: GithubAccount; error?: string }>;
   sortMethod: SortMethod;
   setSortMethod: (method: SortMethod) => void;
   sortProjects: (projects: GitHubProject[]) => GitHubProject[];

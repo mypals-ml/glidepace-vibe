@@ -30,3 +30,6 @@ docs/demo/*
 scripts/*
 active_runbook.md
 /plan/artifacts/hourly-remote-push/active_runbook.md
+/.claude/
+/dist-verify/
+/.cline/

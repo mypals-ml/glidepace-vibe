@@ -4,10 +4,13 @@ import { Button } from '../UI/Button';
 import { IconButton } from '../UI/IconButton';
 
 export function AboutModal() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { isAboutModalOpen, setIsAboutModalOpen } = useDashboard();
 
   if (!isAboutModalOpen) return null;
+
+  // Open the static help center in the user's current UI language.
+  const helpHref = `/help/index.html?lang=${encodeURIComponent(i18n.language)}`;
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
@@ -59,6 +62,28 @@ export function AboutModal() {
               'Use the header tools to connect accounts, open projects, refine project settings, and keep task scheduling aligned with GitHub.'
             )}
           </p>
+
+          <a
+            href={helpHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center gap-4 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-sky-50/60 px-4 py-3.5 transition-colors hover:border-indigo-200 hover:from-indigo-50 hover:to-sky-50"
+          >
+            <span className="material-symbols-outlined shrink-0 rounded-xl bg-white/80 p-2 text-[22px] text-indigo-600 shadow-sm">
+              menu_book
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-slate-900">
+                {t('about.helpGuide', 'User Guide & Help')}
+              </span>
+              <span className="block text-xs leading-5 text-slate-500">
+                {t('about.helpGuideDescription', 'Step-by-step guides to every key feature, in your language.')}
+              </span>
+            </span>
+            <span className="material-symbols-outlined shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5">
+              arrow_forward
+            </span>
+          </a>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <Button

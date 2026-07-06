@@ -52,6 +52,8 @@ const en = {
       openSource: "Glidelines is free and open source, released under the MIT License.",
       openSourceLink: "View the source on GitHub",
       supportingCopy: "Use the header tools to connect accounts, open projects, refine project settings, and keep task scheduling aligned with GitHub.",
+      helpGuide: "User Guide & Help",
+      helpGuideDescription: "Step-by-step guides to every key feature, in your language.",
       viewSource: "View Source",
       close: "Close about dialog",
       closeButton: "Close"
@@ -62,6 +64,7 @@ const en = {
       emptyStateTitle: "No projects selected",
       emptyStateDesc: "Connect a GitHub Project (v2) to get started. Note: This syncs Project boards, not Repositories.",
       addProjectButton: "Open Project",
+      connectDemoAccountButton: "Connect to demo account",
       addProjectTimelinePrompt: "Add a project to view timeline",
       openProjectModalTitle: "Open Project",
       openProjectModalDesc: "Connect and open a GitHub project",

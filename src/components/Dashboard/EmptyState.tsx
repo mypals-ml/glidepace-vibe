@@ -4,7 +4,12 @@ import { Button } from '../UI/Button';
 
 export function EmptyState() {
   const { t } = useTranslation();
-  const { handleOpenProjectClick, isChartVisible } = useDashboard();
+  const {
+    handleOpenProjectClick,
+    handleConnectDemoAccount,
+    isChartVisible,
+    isLoadingAuth
+  } = useDashboard();
 
   return (
     <div className="flex-1 flex overflow-hidden glass-panel bg-white/80 shadow-sm border border-slate-200/60 rounded-xl">
@@ -14,16 +19,31 @@ export function EmptyState() {
         </div>
         <h2 className="text-lg font-semibold mb-1 text-slate-800">{t('dashboard.emptyStateTitle')}</h2>
         <p className="text-sm text-slate-500 mb-6 text-center">{t('dashboard.emptyStateDesc')}</p>
-        <Button
-          variant="primary"
-          size="md"
-          fullWidth
-          onClick={handleOpenProjectClick}
-          leftIcon="folder_open"
-          aria-label={t('dashboard.addProjectButton')}
-        >
-          {t('dashboard.addProjectButton')}
-        </Button>
+        <div className="flex w-full flex-col gap-3">
+          <Button
+            variant="primary"
+            size="md"
+            fullWidth
+            onClick={handleOpenProjectClick}
+            leftIcon="folder_open"
+            aria-label={t('dashboard.addProjectButton')}
+          >
+            {t('dashboard.addProjectButton')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="md"
+            fullWidth
+            onClick={() => {
+              void handleConnectDemoAccount();
+            }}
+            leftIcon="account_circle"
+            isLoading={isLoadingAuth}
+            aria-label={t('dashboard.connectDemoAccountButton')}
+          >
+            {t('dashboard.connectDemoAccountButton')}
+          </Button>
+        </div>
       </div>
 
       <div className={`flex-1 flex-col bg-slate-50/50 ${isChartVisible ? 'flex' : 'hidden md:flex'}`}>
