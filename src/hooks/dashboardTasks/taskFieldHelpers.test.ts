@@ -7,6 +7,7 @@ import {
   findProjectFieldId,
   getProjectFieldUpdateValue,
   applyTaskFieldValueChanges,
+  applyOptimisticTaskDateUpdate,
 } from './taskFieldHelpers';
 import type { Task, ProjectDateSettings, GitHubProjectV2Field } from '../../types';
 
@@ -141,5 +142,51 @@ describe('applyTaskFieldValueChanges', () => {
     const inProgress = applyTaskFieldValueChanges(task, [{ fieldId: 'status-field', value: 'In progress' }]);
     expect(inProgress.status).toBe('In progress');
     expect(inProgress.progress).toBe(50);
+  });
+});
+
+describe('applyOptimisticTaskDateUpdate', () => {
+  it('recalculates targetDate and clears stale tempTargetDate when estimate changes', () => {
+    const task = makeTask({
+      itemId: 'item-1',
+      contentId: 'issue-1',
+      startDate: '2026-07-06',
+      targetDate: '2026-07-06',
+      estimate: 1,
+      estimateUnit: 'days',
+      tempTargetDate: '2026-07-06',
+    });
+
+    const result = applyOptimisticTaskDateUpdate(task, task, {
+      estimate: 3,
+      timestamp: 12345,
+    });
+
+    expect(result.estimate).toBe(3);
+    expect(result.targetDate).toBe('2026-07-08');
+    expect(result.tempTargetDate).toBeUndefined();
+    expect(result.localUpdateTimestamp).toBe(12345);
+  });
+
+  it('uses a derived start date when recalculating an estimate-only update', () => {
+    const task = makeTask({
+      itemId: 'item-1',
+      contentId: 'issue-1',
+      startDate: '',
+      tempStartDate: '2026-07-06',
+      targetDate: '2026-07-06',
+      estimate: 1,
+      estimateUnit: 'days',
+      tempTargetDate: '2026-07-06',
+    });
+
+    const result = applyOptimisticTaskDateUpdate(task, task, {
+      estimate: 2,
+      timestamp: 12345,
+    });
+
+    expect(result.targetDate).toBe('2026-07-07');
+    expect(result.tempStartDate).toBe('2026-07-06');
+    expect(result.tempTargetDate).toBeUndefined();
   });
 });

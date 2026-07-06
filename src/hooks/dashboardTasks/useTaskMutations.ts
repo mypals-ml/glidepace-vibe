@@ -7,7 +7,7 @@ import {
   REMOVE_ASSIGNEES_MUTATION,
   UPDATE_DRAFT_ASSIGNEES_MUTATION
 } from '../../lib/githubQueries';
-import { findProjectFieldId, getProjectFixedStartDateMode, getExistingPredecessorIds, persistDependencyFieldCorrections, preserveUniqueIds, uniqueTasks } from './taskFieldHelpers';
+import { applyOptimisticTaskDateUpdate, findProjectFieldId, getProjectFixedStartDateMode, getExistingPredecessorIds, persistDependencyFieldCorrections, preserveUniqueIds, uniqueTasks } from './taskFieldHelpers';
 import type { Task, TaskStatus, User, GitHubProjectV2Field, GitHubAssignee, AutoUpdateStartDateMode, FixedSuccessorStartDateMode } from '../../types';
 import type { DashboardTasksCore } from './types';
 
@@ -165,26 +165,16 @@ export function useTaskMutations({ core, fetchSingleProjectItem, projectFields, 
     const normalizedStartDate = shouldClearStartDate ? '' : startDate;
     let nextTasks: Task[] = [];
     let effectiveFixedMode = projectFixedMode;
+    const optimisticUpdateTimestamp = Date.now();
     const updatedBeforeCascade = oldTasks.map(t =>
-      (t.itemId === task.itemId || (t.contentId && t.contentId === task.contentId))
-        ? {
-            ...t,
-            startDate: normalizedStartDate !== undefined ? normalizedStartDate : t.startDate,
-            targetDate: (!shouldClearStartDate && (startDate !== undefined || estimate !== undefined || estimateUnit !== undefined))
-              ? calculateTargetDate(
-                  normalizedStartDate !== undefined ? normalizedStartDate : t.startDate,
-                  estimate !== undefined ? estimate : (t.estimate || 0),
-                  estimateUnit !== undefined ? estimateUnit : (t.estimateUnit || 'days')
-                )
-              : t.targetDate,
-            estimate: estimate !== undefined ? estimate : t.estimate,
-            estimateUnit: estimateUnit !== undefined ? estimateUnit : t.estimateUnit,
-            autoUpdateStartDate: autoUpdateStartDate !== undefined ? autoUpdateStartDate : t.autoUpdateStartDate,
-            localUpdateTimestamp: (startDate !== undefined || targetDate !== undefined) ? Date.now() : t.localUpdateTimestamp,
-            tempStartDate: startDate !== undefined ? undefined : t.tempStartDate,
-            tempTargetDate: (startDate !== undefined || targetDate !== undefined) ? undefined : t.tempTargetDate
-          }
-        : t
+      applyOptimisticTaskDateUpdate(t, task, {
+        startDate,
+        targetDate,
+        estimate,
+        estimateUnit,
+        autoUpdateStartDate,
+        timestamp: optimisticUpdateTimestamp,
+      })
     );
 
     if (!shouldClearStartDate && projectFixedMode === 'ask') {

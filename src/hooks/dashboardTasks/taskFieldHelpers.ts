@@ -1,7 +1,8 @@
 import { updateProjectV2ItemField } from '../../lib/githubService';
+import { calculateTargetDate } from '../../lib/dateUtils';
 import type { DashboardFieldValueChange } from '../../lib/taskOrderUtils';
 import type { DependencyFieldCorrection } from '../../lib/taskDependencyUtils';
-import type { Task, ProjectDateSettings, FixedSuccessorStartDateMode, GitHubProjectV2Field } from '../../types';
+import type { Task, ProjectDateSettings, FixedSuccessorStartDateMode, GitHubProjectV2Field, AutoUpdateStartDateMode } from '../../types';
 
 export function uniqueTasks(tasks: Task[]): Task[] {
   const seen = new Set<string>();
@@ -85,6 +86,61 @@ export function applyTaskFieldValueChanges(task: Task, fieldValueChanges: Dashbo
   return {
     ...nextTask,
     projectFieldValues: nextProjectFieldValues,
+  };
+}
+
+export function applyOptimisticTaskDateUpdate(
+  currentTask: Task,
+  editedTask: Pick<Task, 'itemId' | 'contentId' | 'startDate' | 'estimate' | 'estimateUnit'>,
+  changes: {
+    startDate?: string | null;
+    targetDate?: string;
+    estimate?: number;
+    estimateUnit?: string;
+    autoUpdateStartDate?: AutoUpdateStartDateMode;
+    timestamp?: number;
+  }
+): Task {
+  const isEditedTask =
+    currentTask.itemId === editedTask.itemId ||
+    Boolean(currentTask.contentId && currentTask.contentId === editedTask.contentId);
+  if (!isEditedTask) return currentTask;
+
+  const shouldClearStartDate = changes.startDate === null;
+  const normalizedStartDate: string | undefined = shouldClearStartDate ? '' : (changes.startDate ?? undefined);
+  const hasTimelineDateChange =
+    changes.startDate !== undefined ||
+    changes.targetDate !== undefined ||
+    changes.estimate !== undefined ||
+    changes.estimateUnit !== undefined;
+  const hasAnyChange = hasTimelineDateChange || changes.autoUpdateStartDate !== undefined;
+  const effectiveStartDate = normalizedStartDate !== undefined
+    ? normalizedStartDate
+    : (currentTask.startDate || currentTask.tempStartDate || editedTask.startDate);
+  const effectiveEstimate = changes.estimate !== undefined
+    ? changes.estimate
+    : (currentTask.estimate ?? editedTask.estimate ?? 0);
+  const effectiveUnit = changes.estimateUnit !== undefined
+    ? changes.estimateUnit
+    : (currentTask.estimateUnit || editedTask.estimateUnit || 'days');
+  const shouldRecalculateTargetDate =
+    !shouldClearStartDate &&
+    (changes.startDate !== undefined || changes.estimate !== undefined || changes.estimateUnit !== undefined);
+
+  return {
+    ...currentTask,
+    startDate: normalizedStartDate !== undefined ? normalizedStartDate : currentTask.startDate,
+    targetDate: changes.targetDate !== undefined
+      ? changes.targetDate
+      : shouldRecalculateTargetDate
+        ? calculateTargetDate(effectiveStartDate, effectiveEstimate, effectiveUnit)
+        : currentTask.targetDate,
+    estimate: changes.estimate !== undefined ? changes.estimate : currentTask.estimate,
+    estimateUnit: changes.estimateUnit !== undefined ? changes.estimateUnit : currentTask.estimateUnit,
+    autoUpdateStartDate: changes.autoUpdateStartDate !== undefined ? changes.autoUpdateStartDate : currentTask.autoUpdateStartDate,
+    localUpdateTimestamp: hasAnyChange ? (changes.timestamp ?? Date.now()) : currentTask.localUpdateTimestamp,
+    tempStartDate: changes.startDate !== undefined ? undefined : currentTask.tempStartDate,
+    tempTargetDate: hasTimelineDateChange ? undefined : currentTask.tempTargetDate,
   };
 }
 
