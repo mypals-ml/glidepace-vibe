@@ -100,6 +100,13 @@ export function applyMockFieldValue(task: Task, field: GitHubProjectV2Field | un
   }
 }
 
+function getLocalIsoDate(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Helper to map tasks back to GitHub GraphQL nodes
 export function mapTaskToGraphQLNode(task: Task, projectId = 'PVT_1', includeComments = false) {
   const matchedOption = MOCK_STATUS_OPTIONS.find(o => o.name === task.status)
@@ -116,14 +123,15 @@ export function mapTaskToGraphQLNode(task: Task, projectId = 'PVT_1', includeCom
       options: MOCK_STATUS_OPTIONS,   // ← enables mapProjectItemToTask to read all options
     },
   };
+  const fallbackDate = getLocalIsoDate();
   const startDateField = {
     __typename: 'ProjectV2ItemFieldDateValue',
-    date: task.fullStartDate || new Date().toISOString(),
+    date: task.fullStartDate || fallbackDate,
     field: { __typename: 'ProjectV2Field', id: MOCK_FIELD_IDS.startDate, name: 'Start Date' },
   };
   const targetDateField = {
     __typename: 'ProjectV2ItemFieldDateValue',
-    date: task.fullTargetDate || new Date().toISOString(),
+    date: task.fullTargetDate || fallbackDate,
     field: { __typename: 'ProjectV2Field', id: MOCK_FIELD_IDS.targetDate, name: 'Target Date' },
   };
   const customFieldValues = getFieldsForProject(projectId)

@@ -118,6 +118,52 @@ describe('forecast dashboard calculations', () => {
     expect(data.points.find((point) => point.date === '2026-06-03')?.remainingDays).toBe(1);
   });
 
+  it('uses the Todo workload assumption for common Todo-equivalent statuses', () => {
+    const data = buildForecastDashboardData([
+      makeTask({ id: 'to-do', status: 'To do', estimate: 2 }),
+      makeTask({ id: 'backlog', status: 'Backlog', estimate: 2 }),
+      makeTask({ id: 'not-started', status: 'Not started', estimate: 2 }),
+    ], new Date(2026, 5, 1), {
+      statusRemainingPercent: {
+        todo: 80,
+        other: 10,
+      },
+    });
+
+    expect(data.remainingDays).toBeCloseTo(4.8);
+  });
+
+  it('uses available workers to move the capacity-based completion date', () => {
+    const task = makeTask({
+      id: 'parallel-work',
+      status: 'Todo',
+      estimate: 10,
+      assignees: [{
+        id: 'user-1',
+        name: 'Ada',
+        login: 'ada',
+        initials: 'AD',
+        avatarColor: '#4f46e5',
+      }],
+    });
+
+    const oneWorker = buildForecastDashboardData([task], new Date(2026, 5, 1), {
+      capacityDaysPerWeek: 5,
+      availableWorkers: 1,
+    });
+    const twoWorkers = buildForecastDashboardData([task], new Date(2026, 5, 1), {
+      capacityDaysPerWeek: 5,
+      availableWorkers: 2,
+    });
+
+    expect(oneWorker.completionDate).toBe('2026-06-15');
+    expect(twoWorkers.completionDate).toBe('2026-06-08');
+    expect(twoWorkers.points.at(-1)).toMatchObject({
+      date: '2026-06-08',
+      remainingDays: 0,
+    });
+  });
+
   it('excludes draft and done tasks from the zero-remaining completion fallback', () => {
     const data = buildForecastDashboardData([
       makeTask({
@@ -171,5 +217,40 @@ describe('forecast dashboard calculations', () => {
 
     expect(data.workerLoads[0]?.worker).toBe('Ada');
     expect(data.workerLoads[0]?.days.slice(0, 4).map((day) => day.loadDays)).toEqual([1, 1, 1, 1]);
+  });
+
+  it('splits scheduled worker load across every task assignee', () => {
+    const data = buildForecastDashboardData([
+      makeTask({
+        id: 'shared-task',
+        status: 'Todo',
+        estimate: 4,
+        startDate: '2026-06-01',
+        targetDate: '2026-06-04',
+        assignees: [
+          { id: 'user-1', name: 'Ada', login: 'ada', initials: 'AD', avatarColor: '#4f46e5' },
+          { id: 'user-2', name: 'Grace', login: 'grace', initials: 'GH', avatarColor: '#0f766e' },
+        ],
+      }),
+    ], new Date(2026, 5, 1));
+
+    expect(data.workerLoads).toHaveLength(2);
+    expect(data.workerLoads.map((worker) => worker.totalDays)).toEqual([2, 2]);
+    expect(data.workerLoads[0]?.days.slice(0, 4).map((day) => day.loadDays)).toEqual([0.5, 0.5, 0.5, 0.5]);
+  });
+
+  it('omits worker rows when no scheduled work overlaps the next ten days', () => {
+    const data = buildForecastDashboardData([
+      makeTask({
+        id: 'past-task',
+        status: 'Todo',
+        estimate: 3,
+        startDate: '2026-05-01',
+        targetDate: '2026-05-03',
+        assignees: [{ id: 'user-1', name: 'Ada', login: 'ada', initials: 'AD', avatarColor: '#4f46e5' }],
+      }),
+    ], new Date(2026, 5, 1));
+
+    expect(data.workerLoads).toEqual([]);
   });
 });

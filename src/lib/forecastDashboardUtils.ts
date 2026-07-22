@@ -277,7 +277,7 @@ export function buildForecastDashboardData(tasks: Task[], today = new Date(), as
   const workerMap = new Map<string, number[]>();
   chartTasks.filter((task) => task.statusKey !== 'done').forEach((task) => {
     const taskDates = eachDate(task.startDate, task.targetDate);
-    const dailyLoad = task.estimateDays / Math.max(1, taskDates.length);
+    const dailyLoad = task.estimateDays / Math.max(1, taskDates.length) / Math.max(1, task.assignees.length);
     task.assignees.forEach((worker) => {
       const loads = workerMap.get(worker) || Array(workerWindow.length).fill(0);
       workerWindow.forEach((date, index) => {
@@ -293,6 +293,7 @@ export function buildForecastDashboardData(tasks: Task[], today = new Date(), as
       totalDays: loads.reduce((sum, load) => sum + load, 0),
       days: workerWindow.map((date, index) => ({ date, loadDays: loads[index] })),
     }))
+    .filter((worker) => worker.totalDays > 0.01)
     .sort((left, right) => right.totalDays - left.totalDays)
     .slice(0, 5);
 

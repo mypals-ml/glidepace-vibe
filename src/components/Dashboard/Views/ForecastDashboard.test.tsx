@@ -150,7 +150,7 @@ describe('ForecastDashboard loading state', () => {
 
     render(<ForecastDashboard />);
 
-    expect(screen.getAllByRole('status', { name: 'dashboard.loadingTasks' })).toHaveLength(5);
+    expect(screen.getAllByRole('status', { name: 'dashboard.loadingTasks' })).toHaveLength(6);
   });
 
   it('renders the dashboard title without the eyebrow or subtitle copy', () => {
@@ -208,9 +208,9 @@ describe('ForecastDashboard loading state', () => {
     expect(screen.queryByRole('heading', { name: 'Estimated completion 1' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Estimated completion 2' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Estimated completion 3' })).toBeNull();
-    expect(screen.getByText('Days left')).toBeTruthy();
-    expect(screen.getByText('Project name')).toBeTruthy();
-    expect(within(screen.getByTestId('burndown-chart-legend')).queryByText('History Project')).toBeNull();
+    expect(screen.queryByText('Days left')).toBeNull();
+    expect(screen.queryByText('Project name')).toBeNull();
+    expect(within(screen.getByTestId('burndown-chart-legend')).getByText('History Project')).toBeTruthy();
   });
 
   it('opens an explanation dialog from the burndown chart info button', () => {
@@ -221,7 +221,7 @@ describe('ForecastDashboard loading state', () => {
     fireEvent.click(screen.getByRole('button', { name: 'How the burndown chart is calculated' }));
 
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'How the forecast is calculated' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'How the burndown chart is calculated' })).toBeTruthy();
     expect(screen.getByText('The projected line simulates future workday burn-down from today using the same worker allocation and capacity. The line reaches zero on the estimated completion date.')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
@@ -269,7 +269,7 @@ describe('ForecastDashboard loading state', () => {
 
     expect(screen.queryByRole('heading', { name: 'Top worker loads' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Project assignees' }).textContent).toContain('0');
-    expect((screen.getByLabelText('Available Workers') as HTMLInputElement).value).toBe('0');
+    expect((screen.getByLabelText('Available Workers') as HTMLInputElement).value).toBe('1');
   });
 
   it('omits intermediate worker date labels in compact layouts', () => {
@@ -286,6 +286,22 @@ describe('ForecastDashboard loading state', () => {
     expect(container.querySelector('span[title="2026-06-22"]')).toBeTruthy();
     expect(container.querySelector('span[title="2026-06-25"]')).toBeTruthy();
     expect(container.querySelector('span[title="2026-06-28"]')).toBeTruthy();
+  });
+
+  it('renders zero-load worker days without a phantom minimum-height bar', () => {
+    dashboardState = createDashboardState({
+      filteredTasks: [{
+        ...assignedTasks[0],
+        estimate: 1,
+        startDate: '2026-06-19',
+        targetDate: '2026-06-19',
+      }],
+    });
+
+    const { container } = render(<ForecastDashboard />);
+    const emptyDayBar = container.querySelector('span[title="Ada 2026-06-20: 0d"] i') as HTMLElement | null;
+
+    expect(emptyDayBar?.style.height).toBe('0%');
   });
 
   it('keeps assumptions read-only until edit is enabled', () => {
@@ -321,6 +337,7 @@ describe('ForecastDashboard loading state', () => {
     fireEvent.change(availableWorkersInput, { target: { value: '2' } });
     rerender(<ForecastDashboard />);
     expect((screen.getByLabelText('Available Workers') as HTMLInputElement).value).toBe('2');
+    expect(within(screen.getByRole('region', { name: 'Estimated completion' })).getByText('26')).toBeTruthy();
 
     const capacityInput = screen.getByLabelText('Capacity per worker');
     expect((capacityInput as HTMLInputElement).readOnly).toBe(false);

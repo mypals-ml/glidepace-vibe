@@ -139,6 +139,7 @@ describe('forecastAssumptionsConfig', () => {
   it('normalizes invalid values to safe defaults', () => {
     expect(normalizeForecastAssumptions({
       capacityDaysPerWeek: -2,
+      availableWorkers: 0,
       statusRemainingPercent: {
         draft: -5,
         todo: 120,

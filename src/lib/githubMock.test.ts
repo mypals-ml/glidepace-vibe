@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { handleMockGraphQL } from './githubMock';
+import { handleMockGraphQL, mapTaskToGraphQLNode } from './githubMock';
 import { GET_PROJECT_TASKS_QUERY, GET_SINGLE_ITEM_QUERY, UPDATE_PROJECT_ITEM_FIELD_VALUE_MUTATION, UPDATE_PROJECT_ITEM_POSITION_MUTATION } from './githubQueries';
+import type { Task } from '../types';
 
 interface MockField {
   id: string;
@@ -50,6 +51,33 @@ async function resolveMockGraphQL(query: string, variables: Parameters<typeof ha
 }
 
 describe('githubMock in-memory project fields', () => {
+  it('uses a local date-only fallback for demo task date fields', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 23, 8));
+
+    const mapped = mapTaskToGraphQLNode({
+      id: 'demo-task',
+      displayId: '#1',
+      title: 'Demo task',
+      status: 'Todo',
+      startDate: 'Jul 23',
+      targetDate: 'Jul 23',
+      assignees: [],
+      progress: 0,
+    } as Task) as {
+      fieldValues: {
+        nodes: Array<{ __typename: string; date?: string }>;
+      };
+    };
+
+    const dateValues = mapped.fieldValues.nodes
+      .filter((node) => node.__typename === 'ProjectV2ItemFieldDateValue')
+      .map((node) => node.date);
+
+    expect(dateValues).toEqual(['2026-07-23', '2026-07-23']);
+    vi.useRealTimers();
+  });
+
   it('persists task dependency links across project and item fetches', async () => {
     vi.useFakeTimers();
 

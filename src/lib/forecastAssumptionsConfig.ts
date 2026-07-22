@@ -91,7 +91,7 @@ function normalizeCapacityDaysPerWeek(value: unknown): number {
 }
 
 function normalizeAvailableWorkers(value: unknown): number | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 1) {
     return undefined;
   }
   return Math.min(100, Math.floor(value));

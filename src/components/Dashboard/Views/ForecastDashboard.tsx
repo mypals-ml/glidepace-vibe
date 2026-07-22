@@ -91,7 +91,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
       const next = normalizeForecastAssumptions(refreshed ?? forecastAssumptions);
       setDraftAssumptions({
         ...next,
-        availableWorkers: next.availableWorkers ?? rawWorkerCount,
+        availableWorkers: next.availableWorkers ?? Math.max(1, rawWorkerCount),
       });
     }
   };
@@ -102,7 +102,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
     const next = normalizeForecastAssumptions(refreshed ?? forecastAssumptions);
     setDraftAssumptions({
       ...next,
-      availableWorkers: next.availableWorkers ?? rawWorkerCount,
+      availableWorkers: next.availableWorkers ?? Math.max(1, rawWorkerCount),
     });
     setIsAssumptionsEditing(true);
   };
@@ -123,7 +123,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
     const next = normalizeForecastAssumptions(forecastAssumptions);
     setDraftAssumptions({
       ...next,
-      availableWorkers: next.availableWorkers ?? rawWorkerCount,
+      availableWorkers: next.availableWorkers ?? Math.max(1, rawWorkerCount),
     });
     setIsAssumptionsEditing(false);
   };
@@ -203,7 +203,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
   }, [filteredTasks]);
   const rawWorkerCount = projectAssignees.length;
   const shouldShowWorkerLoads = isLoadingTasks || chartData.workerLoads.some((worker) => worker.worker !== DEFAULT_WORKER);
-  const availableWorkers = activeAssumptions.availableWorkers ?? rawWorkerCount;
+  const availableWorkers = Math.max(1, activeAssumptions.availableWorkers ?? rawWorkerCount);
   const teamCapacityDaysPerWeek = capacityDaysPerWeek * availableWorkers;
   const donePercent = Math.round((chartData.statusTotals.done / totalEstimate) * 100);
   const statusSegments = chartData.statusBreakdown.map((status) => ({
@@ -574,7 +574,10 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                         <div className="grid h-14 grid-cols-10 items-end gap-1.5">
                           {worker.days.map((day) => (
                             <span key={day.date} className="flex h-full items-end rounded-md bg-slate-100" title={`${worker.worker} ${day.date}: ${formatDays(day.loadDays)}`}>
-                              <i className="block w-full rounded-md bg-primary/80" style={{ height: `${Math.max(8, Math.round((day.loadDays / maxWorkerLoad) * 100))}%` }}></i>
+                              <i
+                                className="block w-full rounded-md bg-primary/80"
+                                style={{ height: day.loadDays > 0 ? `${Math.max(8, Math.round((day.loadDays / maxWorkerLoad) * 100))}%` : '0%' }}
+                              ></i>
                             </span>
                           ))}
                         </div>
@@ -698,7 +701,7 @@ export function ForecastDashboard({ className = '' }: { className?: string }) {
                 <AssumptionNumberInput
                   label={t('dashboard.burndownAssumptionAvailableWorkers', 'Available Workers')}
                   value={availableWorkers}
-                  min={0}
+                  min={1}
                   max={100}
                   step={1}
                   readOnly={!isAssumptionsEditing}

@@ -10,6 +10,7 @@ export const DEFAULT_WORKER = 'Unassigned';
 
 export interface ForecastCompletionAssumptions {
   capacityDaysPerWeek?: number;
+  availableWorkers?: number;
   statusRemainingPercent?: Partial<{
     draft: number;
     todo: number;
@@ -38,6 +39,14 @@ function normalizeDailyCapacity(capacityDaysPerWeek: number | undefined): number
     return 1;
   }
   return capacityDaysPerWeek / 5;
+}
+
+function getAvailableWorkerScale(availableWorkers: number | undefined, allocatedWorkerCount: number): number {
+  const baselineWorkerCount = Math.max(1, allocatedWorkerCount);
+  if (typeof availableWorkers !== 'number' || !Number.isFinite(availableWorkers) || availableWorkers < 1) {
+    return 1;
+  }
+  return Math.floor(availableWorkers) / baselineWorkerCount;
 }
 
 function parseDate(value?: string): Date | null {
@@ -94,13 +103,13 @@ export function addWorkdays(base: Date, workDays: number): Date {
  * - All other statuses: 50%
  */
 export function getStatusRemainingWorkloadFactor(status: string, assumptions: ForecastCompletionAssumptions = {}): number {
-  const s = (status || '').toLowerCase();
+  const s = (status || '').trim().toLowerCase().replace(/\s+/g, ' ');
   const percent = assumptions.statusRemainingPercent ?? {};
-  if (s.includes('done') || s.includes('closed')) return normalizePercent(percent.done, DEFAULT_STATUS_REMAINING_PERCENT.done) / 100;
+  if (s.includes('done') || s.includes('closed') || s === 'completed' || s === 'merged') return normalizePercent(percent.done, DEFAULT_STATUS_REMAINING_PERCENT.done) / 100;
   if (s.includes('draft')) return normalizePercent(percent.draft, DEFAULT_STATUS_REMAINING_PERCENT.draft) / 100;
-  if (s.includes('todo')) return normalizePercent(percent.todo, DEFAULT_STATUS_REMAINING_PERCENT.todo) / 100;
-  if (s.includes('progress')) return normalizePercent(percent.inProgress, DEFAULT_STATUS_REMAINING_PERCENT.inProgress) / 100;
+  if (s === 'todo' || s === 'to do' || s === 'backlog' || s === 'open' || s === 'not started') return normalizePercent(percent.todo, DEFAULT_STATUS_REMAINING_PERCENT.todo) / 100;
   if (s.includes('review')) return normalizePercent(percent.inReview, DEFAULT_STATUS_REMAINING_PERCENT.inReview) / 100;
+  if (s.includes('progress') || s === 'wip') return normalizePercent(percent.inProgress, DEFAULT_STATUS_REMAINING_PERCENT.inProgress) / 100;
   return normalizePercent(percent.other, DEFAULT_STATUS_REMAINING_PERCENT.other) / 100;
 }
 
@@ -183,7 +192,8 @@ export function computeCapacityBasedCompletion(
 ): { assigneeCompletions: Array<{ assignee: string; work: number; completion: string }>; projectCompletion: string } {
   const assigneeCompletions: Array<{ assignee: string; work: number; completion: string }> = [];
   let latest = toIsoDate(today);
-  const dailyCapacity = normalizeDailyCapacity(assumptions.capacityDaysPerWeek);
+  const dailyCapacity = normalizeDailyCapacity(assumptions.capacityDaysPerWeek)
+    * getAvailableWorkerScale(assumptions.availableWorkers, workByAssignee.size);
 
   workByAssignee.forEach((work, assignee) => {
     if (work <= 0) return;
@@ -221,7 +231,8 @@ export function simulateFutureRemaining(
   workByAssignee.forEach((w, a) => simWork.set(a, w));
 
   let currentRem = initialRemaining;
-  const dailyCapacity = normalizeDailyCapacity(assumptions.capacityDaysPerWeek);
+  const dailyCapacity = normalizeDailyCapacity(assumptions.capacityDaysPerWeek)
+    * getAvailableWorkerScale(assumptions.availableWorkers, workByAssignee.size);
 
   for (const dateStr of dateRange) {
     const d = parseDate(dateStr)!;
