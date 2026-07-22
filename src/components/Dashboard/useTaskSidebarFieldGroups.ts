@@ -60,9 +60,7 @@ export function useTaskSidebarFieldGroups(): UseTaskSidebarFieldGroupsResult {
 
   useEffect(() => {
     const lastUsedFieldGroup = loadLastUsedFieldGroup(getLocalStorageSafe(), lastUsedFieldGroupStorageKey);
-    if (lastUsedFieldGroup !== null) {
-      setSelectedGroupFieldIds(lastUsedFieldGroup);
-    }
+    setSelectedGroupFieldIds(lastUsedFieldGroup ?? []);
   }, [lastUsedFieldGroupStorageKey, setSelectedGroupFieldIds]);
 
   const openFieldGroupDialog = () => {

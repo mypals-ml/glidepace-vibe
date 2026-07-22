@@ -255,6 +255,14 @@ describe('TaskSidebar hover actions', () => {
     });
   });
 
+  it('clears a previous project field grouping when the current project has no saved selection', async () => {
+    render(<TaskSidebar />);
+
+    await waitFor(() => {
+      expect(setSelectedGroupFieldIds).toHaveBeenCalledWith([]);
+    });
+  });
+
   it('persists an explicitly cleared field group when saving the dialog', () => {
     selectedGroupFieldIds = ['field-status'];
     dashboardMock.useDashboard.mockImplementation(() => ({

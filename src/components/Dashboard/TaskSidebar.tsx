@@ -179,7 +179,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
     setPendingTaskInsertPosition({
       targetTaskId,
       placement,
-      groupPath: getGroupPathForCreatedTaskTarget(targetItem),
+      groupPath: getGroupPathForCreatedTaskTarget(targetItem, fieldGroups.fieldGroupContext),
     });
     setIsCreateMode(true);
     setSelectedTaskId(null);
@@ -479,6 +479,7 @@ export function TaskSidebar({ scrollRef, onScroll }: TaskSidebarProps) {
                         isAnyDragging={activeDragItemSortId !== null}
                         isTaskDropTarget={isDraggingTask}
                         isDropTargetGroup={dropTargetGroupSortId === getDashboardItemSortId(item)}
+                        isFieldDerived={!item.isSyntheticRoot && item.path.length <= fieldGroups.fieldGroupContext.fieldIds.length}
                         isMobile={isMobile}
                         movingItemSortId={movingItemSortId}
                         suppressNextClickRef={suppressNextClickRef}

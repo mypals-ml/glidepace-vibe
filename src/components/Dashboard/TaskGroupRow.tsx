@@ -141,6 +141,7 @@ interface TaskGroupRowProps {
   isAnyDragging: boolean;
   isTaskDropTarget: boolean;
   isDropTargetGroup: boolean;
+  isFieldDerived: boolean;
   isMobile: boolean;
   movingItemSortId: string | null;
   suppressNextClickRef: React.MutableRefObject<boolean>;
@@ -158,6 +159,7 @@ export const TaskGroupRow = memo(function TaskGroupRow({
   isAnyDragging,
   isTaskDropTarget,
   isDropTargetGroup,
+  isFieldDerived,
   isMobile,
   movingItemSortId,
   suppressNextClickRef,
@@ -174,7 +176,7 @@ export const TaskGroupRow = memo(function TaskGroupRow({
     isDragging,
   } = useSortable({
     id: sortId,
-    disabled: group.isSyntheticRoot ? { draggable: true, droppable: false } : false,
+    disabled: group.isSyntheticRoot || isFieldDerived ? { draggable: true, droppable: false } : false,
   });
   const [isRowHovered, setIsRowHovered] = useState(false);
   const [isDragHandleHovered, setIsDragHandleHovered] = useState(false);
@@ -221,6 +223,7 @@ export const TaskGroupRow = memo(function TaskGroupRow({
       onContextMenu={(e) => {
         if (group.isSyntheticRoot) return;
         e.preventDefault();
+        if (isFieldDerived) return;
         openContextMenu(e.clientX, e.clientY, { kind: 'group', groupBlockId: group.groupBlockId });
       }}
       onMouseEnter={() => setIsRowHovered(true)}
@@ -236,7 +239,7 @@ export const TaskGroupRow = memo(function TaskGroupRow({
         }
       }}
     >
-      {!group.isSyntheticRoot && (
+      {!group.isSyntheticRoot && !isFieldDerived && (
         <button
           type="button"
           data-task-drag-handle="true"
@@ -287,7 +290,7 @@ export const TaskGroupRow = memo(function TaskGroupRow({
       </div>
       <div aria-hidden="true" />
 
-      {!group.isSyntheticRoot && (
+      {!group.isSyntheticRoot && !isFieldDerived && (
         <div className={`absolute right-2 bottom-full translate-y-[60%] flex items-center gap-1 ${actionToolbarClassName} transition-opacity z-10 bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200 p-0.5`}>
           <IconButton
             icon="edit"

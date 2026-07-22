@@ -184,17 +184,18 @@ export function buildGroupBlocksFromOrderedTasks(
   return items;
 }
 
-export function renameGroupBlock(tasks: Task[], groupBlock: TaskGroupBlock, newName: string): Task[] {
+export function renameGroupBlock(tasks: Task[], groupBlock: TaskGroupBlock, newName: string, fieldGroupPrefixDepth = 0): Task[] {
   const trimmedName = newName.trim();
-  if (!trimmedName || groupBlock.isSyntheticRoot || groupBlock.path.length === 0) return tasks;
+  const persistedGroupPath = groupBlock.path.slice(fieldGroupPrefixDepth);
+  if (!trimmedName || groupBlock.isSyntheticRoot || persistedGroupPath.length === 0) return tasks;
 
-  const segmentIndex = groupBlock.path.length - 1;
+  const segmentIndex = persistedGroupPath.length - 1;
   const childTaskIds = new Set(groupBlock.childTaskIds);
   return tasks.map((task, index) => {
     const taskId = getTaskIdentity(task);
     if (!childTaskIds.has(taskId) && (index < groupBlock.startTaskIndex || index > groupBlock.endTaskIndex)) return task;
     const groupPath = task.groupPath || [];
-    if (!isPathPrefix(groupBlock.path, groupPath)) return task;
+    if (!isPathPrefix(persistedGroupPath, groupPath)) return task;
 
     const nextPath = [...groupPath];
     nextPath[segmentIndex] = trimmedName;
@@ -202,16 +203,17 @@ export function renameGroupBlock(tasks: Task[], groupBlock: TaskGroupBlock, newN
   });
 }
 
-export function ungroupGroupBlock(tasks: Task[], groupBlock: TaskGroupBlock): Task[] {
-  if (groupBlock.isSyntheticRoot || groupBlock.path.length === 0) return tasks;
+export function ungroupGroupBlock(tasks: Task[], groupBlock: TaskGroupBlock, fieldGroupPrefixDepth = 0): Task[] {
+  const persistedGroupPath = groupBlock.path.slice(fieldGroupPrefixDepth);
+  if (groupBlock.isSyntheticRoot || persistedGroupPath.length === 0) return tasks;
 
-  const segmentIndex = groupBlock.path.length - 1;
+  const segmentIndex = persistedGroupPath.length - 1;
   const childTaskIds = new Set(groupBlock.childTaskIds);
   return tasks.map((task, index) => {
     const taskId = getTaskIdentity(task);
     if (!childTaskIds.has(taskId) && (index < groupBlock.startTaskIndex || index > groupBlock.endTaskIndex)) return task;
     const groupPath = task.groupPath || [];
-    if (!isPathPrefix(groupBlock.path, groupPath)) return task;
+    if (!isPathPrefix(persistedGroupPath, groupPath)) return task;
 
     return {
       ...task,

@@ -690,6 +690,15 @@ describe('taskOrderUtils', () => {
     expect(getGroupPathForCreatedTaskTarget(group)).toEqual(['Parent']);
   });
 
+  it('strips display-only field prefixes when creating relative to a persisted group row', () => {
+    const group = makeGroup('Child', ['A'], 0, 0, ['Status: Todo', 'Parent', 'Child']);
+
+    expect(getGroupPathForCreatedTaskTarget(group, {
+      fieldIds: ['status-field'],
+      fields: [{ id: 'status-field', name: 'Status' }],
+    })).toEqual(['Parent']);
+  });
+
   it('places context-created tasks from the root group at the project root', () => {
     expect(getGroupPathForCreatedTaskTarget(makeRootGroup(['A']))).toEqual([]);
   });

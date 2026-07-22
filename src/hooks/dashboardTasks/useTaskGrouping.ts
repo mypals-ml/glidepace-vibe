@@ -111,7 +111,7 @@ export function useTaskGrouping({ core, filteredTasks, projectFields }: UseTaskG
     if (!groupBlock || groupBlock.isSyntheticRoot) return false;
 
     const oldTasks = [...tasksRef.current];
-    const renamedTasks = renameGroupBlockInTasks(oldTasks, groupBlock, name);
+    const renamedTasks = renameGroupBlockInTasks(oldTasks, groupBlock, name, selectedGroupFieldIds.length);
     const timestamp = Date.now();
     const nextTasks = renamedTasks.map((task, index) =>
       serializeGroupPath(task.groupPath) !== serializeGroupPath(oldTasks[index]?.groupPath)
@@ -129,7 +129,7 @@ export function useTaskGrouping({ core, filteredTasks, projectFields }: UseTaskG
     setTasks(oldTasks);
     showToast(t('dashboard.groupPathUpdateFailed', 'Failed to update task group.'), 'error');
     return false;
-  }, [dashboardItems, persistChangedGroupPaths, setTasks, showToast, t, updateSyncTime, tasksRef]);
+  }, [dashboardItems, persistChangedGroupPaths, selectedGroupFieldIds.length, setTasks, showToast, t, updateSyncTime, tasksRef]);
 
   const ungroupGroupBlock = useCallback(async (groupBlockId: string): Promise<boolean> => {
     const groupBlock = dashboardItems.find(item => isTaskGroupBlock(item) && item.groupBlockId === groupBlockId);
@@ -137,7 +137,7 @@ export function useTaskGrouping({ core, filteredTasks, projectFields }: UseTaskG
     if (!groupBlock || groupBlock.isSyntheticRoot) return false;
 
     const oldTasks = [...tasksRef.current];
-    const ungroupedTasks = ungroupGroupBlockInTasks(oldTasks, groupBlock);
+    const ungroupedTasks = ungroupGroupBlockInTasks(oldTasks, groupBlock, selectedGroupFieldIds.length);
     const timestamp = Date.now();
     const nextTasks = ungroupedTasks.map((task, index) =>
       serializeGroupPath(task.groupPath) !== serializeGroupPath(oldTasks[index]?.groupPath)
@@ -155,7 +155,7 @@ export function useTaskGrouping({ core, filteredTasks, projectFields }: UseTaskG
     setTasks(oldTasks);
     showToast(t('dashboard.groupPathUpdateFailed', 'Failed to update task group.'), 'error');
     return false;
-  }, [dashboardItems, persistChangedGroupPaths, setTasks, showToast, t, updateSyncTime, tasksRef]);
+  }, [dashboardItems, persistChangedGroupPaths, selectedGroupFieldIds.length, setTasks, showToast, t, updateSyncTime, tasksRef]);
 
   return {
     collapsedGroupBlockIds,

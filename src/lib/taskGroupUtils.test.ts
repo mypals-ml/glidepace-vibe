@@ -111,6 +111,51 @@ describe('taskGroupUtils', () => {
     ]);
   });
 
+  it('renames a persisted group nested below display-only field groups', () => {
+    const tasks: Task[] = [
+      { ...makeTask('TaskA', ['Planning']), projectFieldValues: { statusField: 'Todo' } },
+      { ...makeTask('TaskB', ['Planning', 'Research']), projectFieldValues: { statusField: 'Todo' } },
+    ];
+    const visibleTasks = applyFieldGroupPaths(tasks, ['statusField'], { statusField: 'Status' });
+    const items = buildGroupBlocksFromOrderedTasks(visibleTasks, 'Roadmap');
+    const planning = items.filter(isTaskGroupBlock).find(group => group.name === 'Planning');
+
+    expect(planning).toBeDefined();
+    expect(renameGroupBlock(tasks, planning!, 'Delivery', 1).map(task => task.groupPath)).toEqual([
+      ['Delivery'],
+      ['Delivery', 'Research'],
+    ]);
+  });
+
+  it('ungroups a persisted group nested below display-only field groups', () => {
+    const tasks: Task[] = [
+      { ...makeTask('TaskA', ['Planning']), projectFieldValues: { statusField: 'Todo' } },
+      { ...makeTask('TaskB', ['Planning', 'Research']), projectFieldValues: { statusField: 'Todo' } },
+    ];
+    const visibleTasks = applyFieldGroupPaths(tasks, ['statusField'], { statusField: 'Status' });
+    const items = buildGroupBlocksFromOrderedTasks(visibleTasks, 'Roadmap');
+    const planning = items.filter(isTaskGroupBlock).find(group => group.name === 'Planning');
+
+    expect(planning).toBeDefined();
+    expect(ungroupGroupBlock(tasks, planning!, 1).map(task => task.groupPath)).toEqual([
+      [],
+      ['Research'],
+    ]);
+  });
+
+  it('does not treat a display-only field group as a persisted group', () => {
+    const tasks: Task[] = [
+      { ...makeTask('TaskA', ['Planning']), projectFieldValues: { statusField: 'Todo' } },
+    ];
+    const visibleTasks = applyFieldGroupPaths(tasks, ['statusField'], { statusField: 'Status' });
+    const items = buildGroupBlocksFromOrderedTasks(visibleTasks, 'Roadmap');
+    const statusGroup = items.filter(isTaskGroupBlock).find(group => group.name === 'Status: Todo');
+
+    expect(statusGroup).toBeDefined();
+    expect(renameGroupBlock(tasks, statusGroup!, 'Renamed', 1)).toBe(tasks);
+    expect(ungroupGroupBlock(tasks, statusGroup!, 1)).toBe(tasks);
+  });
+
   it('applies field groups as prefixes while preserving group path rules', () => {
     const tasks: Task[] = [
       { ...makeTask('TaskA', ['Backend']), projectFieldValues: { statusField: 'Todo', priorityField: 'P2' } },

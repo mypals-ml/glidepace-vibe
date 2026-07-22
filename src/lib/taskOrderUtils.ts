@@ -515,8 +515,12 @@ export function getDashboardTaskGroupPathMovePlan(
   }, overTarget.fieldValueChanges);
 }
 
-export function getGroupPathForCreatedTaskTarget(targetItem: DashboardItem): GroupPath {
+export function getGroupPathForCreatedTaskTarget(
+  targetItem: DashboardItem,
+  fieldGroupContext?: DashboardFieldGroupContext
+): GroupPath {
   if (!isTaskGroupBlock(targetItem)) return [...(targetItem.groupPath || [])];
   if (targetItem.isSyntheticRoot) return [];
-  return targetItem.path.slice(0, -1);
+  const persistedGroupPath = resolveFieldGroupedTargetPath(targetItem.path, fieldGroupContext).groupPath;
+  return persistedGroupPath.slice(0, -1);
 }
